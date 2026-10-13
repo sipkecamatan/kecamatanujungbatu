@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="id" class="page-wizard">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Portal Admin — SIP</title>
+    <meta property="og:title" content="SIP" />
+    <meta property="og:description" content="Platform monitoring siswa SMK — absensi, kasus, observasi, dan komunikasi sekolah dalam satu sistem." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SIP" />
+  <script src="js/sw-guard.js"></script>
+<script>(function(){var last=location.pathname.split("/").filter(Boolean).pop();if(["admin","guru","student","parent","dudi","stakeholder","superadmin"].indexOf(last)>-1){var b=document.createElement("base");b.href=location.pathname.endsWith("/")?location.pathname:location.pathname+"/";document.head.appendChild(b);}})();</script>
+    <link rel="stylesheet" href="css/admin.css" />
+  <link rel="manifest" href="manifest.json">
+</head>
+<body class="page-wizard">
+    <div class="wz-shell">
+
+        <!-- Header: brand + nama langkah aktif -->
+        <header class="wz-header">
+            <div class="wz-header-left">
+                <button id="wizard-menu-btn" class="wz-menu-btn" type="button" aria-label="Menu langkah">&#9776;</button>
+                <span class="wz-brand">Student Insight Platform</span>
+                <span class="wz-active-name" id="wizard-active-step-name">Profil Sekolah</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+                <button id="wizard-change-pw-btn" class="wz-logout-btn" type="button" style="color:var(--color-primary)">Ganti Password</button>
+                <button id="wizard-logout-btn" class="wz-logout-btn" type="button">Keluar</button>
+            </div>
+        </header>
+
+        <!-- Backdrop sidebar mobile -->
+        <div id="wizard-sidebar-backdrop" class="wz-sidebar-backdrop" style="display:none"></div>
+
+        <!-- Progress horizontal — hanya tampil di mobile -->
+        <div class="wz-progress-mobile" id="wizard-progress-mobile" aria-hidden="true">
+            <span class="wz-bar" data-step="1"></span>
+            <span class="wz-bar" data-step="2"></span>
+            <span class="wz-bar" data-step="3"></span>
+            <span class="wz-bar" data-step="4"></span>
+            <span class="wz-bar" data-step="5"></span>
+            <span class="wz-bar" data-step="6"></span>
+            <span class="wz-bar" data-step="7"></span>
+            <span class="wz-bar" data-step="8"></span>
+            <span class="wz-bar" data-step="9"></span>
+            <span class="wz-bar" data-step="10"></span>
+            <span class="wz-bar" data-step="11"></span>
+            <span class="wz-bar" data-step="12"></span>
+            <span class="wz-bar" data-step="13"></span>
+        </div>
+
+        <div class="wz-body">
+
+            <!-- Sidebar progress vertikal (desktop) -->
+            <aside class="wz-sidebar">
+                <ol class="wz-steps" id="wizard-steps">
+                    <li class="wz-step-item" data-step="1"><span class="wz-marker">1</span><span>Profil Sekolah</span></li>
+                    <li class="wz-step-item" data-step="2"><span class="wz-marker">2</span><span>Tahun Ajaran</span></li>
+                    <li class="wz-step-item" data-step="3"><span class="wz-marker">3</span><span>Program Keahlian</span></li>
+                    <li class="wz-step-item" data-step="4"><span class="wz-marker">4</span><span>Kelas &amp; Rombel</span></li>
+                    <li class="wz-step-item" data-step="5"><span class="wz-marker">5</span><span>Staf & Peran</span></li>
+                    <li class="wz-step-item" data-step="6"><span class="wz-marker">6</span><span>Siswa</span></li>
+                    <li class="wz-step-item" data-step="7"><span class="wz-marker">7</span><span>Orang Tua</span></li>
+                    <li class="wz-step-item" data-step="8"><span class="wz-marker">8</span><span>DUDI</span></li>
+                    <li class="wz-step-item" data-step="9"><span class="wz-marker">9</span><span>Stakeholder</span></li>
+                    <li class="wz-step-item" data-step="10"><span class="wz-marker">10</span><span>Tata Usaha</span></li>
+                    <li class="wz-step-item" data-step="11"><span class="wz-marker">11</span><span>Jadwal</span></li>
+                    <li class="wz-step-item" data-step="12"><span class="wz-marker">12</span><span>Penugasan Forum</span></li>
+                    <li class="wz-step-item" data-step="13"><span class="wz-marker">13</span><span>Selesai</span></li>
+                </ol>
+            </aside>
+
+            <!-- Area konten: setiap langkah dirender oleh wizard.js -->
+            <main class="wz-content">
+                <div class="alert alert-danger" id="wizard-error" style="display:none"></div>
+                <div class="wz-panel" id="wizard-step-content">
+                    <!-- wizard.js merender isi langkah aktif di sini -->
+                </div>
+            </main>
+
+        </div>
+
+        <!-- Footer: navigasi -->
+        <footer class="wz-footer">
+            <button type="button" class="btn btn-secondary" id="wizard-prev-btn">Sebelumnya</button>
+            <button type="button" class="btn btn-primary" id="wizard-next-btn">Selanjutnya</button>
+        </footer>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script type="module" src="js/wizard.js"></script>
+
+    <div id="password-modal" class="delete-modal-overlay" style="display:none">
+        <div class="delete-modal">
+            <h3>Ganti Password</h3>
+            <p class="hint" style="margin-bottom:1rem">Anda menggunakan password default. Wajib diganti sebelum melanjutkan.</p>
+            <div class="field">
+                <label for="modal-new-password">Password Baru</label>
+                <input type="password" id="modal-new-password" class="input" placeholder="Min. 8 karakter" autocomplete="new-password" />
+            </div>
+            <div class="field">
+                <label for="modal-confirm-password">Konfirmasi Password</label>
+                <input type="password" id="modal-confirm-password" class="input" placeholder="Ulangi password" autocomplete="new-password" />
+            </div>
+            <p id="password-modal-error" class="hint" style="color:var(--color-danger);display:none"></p>
+            <div class="delete-modal-actions">
+                <button id="modal-submit-btn" class="btn btn-primary">Simpan Password</button>
+            </div>
+        </div>
+    </div>
+<script>
+  /* SW dinonaktifkan — commit 8745e4c. Unregister SW lama agar tidak cache JS. */
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(r => r.unregister());
+    });
+  }
+</script>
+<script src="../shared/wa-float.js"></script>
+</body>
+</html>

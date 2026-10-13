@@ -1,0 +1,592 @@
+/**
+ * @file parent/js/api.js
+ *
+ * Supabase wrapper for the parent portal.
+ * Same Supabase project as admin — RLS enforces access.
+ */
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { attachPortalUserLabels } from '../../shared/portal-user-labels.js';
+
+const SUPABASE_URL      = 'https://lqgzpiohxdzkkmxjtwor.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxxZ3pwaW9oeGR6a2tteGp0d29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4OTA2MjksImV4cCI6MjEwNzQ2NjYyOX0.omL9CGL5Ckcm2SXquYbXHr-aE8mLUe6H9FewDou-Lp4';
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+        autoRefreshToken: true,
+        persistSession:   true,
+        storage:          localStorage,
+    },
+});
+
+export async function loginWithIdentifier(identifier, password, schoolId = null) {
+    const { data: email, error: resolveErr } = await supabase
+        .rpc('fn_resolve_login_email', { p_identifier: identifier, p_school_id: schoolId });
+
+    if (resolveErr) throw new Error('Gagal menghubungi server. Coba lagi.');
+    if (!email) throw new Error(
+        'NIK tidak ditemukan. Pastikan Anda membuka portal via link resmi dari admin sekolah Anda. ' +
+        'Jika sudah menggunakan link yang benar, hubungi admin untuk memastikan akun sudah dibuat.'
+    );
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+        if (error.status === 429 || /rate limit|too many/i.test(error.message || ''))
+            throw new Error('Terlalu banyak percobaan login. Tunggu ±15 menit lalu coba lagi.');
+        throw new Error('Password salah. Kalau ini login pertama Anda, gunakan password awal 12345678. Kalau lupa password, minta admin sekolah mengembalikannya ke 12345678 lewat tombol Reset PW.');
+    }
+
+    return data.user;
+}
+
+export async function getCurrentUserRow(authUser = null) {
+    const user = authUser ?? (await supabase.auth.getUser()).data?.user;
+    if (!user) return null;
+
+    const { data, error } = await supabase
+        .from('users')
+        .select('user_id, school_id, full_name, role_type, login_identifier, identifier_type, is_active, must_change_password, last_seen_at, last_seen_ua')
+        .eq('auth_user_id', user.id)
+        .maybeSingle();
+
+    if (error) throw error;
+    return data;
+}
+
+export async function logout() {
+    await supabase.auth.signOut();
+}
+
+export async function fetchChildren(parentUserId, schoolId) {
+    if (!parentUserId || !schoolId) return [];
+    const { data: config, error: configError } = await supabase
+        .from('school_config')
+        .select('current_academic_year')
+        .eq('school_id', schoolId)
+        .maybeSingle();
+    if (configError) throw configError;
+    const academicYear = config?.current_academic_year ?? null;
+    const { data, error } = await supabase
+        .from('student_parents')
+        .select(`
+            student_id,
+            students (
+                student_id,
+                nis,
+                full_name,
+                student_status,
+                program:programs ( name ),
+                enrollment:class_enrollments ( class_id, school_id, withdrawn_at, class:classes ( name ), academic_year, semester )
+            )
+        `)
+        .eq('parent_user_id', parentUserId)
+        .eq('school_id', schoolId);
+
+    if (error) throw error;
+    return (data || []).map(r => {
+        const s = r.students;
+        const enrolls = Array.isArray(s.enrollment) ? s.enrollment : (s.enrollment ? [s.enrollment] : []);
+        // Enrollment historis tidak boleh menentukan kelas portal.
+        const active = enrolls.find(e =>
+            e.school_id === schoolId && e.academic_year === academicYear && !e.withdrawn_at
+        ) ?? null;
+        return {
+            student_id: s.student_id,
+            nis:        s.nis,
+            full_name:  s.full_name,
+            status:     s.student_status,
+            program:    s.program?.name ?? '-',
+            class_id:   active?.class_id ?? null,
+            class_name: active?.class?.name ?? '-',
+        };
+    });
+}
+
+// ORT-06: filter school_id eksplisit sebagai defense-in-depth. RLS tetap
+// kontrol utama; filter ini memastikan satu bug policy tidak langsung berujung
+// pada jadwal tenant lain ikut terbaca.
+export async function fetchSchedule(classId, date, schoolId) {
+    if (!classId) return [];
+    if (!schoolId) return [];
+    const { data, error } = await supabase
+        .from('teaching_schedules')
+        .select(`
+            schedule_id, session_date, session_start, session_end,
+            subject:subjects ( name ),
+            scheduled_teacher_id
+        `)
+        .eq('school_id', schoolId)
+        .eq('class_id', classId)
+        .eq('session_date', date)
+        .order('session_start');
+
+    if (error) throw error;
+    await attachPortalUserLabels(supabase, data ?? [], [['teacher', 'scheduled_teacher_id']]);
+    return (data ?? []).map(r => ({
+        start:   r.session_start,
+        end:     r.session_end,
+        subject: r.subject?.name ?? 'KBM',
+        teacher: r.teacher?.full_name ?? '-',
+    }));
+}
+
+export async function fetchWeekSchedule(classId, schoolId) {
+    if (!classId) return [];
+    if (!schoolId) return [];
+    const today  = new Date();
+    const dow    = today.getDay();
+    const diff   = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diff);
+
+    const days = Array.from({ length: 5 }, (_, i) => {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    });
+
+    const results = await Promise.all(
+        days.map(async date => ({
+            date,
+            rows: await fetchSchedule(classId, date, schoolId),
+        }))
+    );
+    return results;
+}
+
+export async function fetchAttendance(studentId, dateStart, dateEnd) {
+    let q = supabase
+        .from('teaching_schedules')
+        .select(`
+            schedule_id,
+            block_group_id,
+            session_date,
+            session_start,
+            session_end,
+            subject:subjects ( name ),
+            scheduled_teacher_id,
+            attendance!inner ( attendance_id, status, is_void, notes )
+        `)
+        .eq('attendance.student_id', studentId)
+        .eq('attendance.is_void', false)
+        .order('session_date', { ascending: false })
+        .order('session_start', { ascending: true });
+
+    if (dateStart) q = q.gte('session_date', dateStart);
+    if (dateEnd)   q = q.lte('session_date', dateEnd);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    await attachPortalUserLabels(supabase, data ?? [], [['teacher', 'scheduled_teacher_id']]);
+
+    const blockMap = new Map();
+    for (const sched of (data ?? [])) {
+        const att = (sched.attendance ?? [])[0];
+        if (!att) continue;
+        const key = sched.block_group_id ?? `${sched.session_date}_${sched.session_start}`;
+        if (!blockMap.has(key)) {
+            blockMap.set(key, {
+                block_group_id:  key,
+                date:            sched.session_date,
+                subject:         sched.subject?.name ?? 'KBM',
+                teacher:         sched.teacher?.full_name ?? '—',
+                slots:           [],
+            });
+        }
+        blockMap.get(key).slots.push({
+            start:  sched.session_start?.slice(0, 5),
+            end:    sched.session_end?.slice(0, 5),
+            status: att.status === 'EKSKUL' ? 'HADIR' : att.status,
+            notes:  att.notes ?? '',
+        });
+    }
+
+    return Array.from(blockMap.values()).map(block => {
+        const statuses = block.slots.map(s => s.status);
+        const unique   = [...new Set(statuses)];
+        const summary  = unique.length === 1 ? unique[0] : 'CAMPURAN';
+        const first    = block.slots[0];
+        const last     = block.slots[block.slots.length - 1];
+        return {
+            ...block,
+            time_range:     `${first.start} – ${last.end}`,
+            summary_status: summary,
+        };
+    });
+}
+
+export async function fetchObservations(studentId, dateStart = null, dateEnd = null) {
+    let query = supabase
+        .from('observations')
+        .select(`
+            observation_id,
+            sentiment,
+            dimension,
+            content,
+            visibility,
+            observed_at,
+            author_user_id
+        `)
+        .eq('student_id', studentId)
+        .order('observed_at', { ascending: false })
+        .limit(50);
+
+    if (dateStart) query = query.gte('observed_at', dateStart);
+    if (dateEnd)   query = query.lte('observed_at', dateEnd + 'T23:59:59');
+
+    const { data, error } = await query;
+    if (error) throw error;
+    await attachPortalUserLabels(supabase, data ?? [], [['author', 'author_user_id']]);
+    return (data || []).map(r => ({
+        id:        r.observation_id,
+        sentiment: r.sentiment,
+        dimension: r.dimension,
+        content:   r.content,
+        author:    r.author?.full_name ?? '-',
+        date:      r.observed_at,
+    }));
+}
+
+export async function fetchCases(studentId) {
+    const { data, error } = await supabase
+        .from('coaching_cases')
+        .select(`
+            case_id, title, description, status, created_at,
+            current_handler_user_id,
+            events:coaching_case_events (
+                event_id, event_type, payload, created_at, is_visible_to_student, author_user_id
+            )
+        `)
+        .eq('student_id', studentId)
+        .eq('is_shared_to_parent', true)
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    await attachPortalUserLabels(supabase, data ?? [], [['handler', 'current_handler_user_id']]);
+    await attachPortalUserLabels(supabase, (data ?? []).flatMap(c => c.events ?? []), [['author', 'author_user_id']]);
+    return (data ?? []).map(c => ({
+        ...c,
+        events: (c.events ?? [])
+            .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
+    }));
+}
+
+export async function fetchPklPlacement(studentId) {
+    const { data, error } = await supabase
+        .from('pkl_placements')
+        .select(`
+            placement_id, start_date, end_date,
+            dudi_user_id
+        `)
+        .eq('student_id', studentId)
+        .eq('is_active', true)
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    await attachPortalUserLabels(supabase, [data], [['dudi', 'dudi_user_id']]);
+    return {
+        placement_id: data.placement_id,
+        start_date:   data.start_date,
+        end_date:     data.end_date,
+        dudi_name:    data.dudi?.dudi_org_name ?? data.dudi?.full_name ?? '-',
+    };
+}
+
+export async function fetchPklAttendanceSummary(studentId, placementId, dateStart, dateEnd) {
+    if (!studentId || !placementId) return [];
+    const { data, error } = await supabase
+        .from('pkl_attendance')
+        .select('pkl_attendance_id, placement_id, attendance_date, status, notes')
+        .eq('student_id', studentId)
+        .eq('placement_id', placementId)
+        .gte('attendance_date', dateStart)
+        .lte('attendance_date', dateEnd)
+        .order('attendance_date', { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+}
+
+export async function getUnreadNotifCount() {
+    const { data, error } = await supabase.rpc('fn_count_unread_notifications');
+    if (error) throw error;
+    return Number(data ?? 0);
+}
+
+export async function getRecentNotifications(limit = 15) {
+    const { data, error } = await supabase
+        .from('notifications')
+        .select('notification_id, type, title, body, is_read, case_id, forum_post_id, late_arrival_id, created_at')
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+    if (error) throw error;
+    return data ?? [];
+}
+
+export async function markNotificationsRead(ids) {
+    if (!ids?.length) return;
+    const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .in('notification_id', ids);
+    if (error) throw error;
+}
+
+// ORT-05/09: filter school_id eksplisit sebagai defense-in-depth. Tanpa ini,
+// .single() pada school_config bergantung sepenuhnya pada RLS untuk menentukan
+// baris mana yang terpungut — satu bug policy langsung berarti tahun ajaran
+// (dan daftar anak) milik tenant lain.
+export async function getMyChildren(schoolId) {
+    if (!schoolId) return [];
+    const { data: config } = await supabase
+        .from('school_config')
+        .select('current_academic_year')
+        .eq('school_id', schoolId)
+        .single();
+    const academicYear = config?.current_academic_year ?? null;
+
+    const { data, error } = await supabase
+        .from('student_parents')
+        .select(`
+            student:students (
+                student_id, full_name, nis,
+                enrollment:class_enrollments (
+                    class_id, school_id, academic_year, withdrawn_at,
+                    class:classes ( name )
+                )
+            )
+        `)
+        .eq('school_id', schoolId);
+    if (error) throw error;
+    const result = [];
+    for (const row of data ?? []) {
+        const s = row.student;
+        if (!s) continue;
+        const enr = (s.enrollment ?? []).find(e =>
+            e.school_id === schoolId && e.academic_year === academicYear && e.class_id && !e.withdrawn_at
+        );
+        result.push({
+            student_id:    s.student_id,
+            full_name:     s.full_name,
+            nis:           s.nis,
+            class_id:      enr?.class_id ?? null,
+            class_name:    enr?.class?.name ?? '',
+            academic_year: enr?.academic_year ?? academicYear,
+        });
+    }
+    return result;
+}
+
+// ─── Forum Sekolah ────────────────────────────────────────────
+
+/**
+ * Ambil posting Forum Sekolah untuk inbox ortu.
+ */
+export async function getForumSekolahPosts(schoolId, userId, limit = 20, offset = 0) {
+    const { data, error } = await supabase
+        .from('forum_posts')
+        .select(`
+            post_id, title, body, attachment_url, attachment_name, attachment_path,
+            is_edited, created_at, updated_at,
+            author_user_id,
+            acknowledgements:forum_post_acknowledgements(user_id),
+            forum_post_audience!inner(user_id)
+        `)
+        .eq('scope_type', 'SEKOLAH')
+        .eq('school_id', schoolId)
+        .is('deleted_at', null)
+        .eq('forum_post_audience.user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+    if (error) throw error;
+    await attachPortalUserLabels(supabase, data ?? [], [['author', 'author_user_id']]);
+    return (data ?? []).map(({ forum_post_audience: _a, ...rest }) => rest);
+}
+
+/**
+ * Ambil posting yang dibuat ortu (tab Terkirim).
+ * Bug #9 fix: ganti inline query di portal.js dengan fungsi helper ini.
+ */
+export async function getForumSekolahSentPosts(schoolId, callerId, limit = 20, offset = 0) {
+    const { data, error } = await supabase
+        .from('forum_posts')
+        .select(`
+            post_id, title, body, attachment_url, attachment_name, attachment_path,
+            created_at, is_edited,
+            author_user_id,
+            acknowledgements:forum_post_acknowledgements(user_id),
+            audience:forum_post_audience(user_id)
+        `)
+        .eq('scope_type', 'SEKOLAH')
+        .eq('school_id', schoolId)
+        .eq('author_user_id', callerId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+    if (error) throw error;
+    return data ?? [];
+}
+
+/**
+ * Tandai posting sudah dibaca. Idempoten.
+ */
+export async function addForumSekolahAck(postId, userId, schoolId) {
+    const { error } = await supabase
+        .from('forum_post_acknowledgements')
+        .upsert(
+            { post_id: postId, user_id: userId, school_id: schoolId },
+            { onConflict: 'post_id,user_id', ignoreDuplicates: true }
+        );
+    if (error) throw error;
+}
+
+export async function getWaliKelasUserId(classId) {
+    const { data, error } = await supabase
+        .rpc('fn_get_wali_kelas_user_id', { p_class_id: classId });
+    if (error) throw error;
+    return data; // uuid | null
+}
+
+/**
+ * Resolve penerima otomatis untuk posting ortu berdasarkan anak yang dipilih.
+ * Penerima: Wali Kelas + Guru BK + Guru Wali + Guru yang mengajar hari ini.
+ * Bug #8 fix: tambah filter school_id eksplisit di semua query.
+ */
+export async function getParentForumRecipients(studentId, classId, schoolId) {
+    if (!studentId || !classId || !schoolId) return [];
+    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+    // Langkah A: ambil student_id di kelas ini (pre-fetch, sequential)
+    const { data: enrollData, error: enrollErr } = await supabase
+        .from('class_enrollments')
+        .select('student_id')
+        .eq('student_id', studentId)
+        .eq('class_id', classId)
+        .eq('school_id', schoolId)
+        .is('withdrawn_at', null);
+    if (enrollErr) throw enrollErr;
+    const studentIds = (enrollData ?? []).map(r => r.student_id);
+
+    const [waliUserId, bkRes, guruWaliRes, jadwalRes] = await Promise.all([
+        // Wali Kelas — via RPC (tenant diambil dari fn_current_school_id() di server)
+        getWaliKelasUserId(classId),
+
+        // Guru BK yang menangani kelas ini
+        supabase.from('bk_class_assignments')
+            .select('bk_user_id')
+            .eq('class_id', classId)
+            .eq('school_id', schoolId)
+            .eq('is_active', true),
+
+        // Guru Wali hanya untuk anak yang dipilih, bukan seluruh siswa di kelas.
+        studentIds.length > 0
+            ? supabase.from('guru_wali_assignments')
+                .select('guru_user_id')
+                .eq('school_id', schoolId)
+                .eq('is_active', true)
+                .in('student_id', studentIds)
+            : Promise.resolve({ data: [], error: null }),
+
+        // Guru yang mengajar hari ini
+        supabase.from('teaching_schedules')
+            .select('scheduled_teacher_id')
+            .eq('class_id', classId)
+            .eq('school_id', schoolId)
+            .eq('session_date', today),
+    ]);
+
+    const ids = new Set();
+    if (waliUserId) ids.add(waliUserId);
+    (bkRes.data ?? []).forEach(r => ids.add(r.bk_user_id));
+    (guruWaliRes.data ?? []).forEach(r => ids.add(r.guru_user_id));
+    (jadwalRes.data ?? []).forEach(r => {
+        if (r.scheduled_teacher_id) ids.add(r.scheduled_teacher_id);
+    });
+
+    return [...ids];
+}
+
+/**
+ * Buat posting Forum Sekolah dari ortu ke guru terkait anak.
+ */
+export async function createParentForumPost(title, body, classId, academicYear, schoolId,
+                                            studentId, idempotencyKey = null) {
+    const recipientIds = await getParentForumRecipients(studentId, classId, schoolId);
+
+    if (recipientIds.length === 0) {
+        throw new Error('Tidak ada guru yang dapat ditemukan untuk anak ini hari ini.');
+    }
+
+    const { data, error } = await supabase.rpc('fn_create_forum_post', {
+        p_class_id:            classId,
+        p_academic_year:       academicYear,
+        p_content:             body,
+        p_category_code:       null,
+        p_subject_student_ids: [studentId],
+        p_audience_type:       'ORANG_TERTENTU',
+        p_specific_user_ids:   recipientIds,
+        p_audience_type_2:     null,
+        p_specific_user_ids_2: [],
+        p_scope_type:          'SEKOLAH',
+        p_title:               title,
+        p_idempotency_key:     idempotencyKey,   // FUNC-03
+    });
+    if (error) throw error;
+    return data;
+}
+
+export async function getForumPostComments(postId) {
+    const { data, error } = await supabase
+        .from('forum_post_comments')
+        .select('comment_id, post_id, body, created_at, author_user_id')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
+    if (error) throw error;
+    await attachPortalUserLabels(supabase, data ?? [], [['author', 'author_user_id']]);
+    return data ?? [];
+}
+
+export async function addForumPostComment(postId, body, schoolId, authorUserId) {
+    const { data, error } = await supabase
+        .from('forum_post_comments')
+        .insert({ post_id: postId, school_id: schoolId, author_user_id: authorUserId, body })
+        .select('comment_id, post_id, body, created_at, author_user_id')
+        .single();
+    if (error) throw error;
+    await attachPortalUserLabels(supabase, [data], [['author', 'author_user_id']]);
+    return data;
+}
+
+export async function getChildLateArrivals(studentId) {
+    try {
+        const { data, error } = await supabase
+            .from('late_arrivals')
+            .select('late_id, late_date, arrival_time, reason')
+            .eq('student_id', studentId)
+            .order('late_date', { ascending: false })
+            .order('arrival_time', { ascending: false });
+        if (error) { console.warn('[late] getChildLateArrivals error:', error.message); throw error; }
+        return (data ?? []).map(r => ({
+            late_id:      r.late_id,
+            date:         r.late_date,
+            arrival_time: r.arrival_time,
+            reason:       r.reason ?? '',
+        }));
+    } catch (e) {
+        console.warn('[late] getChildLateArrivals exception:', e);
+        throw e;
+    }
+}
+
+export async function getChildExits(studentId) {
+    try {
+        const { data, error } = await supabase
+            .from('student_exits')
+            .select('exit_id, exit_date, exit_time, return_time, reason')
+            .eq('student_id', studentId)
+            .order('exit_date', { ascending: false });
+        if (error) { console.warn('[exits] getChildExits error:', error.message); throw error; }
+        return data ?? [];
+    } catch (e) { console.warn('[exits] getChildExits exception:', e); throw e; }
+}

@@ -1,0 +1,166 @@
+/* ============================================================
+   stakeholder/css/stakeholder.css — Portal Stakeholder (view-only)
+   Accent: violet (#7c3aed). Pola token sama dengan portal lain.
+   ============================================================ */
+
+:root {
+    --color-bg:           #0b1120;
+    --color-surface:      #1a2540;
+    --color-border:       rgba(245, 158, 11, 0.40);
+    --color-text:         rgba(255, 255, 255, 0.90);
+    --color-text-muted:   rgba(255, 255, 255, 0.45);
+    --color-primary:      #7c3aed;
+    --color-primary-dark: #6d28d9;
+    --color-primary-bg:   rgba(124, 58, 237, 0.15);
+    --color-success:      #4ade80;
+    --color-success-bg:   rgba(21, 128, 61, 0.15);
+    --color-danger:       #f87171;
+    --color-danger-bg:    rgba(220, 38, 38, 0.15);
+    --color-warning:      #fbbf24;
+    --color-warning-bg:   rgba(180, 83, 9, 0.15);
+    --color-gold:         #F59E0B;
+
+    --radius:    8px;
+    --radius-lg: 12px;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.40);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.50);
+    --font-sans: -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; font-family: var(--font-sans); color: var(--color-text); background: var(--color-bg); }
+::placeholder { color: rgba(255, 255, 255, 0.50); opacity: 1; }
+h1,h2,h3,h4 { margin: 0 0 8px; font-weight: 600; }
+p { margin: 0 0 8px; color: var(--color-text-muted); }
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 18px; border-radius: var(--radius); border: 1px solid transparent;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: background-color .15s, border-color .15s;
+}
+.btn-primary  { background: var(--color-primary); color: #fff; }
+.btn-primary:hover { background: var(--color-primary-dark); }
+.btn-primary:disabled { background: #b79df0; cursor: not-allowed; }
+.btn-secondary { background: var(--color-surface); color: var(--color-text); border-color: var(--color-border); }
+.btn-secondary:hover { background: var(--color-bg); }
+.btn-sm { padding: 6px 12px; font-size: 13px; min-height: 44px; }
+
+/* ── Form ────────────────────────────────────────────────── */
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.field { margin-bottom: 18px; }
+.input {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--color-border);
+    border-radius: var(--radius); font-size: 16px; font-family: inherit;
+    background: var(--color-surface); color: var(--color-text); outline: none;
+    transition: border-color .15s;
+}
+.input:focus { border-color: var(--color-primary); }
+.hint { font-size: 13px; color: var(--color-text-muted); margin: 4px 0 0; }
+
+/* ── Login page ──────────────────────────────────────────── */
+.login-page {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+}
+.login-card {
+    background: var(--color-surface); border-radius: var(--radius-lg); padding: 40px;
+    width: 100%; max-width: 400px; box-shadow: var(--shadow-md);
+}
+.login-logo { text-align: center; margin-bottom: 24px; }
+.login-logo h1 { font-size: 22px; color: var(--color-primary); margin: 8px 0 4px; }
+.login-logo p  { font-size: 13px; }
+.login-error { background: var(--color-danger-bg); color: var(--color-danger); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; margin-bottom: 16px; display: none; }
+
+/* ── App layout ──────────────────────────────────────────── */
+.app-header {
+    background: var(--color-surface); color: #fff;
+    border-bottom: 2px solid var(--color-gold);
+    padding: 10px 16px;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; gap: 8px;
+    border-radius: 0 0 16px 16px;
+}
+.hdr-left { display:flex; flex-direction:column; min-width:0; overflow:hidden; gap:2px; }
+.hdr-school { text-align:center; font-size:clamp(11px,3vw,15px); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0; color:#fff; padding:0 4px; }
+.hdr-right { display:flex; align-items:center; gap:6px; justify-content:flex-end; }
+.hdr-name { font-size:clamp(11px,3.5vw,14px); font-weight:600; color:var(--color-text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
+.hdr-role { font-size:clamp(10px,2.8vw,13px); color:var(--color-text-muted); opacity:.75; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hdr-icon-btn { background:transparent; border:1px solid rgba(255,255,255,.3); border-radius:8px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; font-size:18px; padding:0; flex-shrink:0; }
+
+/* ── Page body ───────────────────────────────────────────── */
+.page-body { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.section-head h3 { margin: 0; font-size: 16px; color: var(--color-primary); }
+.head-actions { display: flex; align-items: center; gap: 12px; }
+.head-actions .hint { margin: 0; }
+
+.section-card {
+    background: var(--color-surface); border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border); padding: 20px; margin-bottom: 20px;
+}
+
+/* ── Stats row ───────────────────────────────────────────── */
+.stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.stat-card { background: var(--color-surface); border-radius: var(--radius); border: 1px solid var(--color-border); padding: 18px 20px; flex: 1; min-width: 130px; text-align: center; }
+.stat-card.stat-accent { background: var(--color-primary-bg); border-color: var(--color-primary); }
+.stat-value { font-size: 30px; font-weight: 700; color: var(--color-text); display: block; }
+.stat-label { font-size: 13px; color: var(--color-text-muted); margin-top: 4px; }
+
+/* ── Loading ─────────────────────────────────────────────── */
+#loading { padding: 40px; text-align: center; color: var(--color-text-muted); font-size: 14px; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .login-card { padding: 24px 20px; }
+    .page-body  { padding: 16px 12px; }
+    .stat-card  { min-width: 100px; padding: 14px; }
+    .stat-value { font-size: 24px; }
+
+    /* Safe area notch */
+    .app-header { padding-top: max(12px, env(safe-area-inset-top)); }
+    body { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+@media (max-width: 480px) {
+    /* Login card */
+    .login-card { padding: 24px 16px; }
+    .login-logo h1 { font-size: 18px; }
+
+    /* Stats row 1 (5 card) → 3+2, stats row 2 (3 card) → 1 kolom */
+    .stats-row:first-of-type .stat-card { min-width: calc(33.333% - 8px); padding: 12px; }
+    .stats-row:nth-of-type(2) .stat-card { min-width: 100%; padding: 12px; }
+    .stat-value { font-size: 22px; }
+    .stat-label { font-size: 12px; }
+
+    /* Section head stack vertical */
+    .section-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .head-actions { width: 100%; }
+    .head-actions .btn { width: auto; }
+
+    /* Table compact */
+    .table { font-size: 12px; }
+    .table th, .table td { padding: 6px 6px; }
+
+    /* Section compact */
+    .section-card { padding: 12px 10px; margin-bottom: 12px; }
+}
+
+
+/* ── Print styles (P5-A) ─────────────────────────────────── */
+@media print {
+    .app-header, nav, .sidebar, #logout-btn,
+    .btn, button, .nav-link, .notif-bell-btn,
+    #offline-banner, .hint { display: none !important; }
+
+    body { background: #fff !important; color: #000 !important; }
+    * { box-shadow: none !important; border-color: #ccc !important; }
+
+    table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+    tr { page-break-inside: avoid; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; }
+
+    .section-card, .card { box-shadow: none; border: 1px solid #ccc; }
+    @page { margin: 15mm; }
+}

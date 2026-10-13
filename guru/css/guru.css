@@ -1,0 +1,605 @@
+/* ============================================================
+   guru/css/guru.css — Portal Guru (semua peran staf sekolah)
+   Accent: indigo (#1d4ed8). Pola token sama dengan portal lain.
+   ============================================================ */
+
+:root {
+    --color-bg:           #0b1120;
+    --color-surface:      #1a2540;
+    --color-border:       rgba(245, 158, 11, 0.40);
+    --color-text:         rgba(255, 255, 255, 0.90);
+    --color-text-muted:   rgba(255, 255, 255, 0.45);
+    --color-primary:      #1d4ed8;
+    --color-primary-dark: #1e40af;
+    --color-primary-bg:   rgba(29, 78, 216, 0.15);
+    --color-success:      #4ade80;
+    --color-success-bg:   rgba(21, 128, 61, 0.15);
+    --color-danger:       #f87171;
+    --color-danger-bg:    rgba(220, 38, 38, 0.15);
+    --color-warning:      #fbbf24;
+    --color-warning-bg:   rgba(180, 83, 9, 0.15);
+    --color-gold:         #F59E0B;
+    --color-bg-alt:       #1e2a45;
+    --color-surface-alt:  #1e2a45;
+    --color-warning-rgb:  180,83,9;
+
+    --radius:    8px;
+    --radius-lg: 12px;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.40);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.50);
+    --font-sans: -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; font-family: var(--font-sans); color: var(--color-text); background: var(--color-bg); }
+::placeholder { color: rgba(255, 255, 255, 0.50); opacity: 1; }
+h1,h2,h3,h4 { margin: 0 0 8px; font-weight: 600; }
+p { margin: 0 0 8px; color: var(--color-text-muted); }
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 18px; border-radius: var(--radius); border: 1px solid transparent;
+    font-size: 14px; font-weight: 600; cursor: pointer; min-height: 44px;
+    transition: background-color .15s, border-color .15s;
+}
+.btn-primary  { background: var(--color-primary); color: #fff; }
+.btn-primary:hover { background: var(--color-primary-dark); }
+.btn-primary:disabled { background: #93a8e8; cursor: not-allowed; }
+.btn-secondary { background: var(--color-surface); color: var(--color-text); border-color: var(--color-border); }
+.btn-secondary:hover { background: var(--color-bg); }
+.btn-success  { background: var(--color-success); color: #fff; }
+.btn-danger   { background: var(--color-danger); color: #fff; }
+.btn-danger-outline { background: transparent; color: var(--color-danger,#ef4444); border-color: var(--color-danger,#ef4444); }
+.btn-danger-outline:hover { background: var(--color-danger,#ef4444); color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: 13px; min-height: 44px; }
+.ks-period-btn { background: var(--color-surface); color: var(--color-text); border-color: var(--color-border); flex: 1; }
+.ks-period-btn.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.btn-xs { padding: 4px 8px; font-size: 12px; min-height: 44px; }
+.btn-warning { background: var(--color-warning-bg); color: var(--color-warning); border-color: var(--color-warning); }
+.btn-warning:hover { background: var(--color-warning); color: #fff; }
+.hint-success { font-size: 13px; color: var(--color-success); font-weight: 600; margin-top: 4px; }
+.sub-label { font-size: 11px; color: var(--color-text-muted); }
+.acc-empty { padding: 8px 16px; color: var(--color-text-muted); font-size: 13px; }
+
+/* ── Form ────────────────────────────────────────────────── */
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.field { margin-bottom: 18px; }
+.input, select.input, textarea.input {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--color-border);
+    border-radius: var(--radius); font-size: 16px; font-family: inherit;
+    background: var(--color-surface); color: var(--color-text); outline: none;
+    transition: border-color .15s; min-height: 44px;
+}
+.input:focus { border-color: var(--color-primary); }
+.hint { font-size: 13px; color: var(--color-text-muted); margin: 4px 0 0; }
+
+/* ── Login page ──────────────────────────────────────────── */
+.login-page {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+}
+.login-card {
+    background: var(--color-surface); border-radius: var(--radius-lg); padding: 40px;
+    width: 100%; max-width: 400px; box-shadow: var(--shadow-md);
+}
+.login-logo { text-align: center; margin-bottom: 24px; }
+.login-logo h1 { font-size: 22px; color: var(--color-primary); margin: 8px 0 4px; }
+.login-logo p  { font-size: 13px; }
+.login-error { background: var(--color-danger-bg); color: var(--color-danger); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; margin-bottom: 16px; display: none; }
+
+/* ── App layout ──────────────────────────────────────────── */
+.app-header {
+    background: var(--color-surface); color: #fff;
+    border-bottom: 2px solid var(--color-gold);
+    padding: 10px 16px;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; gap: 8px;
+    border-radius: 0 0 16px 16px;
+}
+.hdr-left { display:flex; flex-direction:column; min-width:0; overflow:hidden; gap:2px; }
+.hdr-school { text-align:center; font-size:clamp(11px,3vw,15px); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0; color:#fff; padding:0 4px; }
+.hdr-right { display:flex; align-items:center; gap:6px; justify-content:flex-end; }
+.hdr-name { font-size:clamp(11px,3.5vw,14px); font-weight:600; color:var(--color-text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
+.hdr-role { font-size:clamp(10px,2.8vw,13px); color:var(--color-text-muted); opacity:.75; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hdr-icon-btn { background:transparent; border:1px solid rgba(255,255,255,.3); border-radius:8px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; font-size:18px; padding:0; flex-shrink:0; }
+
+/* ── Tab navigation ──────────────────────────────────────── */
+.tab-nav {
+    background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+    display: flex; overflow-x: auto; padding: 0 12px;
+}
+.tab-btn {
+    padding: 12px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+    border: none; background: none; color: var(--color-text-muted);
+    border-bottom: 2px solid transparent; white-space: nowrap;
+    transition: color .15s, border-color .15s;
+}
+.tab-btn:hover { color: var(--color-primary); }
+.tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Page body ───────────────────────────────────────────── */
+.page-body { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+.section-card {
+    background: var(--color-surface); border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border); padding: 20px; margin-bottom: 20px;
+}
+.section-card h2 { font-size: 15px; margin-bottom: 16px; color: var(--color-text); }
+.section-card h3 { font-size: 15px; margin-bottom: 16px; color: var(--color-text); }
+
+/* ── Table ───────────────────────────────────────────────── */
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th { text-align: left; padding: 10px 12px; background: var(--color-bg); font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border); }
+.table td { padding: 10px 12px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+.table tr:last-child td { border-bottom: none; }
+.table-wrapper { overflow-x: auto; }
+
+/* ── Badges ──────────────────────────────────────────────── */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-hadir       { background: var(--color-success-bg); color: var(--color-success); }
+.badge-tidak-hadir { background: var(--color-danger-bg);  color: var(--color-danger); }
+.badge-izin        { background: #eff6ff; color: var(--color-primary); }
+.badge-sakit       { background: var(--color-warning-bg); color: var(--color-warning); }
+.badge-ekskul      { background: #f5f3ff; color: #6d28d9; }
+.badge-jabatan     { background: var(--color-primary-bg); color: var(--color-primary); margin-left: 4px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+
+/* ── Attendance form ─────────────────────────────────────── */
+.att-panel {
+    background: var(--color-bg); border-radius: var(--radius); padding: 16px;
+    margin-top: 12px; border: 1px solid var(--color-border);
+}
+.att-panel h4 { font-size: 14px; margin-bottom: 12px; }
+.att-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 0; border-bottom: 1px solid var(--color-border);
+    flex-wrap: wrap;
+}
+.att-row:last-child { border-bottom: none; }
+.att-name { flex: 1; min-width: 140px; font-size: 13px; font-weight: 500; }
+.att-nis  { font-size: 12px; color: var(--color-text-muted); display: block; }
+.att-radio-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.att-radio-label {
+    display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500;
+    padding: 4px 10px; border-radius: 20px; cursor: pointer;
+    border: 1px solid var(--color-border); background: var(--color-surface);
+    transition: background .1s, border-color .1s;
+}
+.att-radio-label input { display: none; }
+.att-radio-label:has(input:checked) { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary); }
+.att-notes-input { max-width: 360px; }
+/* ── Attendance Carousel ── */
+.att-carousel-nav {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 10px;
+}
+.att-carousel-nav button {
+    flex-shrink: 0;
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid var(--color-border); background: var(--color-surface);
+    color: var(--color-text); font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, border-color .15s;
+}
+.att-carousel-nav button:hover:not(:disabled) { background: var(--color-surface-alt); border-color: var(--color-primary); }
+.att-carousel-nav button:disabled { opacity: .35; cursor: default; }
+.att-carousel-counter {
+    flex: 1; text-align: center;
+    font-size: 13px; font-weight: 600;
+}
+.att-carousel-sub {
+    display: block; font-size: 11px; font-weight: 400;
+    color: var(--color-text-muted); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+}
+.att-carousel-track-wrap {
+    overflow: hidden; border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+}
+.att-carousel-track {
+    display: flex;
+    transition: transform .25s ease;
+    will-change: transform;
+}
+.att-carousel-slide {
+    flex: 0 0 100%; min-width: 0;
+    padding: 12px;
+    box-sizing: border-box;
+}
+.att-carousel-slide .att-row {
+    border-bottom: none; padding: 0;
+    flex-direction: column; align-items: flex-start; gap: 10px;
+}
+.att-carousel-slide .att-name { font-size: 15px; }
+.att-carousel-slide .att-radio-group { gap: 8px; }
+.att-carousel-slide .att-radio-label { padding: 6px 16px; font-size: 13px; }
+.att-save-btn { margin-top: 12px; }
+
+/* legacy accordion — kept for other uses in codebase */
+.att-accordion {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+    overflow: hidden;
+}
+.att-accordion-summary {
+    display: flex; align-items: center; gap: 10px;
+    justify-content: space-between;
+    padding: 8px 12px; cursor: pointer;
+    font-size: 13px; font-weight: 600;
+    background: var(--color-surface-alt);
+    user-select: none; list-style: none;
+}
+.att-acc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att-acc-status { flex-shrink: 0; }
+.att-accordion-summary::-webkit-details-marker { display: none; }
+.att-accordion-summary::before {
+    content: '▶'; font-size: 10px; transition: transform .2s;
+    color: var(--color-text-muted);
+}
+details[open] .att-accordion-summary::before { transform: rotate(90deg); }
+.att-acc-names { font-weight: 400; color: var(--color-text-muted); font-size: 12px; }
+/* Pastikan span pertama accordion (nama) selalu mengisi sisa ruang — rata kiri */
+.att-accordion-summary > span:first-child {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.att-accordion .att-row { padding: 8px 12px; }
+.att-accordion .att-row:last-child { border-bottom: none; }
+
+/* ── Status message & alert (P5-C: seragam dengan dudi/admin/parent) ── */
+.status-msg { font-size: 13px; padding: 8px 12px; border-radius: var(--radius); margin-top: 8px; }
+.status-ok  { background: var(--color-success-bg); color: var(--color-success); }
+.status-err { background: var(--color-danger-bg);  color: var(--color-danger); }
+.status-warn { background: var(--color-warning-bg); color: var(--color-warning); }
+
+.alert { padding: 12px 16px; border-radius: var(--radius); font-size: 13px; margin-bottom: 16px; border: 1px solid transparent; }
+.alert-danger  { background: var(--color-danger-bg);  color: var(--color-danger);  border-color: #fecaca; }
+.alert-success { background: var(--color-success-bg); color: var(--color-success); border-color: #bbf7d0; }
+.alert-warning { background: var(--color-warning-bg); color: var(--color-warning); border-color: #fde68a; }
+.alert-info    { background: var(--color-primary-bg); color: var(--color-primary); border-color: rgba(29,78,216,0.4); }
+
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 200; align-items: center; justify-content: center; }
+.modal-overlay.is-open { display: flex; }
+.modal-box { background: var(--color-surface); border-radius: var(--radius-lg); padding: 24px; width: min(560px,calc(100vw - 32px)); max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-md); }
+
+/* ── Notif badge ─────────────────────────────────────────── */
+.notif-badge-count { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; background: var(--color-danger); color: #fff; font-size: 11px; font-weight: 700; text-align: center; padding: 0 3px; pointer-events: none; }
+.kasus-notif-badge { display: inline-block; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; background: var(--color-danger); color: #fff; font-size: 11px; font-weight: 700; text-align: center; padding: 0 4px; margin-left: 5px; vertical-align: middle; }
+.bottom-nav .tab-btn { position: relative; }
+.bottom-nav .tab-btn .kasus-notif-badge { position: absolute; top: 4px; right: 4px; margin-left: 0; }
+
+/* ── Sync banner ─────────────────────────────────────────── */
+.sync-banner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2000; padding: 8px 14px; font-size: 13px; text-align: center; display: none; background: var(--color-warning-bg); color: var(--color-warning); border-top: 1px solid var(--color-warning); }
+@media (max-width: 640px) {
+    .sync-banner { bottom: calc(12px + 57px + env(safe-area-inset-bottom, 0)); border-top: none; border-radius: 8px; left: 16px; right: 16px; }
+}
+
+/* ── Audience chip ───────────────────────────────────────── */
+.audience-chip { display: inline-flex; align-items: center; gap: 4px; margin: 2px 4px 2px 0; padding: 2px 8px; border: 1px solid var(--color-border); border-radius: 20px; font-size: 12px; }
+.chip-remove-btn { background: none; border: none; cursor: pointer; color: var(--color-danger); font-size: 14px; line-height: 1; padding: 0 2px; }
+
+/* ── Kasus row ───────────────────────────────────────────── */
+.kasus-row { border: 1px solid var(--color-border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: background .12s; }
+.kasus-row:hover { background: var(--color-bg); }
+
+/* ── Case event item ─────────────────────────────────────── */
+.case-event-item { border-left: 3px solid var(--color-border); padding: 10px 14px; margin-bottom: 10px; }
+
+/* ── Loading ─────────────────────────────────────────────── */
+#loading { padding: 40px; text-align: center; color: var(--color-text-muted); font-size: 14px; }
+
+/* ── Date row ────────────────────────────────────────────── */
+.date-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.date-range { display: flex; gap: 6px; flex: 1; min-width: 0; }
+.date-range input[type="date"] { flex: 1; min-width: 0; }
+
+/* ── Banner offset ────────────────────────────────────────── */
+body.has-login-banner .app-header { margin-top: 94px; }
+.date-row label { margin: 0; }
+
+/* ── Obs card ────────────────────────────────────────────── */
+.obs-card { background: var(--color-bg); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; border-left: 3px solid var(--color-border); }
+.obs-card.obs-positif { border-left-color: var(--color-success); }
+.obs-card.obs-negatif { border-left-color: var(--color-danger); }
+.obs-card.obs-netral  { border-left-color: var(--color-text-muted); }
+.obs-meta { font-size: 12px; color: var(--color-text-muted); margin-bottom: 6px; }
+.obs-content { font-size: 14px; color: var(--color-text); margin: 0; }
+
+/* ── Stats row ───────────────────────────────────────────── */
+.stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.stat-card { background: var(--color-surface); border-radius: var(--radius); border: 1px solid var(--color-border); padding: 16px 20px; flex: 1; min-width: 120px; text-align: center; }
+.stat-value { font-size: 28px; font-weight: 700; color: var(--color-text); display: block; }
+.stat-label { font-size: 13px; color: var(--color-text-muted); margin-top: 2px; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .wk-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .date-row-actions { display: flex; gap: 8px; }
+}
+/* ── Bottom nav (mobile only) ──────────────────────────────── */
+.bottom-nav { display: none; }
+
+@media (max-width: 640px) {
+    .login-card  { padding: 24px 16px; }
+    .page-body   { padding: 12px 10px; }
+    .section-card { padding: 14px 12px; margin-bottom: 12px; }
+    #wk-kur1-wrap { max-height: 320px; overflow-y: auto; }
+
+    .app-header  { padding: 10px 14px; gap: 8px; }
+
+    /* Sembunyikan top nav, tampilkan bottom nav */
+    .tab-nav { display: none; }
+
+    /* Wrapper melayang */
+    .bottom-nav {
+        display: block;
+        position: fixed;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0));
+        left: 20px; right: 20px;
+        z-index: 200;
+        background: transparent;
+        border: none;
+        padding: 0;
+    }
+
+    /* Kontainer pill */
+    .bottom-nav-inner {
+        display: flex;
+        justify-content: space-around;
+        background: rgba(11, 17, 32, 0.96);
+        border: 1px solid rgba(245, 158, 11, 0.40);
+        border-radius: 32px;
+        padding: 5px 6px;
+        gap: 4px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+    .bottom-nav-inner::-webkit-scrollbar { display: none; }
+    .bottom-nav-inner::after {
+        content: '';
+        position: sticky;
+        right: 0;
+        width: 24px;
+        flex-shrink: 0;
+        background: linear-gradient(to right, transparent, rgba(11,17,32,.96));
+        pointer-events: none;
+    }
+
+    .bottom-nav .tab-btn {
+        flex: 1 0 auto;
+        min-width: 52px;
+        padding: 7px 10px 5px;
+        font-size: 10px;
+        letter-spacing: 0.3px;
+        border-radius: 24px;
+        border: 0.5px solid transparent;
+        background: transparent;
+        color: rgba(255,255,255,0.38);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        line-height: 1.2;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+    .bottom-nav .tab-btn .nav-icon {
+        font-size: 18px;
+        line-height: 1;
+    }
+    .bottom-nav .tab-btn.active {
+        background: rgba(245, 158, 11, 0.15);
+        border-color: rgba(245, 158, 11, 0.55);
+        color: #F59E0B;
+    }
+
+    /* Tambah padding bawah agar konten tidak tertutup bottom nav */
+    .page-body { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0)); }
+
+    /* Tab — tap target lebih besar */
+    .tab-btn { padding: 12px 14px; font-size: 13px; }
+
+    /* Date row — grid 2 kolom agar label+input selalu sepasang */
+    .date-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 6px 8px;
+        align-items: center;
+    }
+    .date-row input[type="date"] { width: 100%; }
+    .date-row label:last-of-type  { grid-column: 1; grid-row: 2; }
+    .date-row input[type="date"]:last-of-type { grid-column: 2; grid-row: 2; }
+    .date-row button { grid-column: 2; grid-row: 3; justify-self: end; }
+
+    /* Tabel jadwal — jam + kelas lebih rapat */
+    .table th, .table td { padding: 8px 8px; font-size: 13px; }
+
+    /* Obs form — tiga select stack 2-per-row di mobile */
+    .obs-fields-row { flex-direction: column; }
+    .obs-fields-row .field { min-width: 0 !important; }
+
+    /* Tombol utama full-width di mobile */
+    #obs-submit,
+    .att-save { width: 100%; }
+
+    /* Radio kehadiran — touch target lebih besar */
+    .att-radio-label {
+        padding: 6px 10px;
+        font-size: 12px;
+        min-height: 36px;
+    }
+    .att-radio-group { gap: 4px; }
+
+    /* Nama siswa di panel kehadiran */
+    .att-name { font-size: 13px; min-width: 120px; }
+
+    /* Notes input full width */
+    .att-notes-input { max-width: 100%; }
+
+    /* Safe area untuk notch/home bar */
+    .app-header { padding-top: max(10px, env(safe-area-inset-top)); }
+    body { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+@media (max-width: 480px) {
+    /* Stats card — 3 card rata (1/3 lebar) agar tidak ada orphan */
+    .stat-card { min-width: calc(33.333% - 8px); padding: 12px; }
+    .stat-value { font-size: 22px; }
+    /* 3-card row: turunkan label agar tidak wrap ke 2 baris di kartu 110px */
+    .stats-row:has(.stat-card:nth-child(3)) .stat-label { font-size: 12px; }
+
+    /* Form PKL — stack 1 kolom di layar kecil */
+    #kp-placement-form { grid-template-columns: 1fr !important; }
+
+    /* Tombol submit kaprodi full-width di mobile */
+    #kp-pl-submit, #kp-ach-submit { width: 100%; }
+
+    /* Table font lebih kecil */
+    .table { font-size: 12px; }
+    .table th, .table td { padding: 6px 6px; }
+
+    /* Radio kehadiran lebih rapat */
+    .att-radio-group { gap: 2px; }
+
+    /* Attendance row stack di 375px */
+    .att-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .att-radio-group { width: 100%; }
+    .att-notes-input { width: 100%; max-width: 100%; }
+}
+
+/* Subheading muted — pengganti inline style h4 */
+.subheading-muted { font-size: 13px; margin-bottom: 8px; color: var(--color-text-muted); font-weight: 600; }
+
+/* Dropdown pencarian siswa */
+#obs-student-list { left: 0; right: 0; top: 100%; }
+
+/* ── PWA Install Banner ──────────────────────────────────── */
+.pwa-install-banner {
+  position: fixed;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 480px;
+  background: var(--color-primary, #1d4ed8);
+  color: white;
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 999;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  animation: pwaSlideUp 0.3s ease;
+}
+.pwa-install-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+.pwa-install-icon { font-size: 24px; }
+.pwa-install-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pwa-install-text strong { font-size: 14px; }
+.pwa-install-text small  { font-size: 12px; opacity: 0.85; }
+.pwa-install-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+@keyframes pwaSlideUp {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
+}
+
+/* ── Kasus status badges ─────────────────────────────────── */
+.kasus-badge-open, .kasus-badge-under_review, .kasus-badge-intervention,
+.kasus-badge-monitoring, .kasus-badge-closed { border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+.kasus-badge-open         { background: #eff6ff; color: #1d4ed8; }
+.kasus-badge-under_review { background: #fefce8; color: #854d0e; }
+.kasus-badge-intervention { background: var(--color-danger-bg); color: var(--color-danger); }
+.kasus-badge-monitoring   { background: #f5f3ff; color: #6d28d9; }
+.kasus-badge-closed       { background: var(--color-bg); color: var(--color-text-muted); }
+
+
+/* ── Print styles (P5-A) ─────────────────────────────────── */
+@media print {
+    .app-header, nav, .sidebar, #logout-btn,
+    .btn, button, .nav-link, .notif-bell-btn,
+    #offline-banner, .hint { display: none !important; }
+
+    body { background: #fff !important; color: #000 !important; }
+    * { box-shadow: none !important; border-color: #ccc !important; }
+
+    table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+    tr { page-break-inside: avoid; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; }
+
+    .section-card, .card { box-shadow: none; border: 1px solid #ccc; }
+    @page { margin: 15mm; }
+}
+
+/* Kaprodi accordion single-expand */
+.kp-acc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 4px 0;
+    user-select: none;
+    font-weight: 600;
+    font-size: 1rem;
+}
+.kp-acc-header:hover { opacity: .8; }
+.kp-acc-arrow { font-size: .85rem; transition: transform .2s; }
+.kp-acc-item.open .kp-acc-arrow { transform: rotate(90deg); }
+.kp-acc-body { margin-top: 12px; }
+
+/* Kaprodi rekap kelas — rata kiri */
+#kp-cls-recap .stat-card { text-align: left; }
+#kp-cls-recap .stat-value { font-size: 1.1rem; }
+/* Sprint 3 — Profil Mengajar & Konteks Kelas modal */
+.pm-q { margin-bottom: 20px; }
+.pm-label { margin: 0 0 8px; font-weight: 600; font-size: 14px; }
+.pm-radio-row { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; font-size: 14px; cursor: pointer; }
+.pm-radio-row input { margin-top: 3px; flex-shrink: 0; }
+
+/* Modal scrollable dengan footer fixed */
+.sip-modal-panel {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  width: calc(100vw - 32px);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+.sip-modal-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  -webkit-overflow-scrolling: touch;
+}
+.sip-modal-footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}

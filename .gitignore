@@ -1,0 +1,13 @@
+.env
+node_modules/
+.supabase/
+supabase/.temp/
+*.log
+.DS_Store
+Thumbs.db
+file uji/
+Ringkasan percakapan.md
+
+# SQL backups
+backup_*.sql
+*.sql.bak

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Siswa — SIP</title>
+    <meta property="og:title" content="SIP" />
+    <meta property="og:description" content="Platform monitoring siswa SMK — absensi, kasus, observasi, dan komunikasi sekolah dalam satu sistem." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SIP" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="icon" href="data:,">
+  <script src="js/sw-guard.js"></script>
+<script>(function(){var last=location.pathname.split("/").filter(Boolean).pop();if(["admin","guru","student","parent","dudi","stakeholder","superadmin"].indexOf(last)>-1){var b=document.createElement("base");b.href=location.pathname.endsWith("/")?location.pathname:location.pathname+"/";document.head.appendChild(b);}})();</script>
+    <link rel="stylesheet" href="css/student.css?v=20260725b">
+  <link rel="stylesheet" href="../shared/fonts/tabler-icons.min.css">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon.ico" sizes="any">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+
+<div id="loading">Memuat data akun…</div>
+
+<div id="app" style="display:none">
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="hdr-left">
+            <span class="hdr-name" id="hdr-name">—</span>
+            <span class="hdr-role" id="hdr-meta">—</span>
+            <span id="hdr-status-badge" style="display:none"></span>
+        </div>
+        <h2 class="hdr-school" data-brand="school-name">Memuat…</h2>
+        <div class="hdr-right">
+            <div style="position:relative">
+                <button class="hdr-icon-btn" id="notif-bell-btn" title="Notifikasi" aria-label="Buka notifikasi">🔔</button>
+                <div id="notif-dropdown" class="notif-dropdown" style="display:none"></div>
+            </div>
+            <button class="hdr-icon-btn" id="logout-btn" title="Keluar" aria-label="Keluar"><i class="ti ti-logout" aria-hidden="true"></i></button>
+        </div>
+    </header>
+
+    <!-- Tab navigation -->
+    <nav class="tab-nav" id="tab-nav"></nav>
+
+    <!-- Bottom nav — mobile only, diisi oleh JS -->
+    <nav class="bottom-nav" id="bottom-nav" aria-label="Navigasi"></nav>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: JADWAL HARI INI
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-jadwal">
+        <div class="page-body">
+            <div class="section-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+                    <h3 style="margin:0">Jadwal Pelajaran</h3>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn btn-sm sched-view-btn active" data-view="hari" id="sched-view-hari">Hari Ini</button>
+                        <button class="btn btn-sm sched-view-btn" data-view="minggu" id="sched-view-minggu">Minggu Ini</button>
+                    </div>
+                </div>
+                <input type="date" id="sched-date" style="display:none">
+                <div id="sched-view-hari-panel">
+                    <div id="sched-content"><p class="hint">Memuat jadwal…</p></div>
+                </div>
+                <div id="sched-view-minggu-panel" style="display:none">
+                    <div id="sched-week-content"><p class="hint">Memuat jadwal minggu ini…</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: KEHADIRAN
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-kehadiran">
+        <div class="page-body">
+            <div class="stats-row" id="att-stats">
+                <div class="stat-card"><span class="stat-value" id="att-hadir">—</span><div class="stat-label">Hadir</div></div>
+                <div class="stat-card"><span class="stat-value" id="att-izin">—</span><div class="stat-label">Izin</div></div>
+                <div class="stat-card"><span class="stat-value" id="att-sakit">—</span><div class="stat-label">Sakit</div></div>
+                <div class="stat-card"><span class="stat-value" id="att-alpha">—</span><div class="stat-label">Alpa</div></div>
+                <div class="stat-card"><span class="stat-value" id="att-pct">—</span><div class="stat-label">% Hadir</div></div>
+            </div>
+            <div class="section-card">
+                <h3>Rekap Kehadiran</h3>
+                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="att-date-start" style="min-width:32px;margin:0;font-size:13px">Dari:</label>
+                        <input type="date" id="att-date-start" class="input" style="flex:1;min-width:0">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="att-date-end" style="min-width:32px;margin:0;font-size:13px">s/d:</label>
+                        <input type="date" id="att-date-end" class="input" style="flex:1;min-width:0">
+                        <button class="btn btn-secondary btn-sm" id="att-filter-btn">Filter</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table class="table" id="att-table">
+                        <thead><tr><th>Tanggal</th><th>Jam</th><th>Mata Pelajaran</th><th>Guru</th><th>Status</th><th>Keterangan</th></tr></thead>
+                        <tbody id="att-body"></tbody>
+                    </table>
+                </div>
+                <p class="hint" id="att-empty" style="display:none">Belum ada data kehadiran pada rentang ini.</p>
+            </div>
+            <div class="section-card" style="margin-top:16px">
+                <h3>Riwayat Keterlambatan</h3>
+                <p class="hint" id="late-hint">Memuat…</p>
+                <div id="late-body"></div>
+            </div>
+            <div class="section-card" style="margin-top:16px">
+                <h3>Riwayat Izin Keluar</h3>
+                <p class="hint" id="exits-hint">Memuat…</p>
+                <div id="exits-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: OBSERVASI
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-observasi">
+        <div class="page-body">
+            <div class="section-card">
+                <h3>Catatan dari Guru</h3>
+                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="obs-date-start" style="min-width:32px;margin:0;font-size:13px">Dari:</label>
+                        <input type="date" id="obs-date-start" class="input" style="flex:1;min-width:0">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="obs-date-end" style="min-width:32px;margin:0;font-size:13px">s/d:</label>
+                        <input type="date" id="obs-date-end" class="input" style="flex:1;min-width:0">
+                        <button class="btn btn-secondary btn-sm" id="obs-filter-btn">Filter</button>
+                    </div>
+                </div>
+                <p class="hint" id="obs-hint">Memuat…</p>
+                <div id="obs-list"></div>
+            </div>
+            <div class="section-card" id="cases-card">
+                <h3>Kasus Tentang Saya</h3>
+                <p class="hint" id="cases-hint" style="display:none">Tidak ada kasus yang dibagikan kepadamu saat ini.</p>
+                <div id="cases-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: PKL (hanya muncul jika status PKL)
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-pkl">
+        <div class="page-body">
+            <div class="section-card">
+                <h3>Status PKL</h3>
+                <div class="field" id="pkl-placement-field" style="display:none;margin-bottom:12px">
+                    <label class="label" for="pkl-placement-select">Penempatan</label>
+                    <select class="input" id="pkl-placement-select"></select>
+                </div>
+                <div id="pkl-info"><p class="hint">Memuat…</p></div>
+            </div>
+            <div class="stats-row" id="pkl-stats" style="display:none">
+                <div class="stat-card"><span class="stat-value" id="pkl-hadir">—</span><div class="stat-label">Hadir</div></div>
+                <div class="stat-card"><span class="stat-value" id="pkl-izin">—</span><div class="stat-label">Izin</div></div>
+                <div class="stat-card"><span class="stat-value" id="pkl-sakit">—</span><div class="stat-label">Sakit</div></div>
+                <div class="stat-card"><span class="stat-value" id="pkl-alpha">—</span><div class="stat-label">Alpa</div></div>
+                <div class="stat-card"><span class="stat-value" id="pkl-pct">—</span><div class="stat-label">% Hadir</div></div>
+            </div>
+            <div class="section-card" id="pkl-recap-card" style="display:none">
+                <h3>Riwayat Absensi PKL</h3>
+                <div class="table-wrapper">
+                    <table class="table">
+                        <thead><tr><th>Tanggal</th><th>Status</th><th>Catatan</th></tr></thead>
+                        <tbody id="pkl-recap-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: FORUM KELAS
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-forum">
+        <div class="page-body">
+            <div id="forum-loading" class="hint">Memuat forum…</div>
+            <div id="forum-posts-list"></div>
+            <div style="text-align:center">
+                <button id="btn-load-more-forum" class="btn btn-secondary"
+                    style="display:none;margin:16px auto">
+                    Muat lebih banyak
+                </button>
+            </div>
+        </div>
+
+        <div id="modal-forum-detail" class="modal-overlay" style="display:none">
+            <div class="modal-box" style="max-width:560px;width:100%">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                    <h3 id="detail-forum-title" style="margin:0"></h3>
+                    <button id="btn-forum-detail-close" class="btn btn-secondary"
+                            style="flex-shrink:0">✕</button>
+                </div>
+                <p id="detail-forum-meta" class="hint" style="margin:6px 0 12px"></p>
+                <div id="detail-forum-body"
+                     style="white-space:pre-wrap;margin-bottom:12px;font-size:14px"></div>
+                <div id="detail-forum-attachment" style="margin-bottom:12px"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: NILAI
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-nilai">
+        <div class="page-body">
+            <div class="section-card">
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px">
+                    <div class="field" style="flex:1; min-width:160px">
+                        <label class="label">Tahun Ajaran</label>
+                        <select id="nilai-year-select" class="input">
+                            <option value="">Semua Tahun</option>
+                        </select>
+                    </div>
+                    <div class="field" style="min-width:140px">
+                        <label class="label">Semester</label>
+                        <select id="nilai-semester-select" class="input">
+                            <option value="">Semua Semester</option>
+                            <option value="1">Semester 1</option>
+                            <option value="2">Semester 2</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="nilai-grid">
+                    <p class="hint">Memuat nilai…</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- #app -->
+
+<script type="module" src="js/dashboard.js"></script>
+<script>
+  /* SW DINONAKTIFKAN SEMENTARA u2014 lihat commit 8745e4c (fix v8 stuck cache).
+     Uncomment blok di bawah untuk reaktivasi service worker.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('../sw.js', { updateViaCache: 'none' });
+    });
+  }
+  */
+</script>
+<script src="../shared/wa-float.js"></script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portal DUDI — SIP</title>
+    <meta property="og:title" content="SIP" />
+    <meta property="og:description" content="Platform monitoring siswa SMK — absensi dan catatan siswa PKL dalam satu sistem." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SIP" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="icon" href="data:,">
+  <script src="js/sw-guard.js"></script>
+<script>(function(){var last=location.pathname.split("/").filter(Boolean).pop();if(["admin","guru","student","parent","dudi","stakeholder","superadmin"].indexOf(last)>-1){var b=document.createElement("base");b.href=location.pathname.endsWith("/")?location.pathname:location.pathname+"/";document.head.appendChild(b);}})();</script>
+    <link rel="stylesheet" href="css/dudi.css" />
+  <link rel="stylesheet" href="../shared/fonts/tabler-icons.min.css">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon.ico" sizes="any">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div class="portal-shell">
+        <header class="topbar">
+            <div class="hdr-left">
+                <span class="hdr-name" id="dash-user-name">—</span>
+                <span class="hdr-role" id="dash-org-name">DUDI</span>
+            </div>
+            <h2 class="hdr-school" data-brand="school-name">Memuat…</h2>
+            <div class="hdr-right">
+                <button id="logout-btn" type="button" class="hdr-icon-btn" title="Keluar" aria-label="Keluar"><i class="ti ti-logout" aria-hidden="true"></i></button>
+            </div>
+        </header>
+
+        <div id="offline-banner" style="display:none;background:var(--color-warning-bg,#fef3c7);color:var(--color-warning,#92400e);padding:8px 16px;font-size:0.875rem;text-align:center;border-bottom:1px solid var(--color-warning,#d97706)">
+            ⏳ <span id="offline-banner-text">Ada absensi menunggu sinkron — akan terkirim otomatis saat koneksi kembali.</span>
+        </div>
+
+        <div id="loading" class="loading">Memuat data siswa PKL...</div>
+
+        <div id="dash-body" style="display:none">
+
+            <!-- Ringkasan -->
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <span class="count" id="stat-total">0</span>
+                    <span class="label">Siswa PKL</span>
+                </div>
+                <div class="summary-card" style="background:var(--color-success-bg);color:var(--color-success)">
+                    <span class="count" id="stat-hadir-today">0</span>
+                    <span class="label">Hadir di Tanggal Dipilih</span>
+                </div>
+                <div class="summary-card" style="background:var(--color-danger-bg);color:var(--color-danger)">
+                    <span class="count" id="stat-absent-today">0</span>
+                    <span class="label">Belum Dicatat</span>
+                </div>
+            </div>
+
+            <!-- Absensi harian -->
+            <section class="section">
+                <div class="section-header">
+                    <h3>Absensi Harian</h3>
+                    <div class="date-nav">
+                        <button id="btn-prev-day" class="btn btn-secondary btn-sm">&lsaquo;</button>
+                        <input id="attendance-date" type="date" class="input" style="width:auto" />
+                        <button id="btn-next-day" class="btn btn-secondary btn-sm">&rsaquo;</button>
+                    </div>
+                </div>
+
+                <div id="attendance-list" class="student-attendance-list">
+                    <p class="hint">Memuat...</p>
+                </div>
+                <p id="attendance-empty" class="hint" style="display:none">
+                    Tidak ada penempatan PKL pada tanggal ini.
+                </p>
+            </section>
+
+            <!-- Tambah Catatan Siswa -->
+            <section class="section">
+                <h3>Tambah Catatan Siswa</h3>
+                <div id="obs-success" class="alert alert-success" style="display:none"></div>
+                <div id="obs-error"   class="alert alert-danger"  style="display:none"></div>
+
+                <form id="obs-form" class="obs-form">
+                    <div class="field">
+                        <label for="obs-student">Siswa</label>
+                        <select id="obs-student" class="input" required>
+                            <option value="">-- Pilih siswa --</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="obs-sentiment">Penilaian</label>
+                        <select id="obs-sentiment" class="input" required>
+                            <option value="">-- Pilih --</option>
+                            <option value="POSITIF">Positif</option>
+                            <option value="NEGATIF">Perlu Perhatian</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="obs-dimension">Aspek</label>
+                        <select id="obs-dimension" class="input" required>
+                            <option value="">-- Pilih aspek --</option>
+                            <option value="AKADEMIK">Akademik / Kompetensi</option>
+                            <option value="KEHADIRAN">Kehadiran</option>
+                            <option value="PERILAKU">Perilaku / Disiplin</option>
+                            <option value="SOSIAL">Sosial / Komunikasi</option>
+                            <option value="AFEKTIF">Sikap / Motivasi</option>
+                            <option value="BAKAT_MINAT">Bakat &amp; Minat</option>
+                            <option value="FISIK">Fisik / Keselamatan</option>
+                            <option value="LAINNYA">Lainnya</option>
+                        </select>
+                    </div>
+                    <div class="field field-full">
+                        <label for="obs-content">Catatan Siswa <span class="hint" style="display:inline">(10–1000 karakter)</span></label>
+                        <textarea id="obs-content" class="input" rows="4"
+                                  minlength="10" maxlength="1000"
+                                  placeholder="Tulis catatan perkembangan siswa di tempat PKL..." required></textarea>
+                        <p class="hint"><span id="obs-char-count">0</span>/1000 karakter</p>
+                    </div>
+                    <div class="field-full">
+                        <button id="obs-submit" type="submit" class="btn btn-primary">Simpan Catatan</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Riwayat Catatan Siswa -->
+            <section class="section">
+                <h3>Riwayat Catatan Siswa</h3>
+                <div id="obs-history-list"></div>
+                <p id="obs-history-empty" class="hint" style="display:none">Belum ada catatan siswa.</p>
+            </section>
+
+            <!-- Riwayat Absensi -->
+            <section class="section">
+                <h3>Riwayat Absensi (90 Hari Terakhir)</h3>
+                <div class="table-scroll">
+                    <table class="data-table" id="history-table">
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Nama Siswa</th>
+                                <th>Status</th>
+                                <th>Catatan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody"></tbody>
+                    </table>
+                </div>
+                <p id="history-empty" class="hint" style="display:none">Belum ada riwayat absensi 90 hari terakhir.</p>
+            </section>
+
+        </div>
+    </div>
+
+    <script type="module" src="js/dashboard.js"></script>
+<script>
+  /* SW DINONAKTIFKAN SEMENTARA u2014 lihat commit 8745e4c (fix v8 stuck cache).
+     Uncomment blok di bawah untuk reaktivasi service worker.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('../sw.js', { updateViaCache: 'none' });
+    });
+  }
+  */
+</script>
+<script src="../shared/wa-float.js"></script>
+</body>
+</html>

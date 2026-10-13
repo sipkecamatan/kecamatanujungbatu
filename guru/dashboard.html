@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Guru — SIP</title>
+    <meta property="og:title" content="SIP" />
+    <meta property="og:description" content="Platform monitoring siswa SMK — absensi, kasus, observasi, dan komunikasi sekolah dalam satu sistem." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SIP" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="icon" href="data:,">
+  <script src="js/sw-guard.js"></script>
+<script>(function(){var last=location.pathname.split("/").filter(Boolean).pop();if(["admin","guru","student","parent","dudi","stakeholder","superadmin"].indexOf(last)>-1){var b=document.createElement("base");b.href=location.pathname.endsWith("/")?location.pathname:location.pathname+"/";document.head.appendChild(b);}})();</script>
+    <link rel="stylesheet" href="css/guru.css">
+  <link rel="stylesheet" href="../shared/fonts/tabler-icons.min.css">
+  <link rel="stylesheet" href="css/transitions.css">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon.ico" sizes="any">
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous" defer></script>
+</head>
+<body>
+
+<div id="loading">Memuat data akun…</div>
+
+<div id="app" style="display:none">
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="hdr-left">
+            <span class="hdr-name" id="hdr-name">—</span>
+            <span class="hdr-role" id="hdr-role">—</span>
+        </div>
+        <h2 class="hdr-school" data-brand="school-name">Memuat…</h2>
+        <div class="hdr-right">
+            <div style="position:relative">
+                <button id="notif-bell-btn" class="hdr-icon-btn" title="Notifikasi" aria-label="Buka notifikasi">🔔</button>
+                <div id="notif-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);width:300px;max-height:380px;overflow-y:auto;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:500"></div>
+            </div>
+            <button id="logout-btn" class="hdr-icon-btn" title="Keluar" aria-label="Keluar"><i class="ti ti-logout" aria-hidden="true"></i></button>
+        </div>
+    </header>
+
+    <!-- Tab navigation (diisi oleh JS) -->
+    <nav class="tab-nav" id="tab-nav"></nav>
+
+    <!-- Bottom nav — mobile only, diisi oleh JS sama dengan tab-nav -->
+    <nav class="bottom-nav" id="bottom-nav" aria-label="Navigasi"></nav>
+
+    <!-- PWA Install Banner -->
+    <div id="pwa-install-banner" style="display:none" class="pwa-install-banner">
+      <div class="pwa-install-content">
+        <span class="pwa-install-icon">📱</span>
+        <div class="pwa-install-text">
+          <strong>Pasang Aplikasi SIP</strong>
+          <small>Akses lebih cepat dari layar utama</small>
+        </div>
+      </div>
+      <div class="pwa-install-actions">
+        <button id="pwa-install-btn" class="btn-primary btn-sm">Pasang</button>
+        <button id="pwa-dismiss-btn" class="btn-ghost btn-sm">Nanti</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: GURU
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-guru">
+        <div class="page-body">
+
+            <!-- Jadwal Mengajar -->
+            <div class="section-card">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+                    <h3 style="margin:0">Jadwal Mengajar</h3>
+                    <div style="display:flex;gap:4px">
+                        <button class="btn btn-sm btn-primary sched-view-btn active" data-view="hari">Hari ini</button>
+                        <button class="btn btn-sm btn-secondary sched-view-btn" data-view="minggu">Minggu ini</button>
+                    </div>
+                </div>
+                <div id="sched-view-hari-panel">
+                    <input type="date" id="sched-date" style="display:none">
+                    <div id="sched-content"><p class="hint">Memuat jadwal…</p></div>
+                </div>
+                <div id="sched-view-minggu-panel" style="display:none">
+                    <div id="sched-week-content"><p class="hint">Memuat jadwal minggu ini…</p></div>
+                </div>
+            </div>
+
+            <!-- Rekap Kehadiran Kelas Diampu -->
+            <div class="section-card">
+                <h3>Rekap Kehadiran Siswa</h3>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+                    <div class="field" style="margin:0">
+                        <label for="guru-recap-class">Kelas</label>
+                        <select id="guru-recap-class" class="input"><option value="">— Pilih Kelas —</option></select>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                        <div class="field" style="margin:0">
+                            <label for="guru-recap-start">Dari</label>
+                            <input type="date" id="guru-recap-start" class="input">
+                        </div>
+                        <div class="field" style="margin:0">
+                            <label for="guru-recap-end">Sampai</label>
+                            <input type="date" id="guru-recap-end" class="input">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="guru-recap-btn" style="width:100%">Tampilkan</button>
+                </div>
+                <div id="guru-recap-content"><p class="hint">Pilih kelas dan rentang tanggal lalu klik Tampilkan.</p></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: PIKET
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-piket">
+        <div class="page-body"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: OBSERVASI SISWA
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-observasi">
+        <div class="page-body">
+            <div class="section-card">
+                <h3>Tulis Catatan Siswa</h3>
+                <div id="obs-class-filter-wrap" style="margin-bottom:16px">
+                    <label for="obs-class-filter" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Filter Kelas</label>
+                    <select id="obs-class-filter" class="input" style="max-width:280px">
+                        <option value="">— Semua Kelas —</option>
+                    </select>
+                </div>
+                <form id="obs-form">
+                    <div class="field">
+                        <label for="obs-student-select">Siswa</label>
+                        <select id="obs-student-select" class="input">
+                            <option value="">— Pilih siswa —</option>
+                        </select>
+                        <input type="hidden" id="obs-student-id">
+                    </div>
+                    <div class="obs-fields-row" style="display:flex; gap:12px; flex-wrap:wrap">
+                        <div class="field" style="flex:1; min-width:140px">
+                            <label for="obs-dimension">Dimensi</label>
+                            <select id="obs-dimension" class="input">
+                                <option value="AKADEMIK">Akademik</option>
+                                <option value="KEHADIRAN">Kehadiran</option>
+                                <option value="PERILAKU">Perilaku</option>
+                                <option value="SOSIAL">Sosial</option>
+                                <option value="AFEKTIF">Afektif</option>
+                                <option value="BAKAT_MINAT">Bakat & Minat</option>
+                                <option value="FISIK">Fisik</option>
+                                <option value="LAINNYA">Lainnya</option>
+                            </select>
+                        </div>
+                        <div class="field" style="flex:1; min-width:140px">
+                            <label for="obs-sentiment">Sentimen</label>
+                            <select id="obs-sentiment" class="input">
+                                <option value="POSITIF">Positif</option>
+                                <option value="NETRAL">Netral</option>
+                                <option value="NEGATIF">Perlu Perhatian</option>
+                            </select>
+                        </div>
+                        <div class="field" style="flex:1; min-width:140px">
+                            <label for="obs-visibility">Ditujukan untuk</label>
+                            <select id="obs-visibility" class="input">
+                                <option value="SISWA_DAN_ORTU">👨‍👩‍👦 Siswa & Orang Tua</option>
+                                <option value="SISWA_SAJA">🎓 Siswa saja</option>
+                                <option value="ORTU_SAJA">👨‍👩‍👧 Orang Tua saja</option>
+                                <option value="PRIVATE">🔒 Catatan pribadi (hanya saya)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="obs-content">Catatan</label>
+                        <textarea id="obs-content" class="input" rows="3" placeholder="Tuliskan catatan untuk siswa…" maxlength="1000" required></textarea>
+                        <p class="hint" style="text-align:right; margin:2px 0 0"><span id="obs-char-count">0</span>/1000 karakter</p>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="obs-submit">Simpan Catatan</button>
+                    <div id="obs-status" class="status-msg" style="display:none; margin-top:8px"></div>
+                </form>
+            </div>
+
+            <!-- Riwayat observasi yang pernah ditulis guru ini -->
+            <div class="section-card">
+                <h3>Riwayat Catatan Saya</h3>
+                <div id="obs-history-list"><p class="hint">Memuat…</p></div>
+                <div style="text-align:center;margin-top:12px">
+                    <button id="obs-history-more" class="btn btn-secondary" style="display:none">
+                        Muat lebih banyak
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: FORUM SEKOLAH
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-forum">
+        <div class="page-body">
+
+            <!-- Sub-tab: Masuk / Terkirim -->
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+                <button id="forum-tab-masuk" class="btn btn-primary">Masuk</button>
+                <button id="forum-tab-terkirim" class="btn btn-secondary">Terkirim</button>
+                <button id="btn-forum-buat" class="btn btn-primary" style="margin-left:auto">+ Buat Posting</button>
+            </div>
+
+            <!-- Daftar posting -->
+            <div id="forum-list-container">
+                <p id="forum-loading" class="hint">Memuat forum…</p>
+                <div id="forum-posts-list"></div>
+                <div style="text-align:center;margin-top:12px">
+                    <button id="btn-forum-load-more" class="btn btn-secondary" style="display:none">Muat lebih banyak</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Modal: buat/edit posting -->
+        <div id="modal-forum-post" class="modal-overlay" style="display:none">
+            <div class="modal-box" style="max-width:560px;width:100%">
+                <h3 id="modal-forum-title" style="margin:0 0 16px">Buat Posting</h3>
+
+                <!-- Judul -->
+                <div class="field">
+                    <label for="forum-input-title">Judul</label>
+                    <input type="text" id="forum-input-title" class="input"
+                           placeholder="Judul…" maxlength="200">
+                </div>
+
+                <!-- Isi -->
+                <div class="field">
+                    <label for="forum-input-body">Isi</label>
+                    <textarea id="forum-input-body" class="input" rows="5"
+                              placeholder="Tuliskan isi…" maxlength="5000"></textarea>
+                </div>
+
+                <!-- Pilih penerima -->
+                <div class="field">
+                    <label>Penerima</label>
+
+                    <!-- Grup penerima -->
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="forum-recipient-group-btns">
+                        <!-- Diisi JS berdasarkan role pembuat -->
+                    </div>
+
+                    <!-- Filter jurusan (muncul kondisional) -->
+                    <div id="forum-filter-jurusan-wrap" style="display:none;margin-bottom:8px">
+                        <select id="forum-filter-jurusan" class="input">
+                            <option value="">Semua Jurusan</option>
+                        </select>
+                    </div>
+
+                    <!-- Filter kelas (muncul kondisional) -->
+                    <div id="forum-filter-kelas-wrap" style="display:none;margin-bottom:8px">
+                        <select id="forum-filter-kelas" class="input">
+                            <option value="">Semua Kelas</option>
+                        </select>
+                    </div>
+
+                    <!-- Filter hari piket (muncul kondisional) -->
+                    <div id="forum-filter-hari-wrap" style="display:none;margin-bottom:8px">
+                        <select id="forum-filter-hari" class="input">
+                            <option value="">Pilih hari…</option>
+                            <option value="1">Senin</option>
+                            <option value="2">Selasa</option>
+                            <option value="3">Rabu</option>
+                            <option value="4">Kamis</option>
+                            <option value="5">Jumat</option>
+                            <option value="6">Sabtu</option>
+                        </select>
+                    </div>
+
+                    <!-- Chips penerima terpilih -->
+                    <div id="forum-recipient-chips"
+                         style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;min-height:32px;
+                                padding:6px;border:1px solid var(--color-border);border-radius:6px">
+                        <span class="hint" id="forum-chips-empty">Belum ada penerima dipilih</span>
+                    </div>
+                    <p id="forum-recipient-count" class="hint" style="margin-top:4px"></p>
+                </div>
+
+                <!-- Lampiran -->
+                <div class="field">
+                    <label for="forum-input-file">Lampiran (PDF / Word, maks. 10 MB)</label>
+                    <input type="file" id="forum-input-file" accept=".pdf,.doc,.docx"
+                           style="display:block;margin-top:4px">
+                    <p id="forum-file-name" class="hint" style="margin-top:4px"></p>
+                </div>
+
+                <p id="forum-post-error" style="color:var(--color-danger);font-size:13px;display:none"></p>
+
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+                    <button id="btn-forum-modal-batal" class="btn btn-secondary">Batal</button>
+                    <button id="btn-forum-modal-simpan" class="btn btn-primary">Kirim</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: name picker (muncul di atas modal-forum-post) -->
+        <div id="modal-forum-picker" class="modal-overlay" style="display:none;z-index:1100">
+            <div class="modal-box" style="max-width:480px;width:100%">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <h3 id="picker-title" style="margin:0">Pilih Penerima</h3>
+                    <button id="btn-picker-batal" class="btn btn-secondary">Batal</button>
+                </div>
+
+                <!-- Search -->
+                <div style="margin-bottom:8px">
+                    <input type="text" id="picker-search" class="input"
+                           placeholder="Cari nama…" autocomplete="off">
+                </div>
+
+                <!-- Filter jabatan Waka (muncul kondisional) -->
+                <div id="picker-filter-jabatan-wrap" style="display:none;margin-bottom:8px">
+                    <select id="picker-filter-jabatan" class="input">
+                        <option value="">Semua Jabatan</option>
+                        <option value="WAKA_KURIKULUM">Waka Kurikulum</option>
+                        <option value="WAKA_KESISWAAN">Waka Kesiswaan</option>
+                        <option value="WAKA_HUMAS">Waka Humas</option>
+                    </select>
+                </div>
+
+                <!-- Filter jurusan (muncul kondisional) -->
+                <div id="picker-filter-jurusan-wrap" style="display:none;margin-bottom:8px">
+                    <select id="picker-filter-jurusan" class="input">
+                        <option value="">Semua Jurusan</option>
+                    </select>
+                </div>
+
+                <!-- Filter kelas (muncul kondisional) -->
+                <div id="picker-filter-kelas-wrap" style="display:none;margin-bottom:8px">
+                    <select id="picker-filter-kelas" class="input">
+                        <option value="">Semua Kelas</option>
+                    </select>
+                </div>
+
+                <!-- Filter hari (muncul kondisional) -->
+                <div id="picker-filter-hari-wrap" style="display:none;margin-bottom:8px">
+                    <select id="picker-filter-hari" class="input">
+                        <option value="">Pilih hari…</option>
+                        <option value="1">Senin</option>
+                        <option value="2">Selasa</option>
+                        <option value="3">Rabu</option>
+                        <option value="4">Kamis</option>
+                        <option value="5">Jumat</option>
+                        <option value="6">Sabtu</option>
+                    </select>
+                </div>
+
+                <!-- Daftar hasil -->
+                <div id="picker-tree" style="display:none;max-height:300px;overflow-y:auto;
+                border:1px solid var(--color-border);border-radius:6px;margin-bottom:12px"></div>
+                <div id="picker-loading" class="hint" style="display:none">Memuat…</div>
+                <div id="picker-list"
+                     style="max-height:300px;overflow-y:auto;border:1px solid var(--color-border);
+                            border-radius:6px;margin-bottom:12px"></div>
+
+                <p id="picker-error" style="color:var(--color-danger);font-size:13px;display:none"></p>
+
+                <div style="display:flex;justify-content:flex-end">
+                    <button id="btn-picker-tambahkan" class="btn btn-primary">Tambahkan</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: detail posting (baca + komentar) -->
+        <div id="modal-forum-detail" class="modal-overlay" style="display:none">
+            <div class="modal-box" style="max-width:600px;width:100%">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                    <h3 id="detail-forum-title" style="margin:0"></h3>
+                    <button id="btn-forum-detail-close" class="btn btn-secondary" style="flex-shrink:0">✕</button>
+                </div>
+                <p id="detail-forum-meta" class="hint" style="margin:6px 0 12px"></p>
+                <div id="detail-forum-body" style="white-space:pre-wrap;margin-bottom:12px"></div>
+                <div id="detail-forum-attachment" style="margin-bottom:12px"></div>
+
+                <!-- Komentar -->
+                <div id="detail-forum-comments" style="border-top:1px solid var(--color-border);padding-top:12px">
+                    <p class="hint" id="detail-forum-comments-loading">Memuat komentar…</p>
+                    <div id="detail-forum-comments-list"></div>
+                </div>
+
+                <!-- Input komentar -->
+                <div style="display:flex;gap:8px;margin-top:12px">
+                    <textarea id="forum-comment-input" class="input" rows="2"
+                              placeholder="Tulis komentar…" maxlength="1000"
+                              style="flex:1;resize:none"></textarea>
+                    <button id="btn-forum-comment-submit" class="btn btn-primary">Kirim</button>
+                </div>
+                <p id="forum-comment-error" style="color:var(--color-danger);font-size:13px;display:none"></p>
+
+                <!-- Aksi author -->
+                <div id="forum-author-actions" style="display:none;margin-top:12px;
+                     border-top:1px solid var(--color-border);padding-top:12px">
+                    <button id="btn-forum-edit" class="btn btn-secondary">Edit</button>
+                    <button id="btn-forum-delete" class="btn btn-danger" style="margin-left:8px">Hapus Posting</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: WALI KELAS
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-wali_kelas">
+        <div class="page-body">
+            <div class="section-card kp-acc-item" id="wali-att-card">
+                <div class="kp-acc-header"><span id="wali-class-title">Kelas Walian</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" id="wali-att-body" style="display:none">
+                <div class="date-row" style="margin-bottom:12px">
+                    <label for="wali-date-start">Dari:</label>
+                    <input type="date" id="wali-date-start" class="input" style="width:auto">
+                    <label for="wali-date-end">s/d:</label>
+                    <input type="date" id="wali-date-end" class="input" style="width:auto">
+                    <div class="date-row-actions">
+                        <button class="btn btn-secondary btn-sm" id="wali-filter-btn">Filter</button>
+                        <button id="wali-recap-export" class="btn btn-secondary btn-sm"
+                            style="display:none">Unduh Excel</button>
+                    </div>
+                </div>
+                <div id="wali-att-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
+                </div>
+            </div>
+
+            <div class="section-card" style="margin-top:16px">
+                <h3>Pembinaan Siswa Walian</h3>
+                <div id="wali-kasus-list-view" style="display:block">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center">
+                        <div style="position:relative; display:inline-block">
+                            <button class="btn btn-secondary btn-sm" id="wali-kasus-template-btn">↓ Unduh Template ▾</button>
+                            <div id="wali-kasus-template-menu" style="display:none; position:absolute; top:100%; left:0; z-index:100; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius); min-width:210px; box-shadow:0 4px 12px rgba(0,0,0,0.15)">
+                                <a href="assets/templates/surat-panggilan-ortu.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Panggilan Orang Tua</a>
+                                <a href="assets/templates/surat-pernyataan-siswa.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Pernyataan Siswa</a>
+                                <a href="assets/templates/berita-acara-pembinaan.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Berita Acara Pembinaan</a>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="wali-kasus-rekap-btn">↓ Unduh Rekap</button>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; align-items:center">
+                        <select id="wali-kasus-filter-status" class="input" style="width:auto; font-size:13px">
+                            <option value="">Semua Status</option>
+                            <option value="OPEN">Buka</option>
+                            <option value="UNDER_REVIEW">Ditinjau</option>
+                            <option value="INTERVENTION">Intervensi</option>
+                            <option value="MONITORING">Monitoring</option>
+                            <option value="CLOSED">Tutup</option>
+                        </select>
+                        <select id="wali-kasus-filter-track" class="input" style="width:auto; font-size:13px">
+                            <option value="">Semua Jalur</option>
+                            <option value="SEKOLAH">Sekolah</option>
+                            <option value="PKL">PKL</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" id="wali-kasus-filter-btn">Filter</button>
+                    </div>
+                    <div id="wali-kasus-list-content"><p class="hint">Memuat…</p></div>
+                </div>
+                <div id="wali-kasus-detail-view" style="display:none">
+                    <button class="btn btn-secondary btn-sm" id="wali-kasus-back-btn" style="margin-bottom:12px">← Kembali ke Daftar</button>
+                    <div id="wali-kasus-detail-header"></div>
+                    <div class="section-card" style="margin-top:12px">
+                        <h4>Timeline Kasus</h4>
+                        <div id="wali-kasus-events-list"></div>
+                    </div>
+                    <div class="section-card" id="wali-kasus-actions" style="display:none; margin-top:12px">
+                        <h4>Tindakan</h4>
+                        <div style="margin-bottom:16px">
+                            <label>Tambah Komentar</label>
+                            <textarea id="wali-kasus-comment-text" class="input" rows="3" placeholder="Tulis komentar…" style="margin-bottom:6px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="wali-kasus-comment-submit-btn">Kirim Komentar</button>
+                            <span id="wali-kasus-comment-msg" style="font-size:13px; margin-left:8px"></span>
+                            <p class="hint" style="margin-top:4px">Komentar hanya terlihat oleh staf internal sekolah.</p>
+                        </div>
+                        <div id="wali-kasus-escalate-block" style="margin-bottom:16px; display:none">
+                            <label for="wali-kasus-escalate-to">Teruskan kasus ke</label>
+                            <select id="wali-kasus-escalate-to" class="input" style="margin-bottom:6px; width:auto"></select>
+                            <div id="wali-kasus-escalate-warn" style="display:none; font-size:12px; color:var(--color-warning); margin-bottom:6px"></div>
+                            <textarea id="wali-kasus-escalate-note" class="input" rows="2" placeholder="Catatan (opsional)…" style="margin-bottom:8px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="wali-kasus-escalate-btn">Teruskan</button>
+                            <span id="wali-kasus-escalate-msg" style="font-size:13px; margin-left:8px"></span>
+                        </div>
+                        <div id="wali-kasus-audience-block" style="margin-bottom:16px; display:none; padding:12px; border:1px solid var(--color-border); border-radius:var(--radius)"></div>
+                        <div id="wali-kasus-status-block" style="display:none">
+                            <div id="wali-kasus-status-change-controls" style="margin-bottom:8px">
+                                <label for="wali-kasus-new-status">Ubah Status</label>
+                                <select id="wali-kasus-new-status" class="input" style="width:auto; margin-bottom:6px"></select>
+                                <button class="btn btn-primary btn-sm" id="wali-kasus-status-btn">Simpan Status</button>
+                            </div>
+                            <textarea id="wali-kasus-status-note" class="input" rows="2" placeholder="Catatan perubahan (opsional)…" style="margin-bottom:8px"></textarea>
+                            <span id="wali-kasus-status-msg" style="font-size:13px; margin-left:8px"></span>
+                        </div>
+                        <div style="margin-top:16px">
+                            <button class="btn btn-danger btn-sm" id="wali-kasus-close-btn" style="display:none">Tutup Kasus</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: BK
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-bk">
+        <div class="page-body">
+            <div class="section-card kp-acc-item" id="bk-att-card">
+                <div class="kp-acc-header"><span>Kehadiran Per Kelas</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" id="bk-att-body" style="display:none">
+                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="bk-att-start" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Dari:</label>
+                        <input type="date" id="bk-att-start" class="input" style="flex:1;min-width:0">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="bk-att-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
+                        <input type="date" id="bk-att-end" class="input" style="flex:1;min-width:0">
+                        <button class="btn btn-secondary btn-sm" id="bk-att-filter-btn">Filter</button>
+                    </div>
+                </div>
+                <div id="bk-att-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
+                </div>
+            </div>
+
+            <div class="section-card" style="margin-top:16px">
+                <h3>Pembinaan Siswa — BK</h3>
+                <div id="bk-kasus-list-view" style="display:block">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center">
+                        <div style="position:relative; display:inline-block">
+                            <button class="btn btn-secondary btn-sm" id="bk-kasus-template-btn">↓ Unduh Template ▾</button>
+                            <div id="bk-kasus-template-menu" style="display:none; position:absolute; top:100%; left:0; z-index:100; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius); min-width:210px; box-shadow:0 4px 12px rgba(0,0,0,0.15)">
+                                <a href="assets/templates/surat-panggilan-ortu.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Panggilan Orang Tua</a>
+                                <a href="assets/templates/surat-pernyataan-siswa.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Pernyataan Siswa</a>
+                                <a href="assets/templates/berita-acara-pembinaan.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Berita Acara Pembinaan</a>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="bk-kasus-rekap-btn">↓ Unduh Rekap</button>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; align-items:center">
+                        <select id="bk-kasus-filter-status" class="input" style="width:auto; font-size:13px">
+                            <option value="">Semua Status</option>
+                            <option value="OPEN">Buka</option>
+                            <option value="UNDER_REVIEW">Ditinjau</option>
+                            <option value="INTERVENTION">Intervensi</option>
+                            <option value="MONITORING">Monitoring</option>
+                            <option value="CLOSED">Tutup</option>
+                        </select>
+                        <select id="bk-kasus-filter-track" class="input" style="width:auto; font-size:13px">
+                            <option value="">Semua Jalur</option>
+                            <option value="SEKOLAH">Sekolah</option>
+                            <option value="PKL">PKL</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" id="bk-kasus-filter-btn">Filter</button>
+                    </div>
+                    <div id="bk-kasus-list-content"><p class="hint">Memuat…</p></div>
+                </div>
+                <div id="bk-kasus-detail-view" style="display:none">
+                    <button class="btn btn-secondary btn-sm" id="bk-kasus-back-btn" style="margin-bottom:12px">← Kembali ke Daftar</button>
+                    <div id="bk-kasus-detail-header"></div>
+                    <div class="section-card" style="margin-top:12px">
+                        <h4>Timeline Kasus</h4>
+                        <div id="bk-kasus-events-list"></div>
+                    </div>
+                    <div class="section-card" id="bk-kasus-actions" style="display:none; margin-top:12px">
+                        <h4>Tindakan</h4>
+                        <div style="margin-bottom:16px">
+                            <label>Tambah Komentar</label>
+                            <textarea id="bk-kasus-comment-text" class="input" rows="3" placeholder="Tulis komentar…" style="margin-bottom:6px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="bk-kasus-comment-submit-btn">Kirim Komentar</button>
+                            <span id="bk-kasus-comment-msg" style="font-size:13px; margin-left:8px"></span>
+                            <p class="hint" style="margin-top:4px">Komentar hanya terlihat oleh staf internal sekolah.</p>
+                        </div>
+                        <div id="bk-kasus-escalate-block" style="margin-bottom:16px; display:none">
+                            <label for="bk-kasus-escalate-to">Teruskan kasus ke</label>
+                            <select id="bk-kasus-escalate-to" class="input" style="margin-bottom:6px; width:auto"></select>
+                            <div id="bk-kasus-escalate-warn" style="display:none; font-size:12px; color:var(--color-warning); margin-bottom:6px"></div>
+                            <textarea id="bk-kasus-escalate-note" class="input" rows="2" placeholder="Catatan (opsional)…" style="margin-bottom:8px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="bk-kasus-escalate-btn">Teruskan</button>
+                            <span id="bk-kasus-escalate-msg" style="font-size:13px; margin-left:8px"></span>
+                        </div>
+                        <div id="bk-kasus-audience-block" style="margin-bottom:16px; display:none; padding:12px; border:1px solid var(--color-border); border-radius:var(--radius)"></div>
+                        <div id="bk-kasus-status-block" style="display:none">
+                            <label for="bk-kasus-new-status">Ubah Status</label>
+                            <select id="bk-kasus-new-status" class="input" style="width:auto; margin-bottom:6px"></select>
+                            <textarea id="bk-kasus-status-note" class="input" rows="2" placeholder="Catatan perubahan (opsional)…" style="margin-bottom:8px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="bk-kasus-status-btn">Simpan Status</button>
+                            <span id="bk-kasus-status-msg" style="font-size:13px; margin-left:8px"></span>
+                        </div>
+                        <div style="margin-top:16px">
+                            <button class="btn btn-danger btn-sm" id="bk-kasus-close-btn" style="display:none">Tutup Kasus</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: KAPRODI
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-kaprodi">
+        <div class="page-body" id="kp-accordion">
+
+            <!-- Rekap Absensi Kelas — kehadiran sesi siswa AKTIF di sekolah -->
+            <div class="section-card kp-acc-item">
+                <div class="kp-acc-header" data-target="kp-body-cls"><span>Rekap Absensi Kelas</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" id="kp-body-cls" style="display:none">
+                <div class="date-row" style="margin-bottom:12px">
+                    <label for="kp-cls-start">Dari:</label><input type="date" id="kp-cls-start" class="input" style="width:auto">
+                    <label for="kp-cls-end">s/d:</label><input type="date" id="kp-cls-end" class="input" style="width:auto">
+                    <button class="btn btn-secondary btn-sm" id="kp-cls-filter-btn">Filter</button>
+                </div>
+                <div id="kp-cls-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
+                </div>
+            </div>
+
+            <!-- Mitra DUDI — referensi dipilih di Form Penempatan -->
+            <div class="section-card kp-acc-item">
+                <div class="kp-acc-header" data-target="kp-body-dudi"><span>Mitra DUDI</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" id="kp-body-dudi" style="display:none">
+                <div class="table-wrapper">
+                    <table class="table"><thead><tr><th>Nama Usaha</th><th>Penanggung Jawab</th></tr></thead>
+                    <tbody id="kp-dudi-body"></tbody></table>
+                </div>
+                <p class="hint" id="kp-dudi-empty" style="display:none">Belum ada mitra DUDI terdaftar untuk program ini.</p>
+                </div>
+            </div>
+
+            <!-- Penempatan PKL — siswa AKTIF masuk PKL -->
+            <div class="section-card kp-acc-item">
+                <div class="kp-acc-header" data-target="kp-body-placement"><span>Penempatan PKL</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" id="kp-body-placement" style="display:none">
+                <form id="kp-placement-form" style="display:grid; gap:12px; grid-template-columns:1fr 1fr; margin-bottom:16px">
+                    <div class="field" style="margin:0">
+                        <label for="kp-pl-student">Siswa</label>
+                        <select id="kp-pl-student" class="input"><option value="">-- Pilih siswa --</option></select>
+                    </div>
+                    <div class="field" style="margin:0">
+                        <label for="kp-pl-dudi">Mitra DUDI</label>
+                        <select id="kp-pl-dudi" class="input"><option value="">-- Pilih DUDI --</option></select>
+                    </div>
+                    <div class="field" style="margin:0">
+                        <label for="kp-pl-start">Tanggal Mulai</label>
+                        <input type="date" id="kp-pl-start" class="input">
+                    </div>
+                    <div class="field" style="margin:0">
+                        <label for="kp-pl-end">Tanggal Selesai</label>
+                        <input type="date" id="kp-pl-end" class="input">
+                    </div>
+                    <div style="grid-column:1/-1; display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+                        <button type="submit" class="btn btn-primary btn-sm" id="kp-pl-submit">Simpan Penempatan</button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="kp-import-btn">Impor CSV</button>
+                        <input type="file" id="kp-file-input" accept=".csv" style="display:none">
+                        <button type="button" class="btn btn-secondary btn-sm" id="kp-dl-template">Unduh Template CSV</button>
+                    </div>
+                    <div id="kp-placement-result" style="grid-column:1/-1"></div>
+                </form>
+                </div>
+            </div>
+
+            <!-- Daftar Siswa PKL — monitor siapa yang sedang PKL -->
+            <div class="section-card kp-acc-item">
+                <div class="kp-acc-header" data-target="kp-body-students"><span>Daftar Siswa PKL</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" id="kp-body-students" style="display:none">
+                <div class="stats-row" style="margin-bottom:16px">
+                    <div class="stat-card"><span class="stat-value" id="kp-stat-total">—</span><div class="stat-label">Total Siswa PKL</div></div>
+                    <div class="stat-card"><span class="stat-value" id="kp-stat-placed">—</span><div class="stat-label">Sudah Ditempatkan</div></div>
+                    <div class="stat-card"><span class="stat-value" id="kp-stat-unplaced">—</span><div class="stat-label">Belum Ditempatkan</div></div>
+                </div>
+                <div class="table-wrapper">
+                    <table class="table" style="table-layout:fixed;width:100%">
+                        <colgroup>
+                            <col style="width:22%">
+                            <col style="width:12%">
+                            <col style="width:28%">
+                            <col style="width:24%">
+                            <col style="width:14%">
+                        </colgroup>
+                        <thead><tr>
+                            <th>Nama</th>
+                            <th>NIS</th>
+                            <th>Tempat PKL</th>
+                            <th>Periode</th>
+                            <th>Aksi</th>
+                        </tr></thead>
+                        <tbody id="kp-students-body"></tbody>
+                    </table>
+                </div>
+                <p class="hint" id="kp-students-empty" style="display:none">Belum ada siswa PKL pada program ini.</p>
+                </div>
+            </div>
+
+            <!-- Rekap Absensi PKL — kehadiran harian siswa PKL di DUDI -->
+            <div class="section-card kp-acc-item">
+                <div class="kp-acc-header" data-target="kp-body-pkl"><span>Rekap Absensi PKL</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" id="kp-body-pkl" style="display:none">
+                <div class="date-row" style="margin-bottom:12px">
+                    <label for="kp-date-start">Dari:</label><input type="date" id="kp-date-start" class="input" style="width:auto">
+                    <label for="kp-date-end">s/d:</label><input type="date" id="kp-date-end" class="input" style="width:auto">
+                    <button class="btn btn-secondary btn-sm" id="kp-filter-btn">Filter</button>
+                </div>
+                <div class="table-wrapper">
+                    <table class="table" style="table-layout:fixed;width:100%">
+                        <colgroup>
+                            <col style="width:40%">
+                            <col style="width:12%">
+                            <col style="width:12%">
+                            <col style="width:12%">
+                            <col style="width:12%">
+                            <col style="width:12%">
+                        </colgroup>
+                        <thead><tr>
+                            <th>Nama / NIS</th>
+                            <th style="text-align:center">H</th>
+                            <th style="text-align:center">I</th>
+                            <th style="text-align:center">S</th>
+                            <th style="text-align:center">A</th>
+                            <th style="text-align:center">%</th>
+                        </tr></thead>
+                        <tbody id="kp-recap-body"></tbody>
+                    </table>
+                </div>
+                <p class="hint" id="kp-recap-empty" style="display:none">Belum ada data absensi pada rentang ini.</p>
+                </div>
+            </div>
+
+            <!-- Observasi DUDI -->
+            <div class="section-card kp-acc-item">
+                <div class="kp-acc-header" data-target="kp-body-obs"><span>Observasi dari DUDI</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" id="kp-body-obs" style="display:none">
+                <p class="hint" id="kp-obs-hint" style="display:none">Belum ada observasi dari DUDI.</p>
+                <div id="kp-obs-list"></div>
+                </div>
+            </div>
+
+            <div class="section-card kp-acc-item">
+                <div class="kp-acc-header" data-target="kp-body-kasus"><span>Pembinaan Siswa Program Studi</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" id="kp-body-kasus" style="display:none">
+                <div id="kp-kasus-list-view" style="display:block">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center">
+                        <div style="position:relative; display:inline-block">
+                            <button class="btn btn-secondary btn-sm" id="kp-kasus-template-btn">↓ Unduh Template ▾</button>
+                            <div id="kp-kasus-template-menu" style="display:none; position:absolute; top:100%; left:0; z-index:100; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius); min-width:210px; box-shadow:0 4px 12px rgba(0,0,0,0.15)">
+                                <a href="assets/templates/surat-panggilan-ortu.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Panggilan Orang Tua</a>
+                                <a href="assets/templates/surat-pernyataan-siswa.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Pernyataan Siswa</a>
+                                <a href="assets/templates/berita-acara-pembinaan.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Berita Acara Pembinaan</a>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="kp-kasus-rekap-btn">↓ Unduh Rekap</button>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; align-items:center">
+                        <select id="kp-kasus-filter-status" class="input" style="width:auto; font-size:13px">
+                            <option value="">Semua Status</option>
+                            <option value="OPEN">Buka</option>
+                            <option value="UNDER_REVIEW">Ditinjau</option>
+                            <option value="INTERVENTION">Intervensi</option>
+                            <option value="MONITORING">Monitoring</option>
+                            <option value="CLOSED">Tutup</option>
+                        </select>
+                        <select id="kp-kasus-filter-track" class="input" style="width:auto; font-size:13px">
+                            <option value="">Semua Jalur</option>
+                            <option value="SEKOLAH">Sekolah</option>
+                            <option value="PKL">PKL</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" id="kp-kasus-filter-btn">Filter</button>
+                    </div>
+                    <div id="kp-kasus-list-content"><p class="hint">Memuat…</p></div>
+                </div>
+                <div id="kp-kasus-detail-view" style="display:none">
+                    <button class="btn btn-secondary btn-sm" id="kp-kasus-back-btn" style="margin-bottom:12px">← Kembali ke Daftar</button>
+                    <div id="kp-kasus-detail-header"></div>
+                    <div class="section-card" style="margin-top:12px">
+                        <h4>Timeline Kasus</h4>
+                        <div id="kp-kasus-events-list"></div>
+                    </div>
+                    <div class="section-card" id="kp-kasus-actions" style="display:none; margin-top:12px">
+                        <h4>Tindakan</h4>
+                        <div style="margin-bottom:16px">
+                            <label>Tambah Komentar</label>
+                            <textarea id="kp-kasus-comment-text" class="input" rows="3" placeholder="Tulis komentar…" style="margin-bottom:6px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="kp-kasus-comment-submit-btn">Kirim Komentar</button>
+                            <span id="kp-kasus-comment-msg" style="font-size:13px; margin-left:8px"></span>
+                            <p class="hint" style="margin-top:4px">Komentar hanya terlihat oleh staf internal sekolah.</p>
+                        </div>
+                        <div id="kp-kasus-escalate-block" style="margin-bottom:16px; display:none">
+                            <label for="kp-kasus-escalate-to">Teruskan kasus ke</label>
+                            <select id="kp-kasus-escalate-to" class="input" style="margin-bottom:6px; width:auto"></select>
+                            <div id="kp-kasus-escalate-warn" style="display:none; font-size:12px; color:var(--color-warning); margin-bottom:6px"></div>
+                            <textarea id="kp-kasus-escalate-note" class="input" rows="2" placeholder="Catatan (opsional)…" style="margin-bottom:8px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="kp-kasus-escalate-btn">Teruskan</button>
+                            <span id="kp-kasus-escalate-msg" style="font-size:13px; margin-left:8px"></span>
+                        </div>
+                        <div id="kp-kasus-audience-block" style="margin-bottom:16px; display:none; padding:12px; border:1px solid var(--color-border); border-radius:var(--radius)"></div>
+                        <div id="kp-kasus-status-block" style="display:none">
+                            <label for="kp-kasus-new-status">Ubah Status</label>
+                            <select id="kp-kasus-new-status" class="input" style="width:auto; margin-bottom:6px"></select>
+                            <textarea id="kp-kasus-status-note" class="input" rows="2" placeholder="Catatan perubahan (opsional)…" style="margin-bottom:8px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="kp-kasus-status-btn">Simpan Status</button>
+                            <span id="kp-kasus-status-msg" style="font-size:13px; margin-left:8px"></span>
+                        </div>
+                        <div style="margin-top:16px">
+                            <button class="btn btn-danger btn-sm" id="kp-kasus-close-btn" style="display:none">Tutup Kasus</button>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: WAKA HUMAS
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-waka_humas">
+        <div class="page-body">
+
+            <div class="stats-row">
+                <div class="stat-card"><span class="stat-value" id="wh-stat-total">—</span><div class="stat-label">Total Siswa PKL</div></div>
+                <div class="stat-card"><span class="stat-value" id="wh-stat-placed">—</span><div class="stat-label">Sudah Ditempatkan</div></div>
+                <div class="stat-card"><span class="stat-value" id="wh-stat-dudi">—</span><div class="stat-label">Mitra DUDI</div></div>
+            </div>
+
+            <!-- Daftar Siswa PKL (semua program) -->
+            <div class="section-card">
+                <h3>Daftar Siswa PKL</h3>
+                <div class="table-wrapper">
+                    <table class="table"><thead><tr><th>Nama</th><th>NIS</th><th>Program</th><th>Tempat PKL</th><th>Periode</th></tr></thead>
+                    <tbody id="wh-students-body"></tbody></table>
+                </div>
+                <p class="hint" id="wh-students-empty" style="display:none">Belum ada siswa yang sedang PKL.</p>
+            </div>
+
+            <!-- Rekap Absensi PKL -->
+            <div class="section-card">
+                <h3>Rekap Absensi PKL</h3>
+                <div class="date-row" style="margin-bottom:12px">
+                    <label for="wh-date-start">Dari:</label><input type="date" id="wh-date-start" class="input" style="width:auto">
+                    <label for="wh-date-end">s/d:</label><input type="date" id="wh-date-end" class="input" style="width:auto">
+                    <button class="btn btn-secondary btn-sm" id="wh-filter-btn">Filter</button>
+                </div>
+                <div class="table-wrapper">
+                    <table class="table"><thead><tr><th style="min-width:120px">Nama</th><th style="min-width:90px">Program</th><th>Hadir</th><th>Sakit</th><th>Izin</th><th>Alpa</th><th>% Hadir</th></tr></thead>
+                    <tbody id="wh-recap-body"></tbody></table>
+                </div>
+                <p class="hint" id="wh-recap-empty" style="display:none">Belum ada data absensi pada rentang ini.</p>
+            </div>
+
+            <!-- Mitra DUDI (semua program) -->
+            <div class="section-card">
+                <h3>Mitra DUDI</h3>
+                <div class="table-wrapper">
+                    <table class="table"><thead><tr><th>Nama Usaha</th><th>Penanggung Jawab</th><th>Program</th></tr></thead>
+                    <tbody id="wh-dudi-body"></tbody></table>
+                </div>
+                <p class="hint" id="wh-dudi-empty" style="display:none">Belum ada mitra DUDI terdaftar.</p>
+            </div>
+
+            <!-- Observasi dari DUDI -->
+            <div class="section-card">
+                <h3>Observasi dari DUDI</h3>
+                <p class="hint" id="wh-obs-hint" style="display:none">Belum ada observasi dari DUDI.</p>
+                <div id="wh-obs-list"></div>
+            </div>
+
+            <!-- Kasus PKL -->
+            <div class="section-card">
+                <h3>Kasus PKL</h3>
+                <div class="table-wrapper">
+                    <table class="table" id="wh-cases-table">
+                        <thead><tr><th>Siswa</th><th>Judul</th><th>Tahap</th><th>Dibuka</th></tr></thead>
+                        <tbody id="wh-cases-body"></tbody>
+                    </table>
+                </div>
+                <p class="hint" id="wh-cases-empty" style="display:none">Tidak ada kasus PKL terbuka.</p>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal drill-down kehadiran siswa per kelas (Waka Kesiswaan) -->
+    <div id="wk-class-modal" class="modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal-box">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h3 id="wk-modal-title" style="margin:0;color:var(--color-primary)"></h3>
+                <button id="wk-modal-close" class="btn btn-secondary btn-sm" style="padding:4px 12px">✕ Tutup</button>
+            </div>
+            <div id="wk-modal-body"><p class="hint">Memuat…</p></div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: WAKA KESISWAAN
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-waka_kesiswaan">
+        <div class="page-body">
+            <div class="section-card kp-acc-item" id="wk-att-card">
+                <div class="kp-acc-header"><span>Kehadiran Per Kelas</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" id="wk-att-body" style="display:none">
+                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="wk-att-start" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Dari:</label>
+                        <input type="date" id="wk-att-start" class="input" style="flex:1;min-width:0">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="wk-att-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
+                        <input type="date" id="wk-att-end" class="input" style="flex:1;min-width:0">
+                        <button class="btn btn-secondary btn-sm" id="wk-att-filter-btn">Filter</button>
+                    </div>
+                </div>
+                <div id="wk-att-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
+                </div>
+            </div>
+
+            <div class="section-card kp-acc-item" id="wk-late-card">
+                <div class="kp-acc-header"><span>Rekap Keterlambatan</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" id="wk-late-body" style="display:none">
+                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="wk-late-start" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Dari:</label>
+                        <input type="date" id="wk-late-start" class="input" style="flex:1;min-width:0">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="wk-late-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
+                        <input type="date" id="wk-late-end" class="input" style="flex:1;min-width:0">
+                        <button class="btn btn-secondary btn-sm" id="wk-late-filter-btn">Filter</button>
+                    </div>
+                </div>
+                <div id="wk-late-recap"><p class="hint">Memuat…</p></div>
+                </div>
+            </div>
+
+            <div class="section-card" style="margin-top:16px">
+                <h3>Pembinaan Siswa — Kesiswaan</h3>
+                <div id="wk-kasus-count-rekap" style="display:none"></div>
+                <div id="wk-kasus-list-view" style="display:block">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center">
+                        <div style="position:relative; display:inline-block">
+                            <button class="btn btn-secondary btn-sm" id="wk-kasus-template-btn">↓ Unduh Template ▾</button>
+                            <div id="wk-kasus-template-menu" style="display:none; position:absolute; top:100%; left:0; z-index:100; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius); min-width:210px; box-shadow:0 4px 12px rgba(0,0,0,0.15)">
+                                <a href="assets/templates/surat-panggilan-ortu.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Panggilan Orang Tua</a>
+                                <a href="assets/templates/surat-pernyataan-siswa.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Pernyataan Siswa</a>
+                                <a href="assets/templates/berita-acara-pembinaan.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Berita Acara Pembinaan</a>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="wk-kasus-rekap-btn">↓ Unduh Rekap</button>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; align-items:center">
+                        <select id="wk-kasus-filter-status" class="input" style="width:auto; font-size:13px">
+                            <option value="">Semua Status</option>
+                            <option value="OPEN">Buka</option>
+                            <option value="UNDER_REVIEW">Ditinjau</option>
+                            <option value="INTERVENTION">Intervensi</option>
+                            <option value="MONITORING">Monitoring</option>
+                            <option value="CLOSED">Tutup</option>
+                        </select>
+                        <select id="wk-kasus-filter-track" class="input" style="width:auto; font-size:13px">
+                            <option value="">Semua Jalur</option>
+                            <option value="SEKOLAH">Sekolah</option>
+                            <option value="PKL">PKL</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" id="wk-kasus-filter-btn">Filter</button>
+                    </div>
+                    <div id="wk-kasus-list-content"><p class="hint">Memuat…</p></div>
+                </div>
+                <div id="wk-kasus-detail-view" style="display:none">
+                    <button class="btn btn-secondary btn-sm" id="wk-kasus-back-btn" style="margin-bottom:12px">← Kembali ke Daftar</button>
+                    <div id="wk-kasus-detail-header"></div>
+                    <div class="section-card" style="margin-top:12px">
+                        <h4>Timeline Kasus</h4>
+                        <div id="wk-kasus-events-list"></div>
+                    </div>
+                    <div class="section-card" id="wk-kasus-actions" style="display:none; margin-top:12px">
+                        <h4>Tindakan</h4>
+                        <div style="margin-bottom:16px">
+                            <label>Tambah Komentar</label>
+                            <textarea id="wk-kasus-comment-text" class="input" rows="3" placeholder="Tulis komentar…" style="margin-bottom:6px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="wk-kasus-comment-submit-btn">Kirim Komentar</button>
+                            <span id="wk-kasus-comment-msg" style="font-size:13px; margin-left:8px"></span>
+                            <p class="hint" style="margin-top:4px">Komentar hanya terlihat oleh staf internal sekolah.</p>
+                        </div>
+                        <div id="wk-kasus-escalate-block" style="margin-bottom:16px; display:none">
+                            <label for="wk-kasus-escalate-to">Teruskan kasus ke</label>
+                            <select id="wk-kasus-escalate-to" class="input" style="margin-bottom:6px; width:auto"></select>
+                            <div id="wk-kasus-escalate-warn" style="display:none; font-size:12px; color:var(--color-warning); margin-bottom:6px"></div>
+                            <textarea id="wk-kasus-escalate-note" class="input" rows="2" placeholder="Catatan (opsional)…" style="margin-bottom:8px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="wk-kasus-escalate-btn">Teruskan</button>
+                            <span id="wk-kasus-escalate-msg" style="font-size:13px; margin-left:8px"></span>
+                        </div>
+                        <div id="wk-kasus-audience-block" style="margin-bottom:16px; display:none; padding:12px; border:1px solid var(--color-border); border-radius:var(--radius)"></div>
+                        <div id="wk-kasus-status-block" style="display:none">
+                            <label for="wk-kasus-new-status">Ubah Status</label>
+                            <select id="wk-kasus-new-status" class="input" style="width:auto; margin-bottom:6px"></select>
+                            <textarea id="wk-kasus-status-note" class="input" rows="2" placeholder="Catatan perubahan (opsional)…" style="margin-bottom:8px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="wk-kasus-status-btn">Simpan Status</button>
+                            <span id="wk-kasus-status-msg" style="font-size:13px; margin-left:8px"></span>
+                        </div>
+                        <div style="margin-top:16px">
+                            <button class="btn btn-danger btn-sm" id="wk-kasus-close-btn" style="display:none">Tutup Kasus</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: WAKA KURIKULUM
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-waka_kurikulum">
+        <div class="page-body">
+
+            <!-- Ringkasan Hari Ini -->
+            <div id="wk-kur-stats-row" class="wk-stats-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px">
+                <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;padding:16px;text-align:center">
+                    <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:6px">Guru mulai mengisi absensi</div>
+                    <div id="wk-kur-val-hadir" style="font-size:28px;font-weight:500;color:var(--color-success,#22c55e)">—</div>
+                    <div id="wk-kur-detail-sudah" style="font-size:12px;color:var(--color-text-muted);margin-top:4px"></div>
+                </div>
+                <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;padding:16px;text-align:center">
+                    <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:6px">Guru dengan sesi belum diisi</div>
+                    <div id="wk-kur-val-pending" style="font-size:28px;font-weight:500;color:var(--color-warning,#f59e0b)">—</div>
+                    <div id="wk-kur-detail-belum" style="font-size:12px;color:var(--color-text-muted);margin-top:4px"></div>
+                </div>
+            </div>
+
+            <!-- Tabel 1: Hari Ini (auto-load) -->
+            <div class="section-card">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+                    <h2 style="margin:0;font-size:15px">Sesi Belum Diisi — Hari Ini</h2>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn btn-secondary btn-sm" id="wk-kur1-refresh">Muat Ulang</button>
+                        <button class="btn" id="wk-kur1-btn">Tampilkan</button>
+                    </div>
+                </div>
+                <p class="hint" id="wk-kur1-hint" style="display:none"></p>
+                <div class="table-wrapper" id="wk-kur1-wrap" style="display:none">
+                    <table class="table">
+                        <thead><tr>
+                            <th style="text-align:center;width:40px">No</th>
+                            <th>Nama Guru</th>
+                            <th style="width:32px"></th>
+                        </tr></thead>
+                        <tbody id="wk-kur1-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tabel 2: Rentang Waktu -->
+            <div class="section-card">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+                    <h2 style="margin:0;font-size:15px">Sesi Belum Diisi — Rentang Waktu</h2>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn btn-secondary btn-sm" id="wk-kur2-refresh">Muat Ulang</button>
+                        <button class="btn" id="wk-kur2-btn">Tampilkan</button>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;width:100%">
+                    <div style="display:flex;align-items:center;gap:6px;flex:1">
+                        <label for="wk-kur-start" style="font-size:13px;color:var(--color-text)">Dari</label>
+                        <input type="date" id="wk-kur-start" class="input" style="width:auto;flex:1">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;flex:1">
+                        <label for="wk-kur-end" style="font-size:13px;color:var(--color-text)">s/d</label>
+                        <input type="date" id="wk-kur-end" class="input" style="width:auto;flex:1">
+                    </div>
+                </div>
+                <div id="wk-kur2-stats-row" class="wk-stats-grid" style="display:none;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px">
+                    <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;padding:16px;text-align:center">
+                        <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:6px">Guru mulai mengisi absensi</div>
+                        <div id="wk-kur2-val-hadir" style="font-size:28px;font-weight:500;color:var(--color-success,#22c55e)">—</div>
+                        <div id="wk-kur2-detail-sudah" style="font-size:12px;color:var(--color-text-muted);margin-top:4px"></div>
+                    </div>
+                    <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;padding:16px;text-align:center">
+                        <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:6px">Guru dengan sesi belum diisi</div>
+                        <div id="wk-kur2-val-pending" style="font-size:28px;font-weight:500;color:var(--color-warning,#f59e0b)">—</div>
+                        <div id="wk-kur2-detail-belum" style="font-size:12px;color:var(--color-text-muted);margin-top:4px"></div>
+                    </div>
+                </div>
+                <p class="hint" id="wk-kur2-hint" style="display:none"></p>
+                <div class="table-wrapper" id="wk-kur2-wrap" style="display:none">
+                    <table class="table">
+                        <thead><tr>
+                            <th style="text-align:center;width:40px">No</th>
+                            <th>Nama Guru</th>
+                            <th style="width:32px"></th>
+                        </tr></thead>
+                        <tbody id="wk-kur2-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section-card" id="kepsek-approval-section" hidden>
+                <h3>Persetujuan Perangkat Ajar</h3>
+                <div id="kepsek-approval-list"><p class="hint">Memuat…</p></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: KEPSEK (Monitoring)
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-kepsek">
+        <div class="page-body">
+
+            <!-- Kartu ringkasan -->
+            <div class="stats-row" style="flex-wrap:nowrap;gap:8px">
+                <div class="stat-card" style="min-width:0;flex:1;font-size:13px">
+                    <span class="stat-value" id="ks-pct-siswa" style="font-size:1.3rem">—</span>
+                    <div class="stat-label">Kehadiran Siswa</div>
+                    <div id="ks-detail-siswa" style="font-size:12px;color:var(--color-text-muted);margin-top:2px"></div>
+                </div>
+                <div class="stat-card" style="min-width:0;flex:1;font-size:13px">
+                    <span class="stat-value" id="ks-pct-guru" style="font-size:1.3rem">—</span>
+                    <div class="stat-label">Kehadiran Guru di Kelas</div>
+                    <div id="ks-detail-guru" style="font-size:12px;color:var(--color-text-muted);margin-top:2px"></div>
+                </div>
+                <div class="stat-card" style="min-width:0;flex:1;font-size:13px">
+                    <span class="stat-value" id="ks-count-late" style="font-size:1.3rem">—</span>
+                    <div class="stat-label">Keterlambatan Siswa</div>
+                </div>
+                <div class="stat-card" style="min-width:0;flex:1;font-size:13px">
+                    <span class="stat-value" id="ks-count-exits" style="font-size:1.3rem">—</span>
+                    <div class="stat-label">Izin Keluar Siswa</div>
+                </div>
+            </div>
+
+            <!-- Grafik tren kehadiran -->
+            <div class="section-card kp-acc-item open" id="ks-chart-card">
+                <div class="kp-acc-header"><span>Tren Kehadiran</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" id="ks-chart-body" style="display:block">
+
+                <!-- Tombol periode preset -->
+                <div id="ks-period-toggle" role="group" aria-label="Pilih periode" style="display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:10px;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+                    <button class="btn btn-sm ks-period-btn" data-period="tahun_ajaran_lalu" style="white-space:nowrap">Tahun Lalu</button>
+                    <button class="btn btn-sm ks-period-btn" data-period="bulan_lalu" style="white-space:nowrap">Bulan Lalu</button>
+                    <button class="btn btn-sm ks-period-btn" data-period="minggu_lalu" style="white-space:nowrap">Minggu Lalu</button>
+                    <button class="btn btn-sm ks-period-btn" data-period="hari_ini" style="white-space:nowrap">Hari Ini</button>
+                    <button class="btn btn-sm ks-period-btn active" data-period="7_hari" style="white-space:nowrap">7 Hari</button>
+                </div>
+
+                <!-- Divider -->
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                    <div style="flex:1;height:0.5px;background:var(--color-border)"></div>
+                    <span style="font-size:11px;color:var(--color-text-muted)">atau pilih rentang bebas</span>
+                    <div style="flex:1;height:0.5px;background:var(--color-border)"></div>
+                </div>
+
+                <!-- Date range bebas -->
+                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="ks-range-start" style="font-size:13px;color:var(--color-text-muted);white-space:nowrap;min-width:28px">Dari</label>
+                        <input type="date" id="ks-range-start" class="input" style="flex:1;min-width:0">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="ks-range-end" style="font-size:13px;color:var(--color-text-muted);white-space:nowrap;min-width:28px">s/d</label>
+                        <input type="date" id="ks-range-end" class="input" style="flex:1;min-width:0">
+                        <button class="btn btn-sm" id="ks-range-btn">Tampilkan</button>
+                    </div>
+                </div>
+
+                <!-- Error -->
+                <div id="ks-monitoring-error" style="display:none;color:var(--color-danger);font-size:13px;margin-bottom:8px"></div>
+
+                <!-- Grafik -->
+                <div style="position:relative;height:220px;width:100%">
+                    <canvas id="ks-chart" aria-label="Grafik tren kehadiran siswa dan guru"></canvas>
+                </div>
+
+                <!-- Legend -->
+                <div style="display:flex;gap:16px;justify-content:center;margin-top:10px">
+                    <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-muted)">
+                        <div style="width:10px;height:10px;border-radius:50%;background:#1D9E75"></div>Kehadiran Siswa (%)
+                    </div>
+                    <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-muted)">
+                        <div style="width:10px;height:10px;border-radius:50%;background:#185FA5"></div>Kehadiran Guru (%)
+                    </div>
+                    <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-muted)">
+                        <div style="width:10px;height:10px;border-radius:50%;background:#f59e0b"></div>Keterlambatan
+                    </div>
+                    <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-muted)">
+                        <div style="width:10px;height:10px;border-radius:50%;background:#8b5cf6"></div>Izin Keluar
+                    </div>
+                </div>
+                <p id="ks-chart-hint" style="font-size:11px;color:var(--color-text-muted);text-align:center;margin-top:6px"></p>
+                </div>
+            </div>
+
+            <!-- Dokumen DISAHKAN_WAKA (read-only) -->
+            <div class="section-card kp-acc-item" id="ks-disahkan-section" hidden>
+                <div class="kp-acc-header"><span>Perangkat Ajar Disahkan Waka Kurikulum</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" style="display:none">
+                    <div id="ks-disahkan-list"><p class="hint">Memuat…</p></div>
+                </div>
+            </div>
+
+            <div class="section-card kp-acc-item" id="ks-monitoring-card" style="margin-top:16px">
+                <div class="kp-acc-header"><span>Monitoring Pembinaan Siswa</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" style="display:none">
+                <div id="ks-kasus-list-view" style="display:block">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center">
+                        <div style="position:relative; display:inline-block">
+                            <button class="btn btn-secondary btn-sm" id="ks-kasus-template-btn">↓ Unduh Template ▾</button>
+                            <div id="ks-kasus-template-menu" style="display:none; position:absolute; top:100%; left:0; z-index:100; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius); min-width:210px; box-shadow:0 4px 12px rgba(0,0,0,0.15)">
+                                <a href="assets/templates/surat-panggilan-ortu.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Panggilan Orang Tua</a>
+                                <a href="assets/templates/surat-pernyataan-siswa.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Pernyataan Siswa</a>
+                                <a href="assets/templates/berita-acara-pembinaan.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Berita Acara Pembinaan</a>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="ks-kasus-rekap-btn">↓ Unduh Rekap</button>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; align-items:center">
+                        <select id="ks-kasus-filter-status" class="input" style="width:auto; font-size:13px">
+                            <option value="">Semua Status</option>
+                            <option value="OPEN">Buka</option>
+                            <option value="UNDER_REVIEW">Ditinjau</option>
+                            <option value="INTERVENTION">Intervensi</option>
+                            <option value="MONITORING">Monitoring</option>
+                            <option value="CLOSED">Tutup</option>
+                        </select>
+                        <select id="ks-kasus-filter-track" class="input" style="width:auto; font-size:13px">
+                            <option value="">Semua Jalur</option>
+                            <option value="SEKOLAH">Sekolah</option>
+                            <option value="PKL">PKL</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" id="ks-kasus-filter-btn">Filter</button>
+                    </div>
+                    <div id="ks-kasus-list-content"><p class="hint">Memuat…</p></div>
+                </div>
+                <div id="ks-kasus-detail-view" style="display:none">
+                    <button class="btn btn-secondary btn-sm" id="ks-kasus-back-btn" style="margin-bottom:12px">← Kembali ke Daftar</button>
+                    <div id="ks-kasus-detail-header"></div>
+                    <div class="section-card" style="margin-top:12px">
+                        <h4>Timeline Kasus</h4>
+                        <div id="ks-kasus-events-list"></div>
+                    </div>
+                    <div class="section-card" id="ks-kasus-actions" style="display:none; margin-top:12px">
+                        <h4>Tindakan</h4>
+                        <div style="margin-bottom:16px">
+                            <label>Tambah Komentar</label>
+                            <textarea id="ks-kasus-comment-text" class="input" rows="3" placeholder="Tulis komentar…" style="margin-bottom:6px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="ks-kasus-comment-submit-btn">Kirim Komentar</button>
+                            <span id="ks-kasus-comment-msg" style="font-size:13px; margin-left:8px"></span>
+                            <p class="hint" style="margin-top:4px">Komentar hanya terlihat oleh staf internal sekolah.</p>
+                        </div>
+                        <div id="ks-kasus-escalate-block" style="margin-bottom:16px; display:none">
+                            <label for="ks-kasus-escalate-to">Teruskan kasus ke</label>
+                            <select id="ks-kasus-escalate-to" class="input" style="margin-bottom:6px; width:auto"></select>
+                            <div id="ks-kasus-escalate-warn" style="display:none; font-size:12px; color:var(--color-warning); margin-bottom:6px"></div>
+                            <textarea id="ks-kasus-escalate-note" class="input" rows="2" placeholder="Catatan (opsional)…" style="margin-bottom:8px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="ks-kasus-escalate-btn">Teruskan</button>
+                            <span id="ks-kasus-escalate-msg" style="font-size:13px; margin-left:8px"></span>
+                        </div>
+                        <div id="ks-kasus-audience-block" style="margin-bottom:16px; display:none; padding:12px; border:1px solid var(--color-border); border-radius:var(--radius)"></div>
+                        <div id="ks-kasus-status-block" style="display:none">
+                            <label for="ks-kasus-new-status">Ubah Status</label>
+                            <select id="ks-kasus-new-status" class="input" style="width:auto; margin-bottom:6px"></select>
+                            <textarea id="ks-kasus-status-note" class="input" rows="2" placeholder="Catatan perubahan (opsional)…" style="margin-bottom:8px"></textarea>
+                            <button class="btn btn-primary btn-sm" id="ks-kasus-status-btn">Simpan Status</button>
+                            <span id="ks-kasus-status-msg" style="font-size:13px; margin-left:8px"></span>
+                        </div>
+                        <div style="margin-top:16px">
+                            <button class="btn btn-danger btn-sm" id="ks-kasus-close-btn" style="display:none">Tutup Kasus</button>
+                        </div>
+                    </div>
+                </div>
+                </div><!-- /kp-acc-body monitoring -->
+            </div>
+            <div class="section-card kp-acc-item" id="ks-admin-card" style="margin-top:16px">
+                <div class="kp-acc-header"><span>Kelola Admin Sekolah</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" style="display:none">
+                    <p class="hint" style="margin-bottom:12px">Admin dapat mengelola seluruh data sekolah. Pastikan hanya orang yang dipercaya yang ditunjuk.</p>
+                    <div id="ks-admin-list"><p class="hint">Memuat…</p></div>
+                    <details style="margin-top:16px">
+                        <summary style="cursor:pointer;font-weight:600;color:var(--color-primary)">+ Tambah Admin Baru</summary>
+                        <form id="ks-add-admin-form" style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
+                            <div class="field">
+                                <label class="label" for="ks-admin-name">Nama Lengkap</label>
+                                <input id="ks-admin-name" class="input" type="text" placeholder="Nama admin baru" required>
+                            </div>
+                            <div class="field">
+                                <label class="label" for="ks-admin-loginid">NIP / NIK</label>
+                                <div style="display:flex;gap:8px;align-items:center">
+                                    <select id="ks-admin-idtype" class="input" style="width:auto;flex-shrink:0">
+                                        <option value="NIK">NIK</option>
+                                        <option value="NIP">NIP</option>
+                                    </select>
+                                    <input id="ks-admin-loginid" class="input" type="text" inputmode="numeric" placeholder="Nomor identitas (min. 9 digit)" required minlength="9">
+                                </div>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                                <button type="submit" class="btn btn-primary" id="ks-add-admin-btn">Buat Akun Admin</button>
+                            </div>
+                            <div id="ks-add-admin-msg" style="display:none" class="hint"></div>
+                        </form>
+                    </details>
+                    <div id="ks-new-admin-result" style="display:none;margin-top:16px;padding:12px;background:var(--color-bg-alt);border-radius:8px;border:1px solid var(--color-border)">
+                        <p style="font-weight:600;margin:0 0 8px">Akun berhasil dibuat — catat sekarang, tidak bisa ditampilkan ulang</p>
+                        <p style="margin:4px 0">Login ID: <code id="ks-result-loginid" style="font-weight:700"></code></p>
+                        <p style="margin:4px 0">Password sementara: <code id="ks-result-password" style="font-weight:700;background:var(--color-warning-bg);padding:2px 6px;border-radius:4px"></code></p>
+                        <p class="hint" style="margin-top:8px">Admin baru harus mengganti password setelah login pertama.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="tab-panel" id="tab-perangkat_ajar">
+        <div class="page-body">
+            <div id="perangkat-ajar-container">
+                <div class="alert alert-warning" role="status">
+                    <strong>Dalam pengembangan</strong>
+                    <p style="margin:8px 0 0">Perangkat Ajar belum tersedia.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: JURNAL MENGAJAR
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-jurnal">
+        <div class="page-body">
+
+            <!-- Sub-tab navigation -->
+            <div style="display:flex; gap:8px; margin-bottom:16px; border-bottom:1px solid var(--color-border); padding-bottom:0">
+                <button class="jurnal-sub-btn active" data-jurnal-sub="penilaian"
+                        style="padding:8px 16px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:2px solid var(--color-primary); color:var(--color-primary)">
+                    Penilaian
+                </button>
+                <button class="jurnal-sub-btn" data-jurnal-sub="catatan"
+                        style="padding:8px 16px; border:none; background:none; cursor:pointer; color:var(--color-text-muted); border-bottom:2px solid transparent">
+                    Catatan Mengajar
+                </button>
+            </div>
+
+            <!-- Sub-panel: Catatan Jurnal -->
+            <div id="jurnal-sub-catatan" style="display:none">
+
+                <!-- Section: Progress Mengajar -->
+                <div class="section-card jrn-sec">
+                    <div class="jrn-sec-hdr" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+                        <h3 style="margin:0">Progress Mengajar</h3>
+                        <span style="font-size:11px;color:var(--color-text-muted)">▶</span>
+                    </div>
+                    <div class="jrn-sec-body" style="display:none;padding-top:12px">
+                        <div class="field" style="max-width:320px; margin-bottom:16px">
+                            <label class="label">Kelas</label>
+                            <select id="tp-kelas-select" class="input">
+                                <option value="">— Pilih Kelas —</option>
+                            </select>
+                        </div>
+                        <div id="tp-taught-content">
+                            <p class="hint">Pilih kelas untuk melihat progres TP.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form tulis entri baru -->
+                <div class="section-card jrn-sec">
+                    <div class="jrn-sec-hdr" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+                        <h3 style="margin:0">Tulis Catatan</h3>
+                        <span style="font-size:11px;color:var(--color-text-muted)">▶</span>
+                    </div>
+                    <div class="jrn-sec-body" style="display:none;padding-top:12px">
+                        <form id="journal-form">
+                            <div class="field">
+                                <textarea id="journal-content" class="input" rows="5"
+                                    placeholder="Tulis catatan mengajar…"
+                                    maxlength="5000"
+                                    style="resize:vertical; width:100%"></textarea>
+                                <small id="journal-char-count" style="color:var(--color-text-muted)">0 / 5000</small>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:4px">
+                                <button type="submit" class="btn btn-primary" id="journal-submit-btn" style="flex:1">Simpan</button>
+                                <button type="button" id="journal-date-toggle" style="font-size:0.85em; color:var(--color-text-muted); cursor:pointer; text-decoration:underline; background:none; border:none; padding:4px 0; min-height:44px">Ubah tanggal</button>
+                            </div>
+                            <div id="journal-date-row" style="display:none; margin-top:8px">
+                                <input type="date" id="journal-date" class="input" style="width:auto">
+                                <small id="journal-date-err" style="display:none; color:var(--color-danger)"></small>
+                            </div>
+                            <div id="journal-form-msg" style="display:none; margin-top:6px" class="hint"></div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Daftar entri -->
+                <div class="section-card jrn-sec">
+                    <div class="jrn-sec-hdr" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+                        <h3 style="margin:0">Riwayat Jurnal</h3>
+                        <span style="font-size:11px;color:var(--color-text-muted)">▶</span>
+                    </div>
+                    <div class="jrn-sec-body" style="display:none;padding-top:12px">
+                        <div id="journal-list"><p class="hint">Memuat…</p></div>
+                    </div>
+                </div>
+
+            </div><!-- /jurnal-sub-catatan -->
+
+            <!-- Sub-panel: Penilaian -->
+            <div id="jurnal-sub-penilaian">
+
+                <!-- Selector konteks -->
+                <div class="section-card">
+                    <div style="display:flex; gap:12px; flex-wrap:wrap">
+                        <div class="field" style="flex:1; min-width:160px">
+                            <label class="label">Kelas</label>
+                            <select id="penilaian-kelas-select" class="input">
+                                <option value="">— Pilih Kelas —</option>
+                            </select>
+                        </div>
+                        <div class="field" style="flex:2; min-width:200px">
+                            <label class="label">Mata Pelajaran</label>
+                            <select id="penilaian-mapel-select" class="input">
+                                <option value="">— Pilih Mapel —</option>
+                            </select>
+                        </div>
+                        <div class="field" style="flex:1; min-width:140px">
+                            <label class="label">Tahun Ajaran</label>
+                            <select id="penilaian-year-select" class="input">
+                                <option value="">— Pilih Tahun —</option>
+                            </select>
+                        </div>
+                        <div class="field" style="min-width:120px">
+                            <label class="label">Semester</label>
+                            <select id="penilaian-semester-select" class="input">
+                                <option value="1">Semester 1</option>
+                                <option value="2">Semester 2</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="penilaian-placeholder" class="section-card"></div>
+
+            </div><!-- /jurnal-sub-penilaian -->
+
+        </div><!-- /page-body -->
+    </div><!-- /tab-jurnal -->
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB: KASUS
+    ════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-kasus">
+        <div class="page-body">
+
+            <!-- List view -->
+            <div id="kasus-list-view">
+                <div class="section-card">
+                    <div id="kasus-offline-banner" style="display:none; background:var(--color-warning-bg); color:var(--color-warning); border:1px solid var(--color-warning); border-radius:6px; padding:8px 12px; font-size:13px; margin-bottom:12px">
+                        ⚠ Tidak ada koneksi — membuat kasus membutuhkan internet.
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px">
+                        <h3 style="margin:0">Daftar Kasus</h3>
+                        <button class="btn btn-primary btn-sm" id="kasus-new-btn">+ Buat Kasus</button>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap">
+                        <select class="input" id="kasus-filter-status" style="width:auto; font-size:13px">
+                            <option value="">Semua Status</option>
+                            <option value="OPEN">Buka</option>
+                            <option value="UNDER_REVIEW">Ditinjau</option>
+                            <option value="INTERVENTION">Intervensi</option>
+                            <option value="MONITORING">Monitoring</option>
+                            <option value="CLOSED">Tutup</option>
+                        </select>
+                        <select class="input" id="kasus-filter-track" style="width:auto; font-size:13px">
+                            <option value="">Semua Jalur</option>
+                            <option value="SEKOLAH">Sekolah</option>
+                            <option value="PKL">PKL</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center">
+                        <div style="position:relative; display:inline-block">
+                            <button class="btn btn-secondary btn-sm" id="kasus-template-btn">↓ Unduh Template ▾</button>
+                            <div id="kasus-template-menu" style="display:none; position:absolute; top:100%; left:0; z-index:100; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius); min-width:210px; box-shadow:0 4px 12px rgba(0,0,0,0.15)">
+                                <a href="assets/templates/surat-panggilan-ortu.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Panggilan Orang Tua</a>
+                                <a href="assets/templates/surat-pernyataan-siswa.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Pernyataan Siswa</a>
+                                <a href="assets/templates/berita-acara-pembinaan.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Berita Acara Pembinaan</a>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="kasus-rekap-btn">↓ Unduh Rekap</button>
+                    </div>
+                    <div id="kasus-list-content"><p class="hint">Memuat kasus…</p></div>
+                </div>
+            </div>
+
+            <!-- Detail view (hidden by default) -->
+            <div id="kasus-detail-view" style="display:none">
+                <div class="section-card" style="margin-bottom:12px">
+                    <button class="btn btn-secondary btn-sm" id="kasus-back-btn">← Kembali ke Daftar</button>
+                </div>
+
+                <!-- Case header -->
+                <div class="section-card" id="kasus-detail-header">
+                    <p class="hint">Memuat…</p>
+                </div>
+
+                <!-- Timeline / events -->
+                <div class="section-card">
+                    <h3>Timeline Kasus</h3>
+                    <div id="kasus-events-list"><p class="hint">Memuat…</p></div>
+                </div>
+
+                <!-- Actions -->
+                <div class="section-card" id="kasus-actions" style="display:none">
+                    <h3>Tindakan</h3>
+                    <!-- Comment form -->
+                    <div id="kasus-comment-block" style="margin-bottom:16px">
+                        <label for="kasus-comment-text">Tambah Komentar</label>
+                        <textarea id="kasus-comment-text" class="input" rows="3" placeholder="Tulis komentar…" maxlength="2000" style="margin-bottom:8px"></textarea>
+                        <button class="btn btn-secondary btn-sm" id="kasus-comment-submit-btn">Kirim Komentar</button>
+                        <span id="kasus-comment-msg" style="font-size:13px; margin-left:8px"></span>
+                        <p style="font-size:12px;color:var(--color-text-muted);margin-top:4px">
+                            Komentar hanya terlihat oleh staf internal sekolah.
+                        </p>
+                    </div>
+                    <!-- Escalate -->
+                    <div id="kasus-escalate-block" style="margin-bottom:16px; display:none">
+                        <label for="kasus-escalate-to">Teruskan kasus ke</label>
+                        <select id="kasus-escalate-to" class="input" style="margin-bottom:6px; width:auto"></select>
+                        <div id="kasus-escalate-warn" style="display:none; font-size:12px; color:var(--color-warning); margin-bottom:6px; padding:6px 8px; background:var(--color-warning-bg); border-radius:var(--radius)"></div>
+                        <textarea id="kasus-escalate-note" class="input" rows="2" placeholder="Catatan (opsional)…" style="margin-bottom:8px"></textarea>
+                        <button class="btn btn-primary btn-sm" id="kasus-escalate-btn">Teruskan</button>
+                        <span id="kasus-escalate-msg" style="font-size:13px; margin-left:8px"></span>
+                    </div>
+                    <!-- Bagikan Kasus — isi diinjeksi renderKasusActions() lewat innerHTML -->
+                    <div id="kasus-audience-block" style="margin-bottom:16px; display:none; padding:12px; border:1px solid var(--color-border); border-radius:var(--radius)"></div>
+                    <!-- Status change / close -->
+                    <div id="kasus-status-block" style="display:none">
+                        <div id="kasus-status-change-controls" style="margin-bottom:8px">
+                            <label for="kasus-new-status">Ubah Status</label>
+                            <select id="kasus-new-status" class="input" style="width:auto; margin-bottom:8px"></select>
+                            <button class="btn btn-secondary btn-sm" id="kasus-status-btn">Ubah Status</button>
+                        </div>
+                        <textarea id="kasus-status-note" class="input" rows="2" placeholder="Catatan perubahan status (opsional)…" style="margin-bottom:8px"></textarea>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap">
+                            <button class="btn btn-danger btn-sm" id="kasus-close-btn" style="display:none">Tutup Kasus</button>
+                        </div>
+                        <span id="kasus-status-msg" style="font-size:13px; display:block; margin-top:6px"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create modal -->
+            <div id="kasus-create-modal" class="modal-overlay">
+                <div style="background:var(--color-surface); border-radius:var(--radius-lg); padding:24px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; margin:0 16px">
+                    <h3 style="margin-bottom:16px">Buat Kasus Baru</h3>
+                    <form id="kasus-create-form">
+                        <div class="field">
+                            <label for="kasus-c-student-search">Siswa</label>
+                            <div style="position:relative">
+                                <input type="text" id="kasus-c-student-search" class="input" placeholder="Cari nama siswa…" autocomplete="off">
+                                <input type="hidden" id="kasus-c-student-id">
+                                <div id="kasus-c-student-list" style="display:none; border:1px solid var(--color-border); border-radius:var(--radius); background:var(--color-surface); max-height:150px; overflow-y:auto; position:absolute; z-index:100; left:0; right:0; top:100%"></div>
+                            </div>
+                        </div>
+                        <div class="field" id="kasus-c-track-field" style="display:none">
+                            <label for="kasus-c-track">Jalur Penanganan</label>
+                            <select id="kasus-c-track" class="input">
+                                <option value="SEKOLAH">Sekolah</option>
+                                <option value="PKL">PKL</option>
+                            </select>
+                        </div>
+                        <p class="hint" style="margin:0 0 12px; padding:8px 10px; background:var(--color-bg-alt,#f8f8f8); border-left:3px solid var(--color-border); border-radius:4px; font-size:12px">
+                            🔒 Kasus baru selalu dimulai sebagai <strong>Privat</strong> — hanya Anda yang bisa melihat.
+                            Visibilitas dapat diubah setelah kasus disimpan.
+                        </p>
+                        <div class="field">
+                            <label for="kasus-c-title">Judul Kasus</label>
+                            <input type="text" id="kasus-c-title" class="input" placeholder="Ringkasan singkat masalah…" maxlength="200">
+                        </div>
+                        <div class="field">
+                            <label for="kasus-c-desc">Deskripsi <span style="font-weight:400;color:var(--color-text-muted)">(min. 20 karakter)</span></label>
+                            <textarea id="kasus-c-desc" class="input" rows="4" placeholder="Jelaskan situasi secara lengkap…"></textarea>
+                        </div>
+                        <div id="kasus-create-msg" style="display:none; margin-bottom:12px" class="hint"></div>
+                        <div style="display:flex; gap:8px; justify-content:flex-end">
+                            <button type="button" class="btn btn-secondary btn-sm" id="kasus-create-cancel-btn">Batal</button>
+                            <button type="submit" class="btn btn-primary btn-sm" id="kasus-create-submit-btn">Simpan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+</div><!-- #app -->
+
+<!-- Modal Buat / Detail Dokumen -->
+<div id="buat-dokumen-modal" class="modal-overlay" style="align-items:flex-start; overflow-y:auto; display:none">
+    <div style="background:var(--color-surface); border-radius:var(--radius-lg); padding:24px; width:100%; max-width:560px; margin:auto; position:relative">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px">
+            <h3 id="buat-dok-title" style="margin:0">Buat Dokumen</h3>
+            <button id="buat-dok-close" class="btn btn-secondary btn-sm">✕ Tutup</button>
+        </div>
+        <div id="buat-dok-body"></div>
+    </div>
+</div>
+
+<script type="module" src="js/penilaian.js"></script>
+<script type="module" src="js/jurnal.js"></script>
+<script type="module" src="js/dashboard.js"></script>
+<script>
+  /* SW DINONAKTIFKAN SEMENTARA u2014 lihat commit 8745e4c (fix v8 stuck cache).
+     Uncomment blok di bawah untuk reaktivasi service worker.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('../sw.js', { updateViaCache: 'none' });
+    });
+  }
+  */
+</script>
+
+<!-- Modal Absensi -->
+<div id="att-modal" class="modal-overlay" style="align-items:flex-start; overflow-y:auto">
+    <div style="background:var(--color-surface); border-radius:var(--radius-lg); padding:24px; width:100%; max-width:600px; margin:auto; position:relative">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px">
+            <h3 id="att-modal-title" style="margin:0">Kehadiran</h3>
+            <button id="att-modal-close" class="btn btn-secondary btn-sm">✕ Tutup</button>
+        </div>
+        <div id="att-modal-body"><p class="hint">Memuat…</p></div>
+    </div>
+</div>
+<script src="../shared/wa-float.js"></script>
+
+<!-- Modal input konfirmasi generik (CHECK-A: pengganti prompt()) -->
+<div id="input-confirm-modal" role="dialog" aria-modal="true" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
+    <div style="background:var(--color-surface,#fff);border-radius:10px;padding:24px;max-width:480px;width:calc(100% - 32px);box-shadow:0 8px 32px rgba(0,0,0,.25)">
+        <p id="icm-message" style="margin:0 0 16px;white-space:pre-wrap;font-size:0.9375rem;line-height:1.5"></p>
+        <input id="icm-input" type="text" class="input" style="width:100%;margin-bottom:16px" autocomplete="off" />
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button id="icm-cancel" class="btn btn-secondary">Batal</button>
+            <button id="icm-ok" class="btn btn-primary">OK</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>

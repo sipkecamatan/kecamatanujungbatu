@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Siswa — SIP</title>
+    <meta property="og:title" content="SIP" />
+    <meta property="og:description" content="Platform monitoring siswa SMK — absensi, kasus, observasi, dan komunikasi sekolah dalam satu sistem." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SIP" />
+  <script src="js/sw-guard.js"></script>
+<script>(function(){var last=location.pathname.split("/").filter(Boolean).pop();if(["admin","guru","student","parent","dudi","stakeholder","superadmin"].indexOf(last)>-1){var b=document.createElement("base");b.href=location.pathname.endsWith("/")?location.pathname:location.pathname+"/";document.head.appendChild(b);}})();</script>
+    <link rel="stylesheet" href="css/student.css">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon.ico" sizes="any">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+<div class="login-page">
+    <div class="login-card">
+        <div class="login-logo">
+            <img src="../icons/icon.svg" alt="SIP SMK" style="width:48px;height:48px;display:block;margin:0 auto 8px;">
+            <div data-brand="logo" style="display:none"></div>
+            <h1>Portal Siswa</h1>
+            <p data-brand="school-name">Memuat…</p>
+        </div>
+        <div class="login-error" id="login-error"></div>
+        <form id="login-form">
+            <div class="field">
+                <label for="identifier">NIS</label>
+                <input type="text" id="identifier" class="input" placeholder="Masukkan NIS" autocomplete="username" inputmode="numeric" required>
+            </div>
+            <div class="field">
+                <label for="password">Kata Sandi</label>
+                <input type="password" id="password" class="input" placeholder="Kata Sandi" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%" id="login-btn">Masuk</button>
+        </form>
+    </div>
+</div>
+<script type="module" src="js/auth.js"></script>
+<script>
+  /* SW DINONAKTIFKAN SEMENTARA u2014 lihat commit 8745e4c (fix v8 stuck cache).
+     Uncomment blok di bawah untuk reaktivasi service worker.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('../sw.js', { updateViaCache: 'none' });
+    });
+  }
+  */
+</script>
+</body>
+</html>

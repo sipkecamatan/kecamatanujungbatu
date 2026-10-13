@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="id" class="page-dashboard">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portal Admin — SIP</title>
+    <meta property="og:title" content="SIP" />
+    <meta property="og:description" content="Platform monitoring siswa SMK — absensi, kasus, observasi, dan komunikasi sekolah dalam satu sistem." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SIP" />
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <script src="js/sw-guard.js"></script>
+<script>(function(){var last=location.pathname.split("/").filter(Boolean).pop();if(["admin","guru","student","parent","dudi","stakeholder","superadmin"].indexOf(last)>-1){var b=document.createElement("base");b.href=location.pathname.endsWith("/")?location.pathname:location.pathname+"/";document.head.appendChild(b);}})();</script>
+    <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="../shared/fonts/tabler-icons.min.css">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon.ico" sizes="any">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body class="page-dashboard">
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="brand">Admin Console<br><small data-brand="school-name" style="font-weight:400;font-size:11px;opacity:.7"></small></div>
+
+            <nav>
+                <div class="nav-group">
+                    <div class="nav-group-title">Setup</div>
+                    <a class="nav-link" data-panel="setup">Setup Sekolah</a>
+                    <a class="nav-link" data-panel="branding">Profil &amp; Branding</a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-title">Data Master</div>
+                    <a class="nav-link" data-panel="programs">Program Keahlian</a>
+                    <a class="nav-link" data-panel="classes">Kelas &amp; Rombel</a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-title">Pengguna</div>
+                    <a class="nav-link" data-panel="staff">Staf &amp; Peran</a>
+                    <a class="nav-link" data-panel="students">Siswa</a>
+                    <a class="nav-link" data-panel="alumni">Alumni</a>
+                    <a class="nav-link" data-panel="parents">Orang Tua</a>
+                    <a class="nav-link" data-panel="dudi">DUDI</a>
+                    <a class="nav-link" data-panel="stakeholders">Stakeholder</a>
+                    <a class="nav-link" data-panel="tata-usaha">Tata Usaha</a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-title">Jadwal</div>
+                    <a class="nav-link" data-panel="jadwal">Jadwal</a>
+                    <a class="nav-link" data-panel="forum-kelas">Penugasan Forum</a>
+                    <a class="nav-link" data-panel="guru-piket">Guru Piket</a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-title">Sistem</div>
+                    <a class="nav-link" data-panel="tutupsemester">Tutup Semester</a>
+                    <a class="nav-link" data-panel="academic-year">Tahun Ajaran Baru</a>
+                    <a class="nav-link" data-panel="export">Export Data</a>
+                    <a class="nav-link" data-panel="activity-log">Log Aktivitas</a>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <div class="topbar">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <button id="menu-toggle" type="button" class="btn btn-secondary menu-toggle">☰</button>
+                    <div>
+                        <h2 id="dashboard-school-name">Memuat...</h2>
+                        <p id="dashboard-user-name"></p>
+                    </div>
+                </div>
+
+                <button id="logout-btn" type="button" class="btn btn-secondary">Keluar</button>
+            </div>
+
+            <div class="panel" id="panel-content">
+                <p class="hint">Pilih menu di samping untuk mulai.</p>
+            </div>
+        </main>
+    </div>
+
+    <nav class="admin-bottom-nav" id="admin-bottom-nav" aria-label="Navigasi cepat">
+        <div class="admin-bottom-nav-inner">
+            <button class="nav-tab" data-panel="students"><i class="ti ti-users nav-icon" aria-hidden="true"></i>Siswa</button>
+            <button class="nav-tab" data-panel="staff"><i class="ti ti-id-badge nav-icon" aria-hidden="true"></i>Staf</button>
+            <button class="nav-tab" data-panel="jadwal"><i class="ti ti-calendar nav-icon" aria-hidden="true"></i>Jadwal</button>
+            <button class="nav-tab" data-panel="setup"><i class="ti ti-settings nav-icon" aria-hidden="true"></i>Setup</button>
+            <button class="nav-tab nav-menu-btn" id="bottom-menu-btn"><i class="ti ti-menu-2 nav-icon" aria-hidden="true"></i>Menu</button>
+        </div>
+    </nav>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous" defer></script>
+    <script type="module" src="js/dashboard.js"></script>
+<script>
+  /* SW DINONAKTIFKAN SEMENTARA u2014 lihat commit 8745e4c (fix v8 stuck cache).
+     Uncomment blok di bawah untuk reaktivasi service worker.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('../sw.js', { updateViaCache: 'none' });
+    });
+  }
+  */
+</script>
+<script src="../shared/wa-float.js"></script>
+
+<!-- Modal input konfirmasi generik (CHECK-A: pengganti prompt()) -->
+<div id="input-confirm-modal" role="dialog" aria-modal="true" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center">
+    <div style="background:var(--color-surface,#fff);border-radius:10px;padding:24px;max-width:480px;width:calc(100% - 32px);box-shadow:0 8px 32px rgba(0,0,0,.25)">
+        <p id="icm-message" style="margin:0 0 16px;white-space:pre-wrap;font-size:0.9375rem;line-height:1.5"></p>
+        <input id="icm-input" type="text" class="input" style="width:100%;margin-bottom:16px" autocomplete="off" />
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button id="icm-cancel" class="btn btn-secondary">Batal</button>
+            <button id="icm-ok" class="btn btn-danger">OK</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>
