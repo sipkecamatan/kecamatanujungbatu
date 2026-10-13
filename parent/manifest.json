@@ -2,8 +2,8 @@
   "name": "SIP — Student Insight Platform",
   "short_name": "SIP",
   "description": "Platform monitoring siswa SMK",
-  "start_url": "/student-insight-platform/parent/portal.html",
-  "scope": "/student-insight-platform/parent/",
+  "start_url": "/kecamatanujungbatu/parent/portal.html",
+  "scope": "/kecamatanujungbatu/parent/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#1a56db",
@@ -41,5 +41,5 @@
       "purpose": "maskable"
     }
   ],
-  "id": "/student-insight-platform/parent/"
+  "id": "/kecamatanujungbatu/parent/"
 }

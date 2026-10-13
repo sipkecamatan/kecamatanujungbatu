@@ -203,7 +203,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             slug:             resolvedSlug,
             admin_identifier,
             admin_password:   adminPassword,
-            login_url:        `https://teguhalficahlin-del.github.io/student-insight-platform/admin/?school=${resolvedSlug}`,
+            login_url:        `https://sipkecamatan.github.io/kecamatanujungbatu/admin/?school=${resolvedSlug}`,
             note:             'Simpan password ini — tidak bisa dilihat lagi.',
         });
 

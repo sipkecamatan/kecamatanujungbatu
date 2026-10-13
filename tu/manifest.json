@@ -2,8 +2,8 @@
   "name": "SIP — Portal Tata Usaha",
   "short_name": "SIP TU",
   "description": "Portal Tata Usaha — jadwal piket dan rekap kehadiran",
-  "start_url": "/student-insight-platform/tu/portal.html",
-  "scope": "/student-insight-platform/tu/",
+  "start_url": "/kecamatanujungbatu/tu/portal.html",
+  "scope": "/kecamatanujungbatu/tu/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#0d9488",
@@ -29,5 +29,5 @@
       "purpose": "any"
     }
   ],
-  "id": "/student-insight-platform/tu/"
+  "id": "/kecamatanujungbatu/tu/"
 }

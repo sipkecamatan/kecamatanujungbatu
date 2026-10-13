@@ -11,3 +11,6 @@ Ringkasan percakapan.md
 # SQL backups
 backup_*.sql
 *.sql.bak
+
+# Berkas sementara Office
+~$*
