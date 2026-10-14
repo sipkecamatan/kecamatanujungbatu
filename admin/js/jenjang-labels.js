@@ -26,6 +26,20 @@ const HIDE = {
     SMA: ['dudi'],
 };
 
+// Baris tabel (kolom pertama = nama data) yang konsepnya tidak ada di jenjang itu.
+const HIDE_ROWS = {
+    SMP: ['Program Keahlian', 'DUDI'],
+    SMA: ['DUDI'],
+};
+let hideRowLabels = [];
+function hideRows(root) {
+    if (!hideRowLabels.length || !root.querySelectorAll) return;
+    root.querySelectorAll('tr').forEach((tr) => {
+        const first = tr.querySelector('td,th');
+        if (first && hideRowLabels.includes(first.textContent.trim())) tr.style.display = 'none';
+    });
+}
+
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'CODE', 'PRE']);
 
 function rewriteNode(node, rules) {
@@ -56,6 +70,7 @@ function walk(root, rules) {
 
 function apply(rules) {
     walk(document.body, rules);
+    hideRows(document.body);
     let queued = false;
     const pending = new Set();
     new MutationObserver((muts) => {
@@ -68,7 +83,7 @@ function apply(rules) {
         requestAnimationFrame(() => {
             queued = false;
             const batch = [...pending]; pending.clear();
-            batch.forEach((n) => walk(n, rules));
+            batch.forEach((n) => { walk(n, rules); if (n.nodeType === Node.ELEMENT_NODE) hideRows(n); });
         });
     }).observe(document.body, { childList: true, subtree: true, characterData: true });
 }
@@ -83,6 +98,7 @@ async function init() {
                     const { data } = await supabase.from('schools')
                         .select('jenjang').eq('school_id', cfg.school_id).maybeSingle();
                     const rules = RULES[data?.jenjang];
+                    hideRowLabels = HIDE_ROWS[data?.jenjang] ?? [];
                     if (rules) apply(rules);
                     for (const panel of HIDE[data?.jenjang] ?? []) {
                         document.querySelectorAll(`[data-panel="${panel}"]`).forEach((el) => { el.hidden = true; el.style.display = 'none'; });
