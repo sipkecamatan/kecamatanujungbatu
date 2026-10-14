@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Kecamatan — SIP</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/kecamatan.css" />
+</head>
+<body>
+
+  <!-- Login -->
+  <main id="view-login" class="login-wrap">
+    <form id="login-form" class="card login-card" autocomplete="on" novalidate>
+      <h1>Dashboard Kecamatan</h1>
+      <p class="muted">Ringkasan agregat sekolah di wilayah Anda. Tidak menampilkan data per siswa.</p>
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required />
+      <label for="password">Kata sandi</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+      <p id="login-error" class="error" role="alert" hidden></p>
+      <button id="login-btn" class="btn primary" type="submit">Masuk</button>
+    </form>
+  </main>
+
+  <!-- Dashboard -->
+  <div id="view-app" hidden>
+    <header class="topbar">
+      <div>
+        <div class="brand">Dashboard Kecamatan</div>
+        <div id="wilayah" class="muted"></div>
+      </div>
+      <div class="topbar-actions">
+        <label class="muted" for="window">Jendela</label>
+        <select id="window">
+          <option value="7">7 hari</option>
+          <option value="14">14 hari</option>
+          <option value="30" selected>30 hari</option>
+        </select>
+        <button id="logout-btn" class="btn" type="button">Keluar</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <p id="app-error" class="error" role="alert" hidden></p>
+      <p id="app-loading" class="muted">Memuat…</p>
+
+      <section id="cards" class="cards" hidden></section>
+
+      <section class="card" id="sekolah-card" hidden>
+        <div class="card-head">
+          <h2>Sekolah</h2>
+          <div id="filter-jenjang" class="chips" role="group" aria-label="Filter jenjang"></div>
+        </div>
+        <div class="table-wrap">
+          <table id="tbl-sekolah">
+            <thead>
+              <tr>
+                <th>Sekolah</th><th>Jenjang</th><th class="num">Siswa aktif</th>
+                <th class="num">Cakupan input</th><th class="num">Kehadiran</th><th>Status data</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="muted small">Klik nama sekolah untuk melihat tren mingguan.</p>
+      </section>
+
+      <section class="card" id="trend-card" hidden>
+        <div class="card-head"><h2 id="trend-title">Tren mingguan</h2></div>
+        <div class="table-wrap">
+          <table id="tbl-trend">
+            <thead><tr><th>Minggu mulai</th><th class="num">Sesi terjadwal</th><th class="num">Sesi tercatat</th>
+              <th class="num">Cakupan</th><th class="num">Kehadiran</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" id="method-card" hidden>
+        <h2>Cara membaca angka</h2>
+        <ul class="method">
+          <li><strong>Cakupan input</strong>: persentase sesi pelajaran terjadwal yang sudah dicatat absensinya pada jendela waktu. Sekolah yang belum menginput <em>tidak</em> dianggap tidak hadir.</li>
+          <li><strong>Kehadiran</strong>: persentase catatan berstatus hadir dari seluruh catatan absensi. Hanya ditampilkan bila cakupan input <span id="ambang"></span>% atau lebih, supaya angkanya bisa dibandingkan.</li>
+          <li><strong>Total wilayah</strong> tampil bila sedikitnya 3 sekolah membagikan data; <strong>subtotal jenjang</strong> tampil bila jenjang itu punya sedikitnya 2 sekolah.</li>
+          <li>Hanya sekolah yang kepala sekolahnya menyetujui berbagi data yang tampil. Tidak ada nama atau data pribadi siswa.</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

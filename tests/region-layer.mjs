@@ -1,0 +1,186 @@
+// Uji perilaku lapisan wilayah (migrasi 20261014000000_region_layer.sql) di PGlite.
+// Berjalan lokal: baseline + migrasi + data sintetis. Tidak menyentuh Supabase.
+//   SIP_ROOT=<folder repo> node tests/region-layer.mjs   (SIP_ROOT opsional)
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { PGlite } from '@electric-sql/pglite';
+import { uuid_ossp } from '@electric-sql/pglite/contrib/uuid_ossp';
+import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
+import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
+
+const ROOT = process.env.SIP_ROOT ? process.env.SIP_ROOT.replace(/\\/g, '/').replace(/\/?$/, '/') : new URL('../', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const read = (p) => readFileSync(ROOT + p, 'utf8');
+const skip = /pg_net|pg_cron/;
+const baseline = read('supabase/migrations/20261013000000_baseline.sql').split('\n')
+  .map((l) => (/^(DO|CREATE EXTENSION)/.test(l) && skip.test(l) ? `-- ${l}` : l)).join('\n');
+const migration = read('supabase/migrations/20261014000000_region_layer.sql');
+
+const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
+let passed = 0;
+const test = async (name, fn) => { await fn(); console.log(`PASS REGION ${++passed}: ${name}`); };
+const as = async (authId, sql, params) => {
+  await db.query(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [authId ?? '']);
+  return db.query(sql, params);
+};
+const code = async (authId, sql) => {
+  try { await as(authId, sql); return 'OK'; } catch (e) { return e.code || String(e.message); }
+};
+const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+
+await db.exec(`
+  CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN;
+  CREATE SCHEMA IF NOT EXISTS extensions; CREATE SCHEMA IF NOT EXISTS auth; CREATE SCHEMA IF NOT EXISTS storage;
+  CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+  CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$ SELECT 'authenticated'::text $$;
+  CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT '{}'::jsonb $$;
+  CREATE TABLE auth.users (id uuid PRIMARY KEY, email text);
+  CREATE TABLE storage.buckets (id text PRIMARY KEY, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
+  CREATE TABLE storage.objects (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, bucket_id text, name text, owner uuid, owner_id text);
+  ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+  CREATE FUNCTION storage.foldername(name text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $f$ SELECT (string_to_array(name, '/'))[1:greatest(array_length(string_to_array(name, '/'),1)-1,0)] $f$;
+  CREATE FUNCTION storage.filename(name text) RETURNS text LANGUAGE sql IMMUTABLE AS $f$ SELECT (string_to_array(name, '/'))[array_length(string_to_array(name, '/'),1)] $f$;
+  SET search_path = public, extensions;
+`);
+await db.exec(baseline);
+await db.exec(migration);
+
+// Fixture: tiap sekolah punya 3 siswa, 10 sesi (10 hari terakhir), k sesi beratribut absensi,
+// dan `alpa` baris ALPA. Semua nama siswa memuat kata "RAHASIA" agar bocor mudah terdeteksi.
+let seq = 100;
+async function sekolah({ key, nama, jenjang, region, share, active = true, sesiTercatat, alpa }) {
+  const sid = uuid(seq++), prog = uuid(seq++), cls = uuid(seq++), tch = uuid(seq++), subj = uuid(seq++);
+  await db.exec(`
+    INSERT INTO schools (school_id, name, slug, region_id, jenjang, share_with_region, is_active)
+      VALUES ('${sid}', '${nama}', '${key}', ${region ? `'${region}'` : 'NULL'}, ${jenjang ? `'${jenjang}'` : 'NULL'}, ${share}, ${active});
+    INSERT INTO programs (program_id, code, name, school_id) VALUES ('${prog}', 'UMUM', 'Umum', '${sid}');
+    INSERT INTO classes (class_id, name, program_id, academic_year, grade_level, school_id) VALUES ('${cls}', 'X', '${prog}', '2026/2027', 10, '${sid}');
+    INSERT INTO users (user_id, auth_user_id, full_name, email, login_identifier, identifier_type, role_type, school_id)
+      VALUES ('${tch}', '${uuid(seq++)}', 'Guru ${key}', '${key}@staff.internal', 'G-${key}', 'NIP', 'GURU', '${sid}');
+    INSERT INTO subjects (subject_id, code, name, school_id) VALUES ('${subj}', 'MTK', 'Matematika', '${sid}');
+  `);
+  const siswa = [];
+  for (let i = 1; i <= 3; i++) {
+    const st = uuid(seq++); siswa.push(st);
+    await db.exec(`
+      INSERT INTO students (student_id, nis, full_name, program_id, school_id) VALUES ('${st}', 'NIS-${key}-${i}', 'RAHASIA ${key} ${i}', '${prog}', '${sid}');
+      INSERT INTO class_enrollments (student_id, class_id, academic_year, semester, school_id) VALUES ('${st}', '${cls}', '2026/2027', '1', '${sid}');`);
+  }
+  let alpaSisa = alpa;
+  for (let d = 0; d < 10; d++) {
+    const sch = uuid(seq++);
+    await db.exec(`
+      INSERT INTO teaching_schedules (schedule_id, class_id, subject_id, scheduled_teacher_id, session_date, session_start, session_end,
+                                      academic_year, semester, school_id, block_group_id)
+      VALUES ('${sch}', '${cls}', '${subj}', '${tch}', CURRENT_DATE - ${d}, '07:00', '08:00', '2026/2027', '1', '${sid}', '${sch}');`);
+    if (d < sesiTercatat) {
+      for (const st of siswa) {
+        const status = alpaSisa > 0 ? (alpaSisa--, 'ALPA') : 'HADIR';
+        await db.exec(`INSERT INTO attendance (schedule_id, student_id, status, source, recorded_by_user_id, school_id)
+                       VALUES ('${sch}', '${st}', '${status}', 'TEACHER_DECLARED', '${tch}', '${sid}');`);
+      }
+    }
+  }
+  return { sid, tch };
+}
+
+const REG_A = uuid(1), REG_B = uuid(2);
+await db.exec(`INSERT INTO regions (region_id, name) VALUES ('${REG_A}', 'Kecamatan A'), ('${REG_B}', 'Kecamatan B');`);
+const S1 = await sekolah({ key: 'sma1', nama: 'SMA Satu',  jenjang: 'SMA', region: REG_A, share: true,  sesiTercatat: 10, alpa: 3 });
+const S2 = await sekolah({ key: 'smk1', nama: 'SMK Satu',  jenjang: 'SMK', region: REG_A, share: true,  sesiTercatat: 9,  alpa: 0 });
+const S3 = await sekolah({ key: 'smp1', nama: 'SMP Satu',  jenjang: 'SMP', region: REG_A, share: true,  sesiTercatat: 5,  alpa: 0 });
+const S4 = await sekolah({ key: 'smp2', nama: 'SMP Tutup', jenjang: 'SMP', region: REG_A, share: false, sesiTercatat: 10, alpa: 0 });
+const S5 = await sekolah({ key: 'smkb', nama: 'SMK B',     jenjang: 'SMK', region: REG_B, share: true,  sesiTercatat: 10, alpa: 0 });
+const S6 = await sekolah({ key: 'smk2', nama: 'SMK Dua',   jenjang: 'SMK', region: REG_A, share: true,  sesiTercatat: 10, alpa: 6 });
+
+const STAFF_A = uuid(9001), STAFF_B = uuid(9002), GURU_AUTH = (await db.query(`SELECT auth_user_id FROM users WHERE login_identifier = 'G-sma1'`)).rows[0].auth_user_id;
+await db.exec(`INSERT INTO region_staff (auth_user_id, region_id, full_name) VALUES
+  ('${STAFF_A}', '${REG_A}', 'Pegawai A'), ('${STAFF_B}', '${REG_B}', 'Pegawai B');`);
+
+const overview = async (authId, days = 30) => (await as(authId, `SELECT public.fn_region_overview(${days}) AS o`)).rows[0].o;
+
+await test('akun sekolah (guru) ditolak 42501 pada fn_region_overview', async () => {
+  assert.equal(await code(GURU_AUTH, `SELECT public.fn_region_overview(30)`), '42501');
+});
+await test('pengguna tanpa identitas (auth.uid NULL) ditolak 42501', async () => {
+  assert.equal(await code(null, `SELECT public.fn_region_overview(30)`), '42501');
+});
+await test('pegawai wilayah A hanya melihat sekolah opt-in di wilayahnya', async () => {
+  const o = await overview(STAFF_A);
+  const nama = o.sekolah.map((s) => s.nama).sort();
+  assert.deepEqual(nama, ['SMA Satu', 'SMK Dua', 'SMK Satu', 'SMP Satu']);
+  assert.equal(o.jumlah_sekolah_dibagikan, 4);
+  assert.equal(o.jumlah_sekolah_terdaftar, 5);   // SMP Tutup terhitung terdaftar, tidak tampil
+});
+await test('sekolah tanpa opt-in tidak muncul dan tidak bocor lewat nama', async () => {
+  const o = await overview(STAFF_A);
+  assert.ok(!JSON.stringify(o).includes('SMP Tutup'));
+});
+await test('wilayah B hanya melihat sekolahnya; total disembunyikan karena < 3 sekolah', async () => {
+  const o = await overview(STAFF_B);
+  assert.deepEqual(o.sekolah.map((s) => s.nama), ['SMK B']);
+  assert.equal(o.total, null);
+});
+await test('total wilayah A tampil (>= 3 sekolah)', async () => {
+  const o = await overview(STAFF_A);
+  assert.notEqual(o.total, null);
+  assert.equal(o.total.siswa_aktif, 12);
+});
+await test('subtotal jenjang hanya untuk jenjang berisi >= 2 sekolah (SMK)', async () => {
+  const o = await overview(STAFF_A);
+  assert.deepEqual(o.per_jenjang.map((j) => j.jenjang), ['SMK']);
+  assert.equal(o.per_jenjang[0].jumlah_sekolah, 2);
+});
+await test('cakupan di bawah 80% menyembunyikan persentase kehadiran', async () => {
+  const o = await overview(STAFF_A);
+  const smp = o.sekolah.find((s) => s.nama === 'SMP Satu');
+  assert.equal(smp.cakupan_pct, 50);
+  assert.equal(smp.kehadiran_pct, null);
+  assert.equal(smp.status, 'DATA_BELUM_MEMADAI');
+});
+await test('kehadiran dihitung benar saat cakupan memadai', async () => {
+  const o = await overview(STAFF_A);
+  const sma = o.sekolah.find((s) => s.nama === 'SMA Satu');   // 30 baris, 3 ALPA -> 90%
+  assert.equal(sma.cakupan_pct, 100);
+  assert.equal(sma.kehadiran_pct, 90);
+  assert.equal(sma.status, 'MEMADAI');
+  const smk = o.sekolah.find((s) => s.nama === 'SMK Satu');   // 9 dari 10 sesi, semua hadir
+  assert.equal(smk.cakupan_pct, 90);
+  assert.equal(smk.kehadiran_pct, 100);
+});
+await test('keluaran tidak memuat nama, NIS, atau kolom siswa', async () => {
+  const text = JSON.stringify(await overview(STAFF_A));
+  assert.ok(!/RAHASIA|NIS-|student_id|full_name|nis\b/i.test(text));
+});
+await test('tren: sekolah di wilayahnya mengembalikan baris', async () => {
+  const r = await as(STAFF_A, `SELECT * FROM public.fn_region_school_trend('${S1.sid}', 4)`);
+  assert.ok(r.rows.length >= 1);
+});
+await test('tren: sekolah tanpa opt-in, wilayah lain, dan UUID acak mengembalikan hasil kosong yang sama', async () => {
+  for (const id of [S4.sid, S5.sid, uuid(999999)]) {
+    const r = await as(STAFF_A, `SELECT * FROM public.fn_region_school_trend('${id}', 4)`);
+    assert.equal(r.rows.length, 0);
+  }
+});
+await test('tren: akun sekolah ditolak 42501', async () => {
+  assert.equal(await code(GURU_AUTH, `SELECT * FROM public.fn_region_school_trend('${S1.sid}', 4)`), '42501');
+});
+await test('identitas ganda ditolak: pengguna sekolah tidak bisa menjadi pegawai wilayah', async () => {
+  assert.equal(await code(null, `INSERT INTO region_staff (auth_user_id, region_id, full_name) VALUES ('${GURU_AUTH}', '${REG_A}', 'X')`), '23514');
+});
+await test('identitas ganda ditolak: pegawai wilayah tidak bisa dibuat sebagai pengguna sekolah', async () => {
+  const c = await code(null, `INSERT INTO users (auth_user_id, full_name, email, login_identifier, identifier_type, role_type, school_id)
+                              VALUES ('${STAFF_A}', 'X', 'dual@staff.internal', 'DUAL', 'NIP', 'GURU', '${S1.sid}')`);
+  assert.equal(c, '23514');
+});
+await test('hak akses: anon tanpa EXECUTE, authenticated punya; tabel wilayah tertutup', async () => {
+  const g = async (r, f) => (await db.query(`SELECT has_function_privilege('${r}', '${f}', 'EXECUTE') AS v`)).rows[0].v;
+  assert.equal(await g('anon', 'public.fn_region_overview(integer)'), false);
+  assert.equal(await g('authenticated', 'public.fn_region_overview(integer)'), true);
+  assert.equal(await g('anon', 'public.fn_region_school_trend(uuid, integer)'), false);
+  const t = async (r, tbl) => (await db.query(`SELECT has_table_privilege('${r}', '${tbl}', 'SELECT') AS v`)).rows[0].v;
+  assert.equal(await t('authenticated', 'public.region_staff'), false);
+  assert.equal(await t('anon', 'public.region_staff'), false);
+  assert.equal(await t('authenticated', 'public.regions'), false);
+});
+
+console.log(`REGION_LAYER_COMPLETE: ${passed} lulus; PGlite saja`);
