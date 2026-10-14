@@ -38,6 +38,7 @@
           <option value="14">14 hari</option>
           <option value="30" selected>30 hari</option>
         </select>
+        <button id="pw-open-btn" class="btn" type="button">Ganti kata sandi</button>
         <button id="logout-btn" class="btn" type="button">Keluar</button>
       </div>
     </header>
@@ -89,6 +90,25 @@
       </section>
     </main>
   </div>
+
+  <!-- Ganti kata sandi -->
+  <dialog id="pw-dialog" class="card pw-dialog">
+    <form id="pw-form" autocomplete="off" novalidate>
+      <h2>Ganti kata sandi</h2>
+      <label for="pw-current">Kata sandi saat ini</label>
+      <input id="pw-current" type="password" autocomplete="current-password" required />
+      <label for="pw-new">Kata sandi baru <span class="muted small">(minimal 10 karakter)</span></label>
+      <input id="pw-new" type="password" autocomplete="new-password" required minlength="10" />
+      <label for="pw-confirm">Ulangi kata sandi baru</label>
+      <input id="pw-confirm" type="password" autocomplete="new-password" required />
+      <p id="pw-error" class="error" role="alert" hidden></p>
+      <p id="pw-ok" class="muted" role="status" hidden></p>
+      <div class="pw-actions">
+        <button id="pw-cancel" class="btn" type="button">Batal</button>
+        <button id="pw-submit" class="btn primary" type="submit">Simpan</button>
+      </div>
+    </form>
+  </dialog>
 
   <script type="module" src="js/app.js"></script>
 </body>

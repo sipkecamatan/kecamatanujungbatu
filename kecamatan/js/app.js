@@ -160,6 +160,42 @@ $('logout-btn').addEventListener('click', async () => {
 });
 $('window').addEventListener('change', (e) => { state.days = Number(e.target.value); loadOverview(); });
 
+// ── Ganti kata sandi ─────────────────────────────────────────────
+// Kata sandi lama diverifikasi dulu lewat signInWithPassword agar sesi yang
+// tertinggal di komputer bersama tidak bisa dipakai mengganti kata sandi.
+function resetPwForm() {
+  $('pw-form').reset();
+  setError('pw-error', '');
+  $('pw-ok').hidden = true;
+}
+$('pw-open-btn').addEventListener('click', () => { resetPwForm(); $('pw-dialog').showModal(); });
+$('pw-cancel').addEventListener('click', () => $('pw-dialog').close());
+$('pw-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  setError('pw-error', '');
+  $('pw-ok').hidden = true;
+  const cur = $('pw-current').value, nw = $('pw-new').value, cf = $('pw-confirm').value;
+  if (nw.length < 10)  { setError('pw-error', 'Kata sandi baru minimal 10 karakter.'); return; }
+  if (nw !== cf)       { setError('pw-error', 'Pengulangan kata sandi tidak sama.'); return; }
+  if (nw === cur)      { setError('pw-error', 'Kata sandi baru harus berbeda dari yang lama.'); return; }
+
+  const btn = $('pw-submit'); btn.disabled = true;
+  try {
+    const { data: s } = await supabase.auth.getSession();
+    const email = s.session?.user?.email;
+    const chk = await supabase.auth.signInWithPassword({ email, password: cur });
+    if (chk.error) { setError('pw-error', 'Kata sandi saat ini salah.'); return; }
+    const { error } = await supabase.auth.updateUser({ password: nw });
+    if (error) { setError('pw-error', 'Gagal menyimpan: ' + error.message); return; }
+    $('pw-form').reset();
+    text($('pw-ok'), 'Kata sandi berhasil diganti.');
+    $('pw-ok').hidden = false;
+    setTimeout(() => $('pw-dialog').close(), 1500);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 async function enterApp() { showView('app'); await loadOverview(); }
 
 (async () => {
