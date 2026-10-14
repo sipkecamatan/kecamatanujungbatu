@@ -17,6 +17,7 @@ const migration = read('supabase/migrations/20261014000000_region_layer.sql');
 const migrationSharing = read('supabase/migrations/20261014010000_region_sharing_control.sql');
 const migrationHier = read('supabase/migrations/20261015000000_region_hierarchy_piket.sql');
 const migrationTiga = read('supabase/migrations/20261015010000_region_three_level.sql');
+const migrationPerTingkat = read('supabase/migrations/20261015020000_region_sharing_per_level.sql');
 
 const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
 let passed = 0;
@@ -49,6 +50,7 @@ await db.exec(migration);
 await db.exec(migrationSharing);
 await db.exec(migrationHier);
 await db.exec(migrationTiga);
+await db.exec(migrationPerTingkat);
 
 // Fixture: tiap sekolah punya 3 siswa, 10 sesi (10 hari terakhir), k sesi beratribut absensi,
 // dan `alpa` baris ALPA. Semua nama siswa memuat kata "RAHASIA" agar bocor mudah terdeteksi.
@@ -257,7 +259,7 @@ await test('hak akses: anon tanpa EXECUTE pada fungsi persetujuan; log tertutup'
 const KAB = uuid(3), PROV = uuid(4);
 await db.exec(`
   INSERT INTO regions (region_id, name, level) VALUES ('${KAB}', 'Kabupaten X', 'KABUPATEN'), ('${PROV}', 'Provinsi Y', 'PROVINSI');
-  UPDATE schools SET kabupaten_id = '${KAB}', provinsi_id = '${PROV}' WHERE region_id = '${REG_A}';`);
+  UPDATE schools SET kabupaten_id = '${KAB}', provinsi_id = '${PROV}', share_kabupaten = share_with_region, share_provinsi = share_with_region WHERE region_id = '${REG_A}';`);
 const STAFF_KAB = uuid(9201), STAFF_PROV = uuid(9202);
 await db.exec(`INSERT INTO region_staff (auth_user_id, region_id, full_name) VALUES
   ('${STAFF_KAB}', '${KAB}', 'Pegawai Kab'), ('${STAFF_PROV}', '${PROV}', 'Pegawai Prov');`);
@@ -282,14 +284,38 @@ await test('hierarki: tren sekolah turunan terbaca oleh kabupaten, tidak oleh wi
   const no = await as(STAFF_B, `SELECT * FROM public.fn_region_school_trend('${S1.sid}', 4)`);
   assert.equal(no.rows.length, 0);
 });
+await test('persetujuan per tingkat: KEPSEK mencabut kabupaten; kabupaten kehilangan sekolah, kecamatan dan provinsi tetap', async () => {
+  await as(KEPSEK, "SELECT public.fn_set_region_sharing_level('KABUPATEN', false)");
+  assert.ok(!(await namaSekolah(STAFF_KAB)).includes('SMA Satu'));
+  assert.ok((await namaSekolah(STAFF_A)).includes('SMA Satu'));
+  assert.ok((await namaSekolah(STAFF_PROV)).includes('SMA Satu'));
+  await as(KEPSEK, "SELECT public.fn_set_region_sharing_level('KABUPATEN', true)");
+  assert.ok((await namaSekolah(STAFF_KAB)).includes('SMA Satu'));
+});
+await test('persetujuan per tingkat: provinsi dicabut, kabupaten tetap; log mencatat tingkat', async () => {
+  await as(KEPSEK, "SELECT public.fn_set_region_sharing_level('PROVINSI', false)");
+  assert.ok(!(await namaSekolah(STAFF_PROV)).includes('SMA Satu'));
+  assert.ok((await namaSekolah(STAFF_KAB)).includes('SMA Satu'));
+  const lv = (await db.query("SELECT level FROM region_sharing_log WHERE school_id = '" + S1.sid + "' ORDER BY changed_at DESC, log_id LIMIT 1")).rows[0].level;
+  assert.equal(lv, 'PROVINSI');
+  await as(KEPSEK, "SELECT public.fn_set_region_sharing_level('PROVINSI', true)");
+});
+await test('persetujuan per tingkat: ADMINISTRATIVE dan guru ditolak 42501; tingkat tidak sah 22023', async () => {
+  assert.equal(await code(ADMIN, "SELECT public.fn_set_region_sharing_level('KABUPATEN', false)"), '42501');
+  assert.equal(await code(GURU_AUTH, "SELECT public.fn_set_region_sharing_level('KABUPATEN', false)"), '42501');
+  assert.equal(await code(KEPSEK, "SELECT public.fn_set_region_sharing_level('DESA', true)"), '22023');
+});
+await test('persetujuan per tingkat: tingkat yang belum dicatat untuk sekolah ditolak 22023', async () => {
+  assert.equal(await code(KEPSEK_X, "SELECT public.fn_set_region_sharing_level('KABUPATEN', true)"), '22023');
+});
 await test('tingkat: jenis wilayah di luar KECAMATAN/KABUPATEN/PROVINSI ditolak 23514', async () => {
   assert.equal(await code(null, `INSERT INTO regions (name, level) VALUES ('Desa X', 'DESA')`), '23514');
 });
 await test('tingkat: sekolah tanpa kecamatan tetapi berisian kabupaten terlihat pegawai kabupaten saja', async () => {
-  await db.exec(`UPDATE schools SET kabupaten_id = '${KAB}', share_with_region = true WHERE school_id = '${S7.sid}'`);
+  await db.exec(`UPDATE schools SET kabupaten_id = '${KAB}', share_kabupaten = true WHERE school_id = '${S7.sid}'`);
   assert.ok((await namaSekolah(STAFF_KAB)).includes('SMA Belum Wilayah'));
   assert.ok(!(await namaSekolah(STAFF_A)).includes('SMA Belum Wilayah'));
-  await db.exec(`UPDATE schools SET kabupaten_id = NULL, share_with_region = false WHERE school_id = '${S7.sid}'`);
+  await db.exec(`UPDATE schools SET kabupaten_id = NULL, share_kabupaten = false WHERE school_id = '${S7.sid}'`);
 });
 
 // ── Agregat piket: keterlambatan dan izin keluar ──────────────────────────────

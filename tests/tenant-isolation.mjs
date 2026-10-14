@@ -2182,8 +2182,9 @@ async function main() {
                 `  ('${KAB}', 'CHECK20-KAB', 'KABUPATEN'), ('${KAB2}', 'CHECK20-KAB2', 'KABUPATEN'),` +
                 `  ('${KEC1}', 'CHECK20-KEC1', 'KECAMATAN'), ('${KEC2}', 'CHECK20-KEC2', 'KECAMATAN'), ('${KEC3}', 'CHECK20-KEC3', 'KECAMATAN');` +
                 sch.map(([sid, jj, share, slug, nama, reg, kab]) =>
-                    ` insert into schools (school_id, name, slug, region_id, kabupaten_id, provinsi_id, jenjang, share_with_region, is_active)` +
-                    ` values ('${sid}', '${nama}', '${slug}', '${reg}', '${kab}', '${PROV}', '${jj}', ${share}, true);`).join('') +
+                    ` insert into schools (school_id, name, slug, region_id, kabupaten_id, provinsi_id, jenjang,` +
+                    `   share_with_region, share_kabupaten, share_provinsi, is_active)` +
+                    ` values ('${sid}', '${nama}', '${slug}', '${reg}', '${kab}', '${PROV}', '${jj}', ${share}, ${share}, ${share}, true);`).join('') +
                 sch.map(([sid, , , slug, , , , pid]) =>
                     ` insert into programs (program_id, code, name, school_id) values ('${pid}', 'UMUM', 'Umum', '${sid}');` +
                     [1, 2, 3].map((i) =>
@@ -2214,6 +2215,11 @@ async function main() {
 
                 // ── H1..H3 ──
                 names([ST_PROV, 'H1']) + names([ST_KAB, 'H2']) + names([ST_KEC, 'H3']) +
+
+                // ── H6: persetujuan per tingkat: provinsi dicabut untuk sekolah A ──
+                ` update schools set share_provinsi = false where school_id = '${SA}';` +
+                names([ST_PROV, 'H6']) + names([ST_KEC, 'H6b']) + names([ST_KAB, 'H6c']) +
+                ` update schools set share_provinsi = true where school_id = '${SA}';` +
 
                 // ── H4: tren sekolah di kecamatan lain untuk pegawai kecamatan ──
                 ` ${claims(ST_KEC)}` +
@@ -2254,6 +2260,9 @@ async function main() {
             eq('H3', 'C20 A', 'H3: pegawai kecamatan hanya wilayahnya (tidak ke samping/atas; D tak dibagikan)',
                 'H3: cakupan kecamatan bocor');
             eq('H4', '0', 'H4: tren sekolah kecamatan lain kosong bagi pegawai kecamatan', 'H4: tren sekolah samping terbaca');
+            eq('H6', 'C20 B,C20 C', 'H6: provinsi dicabut oleh sekolah A: pegawai provinsi tidak melihat A', 'H6: persetujuan provinsi tidak berlaku');
+            eq('H6b', 'C20 A', 'H6b: pegawai kecamatan tetap melihat A (persetujuan per tingkat)', 'H6b: kecamatan ikut kehilangan A');
+            eq('H6c', 'C20 A,C20 B', 'H6c: pegawai kabupaten tetap melihat A dan B', 'H6c: kabupaten ikut kehilangan sekolah');
             eq('H5', '23514', 'H5: jenis wilayah tidak sah ditolak (23514)', 'H5: jenis wilayah tidak sah diterima');
 
             if (R.Tdata && R.Tdata !== 'ok') {

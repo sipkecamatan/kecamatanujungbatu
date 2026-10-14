@@ -749,8 +749,10 @@ async function loadRegions() {
                 }}, 'Lepas');
                 card.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0' },
                     h('strong', {}, s.name), jen, kab, prov, simpan, lepas,
-                    h('span', { class: s.share_with_region ? 'badge badge-success' : 'badge' },
-                        s.share_with_region ? 'Berbagi: disetujui' : 'Berbagi: belum disetujui')));
+                    h('span', { class: (s.share_with_region || s.share_kabupaten || s.share_provinsi) ? 'badge badge-success' : 'badge' },
+                        'Berbagi — kecamatan: ' + (s.share_with_region ? 'ya' : 'tidak') +
+                        ' · kabupaten: ' + (s.kabupaten_id ? (s.share_kabupaten ? 'ya' : 'tidak') : '–') +
+                        ' · provinsi: ' + (s.provinsi_id ? (s.share_provinsi ? 'ya' : 'tidak') : '–'))));
             }
 
             // tambah sekolah yang belum punya wilayah

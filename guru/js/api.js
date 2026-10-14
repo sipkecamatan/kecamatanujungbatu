@@ -2481,3 +2481,10 @@ export async function setRegionSharing(share) {
     if (error) throw error;
     return data;
 }
+
+// Persetujuan per tingkat: level = 'KECAMATAN' | 'KABUPATEN' | 'PROVINSI'
+export async function setRegionSharingLevel(level, share) {
+    const { data, error } = await supabase.rpc('fn_set_region_sharing_level', { p_level: level, p_share: !!share });
+    if (error) throw error;
+    return data;
+}

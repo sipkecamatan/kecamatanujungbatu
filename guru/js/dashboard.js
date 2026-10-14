@@ -50,7 +50,7 @@ import {
     getLateArrivalsByRange, getLateArrivalsAggregate,
     getTodayExits, recordExit, updateReturnTime, deleteExit,
     getClassProgramContext, getCpForSubject, checkElementDuplicate,
-    getRegionSharingStatus, setRegionSharing,
+    getRegionSharingStatus, setRegionSharing, setRegionSharingLevel,
 } from './api.js';
 import { saveAttendanceBatch, flushPending, pendingCount, clearOfflineQueue } from './offline.js';
 import { initJurnalTab } from './jurnal.js';
@@ -3372,57 +3372,72 @@ async function initKepsekKasusSection() {
 
 let _ksAdminTabInit = false;
 
-// ── Berbagi ringkasan ke kecamatan (persetujuan kepala sekolah) ──
+// ── Berbagi ringkasan ke wilayah: persetujuan kepala sekolah per tingkat ──
 async function initKsRegionSharing() {
     const statusEl = document.getElementById('ks-region-status');
-    const btn      = document.getElementById('ks-region-toggle');
+    const listEl   = document.getElementById('ks-region-levels');
     const msgEl    = document.getElementById('ks-region-msg');
-    if (!statusEl || !btn) return;
+    if (!statusEl || !listEl) return;
     msgEl.style.display = 'none';
 
-    const show = (st) => {
-        if (!st.terdaftar_di_wilayah) {
-            statusEl.textContent = 'Sekolah Anda belum didaftarkan ke wilayah mana pun oleh pengelola platform.';
-            btn.style.display = 'none';
-            return;
-        }
-        statusEl.textContent = st.dibagikan
-            ? 'Status: DIBAGIKAN ke ' + (st.wilayah || 'wilayah') + '. Kecamatan dapat melihat angka ringkas sekolah ini.'
-            : 'Status: TIDAK dibagikan. Sekolah ini tidak tampil di dashboard ' + (st.wilayah || 'kecamatan') + '.';
-        btn.style.display = st.dapat_mengubah ? '' : 'none';
-        btn.textContent   = st.dibagikan ? 'Hentikan berbagi' : 'Bagikan ringkasan ke kecamatan';
-        btn.dataset.next  = st.dibagikan ? '0' : '1';
-    };
+    const TINGKAT = [
+        { level: 'KECAMATAN', label: 'Kecamatan', nama: 'wilayah',   ada: 'terdaftar_di_wilayah', aktif: 'dibagikan',           bisa: 'dapat_mengubah' },
+        { level: 'KABUPATEN', label: 'Kabupaten', nama: 'kabupaten', ada: 'terdaftar_kabupaten',  aktif: 'dibagikan_kabupaten', bisa: 'dapat_mengubah_kabupaten' },
+        { level: 'PROVINSI',  label: 'Provinsi',  nama: 'provinsi',  ada: 'terdaftar_provinsi',   aktif: 'dibagikan_provinsi',  bisa: 'dapat_mengubah_provinsi' },
+    ];
 
-    if (!btn.dataset.wired) {
-        btn.dataset.wired = '1';
-        btn.addEventListener('click', async () => {
-            const aktifkan = btn.dataset.next === '1';
-            const tanya = aktifkan
-                ? 'Bagikan ringkasan agregat sekolah ke kecamatan?\n\nYang terlihat hanya jumlah siswa aktif, persentase kehadiran, dan cakupan input absensi. Tidak ada nama atau data pribadi siswa. Anda dapat menghentikannya kapan saja.'
-                : 'Hentikan berbagi? Sekolah ini akan langsung hilang dari dashboard kecamatan.';
-            if (!window.confirm(tanya)) return;
-            btn.disabled = true;
-            msgEl.style.display = 'none';
-            try {
-                show(await setRegionSharing(aktifkan));
-                msgEl.textContent = aktifkan ? 'Berbagi diaktifkan.' : 'Berbagi dihentikan.';
-                msgEl.className = 'status-msg status-ok';
-            } catch (err) {
-                msgEl.textContent = 'Gagal menyimpan: ' + fe(err, 's');
-                msgEl.className = 'status-msg status-err';
-            } finally {
-                msgEl.style.display = 'inline-block';
-                btn.disabled = false;
+    const show = (st) => {
+        listEl.replaceChildren();
+        const adaTingkat = TINGKAT.some((t) => st[t.ada]);
+        statusEl.textContent = adaTingkat
+            ? 'Pilih sendiri tingkat mana yang boleh melihat angka ringkas sekolah ini.'
+            : 'Sekolah Anda belum didaftarkan ke wilayah mana pun oleh pengelola platform.';
+        for (const t of TINGKAT) {
+            const row  = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap';
+            const info = document.createElement('span');
+            const nama = st[t.nama] ? ': ' + st[t.nama] : '';
+            info.textContent = t.label + nama + ' — ' +
+                (!st[t.ada] ? 'belum dicatat oleh pengelola platform'
+                    : st[t.aktif] ? 'DIBAGIKAN' : 'tidak dibagikan');
+            row.append(info);
+            if (st[t.ada] && st[t.bisa]) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = st[t.aktif] ? 'btn' : 'btn btn-primary';
+                btn.textContent = st[t.aktif] ? 'Hentikan berbagi' : 'Bagikan ke ' + t.label.toLowerCase();
+                btn.addEventListener('click', async () => {
+                    const aktifkan = !st[t.aktif];
+                    const tanya = aktifkan
+                        ? 'Bagikan ringkasan agregat sekolah ke ' + t.label.toLowerCase() + '?\n\nYang terlihat hanya angka ringkas: jumlah siswa aktif, kehadiran, cakupan input, serta jumlah keterlambatan dan izin keluar. Tidak ada nama atau data pribadi siswa. Anda dapat menghentikannya kapan saja.'
+                        : 'Hentikan berbagi ke ' + t.label.toLowerCase() + '? Sekolah ini akan langsung hilang dari dashboard tingkat itu.';
+                    if (!window.confirm(tanya)) return;
+                    btn.disabled = true;
+                    msgEl.style.display = 'none';
+                    try {
+                        show(await setRegionSharingLevel(t.level, aktifkan));
+                        msgEl.textContent = aktifkan ? 'Berbagi ke ' + t.label.toLowerCase() + ' diaktifkan.'
+                                                    : 'Berbagi ke ' + t.label.toLowerCase() + ' dihentikan.';
+                        msgEl.className = 'status-msg status-ok';
+                    } catch (err) {
+                        msgEl.textContent = 'Gagal menyimpan: ' + fe(err, 's');
+                        msgEl.className = 'status-msg status-err';
+                        btn.disabled = false;
+                    } finally {
+                        msgEl.style.display = 'inline-block';
+                    }
+                });
+                row.append(btn);
             }
-        });
-    }
+            listEl.append(row);
+        }
+    };
 
     try {
         show(await getRegionSharingStatus());
     } catch (err) {
         statusEl.textContent = 'Gagal memuat status berbagi data.';
-        btn.style.display = 'none';
+        listEl.replaceChildren();
     }
 }
 

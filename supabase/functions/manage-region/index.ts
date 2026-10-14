@@ -20,8 +20,9 @@
  *
  * PERSETUJUAN: fungsi ini TIDAK PERNAH mengubah schools.share_with_region menjadi true.
  * Persetujuan berbagi data adalah hak kepala sekolah. Memindahkan atau melepas sekolah
- * dari wilayah otomatis mengembalikan share_with_region ke false (persetujuan lama
- * berlaku untuk wilayah lama).
+ * dari wilayah otomatis mengembalikan persetujuan tingkat yang berubah ke false
+ * (share_with_region = kecamatan, share_kabupaten, share_provinsi); persetujuan lama
+ * berlaku untuk wilayah lama.
  */
 
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
@@ -65,7 +66,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             const [regions, schools, staff] = await Promise.all([
                 admin.from('regions').select('region_id, name, level').order('name'),
                 admin.from('schools')
-                     .select('school_id, name, slug, jenjang, region_id, kabupaten_id, provinsi_id, share_with_region, is_active')
+                     .select('school_id, name, slug, jenjang, region_id, kabupaten_id, provinsi_id, share_with_region, share_kabupaten, share_provinsi, is_active')
                      .order('name'),
                 admin.from('region_staff').select('auth_user_id, region_id, full_name'),
             ]);
@@ -205,15 +206,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
             const kabupatenId = (kab as { value: string | null }).value;
             const provinsiId  = (prov as { value: string | null }).value;
 
-            // Persetujuan lama berlaku untuk pihak yang melihat lama: reset bila salah satu
-            // dari kecamatan, kabupaten, atau provinsi berubah.
-            const wilayahBerubah = (school.region_id ?? null) !== regionId
-                || (school.kabupaten_id ?? null) !== kabupatenId
-                || (school.provinsi_id ?? null) !== provinsiId;
+            // Persetujuan tiap tingkat berlaku untuk wilayah yang disetujui: reset hanya pada
+            // tingkat yang wilayahnya berubah.
+            const kecBerubah  = (school.region_id ?? null)    !== regionId;
+            const kabBerubah  = (school.kabupaten_id ?? null) !== kabupatenId;
+            const provBerubah = (school.provinsi_id ?? null)  !== provinsiId;
+            const wilayahBerubah = kecBerubah || kabBerubah || provBerubah;
             const patch: Record<string, unknown> = {
                 region_id: regionId, kabupaten_id: kabupatenId, provinsi_id: provinsiId, jenjang,
             };
-            if (wilayahBerubah) patch.share_with_region = false;
+            if (kecBerubah)  patch.share_with_region = false;
+            if (kabBerubah)  patch.share_kabupaten   = false;
+            if (provBerubah) patch.share_provinsi    = false;
 
             const { error } = await admin.from('schools').update(patch).eq('school_id', schoolId);
             if (error) throw error;

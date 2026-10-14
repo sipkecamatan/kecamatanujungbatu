@@ -1262,16 +1262,16 @@
                 </div><!-- /kp-acc-body monitoring -->
             </div>
             <div class="section-card kp-acc-item" id="ks-region-card" style="margin-top:16px">
-                <div class="kp-acc-header"><span>Berbagi Ringkasan ke Kecamatan</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header"><span>Berbagi Ringkasan ke Wilayah</span><span class="kp-acc-arrow">▸</span></div>
                 <div class="kp-acc-body" style="display:none">
                     <p class="hint" style="margin-bottom:10px">
-                        Bila diaktifkan, pegawai kecamatan hanya melihat <strong>angka ringkas</strong>: jumlah siswa aktif,
+                        Bila diaktifkan, pegawai wilayah (kecamatan, kabupaten, atau provinsi) hanya melihat <strong>angka ringkas</strong>: jumlah siswa aktif,
                         persentase kehadiran, dan cakupan input absensi sekolah ini. <strong>Tidak ada nama atau data pribadi siswa.</strong>
-                        Keputusan ini ada di tangan kepala sekolah dan dapat dicabut kapan saja.
+                        Kepala sekolah memilih sendiri tingkat mana yang boleh melihat, dan dapat mencabutnya kapan saja.
                     </p>
                     <p id="ks-region-status" class="hint" style="font-weight:600">Memuat…</p>
                     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px">
-                        <button id="ks-region-toggle" class="btn btn-primary" type="button" style="display:none"></button>
+                        <div id="ks-region-levels" style="display:flex;flex-direction:column;gap:10px;width:100%"></div>
                         <span id="ks-region-msg" class="status-msg" style="display:none"></span>
                     </div>
                 </div>
