@@ -157,23 +157,16 @@
             <h3>🏛 Wilayah</h3>
             <p class="hint">Alur: daftarkan sekolah → admin sekolah mengisi data → kepala sekolah menyetujui berbagi → pegawai wilayah melihat ringkasan. Persetujuan berbagi tidak dapat diatur dari sini.</p>
             <form id="region-form" class="form-grid" style="margin-top:12px">
-                <div class="field field-full">
-                    <label for="region-jenis">Jenis wilayah</label>
-                    <select id="region-jenis" class="input">
-                        <option value="KECAMATAN">Kecamatan</option>
-                        <option value="KABUPATEN">Kabupaten / Kota</option>
-                        <option value="PROVINSI">Provinsi</option>
-                    </select>
-                </div>
+                <p class="hint field-full" style="margin:0">Pilih sampai tingkat yang ingin ditambahkan: provinsi saja, sampai kabupaten/kota, atau sampai kecamatan. Tingkat di atasnya ikut dibuat otomatis.</p>
                 <div class="field field-full">
                     <label for="region-prov">Provinsi</label>
                     <select id="region-prov" class="input"></select>
                 </div>
-                <div class="field field-full" id="region-kab-wrap">
+                <div class="field field-full">
                     <label for="region-kab">Kabupaten / Kota</label>
                     <select id="region-kab" class="input"></select>
                 </div>
-                <div class="field field-full" id="region-kec-wrap">
+                <div class="field field-full">
                     <label for="region-kec">Kecamatan</label>
                     <select id="region-kec" class="input"></select>
                 </div>

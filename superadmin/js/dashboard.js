@@ -835,44 +835,36 @@ async function initRegionForm() {
     let ref;
     try { ref = await loadRefWilayah(); }
     catch (e) { showRegionMsg(e.message, false); return; }
-    const jenis = document.getElementById('region-jenis');
-    const prov  = document.getElementById('region-prov');
-    const kab   = document.getElementById('region-kab');
-    const kec   = document.getElementById('region-kec');
+    const prov = document.getElementById('region-prov');
+    const kab  = document.getElementById('region-kab');
+    const kec  = document.getElementById('region-kec');
     prov.replaceChildren(h('option', { value: ref.provinsi.kode }, 'Provinsi ' + ref.provinsi.nama));
-    kab.replaceChildren(...ref.kabupaten.map(k => h('option', { value: k.kode }, namaKab(k))));
+    kab.replaceChildren(h('option', { value: '' }, '\u2014 hanya provinsi \u2014'),
+        ...ref.kabupaten.map(k => h('option', { value: k.kode }, namaKab(k))));
     const isiKec = () => {
         const k = ref.kabupaten.find(x => x.kode === kab.value);
-        kec.replaceChildren(...(k ? k.kecamatan : []).map(c => h('option', { value: c.kode }, c.nama)));
-    };
-    const atur = () => {
-        document.getElementById('region-kab-wrap').style.display = jenis.value === 'PROVINSI' ? 'none' : '';
-        document.getElementById('region-kec-wrap').style.display = jenis.value === 'KECAMATAN' ? '' : 'none';
+        kec.replaceChildren(
+            h('option', { value: '' }, k ? '\u2014 sampai kabupaten / kota saja \u2014' : '\u2014 pilih kabupaten / kota dulu \u2014'),
+            ...(k ? k.kecamatan : []).map(c => h('option', { value: c.kode }, c.nama)));
+        kec.disabled = !k;
     };
     kab.addEventListener('change', isiKec);
-    jenis.addEventListener('change', atur);
-    isiKec(); atur();
+    isiKec();
 }
 
 document.getElementById('region-form').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const btn = document.getElementById('region-create-btn'); btn.disabled = true;
     try {
-        const ref   = await loadRefWilayah();
-        const jenis = document.getElementById('region-jenis').value;
-        const kab   = ref.kabupaten.find(x => x.kode === document.getElementById('region-kab').value);
-        const kec   = kab && kab.kecamatan.find(c => c.kode === document.getElementById('region-kec').value);
+        const ref = await loadRefWilayah();
+        const kab = ref.kabupaten.find(x => x.kode === document.getElementById('region-kab').value);
+        const kec = kab && kab.kecamatan.find(c => c.kode === document.getElementById('region-kec').value);
 
-        // Kecamatan menyertakan kabupaten dan provinsinya agar pegawai dan sekolah dapat dikaitkan.
+        // Tingkat tertinggi yang dipilih menentukan wilayah; tingkat di atasnya ikut dibuat.
         const rantai = [{ kode: ref.provinsi.kode, name: 'Provinsi ' + ref.provinsi.nama, level: 'PROVINSI' }];
-        if (jenis !== 'PROVINSI') {
-            if (!kab) throw new Error('Pilih kabupaten / kota');
-            rantai.push({ kode: kab.kode, name: namaKab(kab), level: 'KABUPATEN' });
-        }
-        if (jenis === 'KECAMATAN') {
-            if (!kec) throw new Error('Pilih kecamatan');
-            rantai.push({ kode: kec.kode, name: 'Kecamatan ' + kec.nama + ', ' + namaKab(kab), level: 'KECAMATAN' });
-        }
+        if (kab) rantai.push({ kode: kab.kode, name: namaKab(kab), level: 'KABUPATEN' });
+        if (kab && kec) rantai.push({ kode: kec.kode, name: 'Kecamatan ' + kec.nama + ', ' + namaKab(kab), level: 'KECAMATAN' });
+
         let dibuat = 0, terakhir = null;
         for (const w of rantai) {
             const out = await regionApi({ action: 'ensure_region', kode: w.kode, name: w.name, level: w.level });
