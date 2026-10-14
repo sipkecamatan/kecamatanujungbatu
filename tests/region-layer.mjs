@@ -18,6 +18,7 @@ const migrationSharing = read('supabase/migrations/20261014010000_region_sharing
 const migrationHier = read('supabase/migrations/20261015000000_region_hierarchy_piket.sql');
 const migrationTiga = read('supabase/migrations/20261015010000_region_three_level.sql');
 const migrationPerTingkat = read('supabase/migrations/20261015020000_region_sharing_per_level.sql');
+const migrationKode = read('supabase/migrations/20261015030000_region_kode.sql');
 
 const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
 let passed = 0;
@@ -51,6 +52,7 @@ await db.exec(migrationSharing);
 await db.exec(migrationHier);
 await db.exec(migrationTiga);
 await db.exec(migrationPerTingkat);
+await db.exec(migrationKode);
 
 // Fixture: tiap sekolah punya 3 siswa, 10 sesi (10 hari terakhir), k sesi beratribut absensi,
 // dan `alpa` baris ALPA. Semua nama siswa memuat kata "RAHASIA" agar bocor mudah terdeteksi.
@@ -307,6 +309,13 @@ await test('persetujuan per tingkat: ADMINISTRATIVE dan guru ditolak 42501; ting
 });
 await test('persetujuan per tingkat: tingkat yang belum dicatat untuk sekolah ditolak 22023', async () => {
   assert.equal(await code(KEPSEK_X, "SELECT public.fn_set_region_sharing_level('KABUPATEN', true)"), '22023');
+});
+await test('kode wilayah: unik, format angka 2-10 digit, boleh kosong', async () => {
+  await db.exec("INSERT INTO regions (name, level, kode) VALUES ('Kecamatan Ujung Batu, Kabupaten Rokan Hulu', 'KECAMATAN', '1407022')");
+  assert.equal(await code(null, "INSERT INTO regions (name, level, kode) VALUES ('Salinan', 'KECAMATAN', '1407022')"), '23505');
+  assert.equal(await code(null, "INSERT INTO regions (name, level, kode) VALUES ('Kode Salah', 'KECAMATAN', 'AB12')"), '23514');
+  assert.equal(await code(null, "INSERT INTO regions (name, level) VALUES ('Tanpa Kode 1', 'KECAMATAN')"), 'OK');
+  assert.equal(await code(null, "INSERT INTO regions (name, level) VALUES ('Tanpa Kode 2', 'KECAMATAN')"), 'OK');
 });
 await test('tingkat: jenis wilayah di luar KECAMATAN/KABUPATEN/PROVINSI ditolak 23514', async () => {
   assert.equal(await code(null, `INSERT INTO regions (name, level) VALUES ('Desa X', 'DESA')`), '23514');

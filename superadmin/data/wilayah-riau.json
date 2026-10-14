@@ -1,0 +1,770 @@
+{
+ "provinsi": {
+  "kode": "14",
+  "nama": "Riau"
+ },
+ "sumber": "https://emsifa.github.io/api-wilayah-indonesia (kode Kemendagri/BPS), diambil 2026-10-15",
+ "catatan": "Nama ditulis ulang dari huruf besar; kode wilayah mengikuti sumber. Periksa bila ada pemekaran baru.",
+ "kabupaten": [
+  {
+   "kode": "1401",
+   "jenis": "KABUPATEN",
+   "nama": "Kuantan Singingi",
+   "kecamatan": [
+    {
+     "kode": "1401010",
+     "nama": "Kuantan Mudik"
+    },
+    {
+     "kode": "1401011",
+     "nama": "Hulu Kuantan"
+    },
+    {
+     "kode": "1401012",
+     "nama": "Gunung Toar"
+    },
+    {
+     "kode": "1401013",
+     "nama": "Pucuk Rantau"
+    },
+    {
+     "kode": "1401020",
+     "nama": "Singingi"
+    },
+    {
+     "kode": "1401021",
+     "nama": "Singingi Hilir"
+    },
+    {
+     "kode": "1401030",
+     "nama": "Kuantan Tengah"
+    },
+    {
+     "kode": "1401031",
+     "nama": "Sentajo Raya"
+    },
+    {
+     "kode": "1401040",
+     "nama": "Benai"
+    },
+    {
+     "kode": "1401050",
+     "nama": "Kuantan Hilir"
+    },
+    {
+     "kode": "1401051",
+     "nama": "Pangean"
+    },
+    {
+     "kode": "1401052",
+     "nama": "Logas Tanah Darat"
+    },
+    {
+     "kode": "1401053",
+     "nama": "Kuantan Hilir Seberang"
+    },
+    {
+     "kode": "1401060",
+     "nama": "Cerenti"
+    },
+    {
+     "kode": "1401061",
+     "nama": "Inuman"
+    }
+   ]
+  },
+  {
+   "kode": "1402",
+   "jenis": "KABUPATEN",
+   "nama": "Indragiri Hulu",
+   "kecamatan": [
+    {
+     "kode": "1402010",
+     "nama": "Peranap"
+    },
+    {
+     "kode": "1402011",
+     "nama": "Batang Peranap"
+    },
+    {
+     "kode": "1402020",
+     "nama": "Seberida"
+    },
+    {
+     "kode": "1402021",
+     "nama": "Batang Cenaku"
+    },
+    {
+     "kode": "1402022",
+     "nama": "Batang Gansal"
+    },
+    {
+     "kode": "1402030",
+     "nama": "Kelayang"
+    },
+    {
+     "kode": "1402031",
+     "nama": "Rakit Kulim"
+    },
+    {
+     "kode": "1402040",
+     "nama": "Pasir Penyu"
+    },
+    {
+     "kode": "1402041",
+     "nama": "Lirik"
+    },
+    {
+     "kode": "1402042",
+     "nama": "Sungai Lala"
+    },
+    {
+     "kode": "1402043",
+     "nama": "Lubuk Batu Jaya"
+    },
+    {
+     "kode": "1402050",
+     "nama": "Rengat Barat"
+    },
+    {
+     "kode": "1402060",
+     "nama": "Rengat"
+    },
+    {
+     "kode": "1402061",
+     "nama": "Kuala Cenaku"
+    }
+   ]
+  },
+  {
+   "kode": "1403",
+   "jenis": "KABUPATEN",
+   "nama": "Indragiri Hilir",
+   "kecamatan": [
+    {
+     "kode": "1403010",
+     "nama": "Keritang"
+    },
+    {
+     "kode": "1403011",
+     "nama": "Kemuning"
+    },
+    {
+     "kode": "1403020",
+     "nama": "Reteh"
+    },
+    {
+     "kode": "1403021",
+     "nama": "Sungai Batang"
+    },
+    {
+     "kode": "1403030",
+     "nama": "Enok"
+    },
+    {
+     "kode": "1403040",
+     "nama": "Tanah Merah"
+    },
+    {
+     "kode": "1403050",
+     "nama": "Kuala Indragiri"
+    },
+    {
+     "kode": "1403051",
+     "nama": "Concong"
+    },
+    {
+     "kode": "1403060",
+     "nama": "Tembilahan"
+    },
+    {
+     "kode": "1403061",
+     "nama": "Tembilahan Hulu"
+    },
+    {
+     "kode": "1403070",
+     "nama": "Tempuling"
+    },
+    {
+     "kode": "1403071",
+     "nama": "Kempas"
+    },
+    {
+     "kode": "1403080",
+     "nama": "Batang Tuaka"
+    },
+    {
+     "kode": "1403090",
+     "nama": "Gaung Anak Serka"
+    },
+    {
+     "kode": "1403100",
+     "nama": "Gaung"
+    },
+    {
+     "kode": "1403110",
+     "nama": "Mandah"
+    },
+    {
+     "kode": "1403120",
+     "nama": "Kateman"
+    },
+    {
+     "kode": "1403121",
+     "nama": "Pelangiran"
+    },
+    {
+     "kode": "1403122",
+     "nama": "Teluk Belengkong"
+    },
+    {
+     "kode": "1403123",
+     "nama": "Pulau Burung"
+    }
+   ]
+  },
+  {
+   "kode": "1404",
+   "jenis": "KABUPATEN",
+   "nama": "Pelalawan",
+   "kecamatan": [
+    {
+     "kode": "1404010",
+     "nama": "Langgam"
+    },
+    {
+     "kode": "1404011",
+     "nama": "Pangkalan Kerinci"
+    },
+    {
+     "kode": "1404012",
+     "nama": "Bandar Seikijang"
+    },
+    {
+     "kode": "1404020",
+     "nama": "Pangkalan Kuras"
+    },
+    {
+     "kode": "1404021",
+     "nama": "Ukui"
+    },
+    {
+     "kode": "1404022",
+     "nama": "Pangkalan Lesung"
+    },
+    {
+     "kode": "1404030",
+     "nama": "Bunut"
+    },
+    {
+     "kode": "1404031",
+     "nama": "Pelalawan"
+    },
+    {
+     "kode": "1404032",
+     "nama": "Bandar Petalangan"
+    },
+    {
+     "kode": "1404040",
+     "nama": "Kuala Kampar"
+    },
+    {
+     "kode": "1404041",
+     "nama": "Kerumutan"
+    },
+    {
+     "kode": "1404042",
+     "nama": "Teluk Meranti"
+    }
+   ]
+  },
+  {
+   "kode": "1405",
+   "jenis": "KABUPATEN",
+   "nama": "Siak",
+   "kecamatan": [
+    {
+     "kode": "1405010",
+     "nama": "Minas"
+    },
+    {
+     "kode": "1405011",
+     "nama": "Sungai Mandau"
+    },
+    {
+     "kode": "1405012",
+     "nama": "Kandis"
+    },
+    {
+     "kode": "1405020",
+     "nama": "Siak"
+    },
+    {
+     "kode": "1405021",
+     "nama": "Kerinci Kanan"
+    },
+    {
+     "kode": "1405022",
+     "nama": "Tualang"
+    },
+    {
+     "kode": "1405023",
+     "nama": "Dayun"
+    },
+    {
+     "kode": "1405024",
+     "nama": "Lubuk Dalam"
+    },
+    {
+     "kode": "1405025",
+     "nama": "Koto Gasib"
+    },
+    {
+     "kode": "1405026",
+     "nama": "Mempura"
+    },
+    {
+     "kode": "1405030",
+     "nama": "Sungai Apit"
+    },
+    {
+     "kode": "1405031",
+     "nama": "Bunga Raya"
+    },
+    {
+     "kode": "1405032",
+     "nama": "Sabak Auh"
+    },
+    {
+     "kode": "1405033",
+     "nama": "Pusako"
+    }
+   ]
+  },
+  {
+   "kode": "1406",
+   "jenis": "KABUPATEN",
+   "nama": "Kampar",
+   "kecamatan": [
+    {
+     "kode": "1406010",
+     "nama": "Kampar Kiri"
+    },
+    {
+     "kode": "1406011",
+     "nama": "Kampar Kiri Hulu"
+    },
+    {
+     "kode": "1406012",
+     "nama": "Kampar Kiri Hilir"
+    },
+    {
+     "kode": "1406013",
+     "nama": "Gunung Sahilan"
+    },
+    {
+     "kode": "1406014",
+     "nama": "Kampar Kiri Tengah"
+    },
+    {
+     "kode": "1406020",
+     "nama": "XIII Koto Kampar"
+    },
+    {
+     "kode": "1406021",
+     "nama": "Koto Kampar Hulu"
+    },
+    {
+     "kode": "1406030",
+     "nama": "Kuok"
+    },
+    {
+     "kode": "1406031",
+     "nama": "Salo"
+    },
+    {
+     "kode": "1406040",
+     "nama": "Tapung"
+    },
+    {
+     "kode": "1406041",
+     "nama": "Tapung Hulu"
+    },
+    {
+     "kode": "1406042",
+     "nama": "Tapung Hilir"
+    },
+    {
+     "kode": "1406050",
+     "nama": "Bangkinang Kota"
+    },
+    {
+     "kode": "1406051",
+     "nama": "Bangkinang"
+    },
+    {
+     "kode": "1406060",
+     "nama": "Kampar"
+    },
+    {
+     "kode": "1406061",
+     "nama": "Kampa"
+    },
+    {
+     "kode": "1406062",
+     "nama": "Rumbio Jaya"
+    },
+    {
+     "kode": "1406063",
+     "nama": "Kampar Utara"
+    },
+    {
+     "kode": "1406070",
+     "nama": "Tambang"
+    },
+    {
+     "kode": "1406080",
+     "nama": "Siak Hulu"
+    },
+    {
+     "kode": "1406081",
+     "nama": "Perhentian Raja"
+    }
+   ]
+  },
+  {
+   "kode": "1407",
+   "jenis": "KABUPATEN",
+   "nama": "Rokan Hulu",
+   "kecamatan": [
+    {
+     "kode": "1407010",
+     "nama": "Rokan IV Koto"
+    },
+    {
+     "kode": "1407011",
+     "nama": "Pendalian IV Koto"
+    },
+    {
+     "kode": "1407020",
+     "nama": "Tandun"
+    },
+    {
+     "kode": "1407021",
+     "nama": "Kabun"
+    },
+    {
+     "kode": "1407022",
+     "nama": "Ujung Batu"
+    },
+    {
+     "kode": "1407030",
+     "nama": "Rambah Samo"
+    },
+    {
+     "kode": "1407040",
+     "nama": "Rambah"
+    },
+    {
+     "kode": "1407041",
+     "nama": "Rambah Hilir"
+    },
+    {
+     "kode": "1407042",
+     "nama": "Bangun Purba"
+    },
+    {
+     "kode": "1407050",
+     "nama": "Tambusai"
+    },
+    {
+     "kode": "1407051",
+     "nama": "Tambusai Utara"
+    },
+    {
+     "kode": "1407060",
+     "nama": "Kepenuhan"
+    },
+    {
+     "kode": "1407061",
+     "nama": "Kepenuhan Hulu"
+    },
+    {
+     "kode": "1407070",
+     "nama": "Kunto Darussalam"
+    },
+    {
+     "kode": "1407071",
+     "nama": "Pagaran Tapah Darussalam"
+    },
+    {
+     "kode": "1407072",
+     "nama": "Bonai Darussalam"
+    }
+   ]
+  },
+  {
+   "kode": "1408",
+   "jenis": "KABUPATEN",
+   "nama": "Bengkalis",
+   "kecamatan": [
+    {
+     "kode": "1408010",
+     "nama": "Mandau"
+    },
+    {
+     "kode": "1408011",
+     "nama": "Pinggir"
+    },
+    {
+     "kode": "1408012",
+     "nama": "Bathin Solapan"
+    },
+    {
+     "kode": "1408013",
+     "nama": "Talang Muandau"
+    },
+    {
+     "kode": "1408020",
+     "nama": "Bukit Batu"
+    },
+    {
+     "kode": "1408021",
+     "nama": "Siak Kecil"
+    },
+    {
+     "kode": "1408022",
+     "nama": "Bandar Laksamana"
+    },
+    {
+     "kode": "1408030",
+     "nama": "Rupat"
+    },
+    {
+     "kode": "1408031",
+     "nama": "Rupat Utara"
+    },
+    {
+     "kode": "1408040",
+     "nama": "Bengkalis"
+    },
+    {
+     "kode": "1408050",
+     "nama": "Bantan"
+    }
+   ]
+  },
+  {
+   "kode": "1409",
+   "jenis": "KABUPATEN",
+   "nama": "Rokan Hilir",
+   "kecamatan": [
+    {
+     "kode": "1409010",
+     "nama": "Tanah Putih"
+    },
+    {
+     "kode": "1409011",
+     "nama": "Pujud"
+    },
+    {
+     "kode": "1409012",
+     "nama": "Tanah Putih Tanjung Melawan"
+    },
+    {
+     "kode": "1409013",
+     "nama": "Rantau Kopar"
+    },
+    {
+     "kode": "1409014",
+     "nama": "Tanjung Medan"
+    },
+    {
+     "kode": "1409020",
+     "nama": "Bagan Sinembah"
+    },
+    {
+     "kode": "1409021",
+     "nama": "Simpang Kanan"
+    },
+    {
+     "kode": "1409022",
+     "nama": "Bagan Sinembah Raya"
+    },
+    {
+     "kode": "1409023",
+     "nama": "Balai Jaya"
+    },
+    {
+     "kode": "1409030",
+     "nama": "Kubu"
+    },
+    {
+     "kode": "1409031",
+     "nama": "Pasir Limau Kapas"
+    },
+    {
+     "kode": "1409032",
+     "nama": "Kubu Babussalam"
+    },
+    {
+     "kode": "1409040",
+     "nama": "Bangko"
+    },
+    {
+     "kode": "1409041",
+     "nama": "Sinaboi"
+    },
+    {
+     "kode": "1409042",
+     "nama": "Batu Hampar"
+    },
+    {
+     "kode": "1409043",
+     "nama": "Pekaitan"
+    },
+    {
+     "kode": "1409050",
+     "nama": "Rimba Melintang"
+    },
+    {
+     "kode": "1409051",
+     "nama": "Bangko Pusako"
+    }
+   ]
+  },
+  {
+   "kode": "1410",
+   "jenis": "KABUPATEN",
+   "nama": "Kepulauan Meranti",
+   "kecamatan": [
+    {
+     "kode": "1410010",
+     "nama": "Tebing Tinggi Barat"
+    },
+    {
+     "kode": "1410020",
+     "nama": "Tebing Tinggi"
+    },
+    {
+     "kode": "1410021",
+     "nama": "Tebing Tinggi Timur"
+    },
+    {
+     "kode": "1410030",
+     "nama": "Rangsang"
+    },
+    {
+     "kode": "1410031",
+     "nama": "Rangsang Pesisir"
+    },
+    {
+     "kode": "1410040",
+     "nama": "Rangsang Barat"
+    },
+    {
+     "kode": "1410050",
+     "nama": "Merbau"
+    },
+    {
+     "kode": "1410051",
+     "nama": "Pulau Merbau"
+    },
+    {
+     "kode": "1410052",
+     "nama": "Tasik Putri Puyu"
+    }
+   ]
+  },
+  {
+   "kode": "1471",
+   "jenis": "KOTA",
+   "nama": "Pekanbaru",
+   "kecamatan": [
+    {
+     "kode": "1471010",
+     "nama": "Tampan"
+    },
+    {
+     "kode": "1471011",
+     "nama": "Payung Sekaki"
+    },
+    {
+     "kode": "1471020",
+     "nama": "Bukit Raya"
+    },
+    {
+     "kode": "1471021",
+     "nama": "Marpoyan Damai"
+    },
+    {
+     "kode": "1471022",
+     "nama": "Tenayan Raya"
+    },
+    {
+     "kode": "1471030",
+     "nama": "Limapuluh"
+    },
+    {
+     "kode": "1471040",
+     "nama": "Sail"
+    },
+    {
+     "kode": "1471050",
+     "nama": "Pekanbaru Kota"
+    },
+    {
+     "kode": "1471060",
+     "nama": "Sukajadi"
+    },
+    {
+     "kode": "1471070",
+     "nama": "Senapelan"
+    },
+    {
+     "kode": "1471080",
+     "nama": "Rumbai"
+    },
+    {
+     "kode": "1471081",
+     "nama": "Rumbai Pesisir"
+    }
+   ]
+  },
+  {
+   "kode": "1473",
+   "jenis": "KOTA",
+   "nama": "Dumai",
+   "kecamatan": [
+    {
+     "kode": "1473010",
+     "nama": "Bukit Kapur"
+    },
+    {
+     "kode": "1473011",
+     "nama": "Medang Kampai"
+    },
+    {
+     "kode": "1473012",
+     "nama": "Sungai Sembilan"
+    },
+    {
+     "kode": "1473020",
+     "nama": "Dumai Barat"
+    },
+    {
+     "kode": "1473021",
+     "nama": "Dumai Selatan"
+    },
+    {
+     "kode": "1473030",
+     "nama": "Dumai Timur"
+    },
+    {
+     "kode": "1473031",
+     "nama": "Dumai Kota"
+    }
+   ]
+  }
+ ]
+}

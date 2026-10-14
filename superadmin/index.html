@@ -158,19 +158,27 @@
             <p class="hint">Alur: daftarkan sekolah → admin sekolah mengisi data → kepala sekolah menyetujui berbagi → pegawai wilayah melihat ringkasan. Persetujuan berbagi tidak dapat diatur dari sini.</p>
             <form id="region-form" class="form-grid" style="margin-top:12px">
                 <div class="field field-full">
-                    <label for="region-name">Nama wilayah baru</label>
-                    <input type="text" id="region-name" class="input" placeholder="Nama wilayah (kecamatan, kabupaten, atau provinsi)" required minlength="3" maxlength="100">
-                </div>
-                <div class="field field-full">
-                    <label for="region-level">Jenis wilayah</label>
-                    <select id="region-level" class="input">
+                    <label for="region-jenis">Jenis wilayah</label>
+                    <select id="region-jenis" class="input">
                         <option value="KECAMATAN">Kecamatan</option>
-                        <option value="KABUPATEN">Kabupaten</option>
+                        <option value="KABUPATEN">Kabupaten / Kota</option>
                         <option value="PROVINSI">Provinsi</option>
                     </select>
                 </div>
+                <div class="field field-full">
+                    <label for="region-prov">Provinsi</label>
+                    <select id="region-prov" class="input"></select>
+                </div>
+                <div class="field field-full" id="region-kab-wrap">
+                    <label for="region-kab">Kabupaten / Kota</label>
+                    <select id="region-kab" class="input"></select>
+                </div>
+                <div class="field field-full" id="region-kec-wrap">
+                    <label for="region-kec">Kecamatan</label>
+                    <select id="region-kec" class="input"></select>
+                </div>
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary" id="region-create-btn">Buat Wilayah</button>
+                    <button type="submit" class="btn btn-primary" id="region-create-btn">Tambah Wilayah</button>
                 </div>
             </form>
             <div id="region-result" class="alert" style="display:none;margin-top:10px"></div>

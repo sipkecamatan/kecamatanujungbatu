@@ -13,6 +13,7 @@
  * Request body (JSON), field "action":
  *   { action: "list" }
  *   { action: "create_region", name, level? }   level: KECAMATAN (bawaan) | KABUPATEN | PROVINSI
+ *   { action: "ensure_region", kode, name, level }   -> buat dari daftar resmi bila belum ada (idempoten)
  *   { action: "add_staff", region_id, full_name, email }      -> kata sandi sementara, tampil sekali
  *   { action: "remove_staff", auth_user_id }
  *   { action: "assign_school", school_id, region_id|null, jenjang|null, kabupaten_id?, provinsi_id? }
@@ -64,7 +65,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         // ── list ──────────────────────────────────────────────
         if (action === 'list') {
             const [regions, schools, staff] = await Promise.all([
-                admin.from('regions').select('region_id, name, level').order('name'),
+                admin.from('regions').select('region_id, name, level, kode').order('name'),
                 admin.from('schools')
                      .select('school_id, name, slug, jenjang, region_id, kabupaten_id, provinsi_id, share_with_region, share_kabupaten, share_provinsi, is_active')
                      .order('name'),
@@ -80,7 +81,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             }
 
             return json({
-                regions: ((regions.data ?? []) as { region_id: string; name: string; level: string | null }[]).map((g) => ({
+                regions: ((regions.data ?? []) as { region_id: string; name: string; level: string | null; kode: string | null }[]).map((g) => ({
                     ...g,
                     schools: ((schools.data ?? []) as { region_id: string | null }[])
                         .filter((s) => s.region_id === g.region_id),
@@ -110,6 +111,36 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 throw error;
             }
             return json({ success: true, region: data });
+        }
+
+        // ── ensure_region ─────────────────────────────────────
+        // Membuat wilayah dari daftar resmi bila belum ada (kunci: kode). Idempoten.
+        // Panjang kode: provinsi 2, kabupaten/kota 4, kecamatan 7 digit.
+        if (action === 'ensure_region') {
+            const kode  = String(body?.kode ?? '').trim();
+            const name  = String(body?.name ?? '').trim();
+            const level = String(body?.level ?? '');
+            if (!(LEVEL as readonly string[]).includes(level)) {
+                return json({ error: 'level harus KECAMATAN, KABUPATEN, atau PROVINSI' }, 400);
+            }
+            const panjang = level === 'PROVINSI' ? 2 : level === 'KABUPATEN' ? 4 : 7;
+            if (!/^[0-9]+$/.test(kode) || kode.length !== panjang) {
+                return json({ error: `kode ${level} harus ${panjang} digit` }, 400);
+            }
+            if (name.length < 3 || name.length > 100) {
+                return json({ error: 'name wajib 3-100 karakter' }, 400);
+            }
+            const { data: ada } = await admin.from('regions')
+                .select('region_id, name, level, kode').eq('kode', kode).maybeSingle();
+            if (ada) return json({ success: true, dibuat: false, region: ada });
+
+            const { data, error } = await admin.from('regions')
+                .insert({ name, level, kode }).select('region_id, name, level, kode').single();
+            if (error) {
+                if (error.code === '23505') return json({ error: `Wilayah "${name}" sudah ada dengan kode lain` }, 409);
+                throw error;
+            }
+            return json({ success: true, dibuat: true, region: data });
         }
 
         // ── add_staff ─────────────────────────────────────────
