@@ -319,6 +319,7 @@ async function ensureJenjang() {
         if (!cfg?.school_id) { jenjangChecked = false; return; }
         const { data: sch } = await supabase.from('schools').select('jenjang')
             .eq('school_id', cfg.school_id).maybeSingle();
+        jenjangSekolah = sch?.jenjang ?? null;
         if (sch?.jenjang === 'SMP') {
             const ada = await getPrograms();
             if (!ada.some(p => p.code === 'UMUM')) await addProgram({ code: 'UMUM', name: 'Umum' });
@@ -1153,7 +1154,7 @@ async function renderWzFkBkTab(importResult = null) {
 
     // ── Unduh template BK ──
     tabEl.querySelector('#wz-fk-bk-tpl-btn').addEventListener('click', () => {
-        const sheet = EXCEL_TEMPLATES[12]?.sheets?.bk;
+        const sheet = templateDef(12)?.sheets?.bk;
         if (!sheet) return;
         generateExcelTemplate(
             'template_penugasan_bk.xlsx',
@@ -1621,7 +1622,7 @@ async function renderWzGpTab(importResult = null) {
 
     // ── Unduh template ──
     tabEl.querySelector('#wz-gp-tpl-btn').addEventListener('click', () => {
-        const sheet = EXCEL_TEMPLATES[12]?.sheets?.gp;
+        const sheet = templateDef(12)?.sheets?.gp;
         if (!sheet) return;
         generateExcelTemplate(
             'template_guru_piket.xlsx',
@@ -2545,15 +2546,86 @@ const EXCEL_TEMPLATES = {
     },
 };
 
+
+// ── Penyesuaian templat per jenjang ──────────────────────────
+// EXCEL_TEMPLATES ditulis dengan contoh SMK (TKJ/AKL, "X TKJ 1"). Untuk SMP/SMA,
+// contoh dan petunjuk disesuaikan supaya admin tidak meniru kode program atau nama
+// kelas yang tidak ada di sekolahnya. SMK tidak diubah.
+let jenjangSekolah = null;
+
+const TEMPLATE_KELAS = { SMA: ['X 1', 'XI 1', 'XII 1'], SMP: ['VII A', 'VIII A', 'IX A'] };
+const TEMPLATE_TINGKAT = {
+    SMA: 'Isi angka tingkat: 10 (kelas X), 11 (kelas XI), atau 12 (kelas XII).',
+    SMP: 'Isi angka tingkat: 7 (kelas VII), 8 (kelas VIII), atau 9 (kelas IX).',
+};
+const TEMPLATE_NIS = { '2024001': '2026001', '2024002': '2026002' };
+
+function adaptTemplateRows(step, rows, jenjang) {
+    const k = TEMPLATE_KELAS[jenjang];
+    if (step === 3) return [['UMUM', 'Umum']];
+    if (step === 4) return k.map((nama, i) => [nama, 'UMUM', String(jenjang === 'SMP' ? 7 + i : 10 + i)]);
+    if (step === 6) return [['Ani Rahayu', '2026001', 'UMUM', k[0]], ['Doni Pratama', '2026002', 'UMUM', k[1]]];
+    return rows.map((r) => r.map((cell) => {
+        if (cell === 'XII TKJ 1') return k[2];
+        if (cell === 'X TKJ 1') return k[0];
+        if (cell === 'TKJ' || cell === 'AKL') return step === 5 ? '' : 'UMUM';
+        return TEMPLATE_NIS[cell] ?? cell;
+    }));
+}
+
+function adaptTemplateGuideCell(text, jenjang) {
+    const k = TEMPLATE_KELAS[jenjang];
+    const ganti = [
+        ['Kode singkat program (maks 20 huruf). Contoh: TKJ, AKL, RPL. Setiap kode harus berbeda.',
+         'Kode singkat program. Untuk SMA cukup satu baris: UMUM.'],
+        ['Nama lengkap program. Contoh: Teknik Komputer dan Jaringan.', 'Nama lengkap program. Contoh: Umum.'],
+        ['Kode program keahlian. Contoh: TKJ, AKL.', 'Kode program. Isi UMUM (program bawaan sekolah ini).'],
+        ['Kode program keahlian. Contoh: TKJ.', 'Kode program. Isi UMUM.'],
+        ['Contoh: X TKJ 1, XI AKL 2.', `Contoh: ${k[0]}, ${k[1]}.`],
+        ['Contoh: XII TKJ 1.', `Contoh: ${k[2]}.`],
+        ['Contoh: X TKJ 1.', `Contoh: ${k[0]}.`],
+        ['Isi angka tingkat: 7, 8, 9 (SMP) atau 10, 11, 12 (SMA/SMK; 10 = kelas X, 11 = XI, 12 = XII).',
+         TEMPLATE_TINGKAT[jenjang]],
+        ['Isi kode program jika staf ini Kepala Program (Kaprodi). Contoh: TKJ. Kode harus sudah ada di langkah Program.',
+         'Tidak berlaku untuk jenjang ini. Kosongkan.'],
+    ];
+    let t = text;
+    for (const [a, b] of ganti) t = t.split(a).join(b);
+    if (jenjang === 'SMP') {
+        // SMP tidak punya langkah Program Keahlian (program UMUM dibuat otomatis).
+        for (const frasa of [' Pastikan kode sudah diinput di langkah Program Keahlian.',
+                             ' Pastikan kode sudah ada di langkah Program Keahlian.',
+                             ' Harus sudah ada di langkah Program Keahlian.']) t = t.split(frasa).join('');
+    }
+    return t;
+}
+
+/** Definisi templat untuk langkah tertentu, disesuaikan jenjang sekolah. */
+function templateDef(step) {
+    const base = EXCEL_TEMPLATES[step];
+    if (!base || (jenjangSekolah !== 'SMA' && jenjangSekolah !== 'SMP')) return base;
+    const adaptSheet = (sheet) => ({
+        ...sheet,
+        exampleRows: adaptTemplateRows(step, sheet.exampleRows ?? [], jenjangSekolah),
+        guide: (sheet.guide ?? []).map((row) =>
+            row.map((c) => (typeof c === 'string' ? adaptTemplateGuideCell(c, jenjangSekolah) : c))),
+    });
+    if (base.sheets) {
+        return { ...base, sheets: Object.fromEntries(
+            Object.entries(base.sheets).map(([key, v]) => [key, adaptSheet(v)])) };
+    }
+    return { ...base, ...adaptSheet(base) };
+}
+
 /** HTML tombol unduh template untuk langkah tertentu (kosong jika tak ada config). */
 function templateButtonHtml(step) {
-    if (!EXCEL_TEMPLATES[step]) return '';
+    if (!templateDef(step)) return '';
     return `<button type="button" class="btn btn-primary wz-template-btn" style="margin-bottom:16px">↓ Unduh Template Excel</button>`;
 }
 
 /** Pasang handler unduh ke tombol template langkah aktif (jika ada). */
 function wireTemplateButton(step) {
-    const cfg = EXCEL_TEMPLATES[step];
+    const cfg = templateDef(step);
     if (!cfg) return;
     const btn = contentEl.querySelector('.wz-template-btn');
     if (btn) {
@@ -2690,7 +2762,7 @@ function stripEmptyCsvLines(csv) {
 
 /** HTML blok unggah: input file + tombol impor + area hasil. */
 function importBlockHtml(step) {
-    const headers = EXCEL_TEMPLATES[step]?.headers ?? [];
+    const headers = templateDef(step)?.headers ?? [];
     const hasIdentifier = headers.some(h => ['nip_atau_nik', 'nis', 'nik', 'nis_siswa'].includes(h));
     const idTip = hasIdentifier
         ? `<p class="hint" style="margin-top:8px">Jika NIP/NIS panjang berubah jadi angka di Excel, format kolomnya sebagai <b>Teks</b> atau awali dengan tanda kutip satu (<code>'</code>) — tanda itu otomatis dihapus saat impor.</p>`
