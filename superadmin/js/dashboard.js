@@ -661,7 +661,7 @@ document.addEventListener('superadmin-ready', () => {
     loadStorage();
 });
 
-// ── Wilayah (kecamatan) ─────────────────────────────────────────
+// ── Wilayah (kecamatan, kabupaten, atau provinsi) ─────────────────────────────────────────
 const JENJANG_OPSI = ['SMP', 'SMA', 'SMK'];
 
 async function regionApi(body) {
@@ -782,7 +782,7 @@ async function loadRegions() {
                     }}, 'Hapus')));
             }
             const nama  = h('input', { class: 'input', placeholder: 'Nama lengkap pegawai', required: true, minlength: 3 });
-            const email = h('input', { class: 'input', type: 'email', placeholder: 'email@kecamatan.go.id', required: true });
+            const email = h('input', { class: 'input', type: 'email', placeholder: 'email@instansi.go.id', required: true });
             const form  = h('form', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px', onsubmit: async (ev) => {
                 ev.preventDefault();
                 try {

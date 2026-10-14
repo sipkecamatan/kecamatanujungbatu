@@ -1,4 +1,4 @@
-// Dashboard Kecamatan — SPA read-only. Hanya memanggil dua fungsi agregat:
+// Dashboard Wilayah (kecamatan, kabupaten, atau provinsi) — SPA read-only. Hanya memanggil dua fungsi agregat:
 //   fn_region_overview(p_days) dan fn_region_school_trend(p_school_id, p_weeks).
 // Tidak membaca tabel sekolah mana pun secara langsung.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
