@@ -226,8 +226,19 @@ const WZ_HINT_TEXT = {
 </ul>`,
 };
 
+// Petunjuk ditulis untuk versi 13 langkah. Saat sebuah langkah dilewati (SMP/SMA),
+// rujukan "Langkah N" disesuaikan dengan nomor yang tampil di sidebar.
+function adaptHint(html) {
+    if (skippedSteps.size === 0) return html;
+    return html
+        .replace(/sesuai dengan yang sudah didaftarkan di Langkah 3/g,
+                 skippedSteps.has(3) ? 'diisi UMUM (program bawaan sekolah ini)' : 'sesuai dengan yang sudah didaftarkan di Langkah 3')
+        .replace(/Langkah (\d+)/g, (m, n) =>
+            skippedSteps.has(Number(n)) ? m : `Langkah ${displayNo(Number(n))}`);
+}
+
 function wzHintCard(step) {
-    const text = WZ_HINT_TEXT[step] ?? '';
+    const text = adaptHint(WZ_HINT_TEXT[step] ?? '');
     if (!text) return '';
     return `<div class="wz-hint-card">
     <button class="wz-hint-toggle" onclick="toggleWzHint(this)">
