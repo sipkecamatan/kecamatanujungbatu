@@ -110,6 +110,16 @@ function renderHealthBadges(h) {
 async function loadSchools() {
     const saKey = getSaKey(); if (!saKey) return;
     const hintEl  = document.getElementById('schools-hint');
+    const listWrap = document.getElementById('schools-list');
+
+    // Tampilkan pesan DAN kosongkan daftar lama. Tanpa ini, setelah sekolah
+    // terakhir dihapus kartu lamanya tetap terlihat (daftar basi) sementara
+    // pesan "kosong" tersembunyi — tampilan tidak sesuai database.
+    const tampilkanPesan = (msg) => {
+        if (listWrap) listWrap.innerHTML = '';
+        hintEl.textContent = msg;
+        hintEl.style.display = '';
+    };
 
     try {
         // Superadmin key-based (bukan Supabase auth) → baca daftar sekolah
@@ -120,11 +130,16 @@ async function loadSchools() {
         });
         const data = await res.json();
 
-        if (res.status === 401) { hintEl.textContent = 'Sesi superadmin tidak valid. Masuk ulang.'; return; }
-        if (!Array.isArray(data) || data.length === 0) {
-            hintEl.textContent = data?.error ? `Gagal memuat: ${data.error}` : 'Belum ada sekolah terdaftar.';
+        if (res.status === 401) { tampilkanPesan('Sesi superadmin tidak valid. Masuk ulang.'); return; }
+        // "Kosong" hanya boleh muncul untuk jawaban sukses berupa daftar kosong.
+        // Jawaban lain (galat server, jawaban gerbang saat fungsi belum dideploy)
+        // harus terlihat sebagai kegagalan, bukan disamarkan sebagai kekosongan.
+        if (!res.ok || !Array.isArray(data)) {
+            const sebab = data?.error ?? data?.message ?? `respons tidak dikenali (HTTP ${res.status})`;
+            tampilkanPesan(`Gagal memuat: ${sebab}`);
             return;
         }
+        if (data.length === 0) { tampilkanPesan('Belum ada sekolah terdaftar.'); return; }
 
         hintEl.style.display = 'none';
         const listEl = document.getElementById('schools-list');
@@ -207,7 +222,7 @@ async function loadSchools() {
         }).join('');
 
     } catch (err) {
-        hintEl.textContent = `Gagal memuat: ${err.message}`;
+        tampilkanPesan(`Gagal memuat: ${err.message}`);
     }
 }
 
