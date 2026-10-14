@@ -70,7 +70,14 @@ tbody tr.row-sekolah:hover { background: var(--muted-bg); }
 .method { margin: .5rem 0 0; padding-left: 1.2rem; color: var(--muted); }
 .method li { margin: .3rem 0; }
 
-.pw-dialog { max-width: 420px; width: calc(100% - 32px); padding: 1.25rem; border: 1px solid var(--border, #334); }
+.pw-dialog { max-width: 420px; width: calc(100% - 32px); padding: 1.25rem; margin: auto;
+  background: var(--card); color: var(--fg); border: 1px solid var(--primary); box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+.pw-dialog h2 { margin-bottom: .75rem; font-size: 1.15rem; color: var(--fg); }
+.pw-dialog label { display: block; margin: .85rem 0 .3rem; color: var(--fg); }
+.pw-dialog .muted { color: var(--muted); font-weight: 400; }
+.pw-dialog input { background: var(--bg); color: var(--fg); border: 1px solid var(--muted); padding: .65rem .75rem; }
+.pw-dialog input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+.pw-dialog .error { margin: .85rem 0 0; }
 .pw-dialog::backdrop { background: rgba(0,0,0,.6); }
 .pw-dialog input { width: 100%; box-sizing: border-box; }
 .pw-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
