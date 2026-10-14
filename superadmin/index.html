@@ -161,6 +161,12 @@
                     <label for="region-name">Nama wilayah baru</label>
                     <input type="text" id="region-name" class="input" placeholder="Kecamatan Ujungbatu" required minlength="3" maxlength="100">
                 </div>
+                <div class="field field-full">
+                    <label for="region-parent">Berada di bawah wilayah <span class="label-note">(opsional)</span></label>
+                    <select id="region-parent" class="input">
+                        <option value="">— tanpa induk —</option>
+                    </select>
+                </div>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary" id="region-create-btn">Buat Wilayah</button>
                 </div>

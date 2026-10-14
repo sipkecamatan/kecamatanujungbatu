@@ -59,7 +59,8 @@
             <thead>
               <tr>
                 <th>Sekolah</th><th>Jenjang</th><th class="num">Siswa aktif</th>
-                <th class="num">Cakupan input</th><th class="num">Kehadiran</th><th>Status data</th>
+                <th class="num">Cakupan input</th><th class="num">Kehadiran</th>
+                <th class="num">Terlambat</th><th class="num">Izin keluar</th><th>Status data</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -85,6 +86,8 @@
           <li><strong>Cakupan input</strong>: persentase sesi pelajaran terjadwal yang sudah dicatat absensinya pada jendela waktu. Sekolah yang belum menginput <em>tidak</em> dianggap tidak hadir.</li>
           <li><strong>Kehadiran</strong>: persentase catatan berstatus hadir dari seluruh catatan absensi. Hanya ditampilkan bila cakupan input <span id="ambang"></span>% atau lebih, supaya angkanya bisa dibandingkan.</li>
           <li><strong>Total wilayah</strong> tampil bila sedikitnya 3 sekolah membagikan data; <strong>subtotal jenjang</strong> tampil bila jenjang itu punya sedikitnya 2 sekolah.</li>
+          <li><strong>Terlambat</strong> dan <strong>izin keluar</strong>: jumlah catatan guru piket pada jendela waktu. Jumlah 1 sampai 4 ditampilkan sebagai &ldquo;&lt; 5&rdquo; agar tidak mengarah ke individu.</li>
+          <li>Wilayah dapat bertingkat: pegawai melihat sekolah di wilayahnya dan semua wilayah di bawahnya, tidak ke atas dan tidak ke samping.</li>
           <li>Hanya sekolah yang kepala sekolahnya menyetujui berbagi data yang tampil. Tidak ada nama atau data pribadi siswa.</li>
         </ul>
       </section>

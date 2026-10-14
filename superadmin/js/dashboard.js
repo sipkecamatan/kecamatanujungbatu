@@ -709,10 +709,23 @@ async function loadRegions() {
             sel.value = cur;
         }
 
+        // pilihan wilayah induk pada form pembuatan wilayah
+        const parentSel = document.getElementById('region-parent');
+        if (parentSel) {
+            const curParent = parentSel.value;
+            parentSel.replaceChildren(h('option', { value: '' }, '— tanpa induk —'),
+                ...d.regions.map(r => h('option', { value: r.region_id }, r.name)));
+            parentSel.value = curParent;
+        }
+        const namaWilayah = Object.fromEntries(d.regions.map(r => [r.region_id, r.name]));
+
         if (!d.regions.length) listEl.append(h('p', { class: 'hint' }, 'Belum ada wilayah. Buat satu di atas.'));
 
         for (const r of d.regions) {
             const card = h('div', { class: 'section-card' }, h('h3', {}, r.name));
+            card.append(h('p', { class: 'hint' }, r.parent_region_id
+                ? `Berada di bawah: ${namaWilayah[r.parent_region_id] ?? '—'}`
+                : 'Tingkat teratas (tanpa induk)'));
 
             // sekolah
             card.append(h('h4', {}, `Sekolah (${r.schools.length})`));
@@ -795,7 +808,8 @@ document.getElementById('region-form').addEventListener('submit', async (ev) => 
     const btn = document.getElementById('region-create-btn'); btn.disabled = true;
     try {
         const nm = document.getElementById('region-name').value.trim();
-        await regionApi({ action: 'create_region', name: nm });
+        await regionApi({ action: 'create_region', name: nm,
+                          parent_region_id: document.getElementById('region-parent').value || null });
         document.getElementById('region-name').value = '';
         showRegionMsg(`Wilayah "${nm}" dibuat.`, true);
         await loadRegions();

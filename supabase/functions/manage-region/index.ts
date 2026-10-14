@@ -12,7 +12,8 @@
  *
  * Request body (JSON), field "action":
  *   { action: "list" }
- *   { action: "create_region", name }
+ *   { action: "create_region", name, parent_region_id? }
+ *   { action: "set_parent", region_id, parent_region_id|null }   -> hierarki; melingkar ditolak
  *   { action: "add_staff", region_id, full_name, email }      -> kata sandi sementara, tampil sekali
  *   { action: "remove_staff", auth_user_id }
  *   { action: "assign_school", school_id, region_id|null, jenjang|null }
@@ -61,7 +62,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         // ── list ──────────────────────────────────────────────
         if (action === 'list') {
             const [regions, schools, staff] = await Promise.all([
-                admin.from('regions').select('region_id, name').order('name'),
+                admin.from('regions').select('region_id, name, parent_region_id').order('name'),
                 admin.from('schools')
                      .select('school_id, name, slug, jenjang, region_id, share_with_region, is_active')
                      .order('name'),
@@ -77,7 +78,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             }
 
             return json({
-                regions: ((regions.data ?? []) as { region_id: string; name: string }[]).map((g) => ({
+                regions: ((regions.data ?? []) as { region_id: string; name: string; parent_region_id: string | null }[]).map((g) => ({
                     ...g,
                     schools: ((schools.data ?? []) as { region_id: string | null }[])
                         .filter((s) => s.region_id === g.region_id),
@@ -96,13 +97,43 @@ Deno.serve(async (req: Request): Promise<Response> => {
             if (name.length < 3 || name.length > 100) {
                 return json({ error: 'name wajib 3-100 karakter' }, 400);
             }
+            const parentId = body?.parent_region_id == null || body.parent_region_id === ''
+                ? null : String(body.parent_region_id);
+            if (parentId !== null) {
+                if (!UUID_RE.test(parentId)) return json({ error: 'parent_region_id tidak valid' }, 400);
+                const { data: par } = await admin.from('regions')
+                    .select('region_id').eq('region_id', parentId).maybeSingle();
+                if (!par) return json({ error: 'wilayah induk tidak ditemukan' }, 404);
+            }
             const { data, error } = await admin.from('regions')
-                .insert({ name }).select('region_id, name').single();
+                .insert({ name, parent_region_id: parentId }).select('region_id, name, parent_region_id').single();
             if (error) {
                 if (error.code === '23505') return json({ error: `Wilayah "${name}" sudah ada` }, 409);
                 throw error;
             }
             return json({ success: true, region: data });
+        }
+
+        // ── set_parent ────────────────────────────────────────
+        // Mengatur wilayah induk (kecamatan di bawah kabupaten, dst). null = tanpa induk.
+        if (action === 'set_parent') {
+            const regionId = String(body?.region_id ?? '');
+            const parentId = body?.parent_region_id == null || body.parent_region_id === ''
+                ? null : String(body.parent_region_id);
+            if (!UUID_RE.test(regionId)) return json({ error: 'region_id tidak valid' }, 400);
+            if (parentId !== null && !UUID_RE.test(parentId)) return json({ error: 'parent_region_id tidak valid' }, 400);
+            if (parentId !== null) {
+                const { data: par } = await admin.from('regions')
+                    .select('region_id').eq('region_id', parentId).maybeSingle();
+                if (!par) return json({ error: 'wilayah induk tidak ditemukan' }, 404);
+            }
+            const { error } = await admin.from('regions')
+                .update({ parent_region_id: parentId }).eq('region_id', regionId);
+            if (error) {
+                if (error.code === '23514') return json({ error: 'hirarki wilayah tidak boleh melingkar' }, 400);
+                throw error;
+            }
+            return json({ success: true });
         }
 
         // ── add_staff ─────────────────────────────────────────

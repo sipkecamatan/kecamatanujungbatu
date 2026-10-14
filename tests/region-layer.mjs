@@ -15,6 +15,7 @@ const baseline = read('supabase/migrations/20261013000000_baseline.sql').split('
   .map((l) => (/^(DO|CREATE EXTENSION)/.test(l) && skip.test(l) ? `-- ${l}` : l)).join('\n');
 const migration = read('supabase/migrations/20261014000000_region_layer.sql');
 const migrationSharing = read('supabase/migrations/20261014010000_region_sharing_control.sql');
+const migrationHier = read('supabase/migrations/20261015000000_region_hierarchy_piket.sql');
 
 const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
 let passed = 0;
@@ -45,6 +46,7 @@ await db.exec(`
 await db.exec(baseline);
 await db.exec(migration);
 await db.exec(migrationSharing);
+await db.exec(migrationHier);
 
 // Fixture: tiap sekolah punya 3 siswa, 10 sesi (10 hari terakhir), k sesi beratribut absensi,
 // dan `alpa` baris ALPA. Semua nama siswa memuat kata "RAHASIA" agar bocor mudah terdeteksi.
@@ -247,6 +249,82 @@ await test('hak akses: anon tanpa EXECUTE pada fungsi persetujuan; log tertutup'
   assert.equal(await g('authenticated', 'public.fn_set_region_sharing(boolean)'), true);
   const t = (await db.query(`SELECT has_table_privilege('authenticated', 'public.region_sharing_log', 'SELECT') AS v`)).rows[0].v;
   assert.equal(t, false);
+});
+
+// ── Hierarki wilayah (migrasi 20261015000000) ─────────────────────────────────
+const KAB = uuid(3), PROV = uuid(4);
+await db.exec(`
+  INSERT INTO regions (region_id, name) VALUES ('${KAB}', 'Kabupaten X'), ('${PROV}', 'Provinsi Y');
+  UPDATE regions SET parent_region_id = '${KAB}'  WHERE region_id = '${REG_A}';
+  UPDATE regions SET parent_region_id = '${PROV}' WHERE region_id = '${KAB}';`);
+const STAFF_KAB = uuid(9201), STAFF_PROV = uuid(9202);
+await db.exec(`INSERT INTO region_staff (auth_user_id, region_id, full_name) VALUES
+  ('${STAFF_KAB}', '${KAB}', 'Pegawai Kab'), ('${STAFF_PROV}', '${PROV}', 'Pegawai Prov');`);
+const namaSekolah = async (auth) => (await overview(auth)).sekolah.map((s) => s.nama).sort();
+
+await test('hierarki: pegawai kabupaten melihat sekolah kecamatan di bawahnya', async () => {
+  assert.deepEqual(await namaSekolah(STAFF_KAB), ['SMA Satu', 'SMK Dua', 'SMK Satu', 'SMP Satu']);
+});
+await test('hierarki: pegawai provinsi melihat sekolah seluruh turunan', async () => {
+  assert.deepEqual(await namaSekolah(STAFF_PROV), ['SMA Satu', 'SMK Dua', 'SMK Satu', 'SMP Satu']);
+});
+await test('hierarki: hanya ke bawah; kecamatan tidak melihat ke atas atau ke samping', async () => {
+  assert.deepEqual(await namaSekolah(STAFF_A), ['SMA Satu', 'SMK Dua', 'SMK Satu', 'SMP Satu']);
+  assert.deepEqual(await namaSekolah(STAFF_B), ['SMK B']);
+});
+await test('hierarki: sekolah di luar rantai tidak muncul pada kabupaten', async () => {
+  assert.ok(!(await namaSekolah(STAFF_KAB)).includes('SMK B'));
+});
+await test('hierarki: tren sekolah turunan terbaca oleh kabupaten, tidak oleh wilayah lain', async () => {
+  const ok = await as(STAFF_KAB, `SELECT * FROM public.fn_region_school_trend('${S1.sid}', 4)`);
+  assert.ok(ok.rows.length >= 1);
+  const no = await as(STAFF_B, `SELECT * FROM public.fn_region_school_trend('${S1.sid}', 4)`);
+  assert.equal(no.rows.length, 0);
+});
+await test('hierarki: rantai melingkar dan induk diri sendiri ditolak 23514', async () => {
+  assert.equal(await code(null, `UPDATE regions SET parent_region_id = '${REG_A}' WHERE region_id = '${PROV}'`), '23514');
+  assert.equal(await code(null, `UPDATE regions SET parent_region_id = region_id WHERE region_id = '${REG_B}'`), '23514');
+});
+await test('hierarki: hak akses fn_region_scope_ids; anon tanpa EXECUTE', async () => {
+  const g = async (r) => (await db.query(`SELECT has_function_privilege('${r}', 'public.fn_region_scope_ids()', 'EXECUTE') AS v`)).rows[0].v;
+  assert.equal(await g('anon'), false);
+  assert.equal(await g('authenticated'), true);
+});
+
+// ── Agregat piket: keterlambatan dan izin keluar ──────────────────────────────
+await db.exec(`SET session_replication_role = replica`);   // lewati pemicu notifikasi pada fixture
+const sw = (await db.query(`SELECT student_id FROM students WHERE school_id = '${S1.sid}' ORDER BY nis`)).rows.map((r) => r.student_id);
+for (let i = 0; i < 3; i++) {
+  await db.exec(`INSERT INTO late_arrivals (school_id, student_id, recorded_by, late_date, arrival_time, reason)
+                 VALUES ('${S1.sid}', '${sw[i % 3]}', '${S1.tch}', CURRENT_DATE, '07:30', 'RAHASIA alasan')`);
+}
+await db.exec(`INSERT INTO student_exits (school_id, student_id, exit_date, exit_time, reason, recorded_by)
+               VALUES ('${S1.sid}', '${sw[0]}', CURRENT_DATE, '10:00', 'RAHASIA alasan', '${S1.tch}')`);
+await db.exec(`SET session_replication_role = origin`);
+
+await test('piket: 3 keterlambatan (1-4) disembunyikan; 0 tampil sebagai 0', async () => {
+  const o = await overview(STAFF_A);
+  assert.equal(o.ambang_piket, 5);
+  assert.equal(o.sekolah.find((s) => s.nama === 'SMA Satu').terlambat, null);
+  assert.equal(o.sekolah.find((s) => s.nama === 'SMK Satu').terlambat, 0);
+});
+await test('piket: 1 izin keluar disembunyikan', async () => {
+  const o = await overview(STAFF_A);
+  assert.equal(o.sekolah.find((s) => s.nama === 'SMA Satu').izin_keluar, null);
+});
+await test('piket: mencapai 5 keterlambatan, angka tampil', async () => {
+  await db.exec(`SET session_replication_role = replica`);
+  for (let i = 0; i < 2; i++) {
+    await db.exec(`INSERT INTO late_arrivals (school_id, student_id, recorded_by, late_date, arrival_time)
+                   VALUES ('${S1.sid}', '${sw[i]}', '${S1.tch}', CURRENT_DATE, '07:40')`);
+  }
+  await db.exec(`SET session_replication_role = origin`);
+  const o = await overview(STAFF_A);
+  assert.equal(o.sekolah.find((s) => s.nama === 'SMA Satu').terlambat, 5);
+});
+await test('piket: keluaran tidak memuat alasan atau identitas siswa', async () => {
+  const text = JSON.stringify(await overview(STAFF_A));
+  assert.ok(!/RAHASIA|student_id|alasan/i.test(text));
 });
 
 console.log(`REGION_LAYER_COMPLETE: ${passed} lulus; PGlite saja`);

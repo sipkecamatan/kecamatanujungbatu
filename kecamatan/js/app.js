@@ -26,6 +26,8 @@ function el(tag, props = {}, ...kids) {
   return n;
 }
 const pct = (v) => (v == null ? '—' : `${v}%`);
+// Hitungan piket: null berarti 1–4 kejadian yang disembunyikan server (ambang_piket = 5).
+const piket = (v, ambang) => (v == null ? `< ${ambang ?? 5}` : String(v));
 const tgl = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 
 const STATUS = {
@@ -79,6 +81,12 @@ function render() {
     o.total
       ? stat('Kehadiran', pct(o.total.kehadiran_pct), 'hanya dari sekolah dengan data memadai')
       : stat('Kehadiran', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
+    o.total
+      ? stat('Terlambat', piket(o.total.terlambat, o.ambang_piket), 'catatan guru piket pada jendela waktu')
+      : stat('Terlambat', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
+    o.total
+      ? stat('Izin keluar', piket(o.total.izin_keluar, o.ambang_piket), 'catatan guru piket pada jendela waktu')
+      : stat('Izin keluar', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
   );
   cards.hidden = false;
 
@@ -96,7 +104,7 @@ function render() {
   const tb = $('tbl-sekolah').querySelector('tbody'); tb.replaceChildren();
   const rows = o.sekolah.filter((s) => state.jenjang === 'SEMUA' || (s.jenjang || 'TIDAK_DIKETAHUI') === state.jenjang);
   if (!rows.length) {
-    tb.append(el('tr', {}, el('td', { colspan: 6, class: 'muted' }, 'Belum ada sekolah yang membagikan data pada filter ini.')));
+    tb.append(el('tr', {}, el('td', { colspan: 8, class: 'muted' }, 'Belum ada sekolah yang membagikan data pada filter ini.')));
   }
   for (const s of rows) {
     const st = STATUS[s.status] || STATUS.TIDAK_ADA_JADWAL;
@@ -108,6 +116,8 @@ function render() {
       el('td', { class: 'num' },
         cov == null ? '—' : [el('span', { class: 'bar' }, el('span', { style: `width:${Math.min(cov, 100)}%` })), `${cov}%`]),
       el('td', { class: 'num' }, pct(s.kehadiran_pct)),
+      el('td', { class: 'num' }, piket(s.terlambat, o.ambang_piket)),
+      el('td', { class: 'num' }, piket(s.izin_keluar, o.ambang_piket)),
       el('td', {}, el('span', { class: `badge ${st.cls}` }, st.label)),
     ));
   }
