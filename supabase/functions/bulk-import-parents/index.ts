@@ -277,14 +277,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
                     });
                 }
 
-                // Restore users row
+                // Restore users row. Penanda must_change_password SENGAJA tidak disentuh:
+                // password Auth tidak di-reset di jalur ini, jadi orang tua yang sudah
+                // pernah menggantinya tidak boleh dipaksa mengganti lagi. Akun yang memang
+                // belum pernah mengganti tetap membawa penandanya sendiri.
                 const { error: restoreErr } = await admin
                     .from('users')
                     .update({
                         deleted_at:           null,
                         is_active:            true,
                         full_name:            namaOrtu,
-                        must_change_password: true,
                     })
                     .eq('user_id', deletedUser.user_id);
 
