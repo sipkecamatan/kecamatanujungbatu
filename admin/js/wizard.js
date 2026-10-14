@@ -743,6 +743,8 @@ function parseForumCsv(csvText, requiredHeaders) {
  * Return: { success, skipped, errors: [{row, reason}] }
  */
 async function importForumBk(csvText) {
+    // SMP: templat tidak memuat kode_program; disuntik otomatis (UMUM).
+    if (jenjangSekolah === 'SMP') csvText = injectColumn(csvText, 'kode_program', 'UMUM', true);
     const { lines, headers } = parseForumCsv(csvText, ['nama_kelas', 'kode_program', 'nip_bk']);
     const idxKelas   = headers.indexOf('nama_kelas');
     const idxProgram = headers.indexOf('kode_program');
@@ -1438,16 +1440,18 @@ async function renderWzFkGuruWaliTab(importResult = null) {
                 throw new Error('Pustaka Excel gagal dimuat. Periksa koneksi internet.');
             }
 
-            const headers = ['nama_kelas', 'kode_program', 'nis_siswa', 'nama_siswa', 'nip_guru_wali'];
-            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            // SMP tidak punya program: kolom kode_program (indeks 1) dibuang.
+            const buang = (arr) => (jenjangSekolah === 'SMP' ? arr.filter((_, i) => i !== 1) : arr);
+            const headers = buang(['nama_kelas', 'kode_program', 'nis_siswa', 'nama_siswa', 'nip_guru_wali']);
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows.map(buang)]);
 
-            ws['!cols'] = [
+            ws['!cols'] = buang([
                 { wch: 15 }, // nama_kelas
                 { wch: 14 }, // kode_program
                 { wch: 14 }, // nis_siswa
                 { wch: 25 }, // nama_siswa
                 { wch: 18 }, // nip_guru_wali
-            ];
+            ]);
 
             const range = XLSX.utils.decode_range(ws['!ref'] ?? 'A1');
             for (let R = range.s.r; R <= range.e.r; R++) {
@@ -2600,6 +2604,31 @@ function adaptTemplateGuideCell(text, jenjang) {
     return t;
 }
 
+// SMP tidak punya program keahlian maupun Kepala Program: kolom itu dibuang dari
+// templat. kode_program disuntikkan otomatis (UMUM) saat unggah — lihat
+// prepareCsvUntukJenjang() dan importForumBk().
+const KOLOM_PROGRAM_SMP = new Set(['kode_program', 'program_kaprodi']);
+
+function dropProgramColumns(sheet) {
+    const keep = sheet.headers.map((h) => !KOLOM_PROGRAM_SMP.has(h));
+    if (keep.every(Boolean)) return sheet;
+    const pick = (row) => row.filter((_, i) => keep[i]);
+    const hilangProgram = sheet.headers.includes('kode_program');
+    const guide = (sheet.guide ?? []).filter((r) => !KOLOM_PROGRAM_SMP.has(r[0]));
+    if (hilangProgram) {
+        guide.push(['•', '', 'Tidak ada kolom program: semua kelas memakai program bawaan sekolah secara otomatis.']);
+    }
+    return { ...sheet, headers: pick(sheet.headers), exampleRows: (sheet.exampleRows ?? []).map(pick), guide };
+}
+
+/** Untuk SMP: sisipkan kode_program=UMUM bila berkas tidak memuat kolomnya. */
+function prepareCsvUntukJenjang(step, csv) {
+    if (jenjangSekolah === 'SMP' && (step === 4 || step === 6)) {
+        return injectColumn(csv, 'kode_program', 'UMUM', true);
+    }
+    return csv;
+}
+
 /** Definisi templat untuk langkah tertentu, disesuaikan jenjang sekolah. */
 function templateDef(step) {
     const base = EXCEL_TEMPLATES[step];
@@ -2610,11 +2639,12 @@ function templateDef(step) {
         guide: (sheet.guide ?? []).map((row) =>
             row.map((c) => (typeof c === 'string' ? adaptTemplateGuideCell(c, jenjangSekolah) : c))),
     });
+    const final = (sheet) => (jenjangSekolah === 'SMP' ? dropProgramColumns(sheet) : sheet);
     if (base.sheets) {
         return { ...base, sheets: Object.fromEntries(
-            Object.entries(base.sheets).map(([key, v]) => [key, adaptSheet(v)])) };
+            Object.entries(base.sheets).map(([key, v]) => [key, final(adaptSheet(v))])) };
     }
-    return { ...base, ...adaptSheet(base) };
+    return { ...base, ...final(adaptSheet(base)) };
 }
 
 /** HTML tombol unduh template untuk langkah tertentu (kosong jika tak ada config). */
@@ -2801,7 +2831,7 @@ function wireImportBlock(step, { importFn, onDone } = {}) {
         const file = fileInput.files?.[0];
         if (!file) { csvText = null; resetImportBtn(); return; }
         try {
-            csvText = stripEmptyCsvLines(await fileToCsv(file));
+            csvText = prepareCsvUntukJenjang(step, stripEmptyCsvLines(await fileToCsv(file)));
             if (!csvText.trim()) throw new Error('File kosong atau tidak ada baris data.');
             resetImportBtn();
         } catch (err) {
