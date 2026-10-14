@@ -2130,6 +2130,151 @@ async function main() {
         }
     }
 
+    // ══════════════════════════════════════════════════════
+    // CHECK 20 — Hierarki wilayah & agregat piket (migrasi 20261015000000)
+    // ══════════════════════════════════════════════════════
+    // MANDIRI — data sintetis dalam satu transaksi BEGIN...ROLLBACK.
+    //   Rantai: PROV > KAB > (KEC1, KEC2) dan PROV > KAB2 > KEC3.
+    //   H1 : pegawai provinsi melihat sekolah seluruh turunan
+    //   H2 : pegawai kabupaten melihat sekolah kecamatan di bawahnya, bukan kabupaten lain
+    //   H3 : pegawai kecamatan hanya melihat wilayahnya (tidak ke samping, tidak ke atas)
+    //   H4 : tren sekolah kecamatan lain (samping) kosong untuk pegawai kecamatan
+    //   H5 : rantai melingkar ditolak (23514)
+    //   S1 : fn_region_scope_ids — anon tanpa EXECUTE, SECURITY DEFINER, search_path terkunci
+    //   T1 : 1–4 keterlambatan disembunyikan (NULL); sekolah tanpa catatan = 0
+    //   T2 : 5 keterlambatan tampil apa adanya
+    //   T3 : keluaran ringkasan tidak memuat alasan atau student_id
+    log.head('CHECK 20 — Hierarki wilayah & agregat piket (BEGIN...ROLLBACK)');
+    {
+        const U = (n) => `00000000-0000-0000-0000-0000000f20${String(n).padStart(2, '0')}`;
+        const PROV = U(1), KAB = U(2), KAB2 = U(3), KEC1 = U(4), KEC2 = U(5), KEC3 = U(6);
+        const SA = U(11), SB = U(12), SC = U(13), SD = U(14);
+        const P_ = [U(21), U(22), U(23), U(24)];
+        const ST_KEC = U(31), ST_KAB = U(32), ST_PROV = U(33);
+        const U_GURU = U(41), A_GURU = U(42);
+        const claims = (sub) => `select set_config('request.jwt.claims', '{"sub":"${sub}","role":"authenticated"}', true);`;
+        const sch = [[SA, 'SMA', true,  'c20-a', 'C20 A', KEC1, P_[0]],
+                     [SB, 'SMK', true,  'c20-b', 'C20 B', KEC2, P_[1]],
+                     [SC, 'SMP', true,  'c20-c', 'C20 C', KEC3, P_[2]],
+                     [SD, 'SMA', false, 'c20-d', 'C20 D', KEC1, P_[3]]];
+        const names = (who) =>
+            ` ${claims(who[0])}` +
+            ` do $b$ declare r jsonb; begin r := public.fn_region_overview(30);` +
+            `   insert into _f20 values ('${who[1]}', (select coalesce(string_agg(s->>'nama', ',' order by s->>'nama'), '')` +
+            `     from jsonb_array_elements(r->'sekolah') s));` +
+            ` exception when others then insert into _f20 values ('${who[1]}', 'ERR ' || sqlstate || '|' || sqlerrm); end $b$;`;
+        const piket = (sub, k) =>
+            ` ${claims(sub)}` +
+            ` do $b$ declare r jsonb; begin r := public.fn_region_overview(30);` +
+            `   insert into _f20 values ('${k}', coalesce((select (s->'terlambat')::text || '/' || coalesce((r->>'ambang_piket'), '?')` +
+            `     from jsonb_array_elements(r->'sekolah') s where s->>'nama' = 'C20 A'), 'tak ada') || '|B=' ||` +
+            `     coalesce((select (s->'terlambat')::text from jsonb_array_elements(r->'sekolah') s where s->>'nama' = 'C20 B'), 'tak ada'));` +
+            `   insert into _f20 values ('${k}txt', r::text);` +
+            ` exception when others then insert into _f20 values ('${k}', 'ERR ' || sqlstate || '|' || sqlerrm); end $b$;`;
+
+        let rows20 = null;
+        try {
+            rows20 = await mgmtQuery(
+                `begin;` +
+                ` create temp table _f20 (k text primary key, v text) on commit drop;` +
+                ` insert into regions (region_id, name) values ('${PROV}', 'CHECK20-PROV');` +
+                ` insert into regions (region_id, name, parent_region_id) values` +
+                `  ('${KAB}', 'CHECK20-KAB', '${PROV}'), ('${KAB2}', 'CHECK20-KAB2', '${PROV}');` +
+                ` insert into regions (region_id, name, parent_region_id) values` +
+                `  ('${KEC1}', 'CHECK20-KEC1', '${KAB}'), ('${KEC2}', 'CHECK20-KEC2', '${KAB}'), ('${KEC3}', 'CHECK20-KEC3', '${KAB2}');` +
+                sch.map(([sid, jj, share, slug, nama, reg]) =>
+                    ` insert into schools (school_id, name, slug, region_id, jenjang, share_with_region, is_active)` +
+                    ` values ('${sid}', '${nama}', '${slug}', '${reg}', '${jj}', ${share}, true);`).join('') +
+                sch.map(([sid, , , slug, , , pid]) =>
+                    ` insert into programs (program_id, code, name, school_id) values ('${pid}', 'UMUM', 'Umum', '${sid}');` +
+                    [1, 2, 3].map((i) =>
+                        ` insert into students (student_id, nis, full_name, program_id, school_id)` +
+                        ` values (gen_random_uuid(), 'C20-${slug}-${i}', 'Siswa C20', '${pid}', '${sid}');`).join('')).join('') +
+                ` insert into region_staff (auth_user_id, region_id, full_name) values` +
+                `  ('${ST_KEC}', '${KEC1}', 'Staf C20 kec'), ('${ST_KAB}', '${KAB}', 'Staf C20 kab'), ('${ST_PROV}', '${PROV}', 'Staf C20 prov');` +
+                ` insert into users (user_id, auth_user_id, full_name, email, login_identifier, identifier_type, role_type, school_id)` +
+                `  values ('${U_GURU}', '${A_GURU}', 'Guru C20', 'guru-c20@staff.internal', 'C20-GURU', 'NIP', 'GURU', '${SA}');` +
+
+                // ── struktural ──
+                ` do $b$ declare bad text := ''; begin` +
+                `   if has_function_privilege('anon', 'public.fn_region_scope_ids()', 'EXECUTE') then bad := bad || 'anon-exec '; end if;` +
+                `   if not exists (select 1 from pg_proc p where p.proname = 'fn_region_scope_ids' and p.pronamespace = 'public'::regnamespace` +
+                `        and p.prosecdef and exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%'))` +
+                `     then bad := bad || 'secdef/search_path '; end if;` +
+                `   insert into _f20 values ('S1', coalesce(nullif(trim(bad), ''), 'ok'));` +
+                ` end $b$;` +
+
+                // ── H5: rantai melingkar ──
+                ` do $b$ begin update regions set parent_region_id = '${KEC1}' where region_id = '${PROV}';` +
+                `   insert into _f20 values ('H5', 'BREACH');` +
+                ` exception when others then insert into _f20 values ('H5', sqlstate); end $b$;` +
+
+                // ── data piket (3 keterlambatan di sekolah A) ──
+                ` do $b$ begin` +
+                `   insert into late_arrivals (school_id, student_id, recorded_by, arrival_time, reason)` +
+                `     select '${SA}', student_id, '${U_GURU}', '07:30', 'ALASAN-RAHASIA-C20' from students where school_id = '${SA}';` +
+                `   insert into _f20 values ('Tdata', 'ok');` +
+                ` exception when others then insert into _f20 values ('Tdata', 'ERR ' || sqlstate || '|' || sqlerrm); end $b$;` +
+
+                // ── H1..H3 ──
+                names([ST_PROV, 'H1']) + names([ST_KAB, 'H2']) + names([ST_KEC, 'H3']) +
+
+                // ── H4: tren sekolah di kecamatan lain untuk pegawai kecamatan ──
+                ` ${claims(ST_KEC)}` +
+                ` do $b$ declare n int; begin` +
+                `   select count(*) into n from public.fn_region_school_trend('${SB}', 6);` +
+                `   insert into _f20 values ('H4', n::text);` +
+                ` exception when others then insert into _f20 values ('H4', 'ERR ' || sqlstate); end $b$;` +
+
+                // ── T1: 3 keterlambatan disembunyikan, sekolah B = 0 ──
+                piket(ST_PROV, 'T1') +
+
+                // ── T2: tambah 2 -> 5 tampil ──
+                ` do $b$ begin` +
+                `   insert into late_arrivals (school_id, student_id, recorded_by, arrival_time)` +
+                `     select '${SA}', student_id, '${U_GURU}', '07:40' from students where school_id = '${SA}' limit 2;` +
+                ` exception when others then insert into _f20 values ('T2ins', 'ERR ' || sqlstate); end $b$;` +
+                piket(ST_PROV, 'T2') +
+
+                ` select k, v from _f20 order by k;` +
+                ` rollback;`
+            );
+        } catch (e) {
+            log.fail(`CHECK 20 — Transaksi sintetis gagal: ${e.message.slice(0, 240)}`);
+        }
+
+        if (rows20) {
+            const R = Object.fromEntries(rows20.map((r) => [r.k, r.v]));
+            const eq = (k, want, okMsg, failMsg) => {
+                if (R[k] === undefined) log.fail(`${k}: tidak ada hasil terukur`);
+                else if (R[k] === want) log.pass(okMsg);
+                else log.fail(`${failMsg} (terukur=${String(R[k]).slice(0, 160)})`);
+            };
+            eq('S1', 'ok', 'S1: fn_region_scope_ids — anon tanpa EXECUTE, SECURITY DEFINER, search_path terkunci',
+                'S1: fn_region_scope_ids tidak aman');
+            eq('H1', 'C20 A,C20 B,C20 C', 'H1: pegawai provinsi melihat sekolah seluruh turunan (A, B, C); D tak dibagikan tersembunyi',
+                'H1: cakupan provinsi tidak sesuai');
+            eq('H2', 'C20 A,C20 B', 'H2: pegawai kabupaten melihat kecamatan di bawahnya, bukan kabupaten lain (C)',
+                'H2: cakupan kabupaten tidak sesuai');
+            eq('H3', 'C20 A', 'H3: pegawai kecamatan hanya wilayahnya (tidak ke samping/atas; D tak dibagikan)',
+                'H3: cakupan kecamatan bocor');
+            eq('H4', '0', 'H4: tren sekolah kecamatan lain kosong bagi pegawai kecamatan', 'H4: tren sekolah samping terbaca');
+            eq('H5', '23514', 'H5: rantai melingkar ditolak (23514)', 'H5: rantai melingkar diterima');
+
+            if (R.Tdata && R.Tdata !== 'ok') {
+                log.warn(`CHECK 20 T1–T3 SKIP — data piket sintetis tidak dapat disisipkan (${String(R.Tdata).slice(0, 140)})`);
+            } else {
+                eq('T1', 'null/5|B=0', 'T1: 3 keterlambatan disembunyikan (NULL, ambang 5); sekolah tanpa catatan = 0',
+                    'T1: ambang piket tidak berlaku');
+                eq('T2', '5/5|B=0', 'T2: 5 keterlambatan tampil apa adanya', 'T2: angka 5 tidak tampil');
+                const txt = `${R.T1txt ?? ''}${R.T2txt ?? ''}`;
+                if (!txt) log.fail('T3: tidak ada keluaran terukur');
+                else if (/ALASAN-RAHASIA-C20|student_id|full_name/i.test(txt)) log.fail('T3: keluaran memuat alasan atau identitas siswa');
+                else log.pass('T3: keluaran ringkasan tidak memuat alasan atau identitas siswa');
+            }
+        }
+    }
+
     // ── Ringkasan ────────────────────────────────────────────────
     console.log(`\n${'='.repeat(52)}`);
     if (failures === 0) {
