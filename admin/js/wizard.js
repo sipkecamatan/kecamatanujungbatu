@@ -261,7 +261,7 @@ function syncSidebar() {
         // Marker: centang untuk langkah selesai, nomor untuk lainnya
         const marker = el.querySelector('.wz-marker');
         if (marker) marker.textContent = isDone ? '✓' : String(displayNo(step));
-        if (skipProgramStep && step === 3) el.style.display = 'none';
+        if (skippedSteps.has(step)) el.style.display = 'none';
 
         // Hanya langkah yang sudah selesai yang bisa diklik
         const canClick = state.completedSteps.has(step);
@@ -270,7 +270,7 @@ function syncSidebar() {
 
     document.querySelectorAll('#wizard-progress-mobile .wz-bar').forEach(el => {
         const step = Number(el.dataset.step);
-        if (skipProgramStep && step === 3) el.style.display = 'none';
+        if (skippedSteps.has(step)) el.style.display = 'none';
         el.classList.toggle('is-active', step === state.currentStep);
         el.classList.toggle('is-done', state.completedSteps.has(step) && step !== state.currentStep);
     });
@@ -283,15 +283,17 @@ function syncFooter() {
 
 // SMP tidak punya program keahlian: langkah 3 dilewati. Program bawaan "UMUM"
 // dibuat otomatis (kelas di database wajib terkait ke satu program).
-let skipProgramStep = false;
-const displayNo = (n) => (skipProgramStep && n > 3 ? n - 1 : n);
-const displayTotal = () => (skipProgramStep ? TOTAL_STEPS - 1 : TOTAL_STEPS);
+// Langkah yang konsepnya tidak ada di jenjang ini:
+//   3 = Program Keahlian (SMP), 8 = DUDI (SMP dan SMA; milik SMK).
+const skippedSteps = new Set();
+const displayNo = (n) => n - [...skippedSteps].filter(k => k < n).length;
+const displayTotal = () => TOTAL_STEPS - skippedSteps.size;
 
 function relabelSteps() {
-    if (!skipProgramStep) return;
+    if (skippedSteps.size === 0) return;
     contentEl.querySelectorAll('.step-label').forEach(el => {
         el.textContent = el.textContent.replace(/Langkah (\d+) dari (\d+)/, (_, a, b) =>
-            `Langkah ${displayNo(Number(a))} dari ${Number(b) - 1}`);
+            `Langkah ${displayNo(Number(a))} dari ${displayTotal()}`);
     });
 }
 
@@ -309,15 +311,17 @@ async function ensureJenjang() {
         if (sch?.jenjang === 'SMP') {
             const ada = await getPrograms();
             if (!ada.some(p => p.code === 'UMUM')) await addProgram({ code: 'UMUM', name: 'Umum' });
-            skipProgramStep = true;
-            state.completedSteps.add(3);
+            skippedSteps.add(3);
         }
-    } catch (_) { skipProgramStep = false; jenjangChecked = false; }
+        if (sch?.jenjang === 'SMP' || sch?.jenjang === 'SMA') skippedSteps.add(8);
+        skippedSteps.forEach(k => state.completedSteps.add(k));
+    } catch (_) { skippedSteps.clear(); jenjangChecked = false; }
 }
 
 async function goToStep(n) {
     await ensureJenjang();
-    if (skipProgramStep && n === 3) n = state.currentStep > 3 ? 2 : 4;
+    // Lewati langkah yang tidak berlaku: arah maju bila tujuan lebih besar dari posisi sekarang.
+    while (skippedSteps.has(n)) n += (n >= state.currentStep ? 1 : -1);
     if (n < 1 || n > TOTAL_STEPS) return;
     clearError();
     state.currentStep = n;
@@ -504,7 +508,7 @@ function renderPlaceholder() {
 async function renderSummaryStep() {
     const rows = [];
     for (let i = 1; i <= TOTAL_STEPS; i++) {
-        if (skipProgramStep && i === 3) continue;
+        if (skippedSteps.has(i)) continue;
         const done = state.completedSteps.has(i);
         rows.push(`
             <tr>
@@ -516,7 +520,7 @@ async function renderSummaryStep() {
     }
     const incomplete = [];
     for (let i = 1; i < TOTAL_STEPS; i++) {
-        if (skipProgramStep && i === 3) continue;
+        if (skippedSteps.has(i)) continue;
         if (!state.completedSteps.has(i)) incomplete.push(STEP_NAMES[i]);
     }
     const warningHtml = incomplete.length > 0
