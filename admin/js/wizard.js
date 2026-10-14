@@ -290,7 +290,7 @@ const displayTotal = () => (skipProgramStep ? TOTAL_STEPS - 1 : TOTAL_STEPS);
 function relabelSteps() {
     if (!skipProgramStep) return;
     contentEl.querySelectorAll('.step-label').forEach(el => {
-        el.textContent = el.textContent.replace(/Langkah (d+) dari (d+)/, (_, a, b) =>
+        el.textContent = el.textContent.replace(/Langkah (\d+) dari (\d+)/, (_, a, b) =>
             `Langkah ${displayNo(Number(a))} dari ${Number(b) - 1}`);
     });
 }
