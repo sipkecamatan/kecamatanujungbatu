@@ -20,7 +20,7 @@ import {
     supabase,
     getCurrentUserRow, requireAdministrativeOrRedirect,
     getSchoolConfig, upsertSchoolConfig, markSetupCompleted,
-    getPrograms, getClasses, getTeacherList, deleteBulk, changePassword,
+    getPrograms, addProgram, getClasses, getTeacherList, deleteBulk, changePassword,
     fetchAllRows,
     updateProgram, updateClass, updateStudent, updateUserIdentifier,
     importPrograms, importClasses, importUsers, importStudents,
@@ -260,7 +260,8 @@ function syncSidebar() {
 
         // Marker: centang untuk langkah selesai, nomor untuk lainnya
         const marker = el.querySelector('.wz-marker');
-        if (marker) marker.textContent = isDone ? '✓' : String(step);
+        if (marker) marker.textContent = isDone ? '✓' : String(displayNo(step));
+        if (skipProgramStep && step === 3) el.style.display = 'none';
 
         // Hanya langkah yang sudah selesai yang bisa diklik
         const canClick = state.completedSteps.has(step);
@@ -269,6 +270,7 @@ function syncSidebar() {
 
     document.querySelectorAll('#wizard-progress-mobile .wz-bar').forEach(el => {
         const step = Number(el.dataset.step);
+        if (skipProgramStep && step === 3) el.style.display = 'none';
         el.classList.toggle('is-active', step === state.currentStep);
         el.classList.toggle('is-done', state.completedSteps.has(step) && step !== state.currentStep);
     });
@@ -279,7 +281,22 @@ function syncFooter() {
     nextBtn.textContent = state.currentStep === TOTAL_STEPS ? 'Buka Dashboard' : 'Selanjutnya';
 }
 
+// SMP tidak punya program keahlian: langkah 3 dilewati. Program bawaan "UMUM"
+// dibuat otomatis (kelas di database wajib terkait ke satu program).
+let skipProgramStep = false;
+const displayNo = (n) => (skipProgramStep && n > 3 ? n - 1 : n);
+const displayTotal = () => (skipProgramStep ? TOTAL_STEPS - 1 : TOTAL_STEPS);
+
+function relabelSteps() {
+    if (!skipProgramStep) return;
+    contentEl.querySelectorAll('.step-label').forEach(el => {
+        el.textContent = el.textContent.replace(/Langkah (d+) dari (d+)/, (_, a, b) =>
+            `Langkah ${displayNo(Number(a))} dari ${Number(b) - 1}`);
+    });
+}
+
 async function goToStep(n) {
+    if (skipProgramStep && n === 3) n = state.currentStep > 3 ? 2 : 4;
     if (n < 1 || n > TOTAL_STEPS) return;
     clearError();
     state.currentStep = n;
@@ -292,6 +309,7 @@ async function goToStep(n) {
     contentEl.innerHTML = '<p class="hint">Memuat…</p>';
     try {
         await renderer();
+        relabelSteps();
     } catch (err) {
         contentEl.innerHTML = '';
         showError(err.message ?? 'Gagal memuat langkah ini.');
@@ -465,6 +483,7 @@ function renderPlaceholder() {
 async function renderSummaryStep() {
     const rows = [];
     for (let i = 1; i <= TOTAL_STEPS; i++) {
+        if (skipProgramStep && i === 3) continue;
         const done = state.completedSteps.has(i);
         rows.push(`
             <tr>
@@ -476,6 +495,7 @@ async function renderSummaryStep() {
     }
     const incomplete = [];
     for (let i = 1; i < TOTAL_STEPS; i++) {
+        if (skipProgramStep && i === 3) continue;
         if (!state.completedSteps.has(i)) incomplete.push(STEP_NAMES[i]);
     }
     const warningHtml = incomplete.length > 0
@@ -3753,6 +3773,18 @@ window.addEventListener('beforeunload', (e) => {
         showPasswordModal(true);
         return;
     }
+
+    // Jenjang SMP: lewati langkah Program Keahlian, siapkan program bawaan "UMUM".
+    try {
+        const { data: sch } = await supabase.from('schools').select('jenjang')
+            .eq('school_id', config.school_id).maybeSingle();
+        if (sch?.jenjang === 'SMP') {
+            const ada = await getPrograms();
+            if (!ada.some(p => p.code === 'UMUM')) await addProgram({ code: 'UMUM', name: 'Umum' });
+            skipProgramStep = true;
+            state.completedSteps.add(3);
+        }
+    } catch (_) { skipProgramStep = false; }
 
     const hashStep = parseInt(location.hash.slice(1), 10);
     await goToStep((hashStep >= 1 && hashStep <= TOTAL_STEPS) ? hashStep : 1);

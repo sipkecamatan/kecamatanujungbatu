@@ -22,7 +22,7 @@ const RULES = {
 
 // Menu yang konsepnya tidak ada di jenjang tersebut.
 const HIDE = {
-    SMP: ['dudi'],
+    SMP: ['dudi', 'programs'],   // SMP: tanpa program keahlian (program bawaan UMUM dibuat otomatis)
     SMA: ['dudi'],
 };
 
