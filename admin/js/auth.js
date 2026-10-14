@@ -7,7 +7,7 @@
  * finished yet, otherwise to dashboard.html.
  */
 
-import { supabase, loginWithIdentifier, getCurrentUserRow, getSchoolConfig } from './api.js';
+import { supabase, loginWithIdentifier, getCurrentUserRow, getSchoolConfig, upsertSchoolConfig } from './api.js';
 import { applyBranding } from '../../shared/branding.js';
 import { checkMustChangePassword } from '../../shared/change-password.js';
 
@@ -67,7 +67,16 @@ form.addEventListener('submit', async (e) => {
         }
 
         // Paksa ganti password jika di-reset oleh superadmin
+        const wajibGanti = userRow.must_change_password === true;
         await checkMustChangePassword(supabase, userRow);
+        // Admin yang baru saja mengganti password lewat modal wajib tidak boleh
+        // diminta sekali lagi oleh modal "pertama kali" di wizard
+        // (school_config.password_changed). Ini harus dilakukan DI SINI: saat
+        // wizard dibuka, penanda users sudah mati sehingga wizard tak lagi tahu
+        // bahwa password baru saja diganti.
+        if (wajibGanti) {
+            try { await upsertSchoolConfig({ password_changed: true }); } catch (_) { /* tidak fatal */ }
+        }
 
         let config = null;
         try {
