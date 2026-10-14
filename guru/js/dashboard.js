@@ -511,7 +511,6 @@ async function buildTabs() {
     if (onDuty !== false) tabs.push({ key: 'piket', label: 'Piket' });
     if (isTeacher) tabs.push({ key: 'observasi', label: 'Catatan Siswa' });
     if (isTeacher) tabs.push({ key: 'jurnal', label: 'Jurnal Mengajar' });
-    if (isTeacher) tabs.push({ key: 'perangkat_ajar', label: 'Perangkat Ajar' });
     tabs.push({ key: 'forum', label: 'Forum' });
 
     nav.innerHTML = tabs.map(t =>
@@ -592,7 +591,6 @@ async function loadTabContent(key) {
             case 'piket':       await initPiketTab(); break;
             case 'jurnal':      await initJurnalTab(); break;
             case 'observasi':   await initObsTab(); break;
-            case 'perangkat_ajar': await initPerangkatAjarTab(); break;
             case 'forum':       await initForumTab(); break;
         }
     } catch (err) {
