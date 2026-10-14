@@ -1963,6 +1963,173 @@ async function main() {
         }
     }
 
+    // ══════════════════════════════════════════════════════
+    // CHECK 19 — Lapisan wilayah (kecamatan): privasi & isolasi
+    // ══════════════════════════════════════════════════════
+    // MANDIRI — data sintetis dalam satu transaksi BEGIN...ROLLBACK.
+    // Menegakkan invarian lapisan wilayah (migrasi 20261014000000 + 20261014010000):
+    //   S1 : fungsi wilayah — anon TANPA EXECUTE
+    //   S2 : tabel regions/region_staff/region_sharing_log RLS aktif
+    //   S3 : anon & authenticated tanpa hak SELECT langsung pada tabel itu
+    //   S4 : fungsi SECURITY DEFINER wilayah mengunci search_path
+    //   P1 : pegawai wilayah HANYA melihat sekolah yang dibagikan (dan di wilayahnya)
+    //   P2 : total wilayah tersembunyi bila < 3 sekolah membagikan
+    //   P3 : total wilayah muncul bila >= 3 sekolah membagikan
+    //   P4 : tren sekolah tak dibagikan identik dengan sekolah tak ada (tidak bocor eksistensi)
+    //   P6 : akun sekolah (kepsek/admin/guru) ditolak memanggil fn_region_overview (42501)
+    //   P7 : hanya KEPSEK yang dapat mengubah berbagi; admin & pegawai wilayah ditolak (42501)
+    //   P8 : pegawai wilayah ditolak membaca status berbagi sekolah (42501)
+    log.head('CHECK 19 — Lapisan wilayah: privasi & isolasi (BEGIN...ROLLBACK)');
+    {
+        const U = (n) => `00000000-0000-0000-0000-0000000f19${String(n).padStart(2, '0')}`;
+        const R1 = U(1), R2 = U(2);
+        const S1 = U(11), S2 = U(12), S3 = U(13), S4 = U(14);
+        const P_ = [U(21), U(22), U(23), U(24)];
+        const STAFF = U(31), A_KEP = U(32), A_ADM = U(33), A_GURU = U(34);
+        const U_KEP = U(41), U_ADM = U(42), U_GURU = U(43);
+        const RANDOM_SCHOOL = U(99);
+        const claims = (sub) => `select set_config('request.jwt.claims', '{"sub":"${sub}","role":"authenticated"}', true);`;
+        const sch = [[S1, 'SMA', true, 'c19-sma', 'C19 SMA', R1, P_[0]],
+                     [S2, 'SMK', true, 'c19-smk', 'C19 SMK', R1, P_[1]],
+                     [S3, 'SMP', false, 'c19-smp', 'C19 SMP', R1, P_[2]],
+                     [S4, 'SMA', true, 'c19-lain', 'C19 LAIN', R2, P_[3]]];
+
+        let rows19 = null;
+        try {
+            rows19 = await mgmtQuery(
+                `begin;` +
+                ` create temp table _f19 (k text primary key, v text) on commit drop;` +
+                ` insert into regions (region_id, name) values ('${R1}', 'CHECK19-A'), ('${R2}', 'CHECK19-B');` +
+                sch.map(([sid, jj, share, slug, nama, reg]) =>
+                    ` insert into schools (school_id, name, slug, region_id, jenjang, share_with_region, is_active)` +
+                    ` values ('${sid}', '${nama}', '${slug}', '${reg}', '${jj}', ${share}, true);`).join('') +
+                sch.map(([sid, , , slug, , , pid]) =>
+                    ` insert into programs (program_id, code, name, school_id) values ('${pid}', 'UMUM', 'Umum', '${sid}');` +
+                    [1, 2, 3].map((i) =>
+                        ` insert into students (student_id, nis, full_name, program_id, school_id)` +
+                        ` values (gen_random_uuid(), 'C19-${slug}-${i}', 'Siswa C19', '${pid}', '${sid}');`).join('')).join('') +
+                ` insert into region_staff (auth_user_id, region_id, full_name) values ('${STAFF}', '${R1}', 'Staf C19');` +
+                ` insert into users (user_id, auth_user_id, full_name, email, login_identifier, identifier_type, role_type, school_id, is_kepsek) values` +
+                `  ('${U_KEP}', '${A_KEP}', 'Kepsek C19', 'kepsek-c19@staff.internal', 'C19-KEP', 'NIP', 'KEPSEK', '${S1}', true),` +
+                `  ('${U_ADM}', '${A_ADM}', 'Admin C19', 'admin-c19@staff.internal', 'C19-ADM', 'NIP', 'ADMINISTRATIVE', '${S1}', false),` +
+                `  ('${U_GURU}', '${A_GURU}', 'Guru C19', 'guru-c19@staff.internal', 'C19-GURU', 'NIP', 'GURU', '${S1}', false);` +
+
+                // ── struktural ──
+                ` do $b$ declare f text; bad text := ''; t text; begin` +
+                `   foreach f in array array['fn_region_overview(integer)','fn_region_school_trend(uuid,integer)',` +
+                `       'fn_region_sharing_status()','fn_set_region_sharing(boolean)'] loop` +
+                `     if has_function_privilege('anon', 'public.' || f, 'EXECUTE') then bad := bad || f || ' '; end if;` +
+                `   end loop;` +
+                `   insert into _f19 values ('S1', coalesce(nullif(trim(bad), ''), 'ok'));` +
+                `   bad := '';` +
+                `   foreach t in array array['regions','region_staff','region_sharing_log'] loop` +
+                `     if not (select relrowsecurity from pg_class where oid = ('public.' || t)::regclass) then bad := bad || t || ' '; end if;` +
+                `   end loop;` +
+                `   insert into _f19 values ('S2', coalesce(nullif(trim(bad), ''), 'ok'));` +
+                `   bad := '';` +
+                `   foreach t in array array['regions','region_staff','region_sharing_log'] loop` +
+                `     if has_table_privilege('anon', 'public.' || t, 'SELECT') or has_table_privilege('authenticated', 'public.' || t, 'SELECT')` +
+                `       then bad := bad || t || ' '; end if;` +
+                `   end loop;` +
+                `   insert into _f19 values ('S3', coalesce(nullif(trim(bad), ''), 'ok'));` +
+                `   bad := '';` +
+                `   foreach f in array array['fn_region_overview','fn_region_school_trend','fn_region_sharing_status','fn_set_region_sharing'] loop` +
+                `     if not exists (select 1 from pg_proc p where p.proname = f and p.pronamespace = 'public'::regnamespace` +
+                `                    and p.prosecdef and exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%'))` +
+                `       then bad := bad || f || ' '; end if;` +
+                `   end loop;` +
+                `   insert into _f19 values ('S4', coalesce(nullif(trim(bad), ''), 'ok'));` +
+                ` end $b$;` +
+
+                // ── P1/P2: pegawai wilayah ──
+                ` ${claims(STAFF)}` +
+                ` do $b$ declare r jsonb; begin` +
+                `   r := public.fn_region_overview(30);` +
+                `   insert into _f19 values ('P1', (select coalesce(string_agg(s->>'nama', ',' order by s->>'nama'), '') from jsonb_array_elements(r->'sekolah') s));` +
+                `   insert into _f19 values ('P2', coalesce((r->'total')::text, 'null'));` +
+                `   insert into _f19 values ('P2b', (r->>'jumlah_sekolah_dibagikan') || '/' || (r->>'jumlah_sekolah_terdaftar'));` +
+                ` exception when others then insert into _f19 values ('P1', 'ERR ' || sqlstate || '|' || sqlerrm); end $b$;` +
+
+                // ── P4: tren sekolah tak dibagikan vs tak ada ──
+                ` do $b$ declare n1 int; n2 int; begin` +
+                `   select count(*) into n1 from public.fn_region_school_trend('${S3}', 6);` +
+                `   select count(*) into n2 from public.fn_region_school_trend('${RANDOM_SCHOOL}', 6);` +
+                `   insert into _f19 values ('P4', n1 || '|' || n2);` +
+                ` exception when others then insert into _f19 values ('P4', 'ERR ' || sqlstate); end $b$;` +
+
+                // ── P8: pegawai wilayah membaca status berbagi sekolah ──
+                ` do $b$ begin perform public.fn_region_sharing_status(); insert into _f19 values ('P8', 'BREACH');` +
+                ` exception when others then insert into _f19 values ('P8', sqlstate); end $b$;` +
+                // ── P7c: pegawai wilayah mengubah berbagi ──
+                ` do $b$ begin perform public.fn_set_region_sharing(false); insert into _f19 values ('P7c', 'BREACH');` +
+                ` exception when others then insert into _f19 values ('P7c', sqlstate); end $b$;` +
+
+                // ── P3: tiga sekolah membagikan -> total muncul ──
+                ` update schools set share_with_region = true where school_id = '${S3}';` +
+                ` do $b$ declare r jsonb; begin r := public.fn_region_overview(30);` +
+                `   insert into _f19 values ('P3', coalesce((r->'total')::text, 'null'));` +
+                ` exception when others then insert into _f19 values ('P3', 'ERR ' || sqlstate); end $b$;` +
+                ` update schools set share_with_region = false where school_id = '${S3}';` +
+
+                // ── P6: akun sekolah memanggil fn_region_overview ──
+                [['P6a', A_KEP], ['P6b', A_ADM], ['P6c', A_GURU]].map(([k, a]) =>
+                    ` ${claims(a)}` +
+                    ` do $b$ begin perform public.fn_region_overview(30); insert into _f19 values ('${k}', 'BREACH');` +
+                    ` exception when others then insert into _f19 values ('${k}', sqlstate); end $b$;`).join('') +
+
+                // ── P7b: admin mengubah berbagi ──
+                ` ${claims(A_ADM)}` +
+                ` do $b$ begin perform public.fn_set_region_sharing(false); insert into _f19 values ('P7b', 'BREACH');` +
+                ` exception when others then insert into _f19 values ('P7b', sqlstate); end $b$;` +
+                // ── P7: kepsek mengubah berbagi ──
+                ` ${claims(A_KEP)}` +
+                ` do $b$ begin perform public.fn_set_region_sharing(false);` +
+                `   insert into _f19 values ('P7', (select share_with_region::text from schools where school_id = '${S1}'));` +
+                `   insert into _f19 values ('P7log', (select count(*)::text from region_sharing_log where school_id = '${S1}'));` +
+                ` exception when others then insert into _f19 values ('P7', 'ERR ' || sqlstate || '|' || sqlerrm); end $b$;` +
+
+                ` select k, v from _f19 order by k;` +
+                ` rollback;`
+            );
+        } catch (e) {
+            log.fail(`CHECK 19 — Transaksi sintetis gagal: ${e.message.slice(0, 240)}`);
+        }
+
+        if (rows19) {
+            const R = Object.fromEntries(rows19.map((r) => [r.k, r.v]));
+            const eq = (k, want, okMsg, failMsg) => {
+                if (R[k] === undefined) log.fail(`${k}: tidak ada hasil terukur`);
+                else if (R[k] === want) log.pass(okMsg);
+                else log.fail(`${failMsg} (terukur=${String(R[k]).slice(0, 140)})`);
+            };
+            eq('S1', 'ok', 'S1: 4 fungsi wilayah — anon tanpa EXECUTE', 'S1: fungsi wilayah dapat dipanggil anon');
+            eq('S2', 'ok', 'S2: regions/region_staff/region_sharing_log — RLS aktif', 'S2: RLS tidak aktif pada tabel wilayah');
+            eq('S3', 'ok', 'S3: tabel wilayah — anon/authenticated tanpa SELECT langsung', 'S3: tabel wilayah dapat dibaca langsung');
+            eq('S4', 'ok', 'S4: fungsi wilayah SECURITY DEFINER dengan search_path terkunci', 'S4: search_path tidak terkunci');
+            eq('P1', 'C19 SMA,C19 SMK', 'P1: pegawai hanya melihat sekolah dibagikan di wilayahnya (SMP & wilayah lain tak terlihat)',
+                'P1: daftar sekolah tidak sesuai');
+            eq('P2', 'null', 'P2: total wilayah tersembunyi bila < 3 sekolah membagikan', 'P2: total tampil padahal < 3 sekolah');
+            eq('P2b', '2/3', 'P2b: hitung "2 dari 3" hanya jumlah, bukan identitas', 'P2b: hitung sekolah tidak sesuai');
+            if (R.P3 === undefined) log.fail('P3: tidak ada hasil terukur');
+            else {
+                let tot = null; try { tot = JSON.parse(R.P3); } catch { /* biarkan */ }
+                if (tot && tot.siswa_aktif === 9) log.pass('P3: total wilayah muncul bila 3 sekolah membagikan (9 siswa) — uji tidak vacuous');
+                else log.fail(`P3: total tidak muncul/sesuai saat 3 sekolah membagikan (terukur=${String(R.P3).slice(0, 140)})`);
+            }
+            eq('P4', '0|0', 'P4: tren sekolah tak dibagikan identik dengan sekolah tak ada (tidak bocor eksistensi)',
+                'P4: tren sekolah tak dibagikan berbeda dari sekolah tak ada');
+            for (const [k, who] of [['P6a', 'kepsek'], ['P6b', 'admin'], ['P6c', 'guru']]) {
+                eq(k, '42501', `${k}: ${who} sekolah ditolak memanggil fn_region_overview (42501)`,
+                    `${k}: ${who} sekolah dapat membaca ringkasan wilayah`);
+            }
+            eq('P7', 'false', 'P7: kepsek dapat mengubah berbagi sekolahnya', 'P7: kepsek gagal mengubah berbagi');
+            eq('P7log', '1', 'P7: perubahan berbagi tercatat di region_sharing_log', 'P7: perubahan tidak tercatat');
+            eq('P7b', '42501', 'P7b: admin sekolah ditolak mengubah berbagi (42501)', 'P7b: admin dapat mengubah berbagi');
+            eq('P7c', '42501', 'P7c: pegawai wilayah ditolak mengubah berbagi (42501)', 'P7c: pegawai wilayah dapat mengubah berbagi');
+            eq('P8', '42501', 'P8: pegawai wilayah ditolak membaca status berbagi sekolah (42501)', 'P8: pegawai wilayah dapat membaca status berbagi');
+        }
+    }
+
     // ── Ringkasan ────────────────────────────────────────────────
     console.log(`\n${'='.repeat(52)}`);
     if (failures === 0) {
