@@ -1,30 +1,29 @@
 /**
  * @file admin/js/jenjang-labels.js
  *
- * Menyesuaikan istilah yang tampil di portal admin dengan jenjang sekolah.
- * Antarmuka dibangun untuk SMK; untuk SMP/SMA beberapa istilah tidak berlaku.
- * Hanya mengganti TEKS yang terlihat (bukan nilai kolom isian, bukan atribut),
- * sehingga tidak memengaruhi data maupun logika. SMK tidak diubah sama sekali.
- *
- * Dimuat sebagai modul terpisah di halaman admin; gagal diam-diam bila belum
- * login atau jenjang belum diisi.
+ * Menyesuaikan portal admin dengan jenjang sekolah, TANPA menciptakan istilah baru.
+ *  - Koreksi fakta: "Kelas XII" -> "Kelas IX" untuk SMP; "SIP SMK" -> "SIP".
+ *  - Sembunyikan menu yang konsepnya tidak ada di jenjang itu (DUDI untuk SMP/SMA).
+ * Tidak mengganti nama konsep SMK menjadi nama karangan (mis. "Program Keahlian"
+ * tidak diubah menjadi "Program"). SMK tidak diubah sama sekali.
+ * Hanya teks yang terlihat dan menu yang disembunyikan; data dan logika tidak berubah.
  */
 import { supabase, getSchoolConfig } from './api.js';
 
 const RULES = {
     SMP: [
-        [/\bProgram Keahlian\b/g,  'Program'],
-        [/\bKaprodi\b/g,           'Koordinator Program'],
-        [/\bDUDI\b/g,              'Mitra Sekolah'],
-        [/\b([Kk])elas XII\b/g,    '$1elas IX'],
-        [/\bSIP SMK\b/g,           'SIP'],
+        [/([Kk])elas XII/g,  '$1elas IX'],
+        [/SIP SMK/g,         'SIP'],
     ],
     SMA: [
-        [/\bProgram Keahlian\b/g,  'Peminatan'],
-        [/\bKaprodi\b/g,           'Koordinator Peminatan'],
-        [/\bDUDI\b/g,              'Mitra Sekolah'],
-        [/\bSIP SMK\b/g,           'SIP'],
+        [/SIP SMK/g,         'SIP'],
     ],
+};
+
+// Menu yang konsepnya tidak ada di jenjang tersebut.
+const HIDE = {
+    SMP: ['dudi'],
+    SMA: ['dudi'],
 };
 
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'CODE', 'PRE']);
@@ -85,6 +84,9 @@ async function init() {
                         .select('jenjang').eq('school_id', cfg.school_id).maybeSingle();
                     const rules = RULES[data?.jenjang];
                     if (rules) apply(rules);
+                    for (const panel of HIDE[data?.jenjang] ?? []) {
+                        document.querySelectorAll(`[data-panel="${panel}"]`).forEach((el) => { el.hidden = true; el.style.display = 'none'; });
+                    }
                     return;
                 }
             }
