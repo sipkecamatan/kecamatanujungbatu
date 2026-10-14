@@ -802,6 +802,17 @@ async function loadRegions() {
             }}, nama, email, h('button', { class: 'btn btn-primary btn-sm', type: 'submit' }, '+ Daftarkan pegawai'));
             card.append(form);
 
+            // hapus wilayah: ditolak server bila masih ada sekolah, pegawai, atau wilayah di bawahnya
+            card.append(h('div', { style: 'margin-top:14px;border-top:1px solid var(--color-border, #2b3447);padding-top:10px' },
+                h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: async () => {
+                    if (!confirm(`Hapus wilayah "${r.name}"? Hanya bisa bila tidak ada sekolah, pegawai, atau wilayah di bawahnya.`)) return;
+                    try {
+                        const out = await regionApi({ action: 'delete_region', region_id: r.region_id });
+                        showRegionMsg(`Wilayah "${out.dihapus ?? r.name}" dihapus.`, true);
+                        loadRegions();
+                    } catch (e) { showRegionMsg(e.message, false); }
+                }}, 'Hapus wilayah')));
+
             listEl.append(card);
         }
     } catch (e) {

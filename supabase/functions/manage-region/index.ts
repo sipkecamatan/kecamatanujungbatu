@@ -14,6 +14,7 @@
  *   { action: "list" }
  *   { action: "create_region", name, level? }   level: KECAMATAN (bawaan) | KABUPATEN | PROVINSI
  *   { action: "ensure_region", kode, name, level }   -> buat dari daftar resmi bila belum ada (idempoten)
+ *   { action: "delete_region", region_id }   -> hanya wilayah kosong (tanpa sekolah, pegawai, turunan)
  *   { action: "add_staff", region_id, full_name, email }      -> kata sandi sementara, tampil sekali
  *   { action: "remove_staff", auth_user_id }
  *   { action: "assign_school", school_id, region_id|null, jenjang|null, kabupaten_id?, provinsi_id? }
@@ -141,6 +142,46 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 throw error;
             }
             return json({ success: true, dibuat: true, region: data });
+        }
+
+        // ── delete_region ─────────────────────────────────────
+        // Hanya wilayah yang kosong: tanpa sekolah (kecamatan, kabupaten, atau provinsi),
+        // tanpa pegawai, dan, bila berkode, tanpa wilayah turunan menurut awalan kode.
+        if (action === 'delete_region') {
+            const regionId = String(body?.region_id ?? '');
+            if (!UUID_RE.test(regionId)) return json({ error: 'region_id tidak valid' }, 400);
+
+            const { data: reg } = await admin.from('regions')
+                .select('region_id, name, kode').eq('region_id', regionId).maybeSingle();
+            if (!reg) return json({ error: 'wilayah tidak ditemukan' }, 404);
+
+            const [sekolah, pegawai] = await Promise.all([
+                admin.from('schools').select('school_id', { count: 'exact', head: true })
+                    .or(`region_id.eq.${regionId},kabupaten_id.eq.${regionId},provinsi_id.eq.${regionId}`),
+                admin.from('region_staff').select('auth_user_id', { count: 'exact', head: true })
+                    .eq('region_id', regionId),
+            ]);
+            if (sekolah.error) throw sekolah.error;
+            if (pegawai.error) throw pegawai.error;
+            if ((sekolah.count ?? 0) > 0) {
+                return json({ error: `Wilayah masih dipakai ${sekolah.count} sekolah. Lepaskan sekolahnya dulu.` }, 409);
+            }
+            if ((pegawai.count ?? 0) > 0) {
+                return json({ error: `Wilayah masih punya ${pegawai.count} pegawai. Hapus pegawainya dulu.` }, 409);
+            }
+            if (reg.kode) {
+                const { count: turunan, error: turErr } = await admin.from('regions')
+                    .select('region_id', { count: 'exact', head: true })
+                    .like('kode', `${reg.kode}%`).neq('region_id', regionId);
+                if (turErr) throw turErr;
+                if ((turunan ?? 0) > 0) {
+                    return json({ error: `Wilayah masih memiliki ${turunan} wilayah di bawahnya. Hapus yang di bawahnya dulu.` }, 409);
+                }
+            }
+
+            const { error } = await admin.from('regions').delete().eq('region_id', regionId);
+            if (error) throw error;
+            return json({ success: true, dihapus: reg.name });
         }
 
         // ── add_staff ─────────────────────────────────────────
