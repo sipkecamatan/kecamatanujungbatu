@@ -839,12 +839,12 @@ async function initRegionForm() {
     const kab  = document.getElementById('region-kab');
     const kec  = document.getElementById('region-kec');
     prov.replaceChildren(h('option', { value: ref.provinsi.kode }, 'Provinsi ' + ref.provinsi.nama));
-    kab.replaceChildren(h('option', { value: '' }, '\u2014 hanya provinsi \u2014'),
+    kab.replaceChildren(h('option', { value: '' }, '\u2014 pilih kabupaten / kota \u2014'),
         ...ref.kabupaten.map(k => h('option', { value: k.kode }, namaKab(k))));
     const isiKec = () => {
         const k = ref.kabupaten.find(x => x.kode === kab.value);
         kec.replaceChildren(
-            h('option', { value: '' }, k ? '\u2014 sampai kabupaten / kota saja \u2014' : '\u2014 pilih kabupaten / kota dulu \u2014'),
+            h('option', { value: '' }, k ? '\u2014 pilih kecamatan \u2014' : '\u2014 pilih kabupaten / kota dulu \u2014'),
             ...(k ? k.kecamatan : []).map(c => h('option', { value: c.kode }, c.nama)));
         kec.disabled = !k;
     };
