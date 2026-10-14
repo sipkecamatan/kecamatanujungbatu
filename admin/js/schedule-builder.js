@@ -30,6 +30,7 @@ let state = {
     schoolId: null,
     day: 'SENIN',
     grade: 10,
+    gradesAda: [10, 11, 12], // diisi saat overlay dibuka
     slots: [],       // { start_time, end_time, is_break, break_label }
     classes: [],     // { class_id, name }
     teachers: [],    // { user_id, full_name, teacher_code }
@@ -66,6 +67,15 @@ export async function openScheduleBuilder() {
         .eq('school_id', state.schoolId).eq('allow_parallel_teaching', true).not('teacher_code', 'is', null);
       state.parallelCodes = new Set((pr ?? []).map(r => r.teacher_code.toUpperCase())); }
     try { state.coreSubjects = await getCoreSubjectsForSchedule(); } catch (_) { state.coreSubjects = []; }
+
+    // Tab tingkat hanya untuk tingkat yang punya kelas (SMP 7-9, SMA/SMK 10-12);
+    // tingkat aktif awal = yang terkecil.
+    try {
+        const kelas = await getClasses(state.academicYear, state.schoolId);
+        const ada = GRADES.filter(g => kelas.some(c => c.grade_level === g));
+        state.gradesAda = ada.length ? ada : [10, 11, 12];
+    } catch (_) { state.gradesAda = [10, 11, 12]; }
+    state.grade = state.gradesAda[0];
 
     createOverlay();
     checkAndShowResumeBanner(); // fire-and-forget: non-fatal, modifies #sched-status
@@ -110,7 +120,7 @@ function createOverlay() {
             <div id="sched-panel-jadwal">
                 <div class="sched-toolbar">
                     <div class="sched-grade-tabs" id="sched-grade-tabs">
-                        ${GRADES.map(g => `<button type="button" class="sched-tab ${g === state.grade ? 'active' : ''}" data-grade="${g}">${GRADE_LABELS[g]}</button>`).join('')}
+                        ${state.gradesAda.map(g => `<button type="button" class="sched-tab ${g === state.grade ? 'active' : ''}" data-grade="${g}">${GRADE_LABELS[g]}</button>`).join('')}
                     </div>
                     <span class="sched-conflict-count" id="sched-conflict-count"></span>
                     <button type="button" class="btn btn-success" id="sched-apply" style="padding:6px 16px;margin-left:auto" title="Generate jadwal harian dari template yang sudah disimpan. Tidak mengubah sesi yang sudah ada.">Terapkan Jadwal</button>
