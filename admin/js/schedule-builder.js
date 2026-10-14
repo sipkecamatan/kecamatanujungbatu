@@ -19,8 +19,8 @@ import {
 
 const DAYS = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
 const DAY_LABELS = { SENIN: 'Senin', SELASA: 'Selasa', RABU: 'Rabu', KAMIS: 'Kamis', JUMAT: 'Jumat', SABTU: 'Sabtu' };
-const GRADES = [10, 11, 12];
-const GRADE_LABELS = { 10: 'Kelas X', 11: 'Kelas XI', 12: 'Kelas XII' };
+const GRADES = [7, 8, 9, 10, 11, 12];
+const GRADE_LABELS = { 7: 'Kelas VII', 8: 'Kelas VIII', 9: 'Kelas IX', 10: 'Kelas X', 11: 'Kelas XI', 12: 'Kelas XII' };
 
 let overlayEl = null;
 let loadSeq = 0; // monotonic counter to cancel stale async loads
@@ -232,6 +232,10 @@ async function loadGrade(seq) {
 
     if (seq !== loadSeq) return; // stale
 
+    // Sekolah SMP hanya punya tingkat 7-9: bila tingkat aktif tak punya kelas, pindah ke tingkat terkecil yang ada.
+    if (!classes.some(c => c.grade_level === state.grade) && classes.length > 0) {
+        state.grade = Math.min(...classes.map(c => c.grade_level));
+    }
     state.classes = classes
         .filter(c => c.grade_level === state.grade)
         .sort((a, b) => a.name.localeCompare(b.name, 'id'));

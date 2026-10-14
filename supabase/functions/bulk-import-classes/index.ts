@@ -32,7 +32,7 @@
  *   4.  Authorization: caller must be ADMINISTRATIVE
  *   5.  Fetch school_config (active academic_year)
  *   6.  Parse CSV body
- *   7.  Validate each row (required fields, tingkat in [10,11,12];
+ *   7.  Validate each row (required fields, tingkat in [7..12];
  *       nama_kelas unique within file — Postgres can't affect the
  *       same row twice in one upsert statement)
  *   8.  Resolve kode_program -> program_id (per programs.code)
@@ -147,8 +147,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
             }
 
             const gradeLevel = Number(row.tingkat);
-            if (!Number.isInteger(gradeLevel) || gradeLevel < 10 || gradeLevel > 12) {
-                errors.push({ row: row.rowNumber, message: `Tingkat harus 10, 11, atau 12: "${row.tingkat}"` });
+            if (!Number.isInteger(gradeLevel) || gradeLevel < 7 || gradeLevel > 12) {
+                errors.push({ row: row.rowNumber, message: `Tingkat harus antara 7 dan 12: "${row.tingkat}"` });
                 continue;
             }
 

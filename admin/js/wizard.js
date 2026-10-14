@@ -2329,7 +2329,7 @@ const EXCEL_TEMPLATES = {
              ['Kolom', 'Wajib?', 'Penjelasan'],
              ['nama_kelas', 'Wajib', 'Nama kelas lengkap. Contoh: X TKJ 1, XI AKL 2. Setiap nama harus berbeda.'],
              ['kode_program', 'Wajib', 'Kode program keahlian. Contoh: TKJ, AKL. Pastikan kode sudah diinput di langkah Program Keahlian.'],
-             ['tingkat', 'Wajib', 'Isi angka: 10 untuk kelas X, 11 untuk kelas XI, 12 untuk kelas XII.'],
+             ['tingkat', 'Wajib', 'Isi angka tingkat: 7, 8, 9 (SMP) atau 10, 11, 12 (SMA/SMK; 10 = kelas X, 11 = XI, 12 = XII).'],
              ['', '', ''],
              ['PENTING', '', ''],
              ['•', '', 'Upload ulang file yang sama akan memperbarui program dan tingkat. Data yang sudah ada tidak diduplikasi.'],

@@ -1928,8 +1928,8 @@ async function renderTuPanel() {
 // ─── Jadwal panel helpers ────────────────────────────────────
 const SCHED_DAYS = ['SENIN','SELASA','RABU','KAMIS','JUMAT','SABTU'];
 const SCHED_DAY_LABELS = { SENIN:'Senin', SELASA:'Selasa', RABU:'Rabu', KAMIS:'Kamis', JUMAT:'Jumat', SABTU:'Sabtu' };
-const SCHED_GRADES = [10, 11, 12];
-const SCHED_GRADE_LABELS = { 10:'Kelas X', 11:'Kelas XI', 12:'Kelas XII' };
+const SCHED_GRADES = [7, 8, 9, 10, 11, 12];
+const SCHED_GRADE_LABELS = { 7:'Kelas VII', 8:'Kelas VIII', 9:'Kelas IX', 10:'Kelas X', 11:'Kelas XI', 12:'Kelas XII' };
 
 function buildJadwalGrid(slots, templates, classes, teacherIdMap) {
     if (slots.length === 0) return '<p class="hint">Belum ada slot waktu untuk hari ini.</p>';
@@ -2001,6 +2001,9 @@ async function renderJadwalPanel() {
     if (teacherResult.error) throw teacherResult.error;
     const teachers = teacherResult.data ?? [];
     const teacherIdMap = new Map(teachers.map(t => [t.user_id, t.teacher_code]));
+    // Tab tingkat hanya untuk tingkat yang punya kelas (SMP: 7-9, SMA/SMK: 10-12).
+    const gradesAda = SCHED_GRADES.filter(g => allClasses.some(c => c.grade_level === g));
+    if (gradesAda.length === 0) gradesAda.push(10);
 
     const wizardUrl = schoolSlug ? `wizard.html?school=${encodeURIComponent(schoolSlug)}` : 'wizard.html';
 
@@ -2013,7 +2016,7 @@ async function renderJadwalPanel() {
         </div>
 
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="jadwal-grade-tabs">
-            ${SCHED_GRADES.map((g, i) => `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'}" data-grade="${g}">${SCHED_GRADE_LABELS[g]}</button>`).join('')}
+            ${gradesAda.map((g, i) => `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'}" data-grade="${g}">${SCHED_GRADE_LABELS[g]}</button>`).join('')}
         </div>
 
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px" id="jadwal-day-tabs">
@@ -2023,7 +2026,7 @@ async function renderJadwalPanel() {
         <div id="jadwal-grid-area"><p class="hint">Memuat grid…</p></div>
     `;
 
-    let activeGrade = 10;
+    let activeGrade = gradesAda[0];
     let activeDay   = 'SENIN';
 
     async function loadGrid() {
