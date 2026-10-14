@@ -2468,3 +2468,16 @@ export async function deleteCpElemen(elementId) {
         .eq('element_id', elementId);
     if (error) throw error;
 }
+
+// ── Berbagi ringkasan ke wilayah (kecamatan) — hanya KEPSEK yang dapat mengubah ──
+export async function getRegionSharingStatus() {
+    const { data, error } = await supabase.rpc('fn_region_sharing_status');
+    if (error) throw error;
+    return data;
+}
+
+export async function setRegionSharing(share) {
+    const { data, error } = await supabase.rpc('fn_set_region_sharing', { p_share: !!share });
+    if (error) throw error;
+    return data;
+}

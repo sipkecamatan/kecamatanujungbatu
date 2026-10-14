@@ -14,6 +14,7 @@ const skip = /pg_net|pg_cron/;
 const baseline = read('supabase/migrations/20261013000000_baseline.sql').split('\n')
   .map((l) => (/^(DO|CREATE EXTENSION)/.test(l) && skip.test(l) ? `-- ${l}` : l)).join('\n');
 const migration = read('supabase/migrations/20261014000000_region_layer.sql');
+const migrationSharing = read('supabase/migrations/20261014010000_region_sharing_control.sql');
 
 const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
 let passed = 0;
@@ -43,6 +44,7 @@ await db.exec(`
 `);
 await db.exec(baseline);
 await db.exec(migration);
+await db.exec(migrationSharing);
 
 // Fixture: tiap sekolah punya 3 siswa, 10 sesi (10 hari terakhir), k sesi beratribut absensi,
 // dan `alpa` baris ALPA. Semua nama siswa memuat kata "RAHASIA" agar bocor mudah terdeteksi.
@@ -181,6 +183,70 @@ await test('hak akses: anon tanpa EXECUTE, authenticated punya; tabel wilayah te
   assert.equal(await t('authenticated', 'public.region_staff'), false);
   assert.equal(await t('anon', 'public.region_staff'), false);
   assert.equal(await t('authenticated', 'public.regions'), false);
+});
+
+// ── Kendali persetujuan berbagi oleh kepala sekolah ───────────────────────────
+const S7 = await sekolah({ key: 'smax', nama: 'SMA Belum Wilayah', jenjang: 'SMA', region: null, share: false, sesiTercatat: 0, alpa: 0 });
+const KEPSEK = uuid(9101), ADMIN = uuid(9102), KEPSEK_X = uuid(9103);
+const mkUser = (auth, ident, role, sid) => db.exec(`
+  INSERT INTO users (auth_user_id, full_name, email, login_identifier, identifier_type, role_type, school_id)
+  VALUES ('${auth}', 'Pengguna ${ident}', '${ident}@staff.internal', '${ident}', 'NIP', '${role}', '${sid}');`);
+await mkUser(KEPSEK, 'KS-1', 'KEPSEK', S1.sid);
+await mkUser(ADMIN, 'AD-1', 'ADMINISTRATIVE', S1.sid);
+await mkUser(KEPSEK_X, 'KS-X', 'KEPSEK', S7.sid);
+const status = async (auth) => (await as(auth, 'SELECT public.fn_region_sharing_status() AS s')).rows[0].s;
+const setShare = async (auth, v) => (await as(auth, `SELECT public.fn_set_region_sharing(${v}) AS s`)).rows[0].s;
+const logCount = async () => (await db.query(`SELECT count(*)::int AS n FROM region_sharing_log WHERE school_id = '${S1.sid}'`)).rows[0].n;
+
+await test('status: guru biasa ditolak 42501', async () => {
+  assert.equal(await code(GURU_AUTH, 'SELECT public.fn_region_sharing_status()'), '42501');
+});
+await test('status: ADMINISTRATIVE boleh membaca tetapi tidak boleh mengubah', async () => {
+  const st = await status(ADMIN);
+  assert.equal(st.dibagikan, true);
+  assert.equal(st.dapat_mengubah, false);
+  assert.equal(st.wilayah, 'Kecamatan A');
+});
+await test('ubah: ADMINISTRATIVE dan guru ditolak 42501', async () => {
+  assert.equal(await code(ADMIN, 'SELECT public.fn_set_region_sharing(false)'), '42501');
+  assert.equal(await code(GURU_AUTH, 'SELECT public.fn_set_region_sharing(false)'), '42501');
+  assert.equal(await logCount(), 0);
+});
+await test('ubah: KEPSEK mencabut persetujuan, sekolah langsung hilang dari dashboard wilayah', async () => {
+  const st = await setShare(KEPSEK, false);
+  assert.equal(st.dibagikan, false);
+  assert.equal(st.dapat_mengubah, true);
+  const o = await overview(STAFF_A);
+  assert.ok(!o.sekolah.some((x) => x.nama === 'SMA Satu'));
+  assert.equal(await logCount(), 1);
+});
+await test('ubah: KEPSEK mengaktifkan lagi, sekolah muncul kembali, dua catatan log', async () => {
+  const st = await setShare(KEPSEK, true);
+  assert.equal(st.dibagikan, true);
+  const o = await overview(STAFF_A);
+  assert.ok(o.sekolah.some((x) => x.nama === 'SMA Satu'));
+  assert.equal(await logCount(), 2);
+});
+await test('ubah: nilai NULL ditolak (22023)', async () => {
+  assert.equal(await code(KEPSEK, 'SELECT public.fn_set_region_sharing(NULL)'), '22023');
+});
+await test('ubah: KEPSEK sekolah yang belum terdaftar di wilayah ditolak 22023 dan statusnya jelas', async () => {
+  assert.equal(await code(KEPSEK_X, 'SELECT public.fn_set_region_sharing(true)'), '22023');
+  const st = await status(KEPSEK_X);
+  assert.equal(st.terdaftar_di_wilayah, false);
+  assert.equal(st.dapat_mengubah, false);
+});
+await test('ubah: KEPSEK hanya menyentuh sekolahnya sendiri', async () => {
+  const smk = (await db.query(`SELECT share_with_region FROM schools WHERE school_id = '${S2.sid}'`)).rows[0].share_with_region;
+  assert.equal(smk, true);
+});
+await test('hak akses: anon tanpa EXECUTE pada fungsi persetujuan; log tertutup', async () => {
+  const g = async (r, f) => (await db.query(`SELECT has_function_privilege('${r}', '${f}', 'EXECUTE') AS v`)).rows[0].v;
+  assert.equal(await g('anon', 'public.fn_region_sharing_status()'), false);
+  assert.equal(await g('anon', 'public.fn_set_region_sharing(boolean)'), false);
+  assert.equal(await g('authenticated', 'public.fn_set_region_sharing(boolean)'), true);
+  const t = (await db.query(`SELECT has_table_privilege('authenticated', 'public.region_sharing_log', 'SELECT') AS v`)).rows[0].v;
+  assert.equal(t, false);
 });
 
 console.log(`REGION_LAYER_COMPLETE: ${passed} lulus; PGlite saja`);
