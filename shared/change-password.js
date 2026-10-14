@@ -46,6 +46,24 @@ function tolakPasswordAwal(pw) {
     return null;
 }
 
+/**
+ * Konfirmasi ke server bahwa password sudah diganti (mematikan must_change_password).
+ * Galat tidak boleh diabaikan: bila gagal, penanda tetap true dan pengguna akan
+ * diminta mengganti password lagi di login berikutnya. Dicoba hingga 3 kali.
+ * @returns {Promise<boolean>} true bila server mengonfirmasi
+ */
+async function konfirmasiPasswordDiganti(supabase) {
+    for (let i = 0; i < 3; i++) {
+        const { error } = await supabase.rpc('fn_confirm_password_changed');
+        if (!error) return true;
+        await new Promise(r => setTimeout(r, 400 * (i + 1)));
+    }
+    return false;
+}
+
+const PESAN_KONFIRMASI_GAGAL =
+    'Password sudah tersimpan, tetapi belum terkonfirmasi ke server. Klik "Simpan Password" sekali lagi.';
+
 function createModal(title, hint, forceMode = false) {
     const el = document.createElement('div');
     el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
@@ -100,6 +118,7 @@ export async function checkMustChangePassword(supabase, userRow) {
         const confInput = modal.querySelector('#cp-confirm');
         const status    = modal.querySelector('#cp-status');
         const submitBtn = modal.querySelector('#cp-submit');
+        let passwordTersimpan = false;
 
         submitBtn.addEventListener('click', async () => {
             const pw   = newInput.value;
@@ -110,15 +129,24 @@ export async function checkMustChangePassword(supabase, userRow) {
             if (tolakan)             { showStatus(status, tolakan, false); return; }
 
             submitBtn.disabled = true; submitBtn.textContent = 'Menyimpan…';
-            const { error } = await supabase.auth.updateUser({ password: pw });
-            if (error) {
-                showStatus(status, 'Gagal menyimpan. Coba lagi.', false);
-                submitBtn.disabled = false; submitBtn.textContent = 'Simpan Password';
-                return;
+            // Bila percobaan sebelumnya sudah menyimpan password tetapi konfirmasi
+            // gagal, jangan updateUser lagi (Supabase menolak password yang sama).
+            if (!passwordTersimpan) {
+                const { error } = await supabase.auth.updateUser({ password: pw });
+                if (error) {
+                    showStatus(status, 'Gagal menyimpan. Coba lagi.', false);
+                    submitBtn.disabled = false; submitBtn.textContent = 'Simpan Password';
+                    return;
+                }
+                passwordTersimpan = true;
             }
             // Konfirmasi via RPC server-side — satu-satunya jalur resmi
             // yang boleh mengubah must_change_password dan password_changed_at.
-            await supabase.rpc('fn_confirm_password_changed');
+            if (!(await konfirmasiPasswordDiganti(supabase))) {
+                showStatus(status, PESAN_KONFIRMASI_GAGAL, false);
+                submitBtn.disabled = false; submitBtn.textContent = 'Simpan Password';
+                return;
+            }
 
             showStatus(status, '✓ Password berhasil diubah!', true);
             submitBtn.style.display = 'none';
@@ -145,6 +173,7 @@ export function initChangePassword(supabase, triggerSelector) {
         const status    = modal.querySelector('#cp-status');
         const submitBtn = modal.querySelector('#cp-submit');
         const cancelBtn = modal.querySelector('#cp-cancel');
+        let passwordTersimpan = false;
 
         cancelBtn?.addEventListener('click', () => modal.remove());
 
@@ -172,16 +201,23 @@ export function initChangePassword(supabase, triggerSelector) {
                 }
             }
 
-            const { error } = await supabase.auth.updateUser({ password: pw });
-            if (error) {
-                showStatus(status, 'Gagal menyimpan. Coba lagi.', false);
-                submitBtn.disabled = false; submitBtn.textContent = 'Simpan Password';
-                return;
+            if (!passwordTersimpan) {
+                const { error } = await supabase.auth.updateUser({ password: pw });
+                if (error) {
+                    showStatus(status, 'Gagal menyimpan. Coba lagi.', false);
+                    submitBtn.disabled = false; submitBtn.textContent = 'Simpan Password';
+                    return;
+                }
+                passwordTersimpan = true;
             }
 
             // Konfirmasi via RPC server-side — satu-satunya jalur resmi
             // yang boleh mengubah must_change_password dan password_changed_at.
-            await supabase.rpc('fn_confirm_password_changed');
+            if (!(await konfirmasiPasswordDiganti(supabase))) {
+                showStatus(status, PESAN_KONFIRMASI_GAGAL, false);
+                submitBtn.disabled = false; submitBtn.textContent = 'Simpan Password';
+                return;
+            }
 
             showStatus(status, '✓ Password berhasil diubah!', true);
             submitBtn.style.display = 'none';

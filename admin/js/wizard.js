@@ -3745,6 +3745,11 @@ window.addEventListener('beforeunload', (e) => {
     // Paksa ganti password jika di-reset superadmin (must_change_password)
     // — dicek di sini juga agar berlaku saat wizard dibuka langsung (bookmark).
     await checkMustChangePassword(supabase, userRow);
+    // Admin yang baru saja mengganti password lewat modal wajib tidak perlu diminta
+    // sekali lagi oleh modal "pertama kali" (school_config.password_changed) di bawah.
+    if (userRow?.must_change_password) {
+        try { await upsertSchoolConfig({ password_changed: true }); } catch (_) { /* tidak fatal */ }
+    }
 
     // Tombol logout di header — di-wire lebih awal agar tetap berfungsi
     // bahkan saat wizard terblokir oleh modal ganti password.
