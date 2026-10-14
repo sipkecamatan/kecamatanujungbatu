@@ -295,7 +295,28 @@ function relabelSteps() {
     });
 }
 
+// Dipanggil dari goToStep supaya berlaku di jalur masuk mana pun (login awal,
+// setelah ganti kata sandi, loncat lewat sidebar).
+let jenjangChecked = false;
+async function ensureJenjang() {
+    if (jenjangChecked) return;
+    jenjangChecked = true;
+    try {
+        const cfg = await getSchoolConfig();
+        if (!cfg?.school_id) { jenjangChecked = false; return; }
+        const { data: sch } = await supabase.from('schools').select('jenjang')
+            .eq('school_id', cfg.school_id).maybeSingle();
+        if (sch?.jenjang === 'SMP') {
+            const ada = await getPrograms();
+            if (!ada.some(p => p.code === 'UMUM')) await addProgram({ code: 'UMUM', name: 'Umum' });
+            skipProgramStep = true;
+            state.completedSteps.add(3);
+        }
+    } catch (_) { skipProgramStep = false; jenjangChecked = false; }
+}
+
 async function goToStep(n) {
+    await ensureJenjang();
     if (skipProgramStep && n === 3) n = state.currentStep > 3 ? 2 : 4;
     if (n < 1 || n > TOTAL_STEPS) return;
     clearError();
@@ -3773,18 +3794,6 @@ window.addEventListener('beforeunload', (e) => {
         showPasswordModal(true);
         return;
     }
-
-    // Jenjang SMP: lewati langkah Program Keahlian, siapkan program bawaan "UMUM".
-    try {
-        const { data: sch } = await supabase.from('schools').select('jenjang')
-            .eq('school_id', config.school_id).maybeSingle();
-        if (sch?.jenjang === 'SMP') {
-            const ada = await getPrograms();
-            if (!ada.some(p => p.code === 'UMUM')) await addProgram({ code: 'UMUM', name: 'Umum' });
-            skipProgramStep = true;
-            state.completedSteps.add(3);
-        }
-    } catch (_) { skipProgramStep = false; }
 
     const hashStep = parseInt(location.hash.slice(1), 10);
     await goToStep((hashStep >= 1 && hashStep <= TOTAL_STEPS) ? hashStep : 1);
