@@ -12,11 +12,11 @@
  *
  * Request body (JSON), field "action":
  *   { action: "list" }
- *   { action: "create_region", name, parent_region_id? }
- *   { action: "set_parent", region_id, parent_region_id|null }   -> hierarki; melingkar ditolak
+ *   { action: "create_region", name, level? }   level: KECAMATAN (bawaan) | KABUPATEN | PROVINSI
  *   { action: "add_staff", region_id, full_name, email }      -> kata sandi sementara, tampil sekali
  *   { action: "remove_staff", auth_user_id }
- *   { action: "assign_school", school_id, region_id|null, jenjang|null }
+ *   { action: "assign_school", school_id, region_id|null, jenjang|null, kabupaten_id?, provinsi_id? }
+ *     region_id = kecamatan sekolah; kabupaten_id/provinsi_id opsional (wilayah berjenis sesuai)
  *
  * PERSETUJUAN: fungsi ini TIDAK PERNAH mengubah schools.share_with_region menjadi true.
  * Persetujuan berbagi data adalah hak kepala sekolah. Memindahkan atau melepas sekolah
@@ -29,6 +29,7 @@ import { internalError }           from '../_shared/response.ts';
 import { getAdminClient }          from '../_shared/db.ts';
 
 const JENJANG = ['SMP', 'SMA', 'SMK'] as const;
+const LEVEL   = ['KECAMATAN', 'KABUPATEN', 'PROVINSI'] as const;
 const UUID_RE  = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -62,9 +63,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
         // ── list ──────────────────────────────────────────────
         if (action === 'list') {
             const [regions, schools, staff] = await Promise.all([
-                admin.from('regions').select('region_id, name, parent_region_id').order('name'),
+                admin.from('regions').select('region_id, name, level').order('name'),
                 admin.from('schools')
-                     .select('school_id, name, slug, jenjang, region_id, share_with_region, is_active')
+                     .select('school_id, name, slug, jenjang, region_id, kabupaten_id, provinsi_id, share_with_region, is_active')
                      .order('name'),
                 admin.from('region_staff').select('auth_user_id, region_id, full_name'),
             ]);
@@ -78,7 +79,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             }
 
             return json({
-                regions: ((regions.data ?? []) as { region_id: string; name: string; parent_region_id: string | null }[]).map((g) => ({
+                regions: ((regions.data ?? []) as { region_id: string; name: string; level: string | null }[]).map((g) => ({
                     ...g,
                     schools: ((schools.data ?? []) as { region_id: string | null }[])
                         .filter((s) => s.region_id === g.region_id),
@@ -97,43 +98,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
             if (name.length < 3 || name.length > 100) {
                 return json({ error: 'name wajib 3-100 karakter' }, 400);
             }
-            const parentId = body?.parent_region_id == null || body.parent_region_id === ''
-                ? null : String(body.parent_region_id);
-            if (parentId !== null) {
-                if (!UUID_RE.test(parentId)) return json({ error: 'parent_region_id tidak valid' }, 400);
-                const { data: par } = await admin.from('regions')
-                    .select('region_id').eq('region_id', parentId).maybeSingle();
-                if (!par) return json({ error: 'wilayah induk tidak ditemukan' }, 404);
+            const level = body?.level == null || body.level === '' ? 'KECAMATAN' : String(body.level);
+            if (!(LEVEL as readonly string[]).includes(level)) {
+                return json({ error: 'level harus KECAMATAN, KABUPATEN, atau PROVINSI' }, 400);
             }
             const { data, error } = await admin.from('regions')
-                .insert({ name, parent_region_id: parentId }).select('region_id, name, parent_region_id').single();
+                .insert({ name, level }).select('region_id, name, level').single();
             if (error) {
                 if (error.code === '23505') return json({ error: `Wilayah "${name}" sudah ada` }, 409);
                 throw error;
             }
             return json({ success: true, region: data });
-        }
-
-        // ── set_parent ────────────────────────────────────────
-        // Mengatur wilayah induk (kecamatan di bawah kabupaten, dst). null = tanpa induk.
-        if (action === 'set_parent') {
-            const regionId = String(body?.region_id ?? '');
-            const parentId = body?.parent_region_id == null || body.parent_region_id === ''
-                ? null : String(body.parent_region_id);
-            if (!UUID_RE.test(regionId)) return json({ error: 'region_id tidak valid' }, 400);
-            if (parentId !== null && !UUID_RE.test(parentId)) return json({ error: 'parent_region_id tidak valid' }, 400);
-            if (parentId !== null) {
-                const { data: par } = await admin.from('regions')
-                    .select('region_id').eq('region_id', parentId).maybeSingle();
-                if (!par) return json({ error: 'wilayah induk tidak ditemukan' }, 404);
-            }
-            const { error } = await admin.from('regions')
-                .update({ parent_region_id: parentId }).eq('region_id', regionId);
-            if (error) {
-                if (error.code === '23514') return json({ error: 'hirarki wilayah tidak boleh melingkar' }, 400);
-                throw error;
-            }
-            return json({ success: true });
         }
 
         // ── add_staff ─────────────────────────────────────────
@@ -201,7 +176,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             }
 
             const { data: school } = await admin.from('schools')
-                .select('school_id, region_id').eq('school_id', schoolId).maybeSingle();
+                .select('school_id, region_id, kabupaten_id, provinsi_id').eq('school_id', schoolId).maybeSingle();
             if (!school) return json({ error: 'sekolah tidak ditemukan' }, 404);
             if (regionId !== null) {
                 const { data: reg } = await admin.from('regions')
@@ -209,9 +184,35 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 if (!reg) return json({ error: 'wilayah tidak ditemukan' }, 404);
             }
 
-            // Persetujuan lama berlaku untuk wilayah lama: reset bila wilayah berubah.
-            const wilayahBerubah = (school.region_id ?? null) !== regionId;
-            const patch: Record<string, unknown> = { region_id: regionId, jenjang };
+            // Kabupaten dan provinsi sekolah: opsional. Kunci tidak dikirim = tidak diubah;
+            // dikirim kosong/null = dikosongkan. Melepas sekolah dari wilayah mengosongkan keduanya.
+            const pilihTingkat = async (key: 'kabupaten_id' | 'provinsi_id', level: string) => {
+                if (regionId === null) return { value: null as string | null };
+                if (!(key in (body ?? {}))) return { value: (school[key] ?? null) as string | null };
+                const raw = body[key] == null || body[key] === '' ? null : String(body[key]);
+                if (raw === null) return { value: null as string | null };
+                if (!UUID_RE.test(raw)) return { error: `${key} tidak valid` };
+                const { data: reg } = await admin.from('regions')
+                    .select('region_id, level').eq('region_id', raw).maybeSingle();
+                if (!reg) return { error: `${key}: wilayah tidak ditemukan` };
+                if (reg.level !== level) return { error: `${key} harus wilayah berjenis ${level}` };
+                return { value: raw as string | null };
+            };
+            const kab  = await pilihTingkat('kabupaten_id', 'KABUPATEN');
+            if ('error' in kab && kab.error) return json({ error: kab.error }, 400);
+            const prov = await pilihTingkat('provinsi_id', 'PROVINSI');
+            if ('error' in prov && prov.error) return json({ error: prov.error }, 400);
+            const kabupatenId = (kab as { value: string | null }).value;
+            const provinsiId  = (prov as { value: string | null }).value;
+
+            // Persetujuan lama berlaku untuk pihak yang melihat lama: reset bila salah satu
+            // dari kecamatan, kabupaten, atau provinsi berubah.
+            const wilayahBerubah = (school.region_id ?? null) !== regionId
+                || (school.kabupaten_id ?? null) !== kabupatenId
+                || (school.provinsi_id ?? null) !== provinsiId;
+            const patch: Record<string, unknown> = {
+                region_id: regionId, kabupaten_id: kabupatenId, provinsi_id: provinsiId, jenjang,
+            };
             if (wilayahBerubah) patch.share_with_region = false;
 
             const { error } = await admin.from('schools').update(patch).eq('school_id', schoolId);

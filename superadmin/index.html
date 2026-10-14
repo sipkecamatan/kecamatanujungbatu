@@ -162,9 +162,11 @@
                     <input type="text" id="region-name" class="input" placeholder="Nama wilayah (kecamatan, kabupaten, atau provinsi)" required minlength="3" maxlength="100">
                 </div>
                 <div class="field field-full">
-                    <label for="region-parent">Berada di bawah wilayah <span class="label-note">(opsional)</span></label>
-                    <select id="region-parent" class="input">
-                        <option value="">— tanpa induk —</option>
+                    <label for="region-level">Jenis wilayah</label>
+                    <select id="region-level" class="input">
+                        <option value="KECAMATAN">Kecamatan</option>
+                        <option value="KABUPATEN">Kabupaten</option>
+                        <option value="PROVINSI">Provinsi</option>
                     </select>
                 </div>
                 <div class="form-actions">

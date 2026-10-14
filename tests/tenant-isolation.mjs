@@ -2131,20 +2131,20 @@ async function main() {
     }
 
     // ══════════════════════════════════════════════════════
-    // CHECK 20 — Hierarki wilayah & agregat piket (migrasi 20261015000000)
+    // CHECK 20 — Wilayah tiga tingkat per sekolah & agregat piket (migrasi 20261015000000/010000)
     // ══════════════════════════════════════════════════════
     // MANDIRI — data sintetis dalam satu transaksi BEGIN...ROLLBACK.
-    //   Rantai: PROV > KAB > (KEC1, KEC2) dan PROV > KAB2 > KEC3.
+    //   Isian per sekolah: A(KEC1,KAB,PROV) B(KEC2,KAB,PROV) C(KEC3,KAB2,PROV) D(KEC1,KAB,PROV; tak dibagikan).
     //   H1 : pegawai provinsi melihat sekolah seluruh turunan
     //   H2 : pegawai kabupaten melihat sekolah kecamatan di bawahnya, bukan kabupaten lain
     //   H3 : pegawai kecamatan hanya melihat wilayahnya (tidak ke samping, tidak ke atas)
     //   H4 : tren sekolah kecamatan lain (samping) kosong untuk pegawai kecamatan
-    //   H5 : rantai melingkar ditolak (23514)
-    //   S1 : fn_region_scope_ids — anon tanpa EXECUTE, SECURITY DEFINER, search_path terkunci
+    //   H5 : jenis wilayah di luar KECAMATAN/KABUPATEN/PROVINSI ditolak (23514)
+    //   S1 : kolom schools.kabupaten_id dan provinsi_id serta regions.level ada
     //   T1 : 1–4 keterlambatan disembunyikan (NULL); sekolah tanpa catatan = 0
     //   T2 : 5 keterlambatan tampil apa adanya
     //   T3 : keluaran ringkasan tidak memuat alasan atau student_id
-    log.head('CHECK 20 — Hierarki wilayah & agregat piket (BEGIN...ROLLBACK)');
+    log.head('CHECK 20 — Wilayah tiga tingkat & agregat piket (BEGIN...ROLLBACK)');
     {
         const U = (n) => `00000000-0000-0000-0000-0000000f20${String(n).padStart(2, '0')}`;
         const PROV = U(1), KAB = U(2), KAB2 = U(3), KEC1 = U(4), KEC2 = U(5), KEC3 = U(6);
@@ -2153,10 +2153,10 @@ async function main() {
         const ST_KEC = U(31), ST_KAB = U(32), ST_PROV = U(33);
         const U_GURU = U(41), A_GURU = U(42);
         const claims = (sub) => `select set_config('request.jwt.claims', '{"sub":"${sub}","role":"authenticated"}', true);`;
-        const sch = [[SA, 'SMA', true,  'c20-a', 'C20 A', KEC1, P_[0]],
-                     [SB, 'SMK', true,  'c20-b', 'C20 B', KEC2, P_[1]],
-                     [SC, 'SMP', true,  'c20-c', 'C20 C', KEC3, P_[2]],
-                     [SD, 'SMA', false, 'c20-d', 'C20 D', KEC1, P_[3]]];
+        const sch = [[SA, 'SMA', true,  'c20-a', 'C20 A', KEC1, KAB,  P_[0]],
+                     [SB, 'SMK', true,  'c20-b', 'C20 B', KEC2, KAB,  P_[1]],
+                     [SC, 'SMP', true,  'c20-c', 'C20 C', KEC3, KAB2, P_[2]],
+                     [SD, 'SMA', false, 'c20-d', 'C20 D', KEC1, KAB,  P_[3]]];
         const names = (who) =>
             ` ${claims(who[0])}` +
             ` do $b$ declare r jsonb; begin r := public.fn_region_overview(30);` +
@@ -2177,15 +2177,14 @@ async function main() {
             rows20 = await mgmtQuery(
                 `begin;` +
                 ` create temp table _f20 (k text primary key, v text) on commit drop;` +
-                ` insert into regions (region_id, name) values ('${PROV}', 'CHECK20-PROV');` +
-                ` insert into regions (region_id, name, parent_region_id) values` +
-                `  ('${KAB}', 'CHECK20-KAB', '${PROV}'), ('${KAB2}', 'CHECK20-KAB2', '${PROV}');` +
-                ` insert into regions (region_id, name, parent_region_id) values` +
-                `  ('${KEC1}', 'CHECK20-KEC1', '${KAB}'), ('${KEC2}', 'CHECK20-KEC2', '${KAB}'), ('${KEC3}', 'CHECK20-KEC3', '${KAB2}');` +
-                sch.map(([sid, jj, share, slug, nama, reg]) =>
-                    ` insert into schools (school_id, name, slug, region_id, jenjang, share_with_region, is_active)` +
-                    ` values ('${sid}', '${nama}', '${slug}', '${reg}', '${jj}', ${share}, true);`).join('') +
-                sch.map(([sid, , , slug, , , pid]) =>
+                ` insert into regions (region_id, name, level) values` +
+                `  ('${PROV}', 'CHECK20-PROV', 'PROVINSI'),` +
+                `  ('${KAB}', 'CHECK20-KAB', 'KABUPATEN'), ('${KAB2}', 'CHECK20-KAB2', 'KABUPATEN'),` +
+                `  ('${KEC1}', 'CHECK20-KEC1', 'KECAMATAN'), ('${KEC2}', 'CHECK20-KEC2', 'KECAMATAN'), ('${KEC3}', 'CHECK20-KEC3', 'KECAMATAN');` +
+                sch.map(([sid, jj, share, slug, nama, reg, kab]) =>
+                    ` insert into schools (school_id, name, slug, region_id, kabupaten_id, provinsi_id, jenjang, share_with_region, is_active)` +
+                    ` values ('${sid}', '${nama}', '${slug}', '${reg}', '${kab}', '${PROV}', '${jj}', ${share}, true);`).join('') +
+                sch.map(([sid, , , slug, , , , pid]) =>
                     ` insert into programs (program_id, code, name, school_id) values ('${pid}', 'UMUM', 'Umum', '${sid}');` +
                     [1, 2, 3].map((i) =>
                         ` insert into students (student_id, nis, full_name, program_id, school_id)` +
@@ -2196,16 +2195,13 @@ async function main() {
                 `  values ('${U_GURU}', '${A_GURU}', 'Guru C20', 'guru-c20@staff.internal', 'C20-GURU', 'NIP', 'GURU', '${SA}');` +
 
                 // ── struktural ──
-                ` do $b$ declare bad text := ''; begin` +
-                `   if has_function_privilege('anon', 'public.fn_region_scope_ids()', 'EXECUTE') then bad := bad || 'anon-exec '; end if;` +
-                `   if not exists (select 1 from pg_proc p where p.proname = 'fn_region_scope_ids' and p.pronamespace = 'public'::regnamespace` +
-                `        and p.prosecdef and exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%'))` +
-                `     then bad := bad || 'secdef/search_path '; end if;` +
-                `   insert into _f20 values ('S1', coalesce(nullif(trim(bad), ''), 'ok'));` +
-                ` end $b$;` +
+                ` insert into _f20 values ('S1', case when (select count(*) from information_schema.columns` +
+                `   where table_schema = 'public' and table_name = 'schools' and column_name in ('kabupaten_id','provinsi_id')) = 2` +
+                `   and exists (select 1 from information_schema.columns where table_schema = 'public'` +
+                `   and table_name = 'regions' and column_name = 'level') then 'ok' else 'kolom tidak lengkap' end);` +
 
-                // ── H5: rantai melingkar ──
-                ` do $b$ begin update regions set parent_region_id = '${KEC1}' where region_id = '${PROV}';` +
+                // ── H5: jenis wilayah tidak sah ──
+                ` do $b$ begin insert into regions (name, level) values ('CHECK20-DESA', 'DESA');` +
                 `   insert into _f20 values ('H5', 'BREACH');` +
                 ` exception when others then insert into _f20 values ('H5', sqlstate); end $b$;` +
 
@@ -2250,16 +2246,15 @@ async function main() {
                 else if (R[k] === want) log.pass(okMsg);
                 else log.fail(`${failMsg} (terukur=${String(R[k]).slice(0, 160)})`);
             };
-            eq('S1', 'ok', 'S1: fn_region_scope_ids — anon tanpa EXECUTE, SECURITY DEFINER, search_path terkunci',
-                'S1: fn_region_scope_ids tidak aman');
-            eq('H1', 'C20 A,C20 B,C20 C', 'H1: pegawai provinsi melihat sekolah seluruh turunan (A, B, C); D tak dibagikan tersembunyi',
+            eq('S1', 'ok', 'S1: kolom kabupaten_id, provinsi_id (schools) dan level (regions) ada', 'S1: kolom tiga tingkat tidak lengkap');
+            eq('H1', 'C20 A,C20 B,C20 C', 'H1: pegawai provinsi melihat sekolah berisian provinsinya (A, B, C); D tak dibagikan tersembunyi',
                 'H1: cakupan provinsi tidak sesuai');
-            eq('H2', 'C20 A,C20 B', 'H2: pegawai kabupaten melihat kecamatan di bawahnya, bukan kabupaten lain (C)',
+            eq('H2', 'C20 A,C20 B', 'H2: pegawai kabupaten melihat sekolah berisian kabupatennya, bukan kabupaten lain (C)',
                 'H2: cakupan kabupaten tidak sesuai');
             eq('H3', 'C20 A', 'H3: pegawai kecamatan hanya wilayahnya (tidak ke samping/atas; D tak dibagikan)',
                 'H3: cakupan kecamatan bocor');
             eq('H4', '0', 'H4: tren sekolah kecamatan lain kosong bagi pegawai kecamatan', 'H4: tren sekolah samping terbaca');
-            eq('H5', '23514', 'H5: rantai melingkar ditolak (23514)', 'H5: rantai melingkar diterima');
+            eq('H5', '23514', 'H5: jenis wilayah tidak sah ditolak (23514)', 'H5: jenis wilayah tidak sah diterima');
 
             if (R.Tdata && R.Tdata !== 'ok') {
                 log.warn(`CHECK 20 T1–T3 SKIP — data piket sintetis tidak dapat disisipkan (${String(R.Tdata).slice(0, 140)})`);

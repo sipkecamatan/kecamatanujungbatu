@@ -705,27 +705,21 @@ async function loadRegions() {
         if (sel) {
             const cur = sel.value;
             sel.replaceChildren(h('option', { value: '' }, '— tanpa wilayah —'),
-                ...d.regions.map(r => h('option', { value: r.region_id }, r.name)));
+                ...d.regions.filter(r => r.level === 'KECAMATAN' || r.level == null)
+                    .map(r => h('option', { value: r.region_id }, r.name)));
             sel.value = cur;
         }
 
-        // pilihan wilayah induk pada form pembuatan wilayah
-        const parentSel = document.getElementById('region-parent');
-        if (parentSel) {
-            const curParent = parentSel.value;
-            parentSel.replaceChildren(h('option', { value: '' }, '— tanpa induk —'),
-                ...d.regions.map(r => h('option', { value: r.region_id }, r.name)));
-            parentSel.value = curParent;
-        }
-        const namaWilayah = Object.fromEntries(d.regions.map(r => [r.region_id, r.name]));
+        // pilihan kabupaten dan provinsi untuk tiap sekolah
+        const opsiKab  = d.regions.filter(r => r.level === 'KABUPATEN');
+        const opsiProv = d.regions.filter(r => r.level === 'PROVINSI');
+        const LEVEL_LABEL = { KECAMATAN: 'Kecamatan', KABUPATEN: 'Kabupaten', PROVINSI: 'Provinsi' };
 
         if (!d.regions.length) listEl.append(h('p', { class: 'hint' }, 'Belum ada wilayah. Buat satu di atas.'));
 
         for (const r of d.regions) {
             const card = h('div', { class: 'section-card' }, h('h3', {}, r.name));
-            card.append(h('p', { class: 'hint' }, r.parent_region_id
-                ? `Berada di bawah: ${namaWilayah[r.parent_region_id] ?? '—'}`
-                : 'Tingkat teratas (tanpa induk)'));
+            card.append(h('p', { class: 'hint' }, `Jenis: ${LEVEL_LABEL[r.level] ?? 'Kecamatan'}`));
 
             // sekolah
             card.append(h('h4', {}, `Sekolah (${r.schools.length})`));
@@ -734,10 +728,16 @@ async function loadRegions() {
                 const jen = h('select', { class: 'input', style: 'width:auto' },
                     h('option', { value: '' }, '— jenjang —'),
                     ...JENJANG_OPSI.map(j => h('option', { value: j, selected: s.jenjang === j }, j)));
+                const pilihTingkat = (opsi, terpilih, label) => h('select', { class: 'input', style: 'width:auto', title: label },
+                    h('option', { value: '' }, `— ${label} —`),
+                    ...opsi.map(o => h('option', { value: o.region_id, selected: terpilih === o.region_id }, o.name)));
+                const kab  = pilihTingkat(opsiKab,  s.kabupaten_id, 'kabupaten');
+                const prov = pilihTingkat(opsiProv, s.provinsi_id,  'provinsi');
                 const simpan = h('button', { class: 'btn btn-sm', type: 'button', onclick: async () => {
                     try {
-                        await regionApi({ action: 'assign_school', school_id: s.school_id, region_id: r.region_id, jenjang: jen.value || null });
-                        showRegionMsg(`Jenjang ${s.name} disimpan.`, true); loadRegions();
+                        await regionApi({ action: 'assign_school', school_id: s.school_id, region_id: r.region_id, jenjang: jen.value || null,
+                                          kabupaten_id: kab.value || null, provinsi_id: prov.value || null });
+                        showRegionMsg(`Data ${s.name} disimpan.`, true); loadRegions();
                     } catch (e) { showRegionMsg(e.message, false); }
                 }}, 'Simpan');
                 const lepas = h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: async () => {
@@ -748,7 +748,7 @@ async function loadRegions() {
                     } catch (e) { showRegionMsg(e.message, false); }
                 }}, 'Lepas');
                 card.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0' },
-                    h('strong', {}, s.name), jen, simpan, lepas,
+                    h('strong', {}, s.name), jen, kab, prov, simpan, lepas,
                     h('span', { class: s.share_with_region ? 'badge badge-success' : 'badge' },
                         s.share_with_region ? 'Berbagi: disetujui' : 'Berbagi: belum disetujui')));
             }
@@ -809,7 +809,7 @@ document.getElementById('region-form').addEventListener('submit', async (ev) => 
     try {
         const nm = document.getElementById('region-name').value.trim();
         await regionApi({ action: 'create_region', name: nm,
-                          parent_region_id: document.getElementById('region-parent').value || null });
+                          level: document.getElementById('region-level').value || 'KECAMATAN' });
         document.getElementById('region-name').value = '';
         showRegionMsg(`Wilayah "${nm}" dibuat.`, true);
         await loadRegions();
