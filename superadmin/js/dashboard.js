@@ -273,6 +273,8 @@ document.getElementById('provision-form').addEventListener('submit', async (e) =
         logo_url:         document.getElementById('f-logo-url').value.trim() || null,
         primary_color:    document.getElementById('f-primary-color-hex').value.trim() || null,
         secondary_color:  document.getElementById('f-secondary-color-hex').value.trim() || null,
+        jenjang:          document.getElementById('f-jenjang').value || null,
+        region_id:        document.getElementById('f-region').value || null,
     };
 
     // SUP-05: slug ikut ke URL tenant (?school=<slug>). Format yang salah baru
@@ -642,4 +644,154 @@ document.addEventListener('superadmin-ready', () => {
     loadSchools();
     loadMaintenance();
     loadStorage();
+});
+
+// ── Wilayah (kecamatan) ─────────────────────────────────────────
+const JENJANG_OPSI = ['SMP', 'SMA', 'SMK'];
+
+async function regionApi(body) {
+    const saKey = getSaKey(); if (!saKey) throw new Error('Sesi berakhir');
+    const res  = await fetch(`${SUPABASE_URL}/functions/v1/manage-region`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-superadmin-key': saKey },
+        body:    JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
+    return data;
+}
+
+function showRegionMsg(msg, ok) {
+    const el = document.getElementById('region-result');
+    el.textContent = (ok ? '✓ ' : '✗ ') + msg;
+    el.className = 'alert ' + (ok ? 'alert-success' : 'alert-danger');
+    el.style.display = 'block';
+}
+
+function h(tag, props = {}, ...kids) {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+        if (k === 'class') n.className = v;
+        else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+        else if (v != null && v !== false) n.setAttribute(k, v === true ? '' : v);
+    }
+    for (const kid of kids.flat()) n.append(kid instanceof Node ? kid : document.createTextNode(String(kid ?? '')));
+    return n;
+}
+
+async function loadRegions() {
+    const listEl = document.getElementById('region-list');
+    try {
+        const d = await regionApi({ action: 'list' });
+        listEl.replaceChildren();
+
+        // pilihan wilayah pada form pendaftaran sekolah
+        const sel = document.getElementById('f-region');
+        if (sel) {
+            const cur = sel.value;
+            sel.replaceChildren(h('option', { value: '' }, '— tanpa wilayah —'),
+                ...d.regions.map(r => h('option', { value: r.region_id }, r.name)));
+            sel.value = cur;
+        }
+
+        if (!d.regions.length) listEl.append(h('p', { class: 'hint' }, 'Belum ada wilayah. Buat satu di atas.'));
+
+        for (const r of d.regions) {
+            const card = h('div', { class: 'section-card' }, h('h3', {}, r.name));
+
+            // sekolah
+            card.append(h('h4', {}, `Sekolah (${r.schools.length})`));
+            if (!r.schools.length) card.append(h('p', { class: 'hint' }, 'Belum ada sekolah.'));
+            for (const s of r.schools) {
+                const jen = h('select', { class: 'input', style: 'width:auto' },
+                    h('option', { value: '' }, '— jenjang —'),
+                    ...JENJANG_OPSI.map(j => h('option', { value: j, selected: s.jenjang === j }, j)));
+                const simpan = h('button', { class: 'btn btn-sm', type: 'button', onclick: async () => {
+                    try {
+                        await regionApi({ action: 'assign_school', school_id: s.school_id, region_id: r.region_id, jenjang: jen.value || null });
+                        showRegionMsg(`Jenjang ${s.name} disimpan.`, true); loadRegions();
+                    } catch (e) { showRegionMsg(e.message, false); }
+                }}, 'Simpan');
+                const lepas = h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: async () => {
+                    if (!confirm(`Lepas ${s.name} dari ${r.name}? Persetujuan berbagi akan direset.`)) return;
+                    try {
+                        await regionApi({ action: 'assign_school', school_id: s.school_id, region_id: null, jenjang: s.jenjang });
+                        showRegionMsg(`${s.name} dilepas dari wilayah.`, true); loadRegions(); loadSchools();
+                    } catch (e) { showRegionMsg(e.message, false); }
+                }}, 'Lepas');
+                card.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0' },
+                    h('strong', {}, s.name), jen, simpan, lepas,
+                    h('span', { class: s.share_with_region ? 'badge badge-success' : 'badge' },
+                        s.share_with_region ? 'Berbagi: disetujui' : 'Berbagi: belum disetujui')));
+            }
+
+            // tambah sekolah yang belum punya wilayah
+            if (d.schools_tanpa_wilayah.length) {
+                const pilih = h('select', { class: 'input', style: 'width:auto' },
+                    h('option', { value: '' }, '+ tempatkan sekolah…'),
+                    ...d.schools_tanpa_wilayah.map(s => h('option', { value: s.school_id }, s.name)));
+                pilih.addEventListener('change', async () => {
+                    if (!pilih.value) return;
+                    const sk = d.schools_tanpa_wilayah.find(x => x.school_id === pilih.value);
+                    try {
+                        await regionApi({ action: 'assign_school', school_id: pilih.value, region_id: r.region_id, jenjang: sk.jenjang ?? null });
+                        showRegionMsg(`${sk.name} ditempatkan di ${r.name}.`, true); loadRegions(); loadSchools();
+                    } catch (e) { showRegionMsg(e.message, false); }
+                });
+                card.append(pilih);
+            }
+
+            // pegawai
+            card.append(h('h4', { style: 'margin-top:14px' }, `Pegawai wilayah (${r.staff.length})`));
+            if (!r.staff.length) card.append(h('p', { class: 'hint' }, 'Belum ada pegawai.'));
+            for (const st of r.staff) {
+                card.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0' },
+                    h('strong', {}, st.full_name), h('span', { class: 'hint' }, st.email),
+                    h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: async () => {
+                        if (!confirm(`Hapus akses ${st.full_name}? Akun login juga dihapus.`)) return;
+                        try { await regionApi({ action: 'remove_staff', auth_user_id: st.auth_user_id }); showRegionMsg('Pegawai dihapus.', true); loadRegions(); }
+                        catch (e) { showRegionMsg(e.message, false); }
+                    }}, 'Hapus')));
+            }
+            const nama  = h('input', { class: 'input', placeholder: 'Nama lengkap pegawai', required: true, minlength: 3 });
+            const email = h('input', { class: 'input', type: 'email', placeholder: 'email@kecamatan.go.id', required: true });
+            const form  = h('form', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px', onsubmit: async (ev) => {
+                ev.preventDefault();
+                try {
+                    const out = await regionApi({ action: 'add_staff', region_id: r.region_id, full_name: nama.value.trim(), email: email.value.trim() });
+                    document.getElementById('staff-cred-email').textContent    = out.email;
+                    document.getElementById('staff-cred-password').textContent = out.password;
+                    document.getElementById('staff-cred-box').style.display = 'block';
+                    showRegionMsg(`Pegawai ${out.full_name} didaftarkan.`, true);
+                    nama.value = ''; email.value = ''; loadRegions();
+                } catch (e) { showRegionMsg(e.message, false); }
+            }}, nama, email, h('button', { class: 'btn btn-primary btn-sm', type: 'submit' }, '+ Daftarkan pegawai'));
+            card.append(form);
+
+            listEl.append(card);
+        }
+    } catch (e) {
+        listEl.replaceChildren(h('p', { class: 'hint' }, 'Gagal memuat wilayah: ' + e.message));
+    }
+}
+
+document.getElementById('region-form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const btn = document.getElementById('region-create-btn'); btn.disabled = true;
+    try {
+        const nm = document.getElementById('region-name').value.trim();
+        await regionApi({ action: 'create_region', name: nm });
+        document.getElementById('region-name').value = '';
+        showRegionMsg(`Wilayah "${nm}" dibuat.`, true);
+        await loadRegions();
+    } catch (e) { showRegionMsg(e.message, false); }
+    finally { btn.disabled = false; }
+});
+
+document.querySelector('.tab-btn[data-tab="regions"]').addEventListener('click', loadRegions);
+
+// Isi pilihan wilayah saat form pendaftaran sekolah dibuka (tanpa harus membuka tab Wilayah)
+document.getElementById("toggle-provision-btn").addEventListener("click", () => {
+    const sel = document.getElementById("f-region");
+    if (sel && sel.options.length <= 1) loadRegions();
 });

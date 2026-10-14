@@ -60,7 +60,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     try {
         const body = await req.json();
         const { school_name, npsn, address, phone, admin_name, admin_identifier,
-                slug, logo_url, primary_color, secondary_color } = body;
+                slug, logo_url, primary_color, secondary_color, jenjang, region_id } = body;
 
         if (!school_name || !admin_name || !admin_identifier) {
             return json({ error: 'school_name, admin_name, dan admin_identifier wajib diisi' }, 400);
@@ -91,6 +91,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
         // Spasi literal (bukan \s) — \s cocok tab/newline yang tidak valid di nomor telepon
         if (phone && !/^[0-9+\- ]{6,20}$/.test(String(phone).trim())) {
             return json({ error: 'phone hanya boleh angka, +, -, dan spasi; panjang 6-20' }, 400);
+        }
+
+        // Jenjang dan wilayah (opsional). Persetujuan berbagi data (share_with_region)
+        // TIDAK diatur di sini: itu hak kepala sekolah dan defaultnya false.
+        const jenjangVal = jenjang == null || String(jenjang).trim() === '' ? null : String(jenjang).trim().toUpperCase();
+        if (jenjangVal !== null && !['SMP', 'SMA', 'SMK'].includes(jenjangVal)) {
+            return json({ error: 'jenjang harus SMP, SMA, atau SMK' }, 400);
+        }
+        const regionVal = region_id == null || String(region_id).trim() === '' ? null : String(region_id).trim();
+        if (regionVal !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(regionVal)) {
+            return json({ error: 'region_id tidak valid' }, 400);
         }
 
         const primaryColor = primary_color == null || String(primary_color).trim() === ''
@@ -128,6 +139,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 address:         address         || null,
                 phone:           phone           || null,
                 slug:            resolvedSlug,
+                jenjang:         jenjangVal,
+                region_id:       regionVal,
                 logo_url:        logo_url        || null,
                 primary_color:   primaryColor,
                 secondary_color: secondaryColor,

@@ -41,7 +41,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const [schoolsRes, adminsRes, staffHealthRes, studentHealthRes, userCountsRes] = await Promise.all([
             admin
                 .from('schools')
-                .select('school_id, name, npsn, slug, phone, primary_color, is_active, created_at')
+                .select('school_id, name, npsn, slug, phone, primary_color, is_active, created_at, jenjang, region_id, share_with_region')
                 .order('created_at', { ascending: false }),
 
             // Data admin per sekolah (untuk fitur reset password + tampilan username).

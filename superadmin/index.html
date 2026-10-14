@@ -44,6 +44,7 @@
 <!-- Tab nav -->
 <nav class="tab-nav" role="tablist">
     <button class="tab-btn active" data-tab="schools" role="tab">🏫 Sekolah</button>
+    <button class="tab-btn" data-tab="regions" role="tab">🏛 Wilayah</button>
     <button class="tab-btn" data-tab="maintenance" role="tab">🛠 Pemeliharaan</button>
     <button class="tab-btn" data-tab="storage" role="tab">💾 Storage</button>
 </nav>
@@ -92,6 +93,19 @@
                     <input type="text" id="f-admin-id" class="input" placeholder="197801012005011001" required>
                 </div>
 
+                <div class="field">
+                    <label for="f-jenjang">Jenjang</label>
+                    <select id="f-jenjang" class="input">
+                        <option value="">— pilih —</option>
+                        <option value="SMP">SMP</option>
+                        <option value="SMA">SMA</option>
+                        <option value="SMK">SMK</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="f-region">Wilayah <span class="label-note">(opsional)</span></label>
+                    <select id="f-region" class="input"><option value="">— tanpa wilayah —</option></select>
+                </div>
                 <div class="field field-full field-divider">
                     <span class="field-section-label">Branding Sekolah</span>
                 </div>
@@ -137,6 +151,35 @@
     </div><!-- /tab schools -->
 
     <!-- ── TAB: Pemeliharaan ────────────────────────────────── -->
+    <!-- ════ TAB: WILAYAH ════ -->
+    <div class="tab-panel" data-panel="regions">
+        <div class="section-card">
+            <h3>🏛 Wilayah (Kecamatan)</h3>
+            <p class="hint">Alur: daftarkan sekolah → admin sekolah mengisi data → kepala sekolah menyetujui berbagi → pegawai wilayah melihat ringkasan. Persetujuan berbagi tidak dapat diatur dari sini.</p>
+            <form id="region-form" class="form-grid" style="margin-top:12px">
+                <div class="field field-full">
+                    <label for="region-name">Nama wilayah baru</label>
+                    <input type="text" id="region-name" class="input" placeholder="Kecamatan Ujungbatu" required minlength="3" maxlength="100">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="region-create-btn">Buat Wilayah</button>
+                </div>
+            </form>
+            <div id="region-result" class="alert" style="display:none;margin-top:10px"></div>
+        </div>
+
+        <div id="region-list"><p class="hint">Memuat…</p></div>
+
+        <div class="section-card" id="staff-cred-box" style="display:none">
+            <h3>Kredensial pegawai (tampil sekali)</h3>
+            <div class="cred-box" style="display:block">
+                <span class="cred-label">Email</span> <span class="cred-value" id="staff-cred-email"></span><br>
+                <span class="cred-label">Kata sandi sementara</span> <span class="cred-value" id="staff-cred-password"></span>
+            </div>
+            <p class="hint">Simpan sekarang di pengelola kata sandi dan sampaikan lewat jalur aman. Kata sandi tidak dapat dilihat lagi.</p>
+        </div>
+    </div><!-- /tab regions -->
+
     <div class="tab-panel" data-panel="maintenance">
         <div class="section-card">
             <h3>🛠 Pemeliharaan Sistem</h3>
