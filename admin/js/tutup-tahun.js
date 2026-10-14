@@ -29,7 +29,8 @@ const NEXT_LABELS = {
 const state = {
     config:                 null,
     currentStep:            1,
-    gradeXIIStudents:       [],
+    gradeXIIStudents:       [],   // siswa tingkat akhir (XII; kelas IX untuk SMP)
+    topGrade:               12,   // tingkat akhir jenjang: SMP 9, SMA/SMK 12
     graduationDone:         false,
     graduatedStudentIds:    [],
     notGraduatedStudentIds: [],
@@ -49,6 +50,8 @@ const labelEl = document.getElementById('wizard-progress-label');
 
 function showError(message) { errorEl.textContent = message; errorEl.style.display = 'block'; }
 function clearError() { errorEl.style.display = 'none'; }
+const ROMAN = { 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X', 11: 'XI', 12: 'XII' };
+const topRoman = () => ROMAN[state.topGrade] ?? String(state.topGrade);
 function esc(value) {
     const el = document.createElement('span');
     el.textContent = String(value ?? '');
@@ -122,7 +125,7 @@ async function renderStep() {
 async function fetchGradeXIIStudents(config) {
     // Tidak filter semester — enrollment hanya dibuat di semester 1,
     // semester 2 memakai data yang sama. Ambil semua semester tahun ini,
-    // filter grade_level=12 di sisi klien, deduplikasi per student_id.
+    // filter tingkat akhir (state.topGrade) di sisi klien, deduplikasi per student_id.
     const { data, error } = await supabase
         .from('class_enrollments')
         .select('student_id, class_id, semester, students!inner(student_id, full_name, nis, student_status), classes!inner(name, grade_level, programs(name))')
@@ -133,7 +136,7 @@ async function fetchGradeXIIStudents(config) {
 
     const seen = new Set();
     return data
-        .filter(r => r.classes.grade_level === 12)
+        .filter(r => r.classes.grade_level === state.topGrade)
         .filter(r => {
             if (seen.has(r.student_id)) return false;
             seen.add(r.student_id);
@@ -189,12 +192,12 @@ async function setupStep1() {
     const step1 = document.querySelector('.wizard-step[data-step="1"]');
     step1.innerHTML = `
         <div class="step-label">Langkah 1 dari 5</div>
-        <h3>Review Siswa Kelas XII</h3>
-        <p class="hint">Siswa yang terdaftar di kelas tingkat 12 pada tahun ajaran aktif.</p>
+        <h3>Review Siswa Kelas ${topRoman()}</h3>
+        <p class="hint">Siswa yang terdaftar di kelas tingkat ${state.topGrade} pada tahun ajaran aktif.</p>
 
         ${students.length === 0
-            ? `<div class="alert alert-warning" style="display:block">Tidak ada siswa kelas XII pada tahun ajaran ini.</div>`
-            : `${summaryCard(students.length, 'Total Siswa Kelas XII')}${accordionHtml}`
+            ? `<div class="alert alert-warning" style="display:block">Tidak ada siswa kelas ${topRoman()} pada tahun ajaran ini.</div>`
+            : `${summaryCard(students.length, `Total Siswa Kelas ${topRoman()}`)}${accordionHtml}`
         }
     `;
 }
@@ -207,7 +210,7 @@ function setupStep2() {
     const students = state.gradeXIIStudents;
     const container = document.getElementById('graduation-list');
 
-    document.getElementById('graduation-summary').innerHTML = summaryCard(students.length, 'Total Siswa Kelas XII');
+    document.getElementById('graduation-summary').innerHTML = summaryCard(students.length, `Total Siswa Kelas ${topRoman()}`);
 
     if (students.length === 0) {
         container.innerHTML = '<p class="hint">Tidak ada siswa untuk diluluskan.</p>';
@@ -344,6 +347,8 @@ function summaryCard(number, label) {
 // ─────────────────────────────────────────────────────────────
 
 function suggestNextClassName(name) {
+    if (name.startsWith('VIII ')) return name.replace(/^VIII /, 'IX ');
+    if (name.startsWith('VII '))  return name.replace(/^VII /, 'VIII ');
     if (name.startsWith('XI ')) return name.replace(/^XI /, 'XII ');
     if (name.startsWith('X '))  return name.replace(/^X /, 'XI ');
     return `${name} (Lanjutan)`;
@@ -359,7 +364,7 @@ async function fetchPromotableClasses(config) {
         .from('classes')
         .select('class_id, name, program_id, grade_level, programs(name)')
         .eq('academic_year', config.current_academic_year)
-        .in('grade_level', [10, 11]);
+        .in('grade_level', [state.topGrade - 2, state.topGrade - 1]);
     if (classErr) throw classErr;
 
     // Fetch kelas tujuan: kelas grade 11 dan 12 yang sudah ada (tahun ajaran saat ini).
@@ -369,7 +374,7 @@ async function fetchPromotableClasses(config) {
         .from('classes')
         .select('class_id, name, grade_level')
         .eq('academic_year', config.current_academic_year)
-        .in('grade_level', [11, 12]);
+        .in('grade_level', [state.topGrade - 1, state.topGrade]);
     if (nextErr) throw nextErr;
 
     // Map nama kelas tujuan → { class_id, grade_level } (untuk validasi
@@ -448,7 +453,7 @@ async function setupStep3() {
     let allValid = true;
 
     if (state.sourceClasses.length === 0) {
-        container.innerHTML = '<p class="hint">Tidak ada kelas tingkat 10/11.</p>';
+        container.innerHTML = `<p class="hint">Tidak ada kelas tingkat ${state.topGrade - 2}/${state.topGrade - 1}.</p>`;
     } else {
         // Kelompokkan per program keahlian
         const byProgram = new Map();
@@ -727,7 +732,7 @@ function setupStep5() {
         <p><strong>${graduatedCount}</strong> siswa lulus</p>
         <p><strong>${promotedCount}</strong> siswa naik kelas</p>
         ${notProcessedCount > 0
-            ? `<p><strong>${notProcessedCount}</strong> siswa tidak diproses (kelas XII, tidak lulus, tidak ada jalur kenaikan kelas)</p>`
+            ? `<p><strong>${notProcessedCount}</strong> siswa tidak diproses (kelas ${topRoman()}, tidak lulus, tidak ada jalur kenaikan kelas)</p>`
             : ''}
         <p>Tahun ajaran baru aktif: <strong>${esc(state.newAcademicYear)} Semester ${esc(state.newSemester)}</strong></p>
     `;
@@ -742,6 +747,14 @@ function setupStep5() {
     if (!requireAdministrativeOrRedirect(userRow)) return;
 
     state.config = await getSchoolConfig();
+    // Tingkat akhir bergantung jenjang: SMP berakhir di kelas IX, selainnya kelas XII.
+    try {
+        const { data: sch } = await supabase.from('schools').select('jenjang')
+            .eq('school_id', state.config.school_id).maybeSingle();
+        state.topGrade = sch?.jenjang === 'SMP' ? 9 : 12;
+    } catch (_) { state.topGrade = 12; }
+    const dot = document.querySelector('.step-dot[data-step="1"]');
+    if (dot) dot.textContent = `Review Kelas ${topRoman()}`;
 
     const canProceed = await checkSemestersClosed(state.config);
     if (!canProceed) return;
