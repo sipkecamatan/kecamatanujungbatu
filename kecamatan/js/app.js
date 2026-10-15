@@ -56,7 +56,7 @@ function setError(id, msg) { const e = $(id); text(e, msg); e.hidden = !msg; }
 async function loadOverview() {
   setError('app-error', '');
   $('app-loading').hidden = false;
-  $('cards').hidden = $('sekolah-card').hidden = $('method-card').hidden = $('trend-card').hidden = true;
+  $('cards').hidden = $('jenjang-card').hidden = $('sekolah-card').hidden = $('method-card').hidden = $('trend-card').hidden = true;
 
   const { data, error } = await supabase.rpc('fn_region_overview', { p_days: state.days });
   $('app-loading').hidden = true;
@@ -98,6 +98,16 @@ function bangunCsv(o) {
                 piketCsv(o.total.terlambat, o.ambang_piket), piketCsv(o.total.izin_keluar, o.ambang_piket)]);
   } else {
     baris.push(['Tidak ditampilkan: kurang dari 3 sekolah membagikan data']);
+  }
+  baris.push([], ['SUBTOTAL JENJANG']);
+  if (o.per_jenjang && o.per_jenjang.length) {
+    baris.push(['Jenjang', 'Sekolah', 'Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar']);
+    for (const j of o.per_jenjang) {
+      baris.push([j.jenjang, j.jumlah_sekolah, j.siswa_aktif, j.orang_tua_aktif, j.cakupan_pct ?? '', j.kehadiran_pct ?? '',
+                  piketCsv(j.terlambat, o.ambang_piket), piketCsv(j.izin_keluar, o.ambang_piket)]);
+    }
+  } else {
+    baris.push(['Tidak ditampilkan: tidak ada jenjang dengan minimal 2 sekolah yang membagikan data']);
   }
   baris.push([], ['SEKOLAH'],
     ['Sekolah', 'Jenjang', 'Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar', 'Status data']);
@@ -166,6 +176,22 @@ function render() {
       : stat('Izin keluar', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
   );
   cards.hidden = false;
+
+  // Subtotal per jenjang: server hanya mengirim jenjang yang memiliki >= 2 sekolah berbagi.
+  const tj = $('tbl-jenjang').querySelector('tbody'); tj.replaceChildren();
+  for (const j of o.per_jenjang ?? []) {
+    tj.append(el('tr', {},
+      el('td', {}, j.jenjang === 'TIDAK_DIKETAHUI' ? '—' : j.jenjang),
+      el('td', { class: 'num' }, j.jumlah_sekolah),
+      el('td', { class: 'num' }, j.siswa_aktif),
+      el('td', { class: 'num' }, j.orang_tua_aktif),
+      el('td', { class: 'num' }, pct(j.cakupan_pct)),
+      el('td', { class: 'num' }, pct(j.kehadiran_pct)),
+      el('td', { class: 'num' }, piket(j.terlambat, o.ambang_piket)),
+      el('td', { class: 'num' }, piket(j.izin_keluar, o.ambang_piket)),
+    ));
+  }
+  $('jenjang-card').hidden = !(o.per_jenjang && o.per_jenjang.length);
 
   // Filter jenjang
   const jenjangs = ['SEMUA', ...new Set(o.sekolah.map((s) => s.jenjang || 'TIDAK_DIKETAHUI'))];
