@@ -91,3 +91,15 @@ tbody tr.row-sekolah:hover { background: var(--muted-bg); }
 #rentang-bebas { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 #rentang-bebas input[type="date"] { width: auto; padding: .45rem .55rem; }
 #rentang-bebas[hidden] { display: none; }
+
+/* Layar sempit (<= 520px): kartu dua kolom yang boleh menyusut, tanpa gulir mendatar halaman */
+.cards > *, .card { min-width: 0; }
+@media (max-width: 520px) {
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .stat { padding: 10px; }
+  .stat .v { font-size: 1.35rem; }
+  .stat .s { overflow-wrap: anywhere; }
+  .topbar-actions { width: 100%; }
+}
+.container { grid-template-columns: minmax(0, 1fr); }
+.container > * { min-width: 0; }
