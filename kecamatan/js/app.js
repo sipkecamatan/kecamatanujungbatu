@@ -93,16 +93,16 @@ function bangunCsv(o) {
   ];
   baris.push(['TOTAL']);
   if (o.total) {
-    baris.push(['Siswa aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar']);
-    baris.push([o.total.siswa_aktif, o.total.cakupan_pct ?? '', o.total.kehadiran_pct ?? '',
+    baris.push(['Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar']);
+    baris.push([o.total.siswa_aktif, o.total.orang_tua_aktif, o.total.cakupan_pct ?? '', o.total.kehadiran_pct ?? '',
                 piketCsv(o.total.terlambat, o.ambang_piket), piketCsv(o.total.izin_keluar, o.ambang_piket)]);
   } else {
     baris.push(['Tidak ditampilkan: kurang dari 3 sekolah membagikan data']);
   }
   baris.push([], ['SEKOLAH'],
-    ['Sekolah', 'Jenjang', 'Siswa aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar', 'Status data']);
+    ['Sekolah', 'Jenjang', 'Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar', 'Status data']);
   for (const s of o.sekolah) {
-    baris.push([s.nama, s.jenjang ?? '', s.siswa_aktif, s.cakupan_pct ?? '', s.kehadiran_pct ?? '',
+    baris.push([s.nama, s.jenjang ?? '', s.siswa_aktif, s.orang_tua_aktif, s.cakupan_pct ?? '', s.kehadiran_pct ?? '',
                 piketCsv(s.terlambat, o.ambang_piket), piketCsv(s.izin_keluar, o.ambang_piket),
                 (STATUS[s.status] || STATUS.TIDAK_ADA_JADWAL).label]);
   }
@@ -150,6 +150,9 @@ function render() {
       ? stat('Siswa aktif', o.total.siswa_aktif, 'seluruh sekolah yang tampil')
       : stat('Siswa aktif', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
     o.total
+      ? stat('Orang tua aktif', o.total.orang_tua_aktif, 'akun orang tua terdaftar di sekolah yang tampil')
+      : stat('Orang tua aktif', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
+    o.total
       ? stat('Cakupan input', pct(o.total.cakupan_pct), 'sesi terjadwal yang sudah dicatat')
       : stat('Cakupan input', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
     o.total
@@ -178,7 +181,7 @@ function render() {
   const tb = $('tbl-sekolah').querySelector('tbody'); tb.replaceChildren();
   const rows = o.sekolah.filter((s) => state.jenjang === 'SEMUA' || (s.jenjang || 'TIDAK_DIKETAHUI') === state.jenjang);
   if (!rows.length) {
-    tb.append(el('tr', {}, el('td', { colspan: 8, class: 'muted' }, 'Belum ada sekolah yang membagikan data pada filter ini.')));
+    tb.append(el('tr', {}, el('td', { colspan: 9, class: 'muted' }, 'Belum ada sekolah yang membagikan data pada filter ini.')));
   }
   for (const s of rows) {
     const st = STATUS[s.status] || STATUS.TIDAK_ADA_JADWAL;
@@ -187,6 +190,7 @@ function render() {
       el('td', {}, el('button', { class: 'link', type: 'button' }, s.nama)),
       el('td', {}, s.jenjang || '—'),
       el('td', { class: 'num' }, s.siswa_aktif),
+      el('td', { class: 'num' }, s.orang_tua_aktif),
       el('td', { class: 'num' },
         cov == null ? '—' : [el('span', { class: 'bar' }, el('span', { style: `width:${Math.min(cov, 100)}%` })), `${cov}%`]),
       el('td', { class: 'num' }, pct(s.kehadiran_pct)),

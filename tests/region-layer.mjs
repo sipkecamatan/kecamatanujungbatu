@@ -21,6 +21,7 @@ const migrationPerTingkat = read('supabase/migrations/20261015020000_region_shar
 const migrationKode = read('supabase/migrations/20261015030000_region_kode.sql');
 const migrationBersih = read('supabase/migrations/20261015040000_region_cleanup_parent.sql');
 const migrationSandi = read('supabase/migrations/20261015050000_region_staff_must_change_password.sql');
+const migrationOrtu = read('supabase/migrations/20261015060000_region_overview_orang_tua.sql');
 
 const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
 let passed = 0;
@@ -59,6 +60,7 @@ await db.exec(migrationBersih);
 // auth.jwt() pada Supabase membaca klaim token; tiruan di sini membaca setelan yang sama.
 await db.exec(`CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;`);
 await db.exec(migrationSandi);
+await db.exec(migrationOrtu);
 
 // Fixture: tiap sekolah punya 3 siswa, 10 sesi (10 hari terakhir), k sesi beratribut absensi,
 // dan `alpa` baris ALPA. Semua nama siswa memuat kata "RAHASIA" agar bocor mudah terdeteksi.
@@ -391,6 +393,44 @@ await test('wajib ganti kata sandi: penanda pada token menolak data; setelah dih
     await klaim('');
     assert.equal(await code(STAFF_A, 'SELECT public.fn_region_overview(30)'), 'OK');
   } finally { await klaim(''); }
+});
+
+// Orang tua aktif = users ber-role ORTU, is_active, deleted_at IS NULL, di sekolah yang tampil.
+async function tambahOrtu(sid, key, n, { aktif = true, hapus = false } = {}) {
+  for (let i = 1; i <= n; i++) {
+    await db.exec(`
+      INSERT INTO users (user_id, auth_user_id, full_name, email, login_identifier, identifier_type, role_type, school_id, is_active, deleted_at)
+      VALUES ('${uuid(seq++)}', '${uuid(seq++)}', 'RAHASIA Ortu ${key} ${aktif}${hapus} ${i}', 'ortu-${key}-${aktif}-${hapus}-${i}@ortu.internal',
+              'O-${key}-${aktif}-${hapus}-${i}', 'NIK', 'ORTU', '${sid}', ${aktif}, ${hapus ? 'now()' : 'NULL'});`);
+  }
+}
+await tambahOrtu(S1.sid, 'sma1', 2);
+await tambahOrtu(S1.sid, 'sma1', 1, { aktif: false });
+await tambahOrtu(S1.sid, 'sma1', 1, { hapus: true });
+await tambahOrtu(S2.sid, 'smk1', 1);
+await tambahOrtu(S4.sid, 'smp2', 3);
+await tambahOrtu(S5.sid, 'smkb', 4);
+
+await test('orang tua aktif: hanya ORTU aktif dan belum dihapus yang dihitung per sekolah', async () => {
+  const o = await overview(STAFF_A);
+  assert.equal(o.sekolah.find((s) => s.nama === 'SMA Satu').orang_tua_aktif, 2);
+  assert.equal(o.sekolah.find((s) => s.nama === 'SMK Satu').orang_tua_aktif, 1);
+  assert.equal(o.sekolah.find((s) => s.nama === 'SMP Satu').orang_tua_aktif, 0);
+});
+await test('orang tua aktif: guru dan staf tidak ikut dihitung; sekolah tak dibagikan dan wilayah lain tidak bocor', async () => {
+  const o = await overview(STAFF_A);
+  assert.ok(!o.sekolah.some((s) => s.nama === 'SMP Tutup'));
+  const jumlah = o.sekolah.reduce((a, s) => a + s.orang_tua_aktif, 0);
+  assert.equal(o.total.orang_tua_aktif, jumlah);
+  assert.equal(jumlah, 2 + 1 + 0 + 0);
+  const b = await overview(STAFF_B);
+  assert.equal(b.sekolah.find((s) => s.nama === 'SMK B').orang_tua_aktif, 4);
+});
+await test('orang tua aktif: total mengikuti ambang 3 sekolah; keluaran hanya hitungan, tanpa nama', async () => {
+  const b = await overview(STAFF_B);
+  assert.equal(b.total, null);
+  const text = JSON.stringify(await overview(STAFF_A));
+  assert.ok(!/RAHASIA|ortu\.internal|O-sma1/i.test(text));
 });
 
 console.log(`REGION_LAYER_COMPLETE: ${passed} lulus; PGlite saja`);
