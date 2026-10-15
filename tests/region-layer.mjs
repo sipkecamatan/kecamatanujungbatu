@@ -22,6 +22,7 @@ const migrationKode = read('supabase/migrations/20261015030000_region_kode.sql')
 const migrationBersih = read('supabase/migrations/20261015040000_region_cleanup_parent.sql');
 const migrationSandi = read('supabase/migrations/20261015050000_region_staff_must_change_password.sql');
 const migrationOrtu = read('supabase/migrations/20261015060000_region_overview_orang_tua.sql');
+const migrationRentang = read('supabase/migrations/20261015070000_region_range.sql');
 
 const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
 let passed = 0;
@@ -61,6 +62,7 @@ await db.exec(migrationBersih);
 await db.exec(`CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;`);
 await db.exec(migrationSandi);
 await db.exec(migrationOrtu);
+await db.exec(migrationRentang);
 
 // Fixture: tiap sekolah punya 3 siswa, 10 sesi (10 hari terakhir), k sesi beratribut absensi,
 // dan `alpa` baris ALPA. Semua nama siswa memuat kata "RAHASIA" agar bocor mudah terdeteksi.
@@ -431,6 +433,62 @@ await test('orang tua aktif: total mengikuti ambang 3 sekolah; keluaran hanya hi
   assert.equal(b.total, null);
   const text = JSON.stringify(await overview(STAFF_A));
   assert.ok(!/RAHASIA|ortu\.internal|O-sma1/i.test(text));
+});
+
+// ── Rentang waktu bebas ─────────────────────────────────────────────
+const rentang = async (authId, dari, sampai) =>
+  (await as(authId, `SELECT public.fn_region_overview_range(${dari}, ${sampai}) AS o`)).rows[0].o;
+
+await test('rentang: 30 hari terakhir identik dengan fn_region_overview(30)', async () => {
+  const a = await overview(STAFF_A, 30);
+  const b = await rentang(STAFF_A, 'CURRENT_DATE - 29', 'CURRENT_DATE');
+  assert.deepEqual(b.total, a.total);
+  assert.deepEqual(b.sekolah, a.sekolah);
+  assert.deepEqual(b.per_jenjang, a.per_jenjang);
+  assert.equal(b.jendela_hari, 30);
+});
+await test('rentang: hanya hari ini membatasi sesi (1 sesi per sekolah pada fixture)', async () => {
+  const o = await rentang(STAFF_A, 'CURRENT_DATE', 'CURRENT_DATE');
+  assert.equal(o.jendela_hari, 1);
+  assert.equal(o.dari, o.sampai);
+  assert.equal(o.sekolah.find((s) => s.nama === 'SMA Satu').sesi_terjadwal, 1);
+});
+await test('rentang: sepenuhnya di masa lalu tanpa sesi tidak menghasilkan sesi', async () => {
+  const o = await rentang(STAFF_A, 'CURRENT_DATE - 200', 'CURRENT_DATE - 100');
+  assert.ok(o.sekolah.every((s) => s.sesi_terjadwal === 0 && s.status === 'TIDAK_ADA_JADWAL'));
+});
+await test('rentang: tanggal akhir di masa depan dipotong ke hari ini', async () => {
+  const o = await rentang(STAFF_A, 'CURRENT_DATE - 5', 'CURRENT_DATE + 30');
+  assert.equal(o.jendela_hari, 6);
+});
+await test('rentang: awal setelah akhir dan lebih dari 366 hari ditolak 22023', async () => {
+  assert.equal(await code(STAFF_A, `SELECT public.fn_region_overview_range(CURRENT_DATE, CURRENT_DATE - 3)`), '22023');
+  assert.equal(await code(STAFF_A, `SELECT public.fn_region_overview_range(CURRENT_DATE - 400, CURRENT_DATE)`), '22023');
+  assert.equal(await code(STAFF_A, `SELECT public.fn_region_overview_range(CURRENT_DATE - 365, CURRENT_DATE)`), 'OK');
+});
+await test('rentang: aturan privasi sama (akun sekolah ditolak, total null di bawah 3 sekolah, tanpa nama)', async () => {
+  assert.equal(await code(GURU_AUTH, `SELECT public.fn_region_overview_range(NULL, NULL)`), '42501');
+  assert.equal(await code(null, `SELECT public.fn_region_overview_range(NULL, NULL)`), '42501');
+  const b = await rentang(STAFF_B, 'CURRENT_DATE - 29', 'CURRENT_DATE');
+  assert.equal(b.total, null);
+  assert.ok(!/RAHASIA|ortu.internal/i.test(JSON.stringify(await rentang(STAFF_A, 'NULL', 'NULL'))));
+});
+await test('tren rentang: mingguan dan bulanan mengembalikan baris; sekolah tak berhak kosong; akun sekolah ditolak', async () => {
+  const q = (id, g) => `SELECT * FROM public.fn_region_school_trend_range('${id}', CURRENT_DATE - 60, CURRENT_DATE, '${g}')`;
+  const mg = await as(STAFF_A, q(S1.sid, 'MINGGU'));
+  const bl = await as(STAFF_A, q(S1.sid, 'BULAN'));
+  assert.ok(mg.rows.length >= 1);
+  assert.ok(bl.rows.length >= 1 && bl.rows.length <= 2);
+  const tot = (r) => r.rows.reduce((a, x) => a + x.sesi_terjadwal, 0);
+  assert.equal(tot(mg), tot(bl));
+  for (const id of [S4.sid, S5.sid, uuid(999999)]) assert.equal((await as(STAFF_A, q(id, 'MINGGU'))).rows.length, 0);
+  assert.equal(await code(GURU_AUTH, q(S1.sid, 'MINGGU')), '42501');
+  assert.equal(await code(STAFF_A, `SELECT * FROM public.fn_region_school_trend_range('${S1.sid}', CURRENT_DATE, CURRENT_DATE - 1, 'MINGGU')`), '22023');
+});
+await test('rentang: anon tidak punya hak eksekusi', async () => {
+  const g = async (r, f) => (await db.query(`SELECT has_function_privilege('${r}', '${f}', 'EXECUTE') AS v`)).rows[0].v;
+  assert.equal(await g('anon', 'public.fn_region_overview_range(date, date)'), false);
+  assert.equal(await g('anon', 'public.fn_region_school_trend_range(uuid, date, date, text)'), false);
 });
 
 console.log(`REGION_LAYER_COMPLETE: ${passed} lulus; PGlite saja`);

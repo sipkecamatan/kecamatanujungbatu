@@ -1,5 +1,5 @@
 // Dashboard Wilayah (kecamatan, kabupaten, atau provinsi) — SPA read-only. Hanya memanggil dua fungsi agregat:
-//   fn_region_overview(p_days) dan fn_region_school_trend(p_school_id, p_weeks).
+//   fn_region_overview_range(p_from, p_to) dan fn_region_school_trend_range(p_school_id, p_from, p_to, p_granularitas).
 // Tidak membaca tabel sekolah mana pun secara langsung.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -11,7 +11,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 const $ = (id) => document.getElementById(id);
-const state = { overview: null, jenjang: 'SEMUA', days: 30, pengingatDitunda: false, wajibGanti: false };
+const state = { overview: null, jenjang: 'SEMUA', periode: '30', dari: null, sampai: null, pengingatDitunda: false, wajibGanti: false };
 
 // Pengingat unduh: tanggal terakhir diunduh disimpan di peramban pegawai, tidak di server.
 const KUNCI_UNDUH = 'sip-wilayah-terakhir-unduh';
@@ -53,12 +53,35 @@ function showView(name) {
 }
 function setError(id, msg) { const e = $(id); text(e, msg); e.hidden = !msg; }
 
+// ── Periode ──────────────────────────────────────────────────────
+// Tanggal dihitung di peramban (zona waktu pegawai) lalu dikirim sebagai YYYY-MM-DD.
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function hitungRentang() {
+  const kini = new Date(); kini.setHours(0, 0, 0, 0);
+  const p = state.periode, y = kini.getFullYear(), m = kini.getMonth();
+  if (/^d+$/.test(p)) { const a = new Date(kini); a.setDate(a.getDate() - (Number(p) - 1)); return { dari: iso(a), sampai: iso(kini) }; }
+  if (p === 'bulan-ini')   return { dari: iso(new Date(y, m, 1)), sampai: iso(kini) };
+  if (p === 'bulan-lalu')  return { dari: iso(new Date(y, m - 1, 1)), sampai: iso(new Date(y, m, 0)) };
+  if (p === 'semester')    return { dari: iso(new Date(y, m >= 6 ? 6 : 0, 1)), sampai: iso(kini) };       // Jul–Des atau Jan–Jun
+  if (p === 'tahun-ajaran') return { dari: iso(new Date(m >= 6 ? y : y - 1, 6, 1)), sampai: iso(kini) };   // mulai 1 Juli
+  if (p === 'tahun')       return { dari: iso(new Date(y, 0, 1)), sampai: iso(kini) };
+  if (p === 'bebas') {
+    const a = $('tgl-dari').value, b = $('tgl-sampai').value;
+    if (!a || !b || a > b || (new Date(b) - new Date(a)) / 86400000 > 365) return null;
+    return { dari: a, sampai: b > iso(kini) ? iso(kini) : b };
+  }
+  return null;
+}
+
 async function loadOverview() {
   setError('app-error', '');
   $('app-loading').hidden = false;
   $('cards').hidden = $('jenjang-card').hidden = $('sekolah-card').hidden = $('method-card').hidden = $('trend-card').hidden = true;
 
-  const { data, error } = await supabase.rpc('fn_region_overview', { p_days: state.days });
+  const r = hitungRentang();
+  if (!r) { $('app-loading').hidden = true; setError('app-error', 'Rentang tanggal tidak valid: awal harus sebelum akhir, paling lama 366 hari.'); return; }
+  state.dari = r.dari; state.sampai = r.sampai;
+  const { data, error } = await supabase.rpc('fn_region_overview_range', { p_from: r.dari, p_to: r.sampai });
   $('app-loading').hidden = true;
   if (error) {
     const denied = error.code === '42501' || /akses ditolak/i.test(error.message || '');
@@ -86,7 +109,7 @@ function bangunCsv(o) {
   const baris = [
     ['SIP - Dashboard Wilayah'],
     ['Wilayah', o.wilayah ?? ''],
-    ['Jendela waktu', `${o.dari} s.d. ${o.sampai} (${o.jendela_hari} hari)`],
+    ['Periode', `${o.dari} s.d. ${o.sampai} (${o.jendela_hari} hari)`],
     ['Diunduh', dibuat],
     ['Catatan', 'Angka agregat dari sekolah yang disetujui kepala sekolah; tidak memuat nama atau identitas siswa. Total tampil bila minimal 3 sekolah; keterlambatan dan izin keluar 1-4 ditulis "< 5"; kehadiran kosong bila cakupan input di bawah ' + o.ambang_cakupan_pct + '%.'],
     [],
@@ -232,11 +255,14 @@ function render() {
 
 async function loadTrend(s) {
   const card = $('trend-card');
-  text($('trend-title'), `Tren mingguan — ${s.nama}`);
+  const bulanan = (new Date(state.sampai) - new Date(state.dari)) / 86400000 > 90;
+  text($('trend-title'), `Tren ${bulanan ? 'bulanan' : 'mingguan'} — ${s.nama}`);
+  text($('th-periode'), bulanan ? 'Bulan mulai' : 'Minggu mulai');
   const tb = $('tbl-trend').querySelector('tbody');
   tb.replaceChildren(el('tr', {}, el('td', { colspan: 5, class: 'muted' }, 'Memuat…')));
   card.hidden = false;
-  const { data, error } = await supabase.rpc('fn_region_school_trend', { p_school_id: s.school_id, p_weeks: 6 });
+  const { data, error } = await supabase.rpc('fn_region_school_trend_range', {
+    p_school_id: s.school_id, p_from: state.dari, p_to: state.sampai, p_granularitas: bulanan ? 'BULAN' : 'MINGGU' });
   tb.replaceChildren();
   if (error || !data || !data.length) {
     tb.append(el('tr', {}, el('td', { colspan: 5, class: 'muted' }, error ? 'Gagal memuat tren.' : 'Belum ada data pada rentang ini.')));
@@ -244,7 +270,7 @@ async function loadTrend(s) {
   }
   for (const r of data) {
     tb.append(el('tr', {},
-      el('td', {}, tgl(r.minggu_mulai)),
+      el('td', {}, tgl(r.periode_mulai)),
       el('td', { class: 'num' }, r.sesi_terjadwal),
       el('td', { class: 'num' }, r.sesi_tercatat),
       el('td', { class: 'num' }, pct(r.cakupan_pct)),
@@ -276,7 +302,17 @@ $('logout-btn').addEventListener('click', async () => {
 $('unduh-btn').addEventListener('click', unduhCsv);
 $('pengingat-unduh').addEventListener('click', unduhCsv);
 $('pengingat-nanti').addEventListener('click', () => { state.pengingatDitunda = true; perbaruiPengingat(); });
-$('window').addEventListener('change', (e) => { state.days = Number(e.target.value); loadOverview(); });
+$('window').addEventListener('change', (e) => {
+  state.periode = e.target.value;
+  const bebas = state.periode === 'bebas';
+  $('rentang-bebas').hidden = !bebas;
+  if (bebas) {
+    if (!$('tgl-dari').value && state.dari) { $('tgl-dari').value = state.dari; $('tgl-sampai').value = state.sampai; }
+    return; // menunggu tombol Terapkan
+  }
+  loadOverview();
+});
+$('rentang-terapkan').addEventListener('click', loadOverview);
 
 // ── Ganti kata sandi ─────────────────────────────────────────────
 // Kata sandi lama diverifikasi dulu lewat signInWithPassword agar sesi yang

@@ -32,12 +32,23 @@
         <div id="wilayah" class="muted"></div>
       </div>
       <div class="topbar-actions">
-        <label class="muted" for="window">Jendela</label>
+        <label class="muted" for="window">Periode</label>
         <select id="window">
-          <option value="7">7 hari</option>
-          <option value="14">14 hari</option>
-          <option value="30" selected>30 hari</option>
+          <option value="7">7 hari terakhir</option>
+          <option value="14">14 hari terakhir</option>
+          <option value="30" selected>30 hari terakhir</option>
+          <option value="bulan-ini">Bulan ini</option>
+          <option value="bulan-lalu">Bulan lalu</option>
+          <option value="semester">Semester ini</option>
+          <option value="tahun-ajaran">Tahun ajaran ini</option>
+          <option value="tahun">Tahun kalender ini</option>
+          <option value="bebas">Rentang tanggal…</option>
         </select>
+        <span id="rentang-bebas" hidden>
+          <input id="tgl-dari" type="date" aria-label="Dari tanggal">
+          <input id="tgl-sampai" type="date" aria-label="Sampai tanggal">
+          <button id="rentang-terapkan" class="btn" type="button">Terapkan</button>
+        </span>
         <button id="unduh-btn" class="btn" type="button">Unduh data (CSV)</button>
         <button id="pw-open-btn" class="btn" type="button">Ganti kata sandi</button>
         <button id="logout-btn" class="btn" type="button">Keluar</button>
@@ -99,7 +110,7 @@
         <div class="card-head"><h2 id="trend-title">Tren mingguan</h2></div>
         <div class="table-wrap">
           <table id="tbl-trend">
-            <thead><tr><th>Minggu mulai</th><th class="num">Sesi terjadwal</th><th class="num">Sesi tercatat</th>
+            <thead><tr><th id="th-periode">Minggu mulai</th><th class="num">Sesi terjadwal</th><th class="num">Sesi tercatat</th>
               <th class="num">Cakupan</th><th class="num">Kehadiran</th></tr></thead>
             <tbody></tbody>
           </table>
