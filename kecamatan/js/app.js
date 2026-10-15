@@ -11,7 +11,17 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 const $ = (id) => document.getElementById(id);
-const state = { overview: null, jenjang: 'SEMUA', days: 30 };
+const state = { overview: null, jenjang: 'SEMUA', days: 30, pengingatDitunda: false };
+
+// Pengingat unduh: tanggal terakhir diunduh disimpan di peramban pegawai, tidak di server.
+const KUNCI_UNDUH = 'sip-wilayah-terakhir-unduh';
+const BATAS_HARI_UNDUH = 30;
+function bacaTerakhirUnduh() {
+  try { const v = localStorage.getItem(KUNCI_UNDUH); return v ? new Date(v) : null; } catch { return null; }
+}
+function simpanTerakhirUnduh() {
+  try { localStorage.setItem(KUNCI_UNDUH, new Date().toISOString()); } catch { /* tanpa penyimpanan: pengingat tetap muncul */ }
+}
 
 function text(el, value) { el.textContent = value == null ? '' : String(value); return el; }
 function el(tag, props = {}, ...kids) {
@@ -59,6 +69,70 @@ async function loadOverview() {
   }
   state.overview = data;
   render();
+}
+
+// ── Unduh CSV ────────────────────────────────────────────────────
+// Sel yang diawali = + - @ atau tab dipaksa menjadi teks agar tidak dibaca sebagai rumus.
+function selCsv(v) {
+  let s = v == null ? '' : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[",\n\r;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+const barisCsv = (arr) => arr.map(selCsv).join(',');
+const piketCsv = (v, ambang) => (v == null ? `< ${ambang ?? 5}` : v);
+
+function bangunCsv(o) {
+  const dibuat = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+  const baris = [
+    ['SIP - Dashboard Wilayah'],
+    ['Wilayah', o.wilayah ?? ''],
+    ['Jendela waktu', `${o.dari} s.d. ${o.sampai} (${o.jendela_hari} hari)`],
+    ['Diunduh', dibuat],
+    ['Catatan', 'Angka agregat dari sekolah yang disetujui kepala sekolah; tidak memuat nama atau identitas siswa. Total tampil bila minimal 3 sekolah; keterlambatan dan izin keluar 1-4 ditulis "< 5"; kehadiran kosong bila cakupan input di bawah ' + o.ambang_cakupan_pct + '%.'],
+    [],
+  ];
+  baris.push(['TOTAL']);
+  if (o.total) {
+    baris.push(['Siswa aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar']);
+    baris.push([o.total.siswa_aktif, o.total.cakupan_pct ?? '', o.total.kehadiran_pct ?? '',
+                piketCsv(o.total.terlambat, o.ambang_piket), piketCsv(o.total.izin_keluar, o.ambang_piket)]);
+  } else {
+    baris.push(['Tidak ditampilkan: kurang dari 3 sekolah membagikan data']);
+  }
+  baris.push([], ['SEKOLAH'],
+    ['Sekolah', 'Jenjang', 'Siswa aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar', 'Status data']);
+  for (const s of o.sekolah) {
+    baris.push([s.nama, s.jenjang ?? '', s.siswa_aktif, s.cakupan_pct ?? '', s.kehadiran_pct ?? '',
+                piketCsv(s.terlambat, o.ambang_piket), piketCsv(s.izin_keluar, o.ambang_piket),
+                (STATUS[s.status] || STATUS.TIDAK_ADA_JADWAL).label]);
+  }
+  return '\uFEFF' + baris.map(barisCsv).join('\r\n') + '\r\n';
+}
+
+function unduhCsv() {
+  const o = state.overview;
+  if (!o) return;
+  const nama = 'SIP-' + String(o.wilayah ?? 'wilayah').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+             + `-${o.dari}_${o.sampai}.csv`;
+  const url = URL.createObjectURL(new Blob([bangunCsv(o)], { type: 'text/csv;charset=utf-8' }));
+  const a = el('a', { href: url, download: nama });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  simpanTerakhirUnduh();
+  perbaruiPengingat();
+}
+
+function perbaruiPengingat() {
+  const kotak = $('pengingat');
+  const terakhir = bacaTerakhirUnduh();
+  const hari = terakhir ? Math.floor((Date.now() - terakhir.getTime()) / 86400000) : null;
+  const perlu = !!state.overview && !state.pengingatDitunda && (hari === null || hari >= BATAS_HARI_UNDUH);
+  kotak.hidden = !perlu;
+  if (perlu) {
+    text($('pengingat-teks'), hari === null
+      ? 'Anda belum pernah mengunduh salinan data. Unduh secara berkala agar Anda memiliki arsip angka wilayah.'
+      : `Terakhir diunduh ${hari} hari lalu. Unduh salinan data terbaru agar arsip Anda tetap mutakhir.`);
+  }
 }
 
 function render() {
@@ -123,6 +197,7 @@ function render() {
   }
   $('sekolah-card').hidden = false;
   $('method-card').hidden = false;
+  perbaruiPengingat();
 }
 
 async function loadTrend(s) {
@@ -168,6 +243,9 @@ $('logout-btn').addEventListener('click', async () => {
   state.overview = null;
   showView('login');
 });
+$('unduh-btn').addEventListener('click', unduhCsv);
+$('pengingat-unduh').addEventListener('click', unduhCsv);
+$('pengingat-nanti').addEventListener('click', () => { state.pengingatDitunda = true; perbaruiPengingat(); });
 $('window').addEventListener('change', (e) => { state.days = Number(e.target.value); loadOverview(); });
 
 // ── Ganti kata sandi ─────────────────────────────────────────────

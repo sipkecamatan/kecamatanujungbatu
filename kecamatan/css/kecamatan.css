@@ -81,3 +81,8 @@ tbody tr.row-sekolah:hover { background: var(--muted-bg); }
 .pw-dialog::backdrop { background: rgba(0,0,0,.6); }
 .pw-dialog input { width: 100%; box-sizing: border-box; }
 .pw-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+
+/* Pengingat unduh data */
+.pengingat { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 16px; border-color: #b45309; }
+.pengingat[hidden] { display: none; }
+.pengingat-aksi { display: inline-flex; gap: 8px; }

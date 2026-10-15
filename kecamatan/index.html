@@ -38,6 +38,7 @@
           <option value="14">14 hari</option>
           <option value="30" selected>30 hari</option>
         </select>
+        <button id="unduh-btn" class="btn" type="button">Unduh data (CSV)</button>
         <button id="pw-open-btn" class="btn" type="button">Ganti kata sandi</button>
         <button id="logout-btn" class="btn" type="button">Keluar</button>
       </div>
@@ -46,6 +47,14 @@
     <main class="container">
       <p id="app-error" class="error" role="alert" hidden></p>
       <p id="app-loading" class="muted">Memuat…</p>
+
+      <section id="pengingat" class="card pengingat" role="status" hidden>
+        <span id="pengingat-teks"></span>
+        <span class="pengingat-aksi">
+          <button id="pengingat-unduh" class="btn primary" type="button">Unduh sekarang</button>
+          <button id="pengingat-nanti" class="btn" type="button">Nanti</button>
+        </span>
+      </section>
 
       <section id="cards" class="cards" hidden></section>
 
@@ -88,6 +97,7 @@
           <li><strong>Total wilayah</strong> tampil bila sedikitnya 3 sekolah membagikan data; <strong>subtotal jenjang</strong> tampil bila jenjang itu punya sedikitnya 2 sekolah.</li>
           <li><strong>Terlambat</strong> dan <strong>izin keluar</strong>: jumlah catatan guru piket pada jendela waktu. Jumlah 1 sampai 4 ditampilkan sebagai &ldquo;&lt; 5&rdquo; agar tidak mengarah ke individu.</li>
           <li>Pegawai hanya melihat sekolah yang oleh superadmin dicatat berada di wilayahnya (sebagai kecamatan, kabupaten, atau provinsi), tidak sekolah wilayah lain.</li>
+          <li><strong>Unduh data (CSV)</strong>: menyimpan salinan angka yang tampil pada jendela waktu terpilih (total dan tiap sekolah). Berkas memuat nama wilayah, jendela waktu, dan tanggal unduh; aturan privasi sama dengan layar. Disarankan diunduh secara berkala; dasbor mengingatkan bila sudah lebih dari 30 hari.</li>
           <li>Hanya sekolah yang kepala sekolahnya menyetujui berbagi data yang tampil. Tidak ada nama atau data pribadi siswa.</li>
         </ul>
       </section>
