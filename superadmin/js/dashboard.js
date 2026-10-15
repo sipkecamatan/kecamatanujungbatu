@@ -234,9 +234,11 @@ async function loadSchools() {
     }
 }
 
-// ── Penghubungan sekolah dengan wilayah (kotak centang per tingkat) ──
-// Dicentang = penanda tingkat itu terpasang; tidak dicentang = terputus. Kotak terkunci sampai
-// tombol "Ubah" ditekan, dan perubahan baru berlaku setelah konfirmasi, agar tidak berubah tanpa sengaja.
+// ── Penghubungan sekolah dengan wilayah ──
+// Satu pilihan kecamatan (Kabupaten/Kota lalu Kecamatan, dari daftar resmi) dan tiga kotak centang.
+// Dicentang = penanda tingkat itu terpasang; tidak dicentang = terputus. Kabupaten dan provinsi mengikuti
+// kecamatan yang dipilih (tidak dipilih manual), sehingga tidak bisa tidak cocok.
+// Semua terkunci sampai tombol "Ubah penghubungan" ditekan, dan perubahan meminta konfirmasi.
 // Persetujuan berbagi tetap hak kepala sekolah: penanda saja tidak membuka data.
 const TINGKAT_WILAYAH = [
     { level: 'KECAMATAN', kolom: 'region_id',    bagi: 'share_with_region', judul: 'Kecamatan' },
@@ -247,17 +249,11 @@ const TINGKAT_WILAYAH = [
 async function isiKotakWilayah(listEl) {
     const kotak = [...listEl.querySelectorAll('.wilayah-box')];
     if (!kotak.length) return;
-    let d;
-    try { d = await regionApi({ action: 'list' }); }
+    let d, indeks;
+    try { [d, indeks] = await Promise.all([regionApi({ action: 'list' }), loadIndeksProvinsi()]); }
     catch (e) { kotak.forEach(k => k.replaceChildren(h('span', { class: 'hint' }, 'Gagal memuat penghubungan wilayah: ' + e.message))); return; }
 
     const wilayahId = Object.fromEntries(d.regions.map(r => [r.region_id, r]));
-    const idByKode  = Object.fromEntries(d.regions.filter(r => r.kode).map(r => [r.kode, r.region_id]));
-    const tunggal   = {};   // tingkat -> wilayah, hanya bila persis satu wilayah di tingkat itu
-    for (const t of TINGKAT_WILAYAH) {
-        const dgn = d.regions.filter(r => r.level === t.level);
-        tunggal[t.level] = dgn.length === 1 ? dgn[0] : null;
-    }
     const sekolahById = {};
     for (const r of d.regions) for (const s of r.schools) sekolahById[s.school_id] = s;
     for (const s of d.schools_tanpa_wilayah) sekolahById[s.school_id] = s;
@@ -266,36 +262,74 @@ async function isiKotakWilayah(listEl) {
         const s = sekolahById[el.dataset.schoolId];
         if (!s) { el.replaceChildren(h('span', { class: 'hint' }, 'Data wilayah sekolah tidak ditemukan.')); continue; }
 
-        // Wilayah sasaran tiap tingkat: yang sudah terpasang; bila belum, turunan dari kode kecamatan,
-        // atau satu-satunya wilayah di tingkat itu.
-        const sasaran = {};
-        for (const t of TINGKAT_WILAYAH) {
-            let id = s[t.kolom] || null;
-            if (!id) {
-                const kec = wilayahId[s.region_id || (tunggal.KECAMATAN && tunggal.KECAMATAN.region_id)];
-                const kode = kec && kec.kode;
-                if (t.level === 'KABUPATEN' && kode && kode.length === 7) id = idByKode[kode.slice(0, 4)] || null;
-                if (t.level === 'PROVINSI'  && kode && kode.length === 7) id = idByKode[kode.slice(0, 2)] || null;
-                if (!id && tunggal[t.level]) id = tunggal[t.level].region_id;
-            }
-            sasaran[t.level] = id;
-        }
+        // Kode wilayah yang terpasang saat ini (kecamatan 7 digit, kabupaten 4, provinsi 2)
+        const kodeKini = {};
+        for (const t of TINGKAT_WILAYAH) kodeKini[t.level] = (s[t.kolom] && wilayahId[s[t.kolom]] && wilayahId[s[t.kolom]].kode) || null;
+        const awalKec  = kodeKini.KECAMATAN;
+        const awalKab  = awalKec ? awalKec.slice(0, 4) : (kodeKini.KABUPATEN || '');
+        const awalProv = awalKec ? awalKec.slice(0, 2) : (kodeKini.KABUPATEN ? kodeKini.KABUPATEN.slice(0, 2) : (kodeKini.PROVINSI || (indeks.length === 1 ? indeks[0].kode : '')));
+
+        const selProv = h('select', { class: 'input', disabled: true, style: 'width:auto;' + (indeks.length > 1 ? '' : 'display:none'), 'aria-label': 'Provinsi' },
+            ...indeks.map(p => h('option', { value: p.kode }, 'Provinsi ' + p.nama)));
+        const selKab = h('select', { class: 'input', disabled: true, style: 'width:auto;max-width:100%', 'aria-label': 'Kabupaten / Kota' });
+        const selKec = h('select', { class: 'input', disabled: true, style: 'width:auto;max-width:100%', 'aria-label': 'Kecamatan' });
+        selProv.value = awalProv;
 
         const kotakCentang = {};
+        const labelTeks = {};
+        const rantai = { ref: null, kab: null, kec: null };   // hasil pilihan saat ini
+
+        const hitungRantai = () => {
+            const ref = rantai.ref;
+            const kab = ref ? ref.kabupaten.find(x => x.kode === selKab.value) : null;
+            const kec = kab ? kab.kecamatan.find(c => c.kode === selKec.value) : null;
+            rantai.kab = kab; rantai.kec = kec;
+            return {
+                PROVINSI:  ref ? { kode: ref.provinsi.kode, name: namaProv(ref.provinsi), level: 'PROVINSI' } : null,
+                KABUPATEN: kab ? { kode: kab.kode, name: namaKab(kab), level: 'KABUPATEN' } : null,
+                KECAMATAN: kab && kec ? { kode: kec.kode, name: 'Kecamatan ' + kec.nama + ', ' + namaKab(kab), level: 'KECAMATAN' } : null,
+            };
+        };
+        const segarkanLabel = () => {
+            const rt = hitungRantai();
+            for (const t of TINGKAT_WILAYAH) {
+                const w = rt[t.level];
+                labelTeks[t.level].textContent = ' — ' + (w ? w.name : 'belum dipilih') + (s[t.kolom] && kodeKini[t.level] === (w && w.kode) ? (s[t.bagi] ? ' · berbagi: ya' : ' · berbagi: tidak') : '');
+                if (!w) kotakCentang[t.level].checked = false;
+            }
+        };
+        const isiKab = async () => {
+            let ref = null;
+            try { ref = selProv.value ? await loadRefProvinsi(selProv.value) : null; } catch { ref = null; }
+            rantai.ref = ref;
+            const dulu = selKab.value || awalKab;
+            selKab.replaceChildren(h('option', { value: '' }, '— kabupaten / kota —'),
+                ...(ref ? ref.kabupaten : []).map(k => h('option', { value: k.kode }, namaKab(k))));
+            selKab.value = ref && ref.kabupaten.some(k => k.kode === dulu) ? dulu : '';
+            isiKec();
+        };
+        const isiKec = () => {
+            const ref = rantai.ref;
+            const kab = ref ? ref.kabupaten.find(x => x.kode === selKab.value) : null;
+            const dulu = selKec.value || awalKec || '';
+            selKec.replaceChildren(h('option', { value: '' }, '— kecamatan —'),
+                ...(kab ? kab.kecamatan : []).map(c => h('option', { value: c.kode }, c.nama)));
+            selKec.value = kab && kab.kecamatan.some(c => c.kode === dulu) ? dulu : '';
+            segarkanLabel();
+        };
+
         const baris = TINGKAT_WILAYAH.map(t => {
-            const id = sasaran[t.level];
-            const cb = h('input', { type: 'checkbox', disabled: true, id: `wil-${s.school_id}-${t.level}` });
+            const cb = h('input', { type: 'checkbox', disabled: true });
             cb.checked = Boolean(s[t.kolom]);
-            if (!id) cb.title = 'Belum ada wilayah pada tingkat ini';
             kotakCentang[t.level] = cb;
-            const nama = id ? wilayahId[id].name : 'belum ada wilayah pada tingkat ini';
-            const berbagi = s[t.kolom] ? (s[t.bagi] ? ' · berbagi: ya' : ' · berbagi: tidak') : '';
+            const teks = h('span', {}, ' — …');
+            labelTeks[t.level] = teks;
             return h('label', { style: 'display:flex;gap:8px;align-items:flex-start;margin:4px 0;font-size:13px' },
-                cb, h('span', {}, h('strong', {}, t.judul), ' — ' + nama + berbagi));
+                cb, h('span', {}, h('strong', {}, t.judul), teks));
         });
 
         const peringatan = h('p', { class: 'hint', style: 'display:none;margin:6px 0' },
-            'Hati-hati: mematikan penghubungan mereset persetujuan berbagi kepala sekolah pada tingkat itu. ' +
+            'Hati-hati: memutus atau mengganti penghubungan mereset persetujuan berbagi kepala sekolah pada tingkat itu. ' +
             'Menghidupkan hanya memasang penanda; data baru terlihat setelah kepala sekolah menyetujui berbagi.');
         const ubah   = h('button', { class: 'btn btn-sm btn-secondary', type: 'button' }, 'Ubah penghubungan');
         const simpan = h('button', { class: 'btn btn-sm', type: 'button', style: 'display:none' }, 'Simpan perubahan');
@@ -303,29 +337,57 @@ async function isiKotakWilayah(listEl) {
         const awal   = Object.fromEntries(TINGKAT_WILAYAH.map(t => [t.level, Boolean(s[t.kolom])]));
 
         const kunci = (buka) => {
-            for (const t of TINGKAT_WILAYAH) kotakCentang[t.level].disabled = !buka || !sasaran[t.level];
+            selProv.disabled = selKab.disabled = selKec.disabled = !buka;
+            for (const t of TINGKAT_WILAYAH) kotakCentang[t.level].disabled = !buka;
             peringatan.style.display = buka ? 'block' : 'none';
             ubah.style.display   = buka ? 'none' : '';
             simpan.style.display = buka ? '' : 'none';
             batal.style.display  = buka ? '' : 'none';
         };
+        selProv.addEventListener('change', async () => { selKab.value = ''; selKec.value = ''; await isiKab(); });
+        selKab.addEventListener('change', () => { selKec.value = ''; isiKec(); });
+        selKec.addEventListener('change', () => {
+            segarkanLabel();
+            // memilih kecamatan baru menyalakan ketiga kotak yang punya wilayah
+            const rt = hitungRantai();
+            for (const t of TINGKAT_WILAYAH) if (rt[t.level]) kotakCentang[t.level].checked = true;
+        });
         ubah.addEventListener('click', () => kunci(true));
-        batal.addEventListener('click', () => {
+        batal.addEventListener('click', async () => {
+            for (const t of TINGKAT_WILAYAH) kotakCentang[t.level].checked = awal[t.level];
+            selProv.value = awalProv; selKab.value = awalKab; selKec.value = awalKec || '';
+            await isiKab();
             for (const t of TINGKAT_WILAYAH) kotakCentang[t.level].checked = awal[t.level];
             kunci(false);
         });
         simpan.addEventListener('click', async () => {
-            const berubah = TINGKAT_WILAYAH.filter(t => kotakCentang[t.level].checked !== awal[t.level]);
-            if (!berubah.length) { kunci(false); return; }
-            const rincian = berubah.map(t => (kotakCentang[t.level].checked ? '+ hubungkan ' : '- putuskan ') + t.judul.toLowerCase()
-                + ' (' + (wilayahId[sasaran[t.level]]?.name ?? '?') + ')').join('\n');
-            const reset = berubah.some(t => !kotakCentang[t.level].checked && s[t.bagi]);
-            if (!confirm('Ubah penghubungan wilayah ' + s.name + '?\n\n' + rincian
-                + (reset ? '\n\nPersetujuan berbagi kepala sekolah pada tingkat yang diputus akan direset.' : '') + '\n\nLanjutkan?')) return;
+            const rt = hitungRantai();
+            const rincian = [];
+            let reset = false;
+            for (const t of TINGKAT_WILAYAH) {
+                const target = kotakCentang[t.level].checked ? rt[t.level] : null;
+                const kini = kodeKini[t.level];
+                if (kotakCentang[t.level].checked && !rt[t.level]) { alert('Pilih ' + t.judul.toLowerCase() + ' terlebih dahulu.'); return; }
+                const kodeTarget = target ? target.kode : null;
+                if (kodeTarget === kini) continue;
+                const namaKini = s[t.kolom] && wilayahId[s[t.kolom]] ? wilayahId[s[t.kolom]].name : '';
+                if (target && !kini)      rincian.push('+ hubungkan ' + t.judul.toLowerCase() + ' (' + target.name + ')');
+                else if (!target && kini) rincian.push('- putuskan ' + t.judul.toLowerCase() + ' (' + namaKini + ')');
+                else                      rincian.push('~ ganti ' + t.judul.toLowerCase() + ': ' + namaKini + ' -> ' + target.name);
+                if (kini && s[t.bagi]) reset = true;
+            }
+            if (!rincian.length) { kunci(false); return; }
+            if (!confirm('Ubah penghubungan wilayah ' + s.name + '?\n\n' + rincian.join('\n')
+                + (reset ? '\n\nPersetujuan berbagi kepala sekolah pada tingkat yang berubah akan direset.' : '') + '\n\nLanjutkan?')) return;
             simpan.disabled = true;
             try {
                 const isi = { action: 'assign_school', school_id: s.school_id, jenjang: s.jenjang ?? null };
-                for (const t of TINGKAT_WILAYAH) isi[t.kolom] = kotakCentang[t.level].checked ? sasaran[t.level] : null;
+                for (const t of TINGKAT_WILAYAH) {
+                    const w = kotakCentang[t.level].checked ? rt[t.level] : null;
+                    if (!w) { isi[t.kolom] = null; continue; }
+                    const out = await regionApi({ action: 'ensure_region', kode: w.kode, name: w.name, level: w.level });
+                    isi[t.kolom] = out.region.region_id;
+                }
                 await regionApi(isi);
                 showRegionMsg('Penghubungan wilayah ' + s.name + ' disimpan.', true);
                 loadSchools(); loadRegions();
@@ -334,8 +396,10 @@ async function isiKotakWilayah(listEl) {
 
         el.replaceChildren(
             h('div', { class: 'field-section-label', style: 'margin:10px 0 4px' }, 'Penghubungan wilayah'),
+            h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px' }, selProv, selKab, selKec),
             ...baris, peringatan,
             h('div', { style: 'display:flex;gap:8px;margin:6px 0 10px;flex-wrap:wrap' }, ubah, simpan, batal));
+        isiKab().then(() => { for (const t of TINGKAT_WILAYAH) kotakCentang[t.level].checked = awal[t.level]; });
     }
 }
 

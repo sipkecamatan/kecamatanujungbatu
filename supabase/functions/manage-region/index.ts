@@ -277,10 +277,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 if (raw === null) return { value: null as string | null };
                 if (!UUID_RE.test(raw)) return { error: `${key} tidak valid` };
                 const { data: reg } = await admin.from('regions')
-                    .select('region_id, level').eq('region_id', raw).maybeSingle();
+                    .select('region_id, level, kode').eq('region_id', raw).maybeSingle();
                 if (!reg) return { error: `${key}: wilayah tidak ditemukan` };
                 if (reg.level !== level) return { error: `${key} harus wilayah berjenis ${level}` };
-                return { value: raw as string | null };
+                return { value: raw as string | null, kode: (reg.kode ?? null) as string | null };
             };
             const kab  = await pilihTingkat('kabupaten_id', 'KABUPATEN');
             if ('error' in kab && kab.error) return json({ error: kab.error }, 400);
@@ -288,6 +288,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
             if ('error' in prov && prov.error) return json({ error: prov.error }, 400);
             const kabupatenId = (kab as { value: string | null }).value;
             const provinsiId  = (prov as { value: string | null }).value;
+
+            // Kabupaten dan provinsi harus sesuai dengan kecamatan (awalan kode resmi 7 -> 4 -> 2 digit).
+            // Wilayah tanpa kode tidak diperiksa.
+            const kodeWilayah = async (id: string | null) => {
+                if (!id) return null;
+                const { data } = await admin.from('regions').select('kode').eq('region_id', id).maybeSingle();
+                return (data?.kode ?? null) as string | null;
+            };
+            const kodeKec  = await kodeWilayah(regionTarget);
+            const kodeKab  = (kab as { kode?: string | null }).kode ?? await kodeWilayah(kabupatenId);
+            const kodeProv = (prov as { kode?: string | null }).kode ?? await kodeWilayah(provinsiId);
+            if (kodeKec && kodeKab && kodeKec.slice(0, kodeKab.length) !== kodeKab) {
+                return json({ error: 'kabupaten tidak sesuai dengan kecamatan sekolah' }, 400);
+            }
+            if (kodeKec && kodeProv && kodeKec.slice(0, kodeProv.length) !== kodeProv) {
+                return json({ error: 'provinsi tidak sesuai dengan kecamatan sekolah' }, 400);
+            }
+            if (!kodeKec && kodeKab && kodeProv && kodeKab.slice(0, kodeProv.length) !== kodeProv) {
+                return json({ error: 'provinsi tidak sesuai dengan kabupaten sekolah' }, 400);
+            }
 
             // Persetujuan tiap tingkat berlaku untuk wilayah yang disetujui: reset hanya pada
             // tingkat yang wilayahnya berubah.
