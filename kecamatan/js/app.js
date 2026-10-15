@@ -192,10 +192,10 @@ function render() {
       ? stat('Kehadiran', pct(o.total.kehadiran_pct), 'hanya dari sekolah dengan data memadai')
       : stat('Kehadiran', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
     o.total
-      ? stat('Terlambat', piket(o.total.terlambat, o.ambang_piket), 'catatan guru piket pada jendela waktu')
+      ? stat('Terlambat', piket(o.total.terlambat, o.ambang_piket), 'catatan guru piket pada periode terpilih')
       : stat('Terlambat', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
     o.total
-      ? stat('Izin keluar', piket(o.total.izin_keluar, o.ambang_piket), 'catatan guru piket pada jendela waktu')
+      ? stat('Izin keluar', piket(o.total.izin_keluar, o.ambang_piket), 'catatan guru piket pada periode terpilih')
       : stat('Izin keluar', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
   );
   cards.hidden = false;
