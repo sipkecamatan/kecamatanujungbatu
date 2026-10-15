@@ -3,7 +3,7 @@
   "kode": "14",
   "nama": "Riau"
  },
- "sumber": "https://emsifa.github.io/api-wilayah-indonesia (kode Kemendagri/BPS), diambil 2026-10-15",
+ "sumber": "https://emsifa.github.io/api-wilayah-indonesia/api (kode Kemendagri/BPS), diambil 2026-10-15",
  "catatan": "Nama ditulis ulang dari huruf besar; kode wilayah mengikuti sumber. Periksa bila ada pemekaran baru.",
  "kabupaten": [
   {

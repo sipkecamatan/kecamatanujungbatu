@@ -19,6 +19,7 @@ const migrationHier = read('supabase/migrations/20261015000000_region_hierarchy_
 const migrationTiga = read('supabase/migrations/20261015010000_region_three_level.sql');
 const migrationPerTingkat = read('supabase/migrations/20261015020000_region_sharing_per_level.sql');
 const migrationKode = read('supabase/migrations/20261015030000_region_kode.sql');
+const migrationBersih = read('supabase/migrations/20261015040000_region_cleanup_parent.sql');
 
 const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
 let passed = 0;
@@ -53,6 +54,7 @@ await db.exec(migrationHier);
 await db.exec(migrationTiga);
 await db.exec(migrationPerTingkat);
 await db.exec(migrationKode);
+await db.exec(migrationBersih);
 
 // Fixture: tiap sekolah punya 3 siswa, 10 sesi (10 hari terakhir), k sesi beratribut absensi,
 // dan `alpa` baris ALPA. Semua nama siswa memuat kata "RAHASIA" agar bocor mudah terdeteksi.
@@ -361,6 +363,15 @@ await test('piket: mencapai 5 keterlambatan, angka tampil', async () => {
 await test('piket: keluaran tidak memuat alasan atau identitas siswa', async () => {
   const text = JSON.stringify(await overview(STAFF_A));
   assert.ok(!/RAHASIA|student_id|alasan/i.test(text));
+});
+
+await test('pembersihan: kolom, pemicu, dan fungsi induk-anak sudah dibuang; fungsi agregat tetap jalan', async () => {
+  const kol = (await db.query("SELECT count(*)::int AS n FROM information_schema.columns WHERE table_name = 'regions' AND column_name = 'parent_region_id'")).rows[0].n;
+  const fn = (await db.query("SELECT count(*)::int AS n FROM pg_proc WHERE proname IN ('fn_region_scope_ids', 'fn_regions_no_cycle')")).rows[0].n;
+  const trg = (await db.query("SELECT count(*)::int AS n FROM pg_trigger WHERE tgname = 'trg_regions_no_cycle'")).rows[0].n;
+  assert.equal(kol + fn + trg, 0);
+  const o = await overview(STAFF_A);
+  assert.ok(Array.isArray(o.sekolah) && o.sekolah.length >= 1);
 });
 
 console.log(`REGION_LAYER_COMPLETE: ${passed} lulus; PGlite saja`);
