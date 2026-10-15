@@ -960,14 +960,14 @@ async function loadWeekSchedule() {
     const contentEl = document.getElementById('sched-week-content');
     contentEl.innerHTML = '<p class="hint">Memuat jadwal minggu ini…</p>';
 
-    // Hitung Senin s/d Jumat minggu ini
+    // Hitung Senin s/d Sabtu minggu ini (Sabtu hanya tampil bila guru punya jadwal hari itu)
     const today = new Date();
     const dow   = today.getDay(); // 0=Min,1=Sen,...,6=Sab
     const diff  = dow === 0 ? -6 : 1 - dow; // hari ke Senin
     const monday = new Date(today);
     monday.setDate(today.getDate() + diff);
 
-    const days = Array.from({ length: 5 }, (_, i) => {
+    const days = Array.from({ length: 6 }, (_, i) => {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
         return localDateStr(d);
@@ -986,9 +986,11 @@ async function loadWeekSchedule() {
             return;
         }
 
-        const DAY_NAMES = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
+        const DAY_NAMES = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         const todayStr  = localDateStr();
         contentEl.innerHTML = results.map((r, idx) => {
+            // Sabtu opsional: tampil hanya bila ada jadwal (sekolah 5 hari tidak melihat baris kosong).
+            if (idx === 5 && !r.error && r.rows.length === 0) return '';
             const dayLabel  = `${DAY_NAMES[idx]}, ${fmtDayLabel(r.date).split(',')[1]?.trim() ?? r.date}`;
             const isToday   = r.date === todayStr;
             const mergedSessions = r.error ? [] : mergeConsecutiveSessions(r.rows);
