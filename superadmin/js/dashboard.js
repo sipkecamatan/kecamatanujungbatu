@@ -857,10 +857,10 @@ async function loadRegions() {
             }}, nama, email, h('button', { class: 'btn btn-primary btn-sm', type: 'submit' }, '+ Daftarkan pegawai'));
             card.append(form);
 
-            // hapus wilayah: ditolak server bila masih ada sekolah, pegawai, atau wilayah di bawahnya
+            // hapus wilayah: ditolak server bila masih dipakai sekolah (sebagai kecamatan, kabupaten, atau provinsi) atau masih punya pegawai; wilayah lain tidak ikut menentukan
             card.append(h('div', { style: 'margin-top:14px;border-top:1px solid var(--color-border, #2b3447);padding-top:10px' },
                 h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: async () => {
-                    if (!confirm(`Hapus wilayah "${r.name}"? Hanya bisa bila tidak ada sekolah, pegawai, atau wilayah di bawahnya.`)) return;
+                    if (!confirm(`Hapus wilayah "${r.name}"? Hanya bisa bila tidak dipakai sekolah mana pun (sebagai kecamatan, kabupaten, atau provinsi) dan tidak punya pegawai. Wilayah lain tidak mempengaruhi.`)) return;
                     try {
                         const out = await regionApi({ action: 'delete_region', region_id: r.region_id });
                         showRegionMsg(`Wilayah "${out.dihapus ?? r.name}" dihapus.`, true);
