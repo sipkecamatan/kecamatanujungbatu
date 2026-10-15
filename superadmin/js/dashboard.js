@@ -744,6 +744,18 @@ async function loadRegions() {
         // Ringkasan semua pegawai wilayah di satu tempat
         const semuaStaff = d.regions.flatMap(r => r.staff.map(st => ({ ...st, wilayah: r.name, level: r.level })));
         const ringkas = h('div', { class: 'section-card' }, h('h3', {}, `Daftar pegawai wilayah (${semuaStaff.length})`));
+        // Tautan portal pegawai wilayah, siap disalin untuk dibagikan bersama kredensial
+        const urlPortal = new URL('../kecamatan/', location.href).href;
+        const kolomUrl = h('input', { class: 'input', type: 'text', readonly: true, value: urlPortal,
+                                      style: 'flex:1;min-width:220px', 'aria-label': 'Tautan portal pegawai wilayah' });
+        const tombolSalin = h('button', { class: 'btn btn-sm', type: 'button', onclick: async () => {
+            try { await navigator.clipboard.writeText(urlPortal); }
+            catch { kolomUrl.select(); document.execCommand('copy'); }
+            tombolSalin.textContent = 'Tersalin ✓';
+            setTimeout(() => { tombolSalin.textContent = 'Salin tautan'; }, 2000);
+        }}, 'Salin tautan');
+        ringkas.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 10px' },
+            h('span', { class: 'hint' }, 'Portal pegawai wilayah:'), kolomUrl, tombolSalin));
         if (!semuaStaff.length) {
             ringkas.append(h('p', { class: 'hint' }, 'Belum ada pegawai wilayah. Daftarkan lewat kartu wilayah di bawah.'));
         } else {
