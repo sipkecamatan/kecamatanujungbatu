@@ -359,7 +359,14 @@ $('login-form').addEventListener('submit', async (e) => {
     email: $('email').value.trim(), password: $('password').value,
   });
   btn.disabled = false; text(btn, 'Masuk');
-  if (error) { setError('login-error', 'Email atau kata sandi salah.'); return; }
+  if (error) {
+    const batas = error.status === 429 || /rate limit/i.test(error.message || '');
+    const jaringan = error.status === 0 || /fetch|network/i.test(error.message || '');
+    setError('login-error', batas ? 'Terlalu banyak percobaan masuk. Tunggu beberapa menit lalu coba lagi.'
+      : jaringan ? 'Tidak dapat menghubungi server. Periksa koneksi internet Anda.'
+      : 'Email atau kata sandi salah. Kata sandi sementara hanya berlaku bila belum ada reset yang lebih baru.');
+    return;
+  }
   $('password').value = '';
   enterApp();
 });

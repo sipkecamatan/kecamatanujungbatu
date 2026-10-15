@@ -879,6 +879,24 @@ function h(tag, props = {}, ...kids) {
 // setelah muat ulang (mis. sesudah menekan Simpan).
 const _sekolahTerbuka = new Set();
 
+// Kotak kredensial berada di bawah seluruh daftar wilayah; tampilkan lalu gulir ke sana agar tidak terlewat.
+function tampilkanKredensialPegawai() {
+    const kotak = document.getElementById('staff-cred-box');
+    kotak.style.display = 'block';
+    kotak.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+for (const [id, sumber] of [['staff-cred-copy-email', 'staff-cred-email'], ['staff-cred-copy-password', 'staff-cred-password']]) {
+    const tombol = document.getElementById(id);
+    if (!tombol) continue;
+    const awal = tombol.textContent;
+    tombol.addEventListener('click', async () => {
+        const nilai = document.getElementById(sumber).textContent.trim();
+        try { await navigator.clipboard.writeText(nilai); tombol.textContent = 'Tersalin ✓'; }
+        catch { tombol.textContent = 'Gagal menyalin, pilih manual'; }
+        setTimeout(() => { tombol.textContent = awal; }, 2000);
+    });
+}
+
 async function loadRegions() {
     const listEl = document.getElementById('region-list');
     try {
@@ -899,8 +917,8 @@ async function loadRegions() {
                 const out = await regionApi({ action: 'reset_staff_password', auth_user_id: st.auth_user_id });
                 document.getElementById('staff-cred-email').textContent    = out.email;
                 document.getElementById('staff-cred-password').textContent = out.password;
-                document.getElementById('staff-cred-box').style.display = 'block';
-                showRegionMsg(`Kata sandi sementara ${out.full_name} dibuat. Salin sekarang dari kotak kredensial.`, true);
+                tampilkanKredensialPegawai();
+                showRegionMsg(`Kata sandi sementara ${out.full_name} dibuat. Kotak kredensial ada di bagian bawah halaman ini.`, true);
             } catch (e) { showRegionMsg(e.message, false); }
         };
         const hapusStaff = async (st) => {
@@ -1015,8 +1033,8 @@ async function loadRegions() {
                     const out = await regionApi({ action: 'add_staff', region_id: r.region_id, full_name: nama.value.trim(), email: email.value.trim() });
                     document.getElementById('staff-cred-email').textContent    = out.email;
                     document.getElementById('staff-cred-password').textContent = out.password;
-                    document.getElementById('staff-cred-box').style.display = 'block';
-                    showRegionMsg(`Pegawai ${out.full_name} didaftarkan.`, true);
+                    tampilkanKredensialPegawai();
+                    showRegionMsg(`Pegawai ${out.full_name} didaftarkan. Kotak kredensial ada di bagian bawah halaman ini.`, true);
                     nama.value = ''; email.value = ''; loadRegions();
                 } catch (e) { showRegionMsg(e.message, false); }
             }}, nama, email, h('button', { class: 'btn btn-primary btn-sm', type: 'submit' }, '+ Daftarkan pegawai'));
