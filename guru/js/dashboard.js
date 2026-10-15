@@ -3409,7 +3409,7 @@ async function initKsRegionSharing() {
                 btn.addEventListener('click', async () => {
                     const aktifkan = !st[t.aktif];
                     const tanya = aktifkan
-                        ? 'Bagikan ringkasan agregat sekolah ke ' + t.label.toLowerCase() + '?\n\nYang terlihat hanya angka ringkas: jumlah siswa aktif, kehadiran, cakupan input, serta jumlah keterlambatan dan izin keluar. Tidak ada nama atau data pribadi siswa. Anda dapat menghentikannya kapan saja.'
+                        ? 'Bagikan ringkasan agregat sekolah ke ' + t.label.toLowerCase() + '?\n\nYang terlihat hanya angka ringkas: jumlah siswa aktif, jumlah orang tua aktif, kehadiran, cakupan input, serta jumlah keterlambatan dan izin keluar. Tidak ada nama atau data pribadi siswa maupun orang tua. Anda dapat menghentikannya kapan saja.'
                         : 'Hentikan berbagi ke ' + t.label.toLowerCase() + '? Sekolah ini akan langsung hilang dari dashboard tingkat itu.';
                     if (!window.confirm(tanya)) return;
                     btn.disabled = true;
