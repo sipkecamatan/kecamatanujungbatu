@@ -284,7 +284,8 @@ function render() {
     $('tbl-kelompok').closest('.table-wrap').hidden = false;
   }
 
-  // Filter jenjang = ['SEMUA', ...new Set(o.sekolah.map((s) => s.jenjang || 'TIDAK_DIKETAHUI'))];
+  // Filter jenjang
+  const jenjangs = ['SEMUA', ...new Set(o.sekolah.map((s) => s.jenjang || 'TIDAK_DIKETAHUI'))];
   const chips = $('filter-jenjang'); chips.replaceChildren();
   for (const j of jenjangs) {
     chips.append(el('button', {
