@@ -103,3 +103,20 @@ tbody tr.row-sekolah:hover { background: var(--muted-bg); }
 }
 .container { grid-template-columns: minmax(0, 1fr); }
 .container > * { min-width: 0; }
+
+/* Layar sempit: baris tabel menjadi kartu (judul kolom diambil dari data-label) */
+@media (max-width: 520px) {
+  .table-wrap { overflow-x: visible; }
+  table, tbody, tr, td { display: block; width: 100%; }
+  thead { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  tbody tr { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; margin-bottom: 10px; background: var(--card); }
+  tbody tr.row-sekolah:hover { background: var(--card); }
+  td { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+       white-space: normal; border-bottom: 1px solid var(--line); padding: .4rem 0; text-align: right; }
+  td:last-child { border-bottom: 0; }
+  td::before { content: attr(data-label); color: var(--muted); font-size: .85rem; text-align: left; flex: 0 0 auto; }
+  td:first-child { font-weight: 700; justify-content: flex-start; text-align: left; }
+  td:first-child::before { display: none; }
+  td[colspan] { display: block; text-align: left; }
+  td[colspan]::before { display: none; }
+}

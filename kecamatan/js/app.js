@@ -23,6 +23,14 @@ function simpanTerakhirUnduh() {
   try { localStorage.setItem(KUNCI_UNDUH, new Date().toISOString()); } catch { /* tanpa penyimpanan: pengingat tetap muncul */ }
 }
 
+// Layar sempit: tiap sel membawa judul kolomnya (data-label) agar baris tabel bisa tampil sebagai kartu.
+function labelKolom(tableId) {
+  const t = ;
+  const judul = [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+  for (const tr of t.querySelectorAll('tbody tr')) {
+    [...tr.children].forEach((td, i) => { if (!td.hasAttribute('colspan') && judul[i]) td.setAttribute('data-label', judul[i]); });
+  }
+}
 function text(el, value) { el.textContent = value == null ? '' : String(value); return el; }
 function el(tag, props = {}, ...kids) {
   const n = document.createElement(tag);
@@ -214,6 +222,7 @@ function render() {
       el('td', { class: 'num' }, piket(j.izin_keluar, o.ambang_piket)),
     ));
   }
+  labelKolom('tbl-jenjang');
   $('jenjang-card').hidden = !(o.per_jenjang && o.per_jenjang.length);
 
   // Filter jenjang
@@ -248,6 +257,7 @@ function render() {
       el('td', {}, el('span', { class: `badge ${st.cls}` }, st.label)),
     ));
   }
+  labelKolom('tbl-sekolah');
   $('sekolah-card').hidden = false;
   $('method-card').hidden = false;
   perbaruiPengingat();
@@ -277,6 +287,7 @@ async function loadTrend(s) {
       el('td', { class: 'num' }, pct(r.kehadiran_pct)),
     ));
   }
+  labelKolom('tbl-trend');
   card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
