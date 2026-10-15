@@ -25,7 +25,7 @@ function simpanTerakhirUnduh() {
 
 // Layar sempit: tiap sel membawa judul kolomnya (data-label) agar baris tabel bisa tampil sebagai kartu.
 function labelKolom(tableId) {
-  const t = ;
+  const t = $(tableId);
   const judul = [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim());
   for (const tr of t.querySelectorAll('tbody tr')) {
     [...tr.children].forEach((td, i) => { if (!td.hasAttribute('colspan') && judul[i]) td.setAttribute('data-label', judul[i]); });
