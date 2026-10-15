@@ -949,6 +949,7 @@ async function loadRegions() {
         for (const r of d.regions) {
             const card = h('div', { class: 'section-card' }, h('h3', {}, r.name));
             card.append(h('p', { class: 'hint' }, `Jenis: ${LEVEL_LABEL[r.level] ?? 'Kecamatan'}`));
+            const tingkatAtas = r.level === 'KABUPATEN' || r.level === 'PROVINSI';
 
             // sekolah
             const sekolahBox = h('details', { style: 'margin:6px 0' },
@@ -958,8 +959,18 @@ async function loadRegions() {
                 if (sekolahBox.open) _sekolahTerbuka.add(r.region_id); else _sekolahTerbuka.delete(r.region_id);
             });
             card.append(sekolahBox);
+            if (tingkatAtas) card.append(h('p', { class: 'hint' }, 'Penghubungan diatur dari tab Sekolah.'));
             if (!r.schools.length) sekolahBox.append(h('p', { class: 'hint' }, 'Belum ada sekolah.'));
             for (const s of r.schools) {
+                if (tingkatAtas) {
+                    const bagi = r.level === 'KABUPATEN' ? s.share_kabupaten : s.share_provinsi;
+                    const tingkat = r.level === 'KABUPATEN' ? 'kabupaten' : 'provinsi';
+                    sekolahBox.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0' },
+                        h('strong', {}, s.name),
+                        h('span', {}, `Jenjang: ${s.jenjang ?? '—'}`),
+                        h('span', { class: bagi ? 'badge badge-success' : 'badge' }, `Berbagi — ${tingkat}: ${bagi ? 'ya' : 'tidak'}`)));
+                    continue;
+                }
                 const jen = h('select', { class: 'input', style: 'width:auto' },
                     h('option', { value: '' }, '— jenjang —'),
                     ...JENJANG_OPSI.map(j => h('option', { value: j, selected: s.jenjang === j }, j)));
@@ -994,7 +1005,7 @@ async function loadRegions() {
             }
 
             // tambah sekolah yang belum punya wilayah
-            if (d.schools_tanpa_wilayah.length) {
+            if (!tingkatAtas && d.schools_tanpa_wilayah.length) {
                 const pilih = h('select', { class: 'input', style: 'width:auto' },
                     h('option', { value: '' }, '+ tempatkan sekolah…'),
                     ...d.schools_tanpa_wilayah.map(s => h('option', { value: s.school_id }, s.name)));

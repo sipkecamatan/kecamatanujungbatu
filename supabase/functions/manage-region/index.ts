@@ -80,12 +80,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 const { data } = await admin.auth.admin.getUserById(s.auth_user_id);
                 emailById[s.auth_user_id] = data?.user?.email ?? '—';
             }
+            const semuaSekolah = (schools.data ?? []) as {
+                region_id: string | null;
+                kabupaten_id: string | null;
+                provinsi_id: string | null;
+            }[];
 
             return json({
                 regions: ((regions.data ?? []) as { region_id: string; name: string; level: string | null; kode: string | null }[]).map((g) => ({
                     ...g,
-                    schools: ((schools.data ?? []) as { region_id: string | null }[])
-                        .filter((s) => s.region_id === g.region_id),
+                    schools: semuaSekolah
+                        .filter((s) => (g.level === 'KABUPATEN' ? s.kabupaten_id
+                            : g.level === 'PROVINSI' ? s.provinsi_id : s.region_id) === g.region_id),
                     staff: ((staff.data ?? []) as { auth_user_id: string; region_id: string; full_name: string }[])
                         .filter((s) => s.region_id === g.region_id)
                         .map((s) => ({ ...s, email: emailById[s.auth_user_id] })),
