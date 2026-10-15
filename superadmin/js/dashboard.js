@@ -1081,4 +1081,6 @@ document.getElementById('region-form').addEventListener('submit', async (ev) => 
 });
 
 document.querySelector('.tab-btn[data-tab="regions"]').addEventListener('click', loadRegions);
+// Daftar sekolah memuat ulang saat tab dibuka, agar kotak penghubungan wilayah mengikuti perubahan di tab Wilayah.
+document.querySelector('.tab-btn[data-tab="schools"]')?.addEventListener('click', loadSchools);
 
