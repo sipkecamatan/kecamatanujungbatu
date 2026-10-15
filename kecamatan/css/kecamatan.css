@@ -86,3 +86,8 @@ tbody tr.row-sekolah:hover { background: var(--muted-bg); }
 .pengingat { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 16px; border-color: #b45309; }
 .pengingat[hidden] { display: none; }
 .pengingat-aksi { display: inline-flex; gap: 8px; }
+
+/* Rentang tanggal bebas: sebaris dengan pilihan periode, kolom tanggal tidak melebar penuh */
+#rentang-bebas { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#rentang-bebas input[type="date"] { width: auto; padding: .45rem .55rem; }
+#rentang-bebas[hidden] { display: none; }
