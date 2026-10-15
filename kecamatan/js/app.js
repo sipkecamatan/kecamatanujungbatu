@@ -120,6 +120,7 @@ function bangunCsv(o) {
   const baris = [
     ['SIP - Dashboard Wilayah'],
     ['Wilayah', o.wilayah ?? ''],
+    ...(state.jejak.length ? [['Bagian yang dibuka', state.jejak.map((j) => j.nama).join(' > ')]] : []),
     ['Periode', `${o.dari} s.d. ${o.sampai} (${o.jendela_hari} hari)`],
     ['Diunduh', dibuat],
     ['Catatan', 'Angka agregat dari sekolah yang disetujui kepala sekolah; tidak memuat nama atau identitas siswa. Total tampil bila minimal 3 sekolah; keterlambatan dan izin keluar 1-4 ditulis "< 5"; kehadiran kosong bila cakupan input di bawah ' + o.ambang_cakupan_pct + '%.'],
@@ -167,6 +168,7 @@ function unduhCsv() {
   const o = state.overview;
   if (!o) return;
   const nama = 'SIP-' + String(o.wilayah ?? 'wilayah').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+             + (state.jejak.length ? '-' + String(state.jejak[state.jejak.length - 1].nama).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : '')
              + `-${o.dari}_${o.sampai}.csv`;
   const url = URL.createObjectURL(new Blob([bangunCsv(o)], { type: 'text/csv;charset=utf-8' }));
   const a = el('a', { href: url, download: nama });
