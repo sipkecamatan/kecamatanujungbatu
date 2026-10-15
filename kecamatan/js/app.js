@@ -59,7 +59,7 @@ const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 function hitungRentang() {
   const kini = new Date(); kini.setHours(0, 0, 0, 0);
   const p = state.periode, y = kini.getFullYear(), m = kini.getMonth();
-  if (/^d+$/.test(p)) { const a = new Date(kini); a.setDate(a.getDate() - (Number(p) - 1)); return { dari: iso(a), sampai: iso(kini) }; }
+  if (/^[0-9]+$/.test(p)) { const a = new Date(kini); a.setDate(a.getDate() - (Number(p) - 1)); return { dari: iso(a), sampai: iso(kini) }; }
   if (p === 'bulan-ini')   return { dari: iso(new Date(y, m, 1)), sampai: iso(kini) };
   if (p === 'bulan-lalu')  return { dari: iso(new Date(y, m - 1, 1)), sampai: iso(new Date(y, m, 0)) };
   if (p === 'semester')    return { dari: iso(new Date(y, m >= 6 ? 6 : 0, 1)), sampai: iso(kini) };       // Jul–Des atau Jan–Jun
