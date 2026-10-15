@@ -49,10 +49,14 @@ function syncColor(pickerId, hexId) {
 syncColor('f-primary-color', 'f-primary-color-hex');
 syncColor('f-secondary-color', 'f-secondary-color-hex');
 
+// Aman untuk isi elemen DAN nilai atribut berkutip: tanda kutip ikut diloloskan.
 function esc(s) {
-    const el = document.createElement('span');
-    el.textContent = s ?? '—';
-    return el.innerHTML;
+    return String(s ?? '—')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 function fmt(d) {
     if (!d) return '—';
