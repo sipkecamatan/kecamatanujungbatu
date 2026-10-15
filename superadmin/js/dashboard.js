@@ -780,6 +780,16 @@ async function loadRegions() {
             for (const st of r.staff) {
                 card.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0' },
                     h('strong', {}, st.full_name), h('span', { class: 'hint' }, st.email),
+                    h('button', { class: 'btn btn-sm', type: 'button', onclick: async () => {
+                        if (!confirm(`Buat kata sandi sementara baru untuk ${st.full_name}? Kata sandi lama langsung tidak berlaku.`)) return;
+                        try {
+                            const out = await regionApi({ action: 'reset_staff_password', auth_user_id: st.auth_user_id });
+                            document.getElementById('staff-cred-email').textContent    = out.email;
+                            document.getElementById('staff-cred-password').textContent = out.password;
+                            document.getElementById('staff-cred-box').style.display = 'block';
+                            showRegionMsg(`Kata sandi sementara ${out.full_name} dibuat. Salin sekarang dari kotak kredensial.`, true);
+                        } catch (e) { showRegionMsg(e.message, false); }
+                    }}, 'Reset kata sandi'),
                     h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: async () => {
                         if (!confirm(`Hapus akses ${st.full_name}? Akun login juga dihapus.`)) return;
                         try { await regionApi({ action: 'remove_staff', auth_user_id: st.auth_user_id }); showRegionMsg('Pegawai dihapus.', true); loadRegions(); }

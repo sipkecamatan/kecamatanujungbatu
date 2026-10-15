@@ -17,6 +17,7 @@
  *   { action: "delete_region", region_id }   -> hanya wilayah yang tidak dipakai sekolah dan tanpa pegawai
  *   { action: "add_staff", region_id, full_name, email }      -> kata sandi sementara, tampil sekali
  *   { action: "remove_staff", auth_user_id }
+ *   { action: "reset_staff_password", auth_user_id }   -> kata sandi sementara baru, tampil sekali
  *   { action: "assign_school", school_id, region_id|null, jenjang|null, kabupaten_id?, provinsi_id? }
  *     region_id = kecamatan sekolah; kabupaten_id/provinsi_id opsional (wilayah berjenis sesuai)
  *
@@ -227,6 +228,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
             if (delErr) throw delErr;
             await admin.auth.admin.deleteUser(authId);
             return json({ success: true });
+        }
+
+        // ── reset_staff_password ──────────────────────────────
+        // Kata sandi sementara baru, tampil sekali. Hanya akun yang terdaftar di region_staff.
+        if (action === 'reset_staff_password') {
+            const authId = String(body?.auth_user_id ?? '');
+            if (!UUID_RE.test(authId)) return json({ error: 'auth_user_id tidak valid' }, 400);
+            const { data: row } = await admin.from('region_staff')
+                .select('auth_user_id, full_name').eq('auth_user_id', authId).maybeSingle();
+            if (!row) return json({ error: 'pegawai wilayah tidak ditemukan' }, 404);
+
+            const password = randomPassword();
+            const { data: upd, error: updErr } = await admin.auth.admin.updateUserById(authId, { password });
+            if (updErr || !upd?.user) throw updErr ?? new Error('gagal mengubah kata sandi');
+            return json({
+                success: true,
+                email: upd.user.email ?? '—',
+                full_name: row.full_name,
+                password,
+                note: 'Simpan kata sandi ini; tidak dapat dilihat lagi.',
+            });
         }
 
         // ── assign_school ─────────────────────────────────────
