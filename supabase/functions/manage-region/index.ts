@@ -13,7 +13,7 @@
  * Request body (JSON), field "action":
  *   { action: "list" }
  *   { action: "ensure_region", kode, name, level }   -> buat dari daftar resmi bila belum ada (idempoten)
- *   { action: "delete_region", region_id }   -> hanya wilayah yang tidak dipakai sekolah dan tanpa pegawai
+ *   { action: "delete_region", region_id }   -> selalu boleh: sekolah dilepas (persetujuan tingkat itu direset), pegawai + akun loginnya dihapus
  *   { action: "add_staff", region_id, full_name, email }      -> kata sandi sementara, tampil sekali
  *   { action: "remove_staff", auth_user_id }
  *   { action: "reset_staff_password", auth_user_id }   -> kata sandi sementara baru, tampil sekali
@@ -126,9 +126,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
 
         // ── delete_region ─────────────────────────────────────
-        // Hanya wilayah yang tidak dipakai: tanpa sekolah (kecamatan, kabupaten, atau
-        // provinsi) dan tanpa pegawai. Wilayah adalah penanda cakupan, bukan komando:
-        // wilayah lain tidak ikut menentukan, jadi urutan hapus bebas.
+        // Wilayah adalah penanda cakupan, bukan komando: menghapusnya tidak pernah ditolak.
+        //  * Sekolah yang bertanda wilayah ini (kecamatan, kabupaten, atau provinsi)
+        //    dilepas dari penanda itu dan persetujuan berbagi tingkat itu direset ke false.
+        //  * Pegawai wilayah ini dihapus beserta akun loginnya (sama dengan remove_staff).
+        // Konfirmasi jumlah sekolah dan pegawai adalah tugas tampilan.
         if (action === 'delete_region') {
             const regionId = String(body?.region_id ?? '');
             if (!UUID_RE.test(regionId)) return json({ error: 'region_id tidak valid' }, 400);
@@ -137,24 +139,33 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 .select('region_id, name, kode').eq('region_id', regionId).maybeSingle();
             if (!reg) return json({ error: 'wilayah tidak ditemukan' }, 404);
 
-            const [sekolah, pegawai] = await Promise.all([
-                admin.from('schools').select('school_id', { count: 'exact', head: true })
-                    .or(`region_id.eq.${regionId},kabupaten_id.eq.${regionId},provinsi_id.eq.${regionId}`),
-                admin.from('region_staff').select('auth_user_id', { count: 'exact', head: true })
-                    .eq('region_id', regionId),
-            ]);
-            if (sekolah.error) throw sekolah.error;
-            if (pegawai.error) throw pegawai.error;
-            if ((sekolah.count ?? 0) > 0) {
-                return json({ error: `Wilayah masih dipakai ${sekolah.count} sekolah. Lepaskan sekolahnya dulu.` }, 409);
+            const lepas = [
+                ['region_id',    { region_id: null,    share_with_region: false }],
+                ['kabupaten_id', { kabupaten_id: null, share_kabupaten: false }],
+                ['provinsi_id',  { provinsi_id: null,  share_provinsi: false }],
+            ] as const;
+            const sekolahLepas = new Set<string>();
+            for (const [kolom, patch] of lepas) {
+                const { data, error } = await admin.from('schools').update(patch).eq(kolom, regionId).select('school_id');
+                if (error) throw error;
+                for (const s of data ?? []) sekolahLepas.add(s.school_id as string);
             }
-            if ((pegawai.count ?? 0) > 0) {
-                return json({ error: `Wilayah masih punya ${pegawai.count} pegawai. Hapus pegawainya dulu.` }, 409);
+
+            const { data: pegawai, error: pegErr } = await admin.from('region_staff')
+                .select('auth_user_id').eq('region_id', regionId);
+            if (pegErr) throw pegErr;
+            for (const p of pegawai ?? []) {
+                const { error: delStaffErr } = await admin.from('region_staff').delete().eq('auth_user_id', p.auth_user_id);
+                if (delStaffErr) throw delStaffErr;
+                await admin.auth.admin.deleteUser(p.auth_user_id as string);
             }
 
             const { error } = await admin.from('regions').delete().eq('region_id', regionId);
             if (error) throw error;
-            return json({ success: true, dihapus: reg.name });
+            return json({
+                success: true, dihapus: reg.name,
+                sekolah_dilepas: sekolahLepas.size, pegawai_dihapus: (pegawai ?? []).length,
+            });
         }
 
         // ── add_staff ─────────────────────────────────────────
@@ -248,7 +259,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             }
 
             const { data: school } = await admin.from('schools')
-                .select('school_id, region_id, kabupaten_id, provinsi_id').eq('school_id', schoolId).maybeSingle();
+                .select('school_id, jenjang, region_id, kabupaten_id, provinsi_id').eq('school_id', schoolId).maybeSingle();
             if (!school) return json({ error: 'sekolah tidak ditemukan' }, 404);
             if (regionId !== null) {
                 const { data: reg } = await admin.from('regions')
@@ -256,10 +267,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 if (!reg) return json({ error: 'wilayah tidak ditemukan' }, 404);
             }
 
-            // Kabupaten dan provinsi sekolah: opsional. Kunci tidak dikirim = tidak diubah;
-            // dikirim kosong/null = dikosongkan. Melepas sekolah dari wilayah mengosongkan keduanya.
+            // Tiga penanda (kecamatan, kabupaten, provinsi) berdiri sendiri: kunci tidak dikirim =
+            // tidak diubah; dikirim kosong/null = dikosongkan. Memutus satu tingkat tidak menyentuh yang lain.
+            const regionTarget  = 'region_id' in (body ?? {}) ? regionId : ((school.region_id ?? null) as string | null);
+            const jenjangTarget = 'jenjang'   in (body ?? {}) ? jenjang  : ((school.jenjang ?? null) as string | null);
             const pilihTingkat = async (key: 'kabupaten_id' | 'provinsi_id', level: string) => {
-                if (regionId === null) return { value: null as string | null };
                 if (!(key in (body ?? {}))) return { value: (school[key] ?? null) as string | null };
                 const raw = body[key] == null || body[key] === '' ? null : String(body[key]);
                 if (raw === null) return { value: null as string | null };
@@ -279,12 +291,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
             // Persetujuan tiap tingkat berlaku untuk wilayah yang disetujui: reset hanya pada
             // tingkat yang wilayahnya berubah.
-            const kecBerubah  = (school.region_id ?? null)    !== regionId;
+            const kecBerubah  = (school.region_id ?? null)    !== regionTarget;
             const kabBerubah  = (school.kabupaten_id ?? null) !== kabupatenId;
             const provBerubah = (school.provinsi_id ?? null)  !== provinsiId;
             const wilayahBerubah = kecBerubah || kabBerubah || provBerubah;
             const patch: Record<string, unknown> = {
-                region_id: regionId, kabupaten_id: kabupatenId, provinsi_id: provinsiId, jenjang,
+                region_id: regionTarget, kabupaten_id: kabupatenId, provinsi_id: provinsiId, jenjang: jenjangTarget,
             };
             if (kecBerubah)  patch.share_with_region = false;
             if (kabBerubah)  patch.share_kabupaten   = false;

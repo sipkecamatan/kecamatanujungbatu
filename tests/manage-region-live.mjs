@@ -132,9 +132,7 @@ try {
         cek(tidakSah.status === 400, 'auth_user_id tidak valid ditolak 400', tidakSah.status);
     }
 
-    console.log('\n── delete_region: syarat pegawai');
-    const tolakPegawai = await region({ action: 'delete_region', region_id: ids.KECAMATAN });
-    cek(tolakPegawai.status === 409, 'wilayah yang masih punya pegawai ditolak 409', `${tolakPegawai.status} ${tolakPegawai.json.error ?? ''}`);
+    let kabupatenSudahDihapus = false;
 
     if (pegawai) {
         const hapus = await region({ action: 'remove_staff', auth_user_id: pegawai.auth_user_id });
@@ -152,10 +150,9 @@ try {
         cek(sek.status === 200 || sek.status === 201, 'provision-school menerima kabupaten_id dan provinsi_id', JSON.stringify(sek.json));
         dibuat.school = sek.json.school_id || null;
         if (dibuat.school) {
-            for (const [nama, id] of [['kecamatan', ids.KECAMATAN], ['kabupaten', ids.KABUPATEN], ['provinsi', ids.PROVINSI]]) {
-                const r = await region({ action: 'delete_region', region_id: id });
-                cek(r.status === 409, `wilayah ${nama} yang dipakai sekolah ditolak 409`, `${r.status} ${r.json.error ?? ''}`);
-            }
+            const r = await region({ action: 'delete_region', region_id: ids.KABUPATEN });
+            cek(r.status === 200 && r.json.sekolah_dilepas === 1, 'kabupaten yang dipakai sekolah dapat dihapus; sekolah dilepas', JSON.stringify(r.json));
+            kabupatenSudahDihapus = r.status === 200;
         }
     }
 
@@ -166,8 +163,10 @@ try {
         cek(h.ok, 'sekolah uji dinonaktifkan dan dihapus', h.error);
         if (h.ok) dibuat.school = null;
     }
-    const hapusKab = await region({ action: 'delete_region', region_id: ids.KABUPATEN });
-    cek(hapusKab.status === 200, 'kabupaten dapat dihapus sebelum kecamatannya', `${hapusKab.status} ${hapusKab.json.error ?? ''}`);
+    if (!kabupatenSudahDihapus) {
+        const hapusKab = await region({ action: 'delete_region', region_id: ids.KABUPATEN });
+        cek(hapusKab.status === 200, 'kabupaten dapat dihapus sebelum kecamatannya', `${hapusKab.status} ${hapusKab.json.error ?? ''}`);
+    }
     const hapusKec = await region({ action: 'delete_region', region_id: ids.KECAMATAN });
     cek(hapusKec.status === 200, 'kecamatan dapat dihapus setelah kabupatennya');
     const hapusProv = await region({ action: 'delete_region', region_id: ids.PROVINSI });
