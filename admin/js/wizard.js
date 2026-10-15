@@ -24,7 +24,7 @@ import {
     fetchAllRows,
     updateProgram, updateClass, updateStudent, updateUserIdentifier,
     importPrograms, importClasses, importUsers, importStudents,
-    importParents, importDudi, addTuAccount,
+    importParents, importDudi, addTuAccount, addStakeholderAccount,
     getForumBkStaff, getForumGuruWaliCandidates,
     getBkAssignments, getGuruWaliAssignments,
     assignBkToClass, revokeBkFromClass,
@@ -612,8 +612,8 @@ async function renderStakeholderStep() {
         addBtn.disabled = true;
         addBtn.textContent = 'Menyimpan…';
         try {
-            const csv = `nama,nip_atau_nik,role_type\n${name},${code},STAKEHOLDER`;
-            const result = await importUsers(csv);
+            // Nama bergelar memuat koma ("H. Abdul Rahman, S.E."): dikutip oleh addStakeholderAccount.
+            const result = await addStakeholderAccount(name, code);
             const savedCode = code;
             // Password acak terpisah dari kode — ambil dari response edge function
             const tempPassword = result?.imported?.[0]?.temp_password ?? '(lihat di konsol admin)';

@@ -640,6 +640,10 @@ export function addTuAccount(nama, identifier) {
     return importUsers(`nama,nip_atau_nik,role_type\n${csvField(nama)},${csvField(identifier)},TU`);
 }
 
+export function addStakeholderAccount(nama, identifier) {
+    return importUsers(`nama,nip_atau_nik,role_type\n${csvField(nama)},${csvField(identifier)},STAKEHOLDER`);
+}
+
 /**
  * Jumlah siswa yang belum punya akun login (students.user_id IS NULL).
  */
