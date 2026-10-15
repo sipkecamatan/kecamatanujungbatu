@@ -849,36 +849,20 @@ async function loadRegions() {
             h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: () => hapusStaff(st) }, 'Hapus'),
         ];
 
-        // Ringkasan semua pegawai wilayah di satu tempat
-        const semuaStaff = d.regions.flatMap(r => r.staff.map(st => ({ ...st, wilayah: r.name, level: r.level })));
-        const ringkas = h('div', { class: 'section-card' }, h('h3', {}, `Daftar pegawai wilayah (${semuaStaff.length})`));
         // Tautan portal pegawai wilayah, siap disalin untuk dibagikan bersama kredensial
         const urlPortal = new URL('../kecamatan/', location.href).href;
-        const kolomUrl = h('input', { class: 'input', type: 'text', readonly: true, value: urlPortal,
-                                      style: 'flex:1;min-width:220px', 'aria-label': 'Tautan portal pegawai wilayah' });
-        const tombolSalin = h('button', { class: 'btn btn-sm', type: 'button', onclick: async () => {
-            try { await navigator.clipboard.writeText(urlPortal); }
-            catch { kolomUrl.select(); document.execCommand('copy'); }
-            tombolSalin.textContent = 'Tersalin ✓';
-            setTimeout(() => { tombolSalin.textContent = 'Salin tautan'; }, 2000);
-        }}, 'Salin tautan');
-        ringkas.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 10px' },
-            h('span', { class: 'hint' }, 'Portal pegawai wilayah:'), kolomUrl, tombolSalin));
-        if (!semuaStaff.length) {
-            ringkas.append(h('p', { class: 'hint' }, 'Belum ada pegawai wilayah. Daftarkan lewat kartu wilayah di bawah.'));
-        } else {
-            const tdStyle = 'padding:6px 10px;text-align:left;border-bottom:1px solid var(--color-border, #2b3447);vertical-align:middle';
-            const tabel = h('table', { style: 'width:100%;border-collapse:collapse;font-size:.9rem' },
-                h('thead', {}, h('tr', {}, ...['Nama', 'Email', 'Wilayah', 'Jenis', 'Aksi'].map(t => h('th', { style: tdStyle }, t)))),
-                h('tbody', {}, ...semuaStaff.map(st => h('tr', {},
-                    h('td', { style: tdStyle }, h('strong', {}, st.full_name)),
-                    h('td', { style: tdStyle }, st.email),
-                    h('td', { style: tdStyle }, st.wilayah),
-                    h('td', { style: tdStyle }, LEVEL_LABEL[st.level] ?? 'Kecamatan'),
-                    h('td', { style: tdStyle + ';white-space:nowrap' }, ...tombolStaff(st))))));
-            ringkas.append(h('div', { style: 'overflow-x:auto' }, tabel));
-        }
-        listEl.append(ringkas);
+        const barisTautan = () => {
+            const kolomUrl = h('input', { class: 'input', type: 'text', readonly: true, value: urlPortal,
+                                          style: 'flex:1;min-width:220px', 'aria-label': 'Tautan portal pegawai wilayah' });
+            const tombolSalin = h('button', { class: 'btn btn-sm', type: 'button', onclick: async () => {
+                try { await navigator.clipboard.writeText(urlPortal); }
+                catch { kolomUrl.select(); document.execCommand('copy'); }
+                tombolSalin.textContent = 'Tersalin ✓';
+                setTimeout(() => { tombolSalin.textContent = 'Salin tautan'; }, 2000);
+            }}, 'Salin tautan');
+            return h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 10px' },
+                h('span', { class: 'hint' }, 'Portal pegawai wilayah:'), kolomUrl, tombolSalin);
+        };
 
         for (const r of d.regions) {
             const card = h('div', { class: 'section-card' }, h('h3', {}, r.name));
@@ -944,12 +928,20 @@ async function loadRegions() {
                 sekolahBox.append(pilih);
             }
 
-            // pegawai
+            // pegawai: tabel di dalam kartu wilayahnya sendiri
             card.append(h('h4', { style: 'margin-top:14px' }, `Pegawai wilayah (${r.staff.length})`));
-            if (!r.staff.length) card.append(h('p', { class: 'hint' }, 'Belum ada pegawai.'));
-            for (const st of r.staff) {
-                card.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0' },
-                    h('strong', {}, st.full_name), h('span', { class: 'hint' }, st.email), ...tombolStaff(st)));
+            card.append(barisTautan());
+            if (!r.staff.length) {
+                card.append(h('p', { class: 'hint' }, 'Belum ada pegawai.'));
+            } else {
+                const tdStyle = 'padding:6px 10px;text-align:left;border-bottom:1px solid var(--color-border, #2b3447);vertical-align:middle';
+                card.append(h('div', { style: 'overflow-x:auto' },
+                    h('table', { style: 'width:100%;border-collapse:collapse;font-size:.9rem' },
+                        h('thead', {}, h('tr', {}, ...['Nama', 'Email', 'Aksi'].map(t => h('th', { style: tdStyle }, t)))),
+                        h('tbody', {}, ...r.staff.map(st => h('tr', {},
+                            h('td', { style: tdStyle }, h('strong', {}, st.full_name)),
+                            h('td', { style: tdStyle }, st.email),
+                            h('td', { style: tdStyle + ';white-space:nowrap' }, ...tombolStaff(st))))))));
             }
             const nama  = h('input', { class: 'input', placeholder: 'Nama lengkap pegawai', required: true, minlength: 3 });
             const email = h('input', { class: 'input', type: 'email', placeholder: 'email@instansi.go.id', required: true });
