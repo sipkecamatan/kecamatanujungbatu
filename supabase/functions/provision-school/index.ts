@@ -60,7 +60,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     try {
         const body = await req.json();
         const { school_name, npsn, address, phone, admin_name, admin_identifier,
-                slug, logo_url, primary_color, secondary_color, jenjang, region_id } = body;
+                slug, logo_url, primary_color, secondary_color, jenjang, region_id,
+                kabupaten_id, provinsi_id } = body;
 
         if (!school_name || !admin_name || !admin_identifier) {
             return json({ error: 'school_name, admin_name, dan admin_identifier wajib diisi' }, 400);
@@ -99,9 +100,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (jenjangVal !== null && !['SMP', 'SMA', 'SMK'].includes(jenjangVal)) {
             return json({ error: 'jenjang harus SMP, SMA, atau SMK' }, 400);
         }
-        const regionVal = region_id == null || String(region_id).trim() === '' ? null : String(region_id).trim();
-        if (regionVal !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(regionVal)) {
-            return json({ error: 'region_id tidak valid' }, 400);
+        const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const uuidOpsional = (v: unknown) => v == null || String(v).trim() === '' ? null : String(v).trim();
+        const regionVal    = uuidOpsional(region_id);
+        const kabupatenVal = uuidOpsional(kabupaten_id);
+        const provinsiVal  = uuidOpsional(provinsi_id);
+        if (regionVal !== null && !UUID_RE.test(regionVal))       return json({ error: 'region_id tidak valid' }, 400);
+        if (kabupatenVal !== null && !UUID_RE.test(kabupatenVal)) return json({ error: 'kabupaten_id tidak valid' }, 400);
+        if (provinsiVal !== null && !UUID_RE.test(provinsiVal))   return json({ error: 'provinsi_id tidak valid' }, 400);
+
+        // Kabupaten dan provinsi harus wilayah berjenis sesuai.
+        for (const [val, level, nama] of [[kabupatenVal, 'KABUPATEN', 'kabupaten_id'], [provinsiVal, 'PROVINSI', 'provinsi_id']] as const) {
+            if (val === null) continue;
+            // admin dideklarasikan di bawah; klien dibuat di sini agar tidak memakai variabel sebelum dideklarasikan
+            const { data: reg } = await getAdminClient().from('regions').select('level').eq('region_id', val).maybeSingle();
+            if (!reg) return json({ error: `${nama}: wilayah tidak ditemukan` }, 400);
+            if (reg.level !== level) return json({ error: `${nama} harus wilayah berjenis ${level}` }, 400);
         }
 
         const primaryColor = primary_color == null || String(primary_color).trim() === ''
@@ -141,6 +155,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 slug:            resolvedSlug,
                 jenjang:         jenjangVal,
                 region_id:       regionVal,
+                kabupaten_id:    kabupatenVal,
+                provinsi_id:     provinsiVal,
                 logo_url:        logo_url        || null,
                 primary_color:   primaryColor,
                 secondary_color: secondaryColor,

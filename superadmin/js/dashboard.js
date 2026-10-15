@@ -293,7 +293,9 @@ document.getElementById('provision-form').addEventListener('submit', async (e) =
         primary_color:    document.getElementById('f-primary-color-hex').value.trim() || null,
         secondary_color:  document.getElementById('f-secondary-color-hex').value.trim() || null,
         jenjang:          document.getElementById('f-jenjang').value || null,
-        region_id:        document.getElementById('f-region').value || null,
+        region_id:        null,      // diisi dari pilihan wilayah (tetapkanWilayahSekolah)
+        kabupaten_id:     null,
+        provinsi_id:      null,
     };
 
     // SUP-05: slug ikut ke URL tenant (?school=<slug>). Format yang salah baru
@@ -317,6 +319,7 @@ document.getElementById('provision-form').addEventListener('submit', async (e) =
     }
 
     try {
+        await tetapkanWilayahSekolah(payload);
         const res  = await fetch(`${SUPABASE_URL}/functions/v1/provision-school`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json', 'x-superadmin-key': saKey },
@@ -337,6 +340,8 @@ document.getElementById('provision-form').addEventListener('submit', async (e) =
         resultEl.style.display  = 'block';
 
         e.target.reset();
+        aturPilihanWilayahSekolah();
+        loadRegions();
         // SUP-19: form.reset() tidak selalu mengembalikan input[type=color] ke
         // nilai atribut value-nya. Set ulang manual, berikut hex input pasangannya.
         const DEF_PRIMARY = '#1a56db', DEF_SECONDARY = '#1e40af';
@@ -704,16 +709,6 @@ async function loadRegions() {
         const d = await regionApi({ action: 'list' });
         listEl.replaceChildren();
 
-        // pilihan wilayah pada form pendaftaran sekolah
-        const sel = document.getElementById('f-region');
-        if (sel) {
-            const cur = sel.value;
-            sel.replaceChildren(h('option', { value: '' }, '— tanpa wilayah —'),
-                ...d.regions.filter(r => r.level === 'KECAMATAN' || r.level == null)
-                    .map(r => h('option', { value: r.region_id }, r.name)));
-            sel.value = cur;
-        }
-
         // pilihan kabupaten dan provinsi untuk tiap sekolah
         const idByKode = Object.fromEntries(d.regions.filter(r => r.kode).map(r => [r.kode, r.region_id]));
         const opsiKab  = d.regions.filter(r => r.level === 'KABUPATEN');
@@ -835,6 +830,53 @@ async function loadRefWilayah() {
 }
 const namaKab = (k) => (k.jenis === 'KOTA' ? 'Kota ' : 'Kabupaten ') + k.nama;
 
+// ── Pilihan wilayah pada pendaftaran sekolah (satu formulir) ──
+// Provinsi -> Kabupaten/Kota -> Kecamatan dipilih dari daftar resmi; wilayahnya dibuat
+// otomatis bila belum ada, lalu id-nya dikirim bersama pendaftaran sekolah.
+async function aturPilihanWilayahSekolah() {
+    const prov = document.getElementById('f-prov');
+    const kab  = document.getElementById('f-kab');
+    const kec  = document.getElementById('f-kec');
+    if (!prov || !kab || !kec) return;
+    let ref;
+    try { ref = await loadRefWilayah(); } catch { return; }
+
+    if (!prov.dataset.siap) {
+        prov.dataset.siap = '1';
+        prov.replaceChildren(h('option', { value: '' }, '\u2014 tanpa wilayah \u2014'),
+            h('option', { value: ref.provinsi.kode }, 'Provinsi ' + ref.provinsi.nama));
+        prov.addEventListener('change', aturPilihanWilayahSekolah);
+        kab.addEventListener('change', aturPilihanWilayahSekolah);
+    }
+    const kabTerpilih = kab.value;
+    kab.replaceChildren(h('option', { value: '' }, '\u2014 pilih kabupaten / kota \u2014'),
+        ...(prov.value ? ref.kabupaten : []).map(k => h('option', { value: k.kode }, namaKab(k))));
+    kab.value = ref.kabupaten.some(k => k.kode === kabTerpilih) && prov.value ? kabTerpilih : '';
+    kab.disabled = !prov.value;
+
+    const k = ref.kabupaten.find(x => x.kode === kab.value);
+    kec.replaceChildren(h('option', { value: '' }, '\u2014 pilih kecamatan \u2014'),
+        ...(k ? k.kecamatan : []).map(c => h('option', { value: c.kode }, c.nama)));
+    kec.disabled = !k;
+}
+
+async function tetapkanWilayahSekolah(payload) {
+    const provKode = document.getElementById('f-prov').value;
+    if (!provKode) return;                       // tanpa wilayah
+    const ref = await loadRefWilayah();
+    const kab = ref.kabupaten.find(x => x.kode === document.getElementById('f-kab').value);
+    const kec = kab && kab.kecamatan.find(c => c.kode === document.getElementById('f-kec').value);
+
+    const pastikan = async (kode, name, level) =>
+        (await regionApi({ action: 'ensure_region', kode, name, level })).region.region_id;
+
+    payload.provinsi_id = await pastikan(ref.provinsi.kode, 'Provinsi ' + ref.provinsi.nama, 'PROVINSI');
+    if (kab) payload.kabupaten_id = await pastikan(kab.kode, namaKab(kab), 'KABUPATEN');
+    if (kab && kec) {
+        payload.region_id = await pastikan(kec.kode, 'Kecamatan ' + kec.nama + ', ' + namaKab(kab), 'KECAMATAN');
+    }
+}
+
 async function initRegionForm() {
     let ref;
     try { ref = await loadRefWilayah(); }
@@ -883,11 +925,7 @@ document.getElementById('region-form').addEventListener('submit', async (ev) => 
     finally { btn.disabled = false; }
 });
 initRegionForm();
+aturPilihanWilayahSekolah();
 
 document.querySelector('.tab-btn[data-tab="regions"]').addEventListener('click', loadRegions);
 
-// Isi pilihan wilayah saat form pendaftaran sekolah dibuka (tanpa harus membuka tab Wilayah)
-document.getElementById("toggle-provision-btn").addEventListener("click", () => {
-    const sel = document.getElementById("f-region");
-    if (sel && sel.options.length <= 1) loadRegions();
-});
