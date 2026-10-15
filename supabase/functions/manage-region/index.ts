@@ -173,6 +173,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             const password = randomPassword();
             const { data: created, error: authErr } = await admin.auth.admin.createUser({
                 email, password, email_confirm: true,
+                user_metadata: { must_change_password: true },   // wajib ganti saat masuk pertama
             });
             if (authErr || !created?.user) {
                 const msg = String(authErr?.message ?? 'gagal membuat akun');
@@ -220,7 +221,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
             if (!row) return json({ error: 'pegawai wilayah tidak ditemukan' }, 404);
 
             const password = randomPassword();
-            const { data: upd, error: updErr } = await admin.auth.admin.updateUserById(authId, { password });
+            const { data: lama } = await admin.auth.admin.getUserById(authId);
+            const { data: upd, error: updErr } = await admin.auth.admin.updateUserById(authId, {
+                password,
+                user_metadata: { ...(lama?.user?.user_metadata ?? {}), must_change_password: true },
+            });
             if (updErr || !upd?.user) throw updErr ?? new Error('gagal mengubah kata sandi');
             return json({
                 success: true,

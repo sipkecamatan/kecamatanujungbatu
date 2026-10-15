@@ -11,7 +11,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 const $ = (id) => document.getElementById(id);
-const state = { overview: null, jenjang: 'SEMUA', days: 30, pengingatDitunda: false };
+const state = { overview: null, jenjang: 'SEMUA', days: 30, pengingatDitunda: false, wajibGanti: false };
 
 // Pengingat unduh: tanggal terakhir diunduh disimpan di peramban pegawai, tidak di server.
 const KUNCI_UNDUH = 'sip-wilayah-terakhir-unduh';
@@ -258,6 +258,30 @@ function resetPwForm() {
 }
 $('pw-open-btn').addEventListener('click', () => { resetPwForm(); $('pw-dialog').showModal(); });
 $('pw-cancel').addEventListener('click', () => $('pw-dialog').close());
+// Saat penggantian wajib, dialog tidak boleh ditutup dengan Esc.
+$('pw-dialog').addEventListener('cancel', (e) => { if (state.wajibGanti) e.preventDefault(); });
+
+// Akun baru atau yang baru direset membawa penanda must_change_password. Selama penanda
+// ada, server menolak data (fn_region_staff_region mengembalikan NULL), dan dasbor
+// memaksa dialog ini sebelum memuat apa pun.
+function perluGantiSandi(user) {
+  const v = user?.user_metadata?.must_change_password;
+  return v === true || v === 'true';
+}
+function bukaGantiWajib() {
+  state.wajibGanti = true;
+  resetPwForm();
+  $('pw-wajib').hidden = false;
+  $('pw-cancel').hidden = true;
+  $('app-loading').hidden = true;
+  if (!$('pw-dialog').open) $('pw-dialog').showModal();
+}
+function tutupGantiWajib() {
+  state.wajibGanti = false;
+  $('pw-wajib').hidden = true;
+  $('pw-cancel').hidden = false;
+  if ($('pw-dialog').open) $('pw-dialog').close();
+}
 $('pw-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   setError('pw-error', '');
@@ -273,9 +297,16 @@ $('pw-form').addEventListener('submit', async (e) => {
     const email = s.session?.user?.email;
     const chk = await supabase.auth.signInWithPassword({ email, password: cur });
     if (chk.error) { setError('pw-error', 'Kata sandi saat ini salah.'); return; }
-    const { error } = await supabase.auth.updateUser({ password: nw });
+    const { error } = await supabase.auth.updateUser({ password: nw, data: { must_change_password: false } });
     if (error) { setError('pw-error', 'Gagal menyimpan: ' + error.message); return; }
+    // Token lama masih membawa penanda; segarkan agar server menerima permintaan berikutnya.
+    await supabase.auth.refreshSession();
     $('pw-form').reset();
+    if (state.wajibGanti) {
+      tutupGantiWajib();
+      await loadOverview();
+      return;
+    }
     text($('pw-ok'), 'Kata sandi berhasil diganti.');
     $('pw-ok').hidden = false;
     setTimeout(() => $('pw-dialog').close(), 1500);
@@ -284,7 +315,12 @@ $('pw-form').addEventListener('submit', async (e) => {
   }
 });
 
-async function enterApp() { showView('app'); await loadOverview(); }
+async function enterApp() {
+  showView('app');
+  const { data } = await supabase.auth.getSession();
+  if (perluGantiSandi(data.session?.user)) { bukaGantiWajib(); return; }
+  await loadOverview();
+}
 
 (async () => {
   const { data } = await supabase.auth.getSession();

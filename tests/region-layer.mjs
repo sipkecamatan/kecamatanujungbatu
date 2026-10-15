@@ -20,6 +20,7 @@ const migrationTiga = read('supabase/migrations/20261015010000_region_three_leve
 const migrationPerTingkat = read('supabase/migrations/20261015020000_region_sharing_per_level.sql');
 const migrationKode = read('supabase/migrations/20261015030000_region_kode.sql');
 const migrationBersih = read('supabase/migrations/20261015040000_region_cleanup_parent.sql');
+const migrationSandi = read('supabase/migrations/20261015050000_region_staff_must_change_password.sql');
 
 const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
 let passed = 0;
@@ -55,6 +56,9 @@ await db.exec(migrationTiga);
 await db.exec(migrationPerTingkat);
 await db.exec(migrationKode);
 await db.exec(migrationBersih);
+// auth.jwt() pada Supabase membaca klaim token; tiruan di sini membaca setelan yang sama.
+await db.exec(`CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;`);
+await db.exec(migrationSandi);
 
 // Fixture: tiap sekolah punya 3 siswa, 10 sesi (10 hari terakhir), k sesi beratribut absensi,
 // dan `alpa` baris ALPA. Semua nama siswa memuat kata "RAHASIA" agar bocor mudah terdeteksi.
@@ -372,6 +376,21 @@ await test('pembersihan: kolom, pemicu, dan fungsi induk-anak sudah dibuang; fun
   assert.equal(kol + fn + trg, 0);
   const o = await overview(STAFF_A);
   assert.ok(Array.isArray(o.sekolah) && o.sekolah.length >= 1);
+});
+
+await test('wajib ganti kata sandi: penanda pada token menolak data; setelah dihapus data kembali', async () => {
+  const klaim = async (v) => db.query(`SELECT set_config('request.jwt.claims', $1, false)`, [v]);
+  try {
+    await klaim(JSON.stringify({ user_metadata: { must_change_password: true } }));
+    assert.equal(await code(STAFF_A, 'SELECT public.fn_region_overview(30)'), '42501');
+    assert.equal(await code(STAFF_A, `SELECT * FROM public.fn_region_school_trend('${S1.sid}', 4)`), '42501');
+    await klaim(JSON.stringify({ user_metadata: { must_change_password: 'true' } }));
+    assert.equal(await code(STAFF_A, 'SELECT public.fn_region_overview(30)'), '42501');
+    await klaim(JSON.stringify({ user_metadata: { must_change_password: false } }));
+    assert.equal(await code(STAFF_A, 'SELECT public.fn_region_overview(30)'), 'OK');
+    await klaim('');
+    assert.equal(await code(STAFF_A, 'SELECT public.fn_region_overview(30)'), 'OK');
+  } finally { await klaim(''); }
 });
 
 console.log(`REGION_LAYER_COMPLETE: ${passed} lulus; PGlite saja`);
