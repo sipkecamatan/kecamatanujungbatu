@@ -703,6 +703,10 @@ function h(tag, props = {}, ...kids) {
     return n;
 }
 
+// Daftar sekolah per wilayah bisa dilipat; wilayah yang sedang dibuka diingat agar tidak menutup sendiri
+// setelah muat ulang (mis. sesudah menekan Simpan).
+const _sekolahTerbuka = new Set();
+
 async function loadRegions() {
     const listEl = document.getElementById('region-list');
     try {
@@ -717,13 +721,58 @@ async function loadRegions() {
 
         if (!d.regions.length) listEl.append(h('p', { class: 'hint' }, 'Belum ada wilayah. Buat satu di atas.'));
 
+        const resetStaff = async (st) => {
+            if (!confirm(`Buat kata sandi sementara baru untuk ${st.full_name}? Kata sandi lama langsung tidak berlaku.`)) return;
+            try {
+                const out = await regionApi({ action: 'reset_staff_password', auth_user_id: st.auth_user_id });
+                document.getElementById('staff-cred-email').textContent    = out.email;
+                document.getElementById('staff-cred-password').textContent = out.password;
+                document.getElementById('staff-cred-box').style.display = 'block';
+                showRegionMsg(`Kata sandi sementara ${out.full_name} dibuat. Salin sekarang dari kotak kredensial.`, true);
+            } catch (e) { showRegionMsg(e.message, false); }
+        };
+        const hapusStaff = async (st) => {
+            if (!confirm(`Hapus akses ${st.full_name}? Akun login juga dihapus.`)) return;
+            try { await regionApi({ action: 'remove_staff', auth_user_id: st.auth_user_id }); showRegionMsg('Pegawai dihapus.', true); loadRegions(); }
+            catch (e) { showRegionMsg(e.message, false); }
+        };
+        const tombolStaff = (st) => [
+            h('button', { class: 'btn btn-sm', type: 'button', onclick: () => resetStaff(st) }, 'Reset kata sandi'),
+            h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: () => hapusStaff(st) }, 'Hapus'),
+        ];
+
+        // Ringkasan semua pegawai wilayah di satu tempat
+        const semuaStaff = d.regions.flatMap(r => r.staff.map(st => ({ ...st, wilayah: r.name, level: r.level })));
+        const ringkas = h('div', { class: 'section-card' }, h('h3', {}, `Daftar pegawai wilayah (${semuaStaff.length})`));
+        if (!semuaStaff.length) {
+            ringkas.append(h('p', { class: 'hint' }, 'Belum ada pegawai wilayah. Daftarkan lewat kartu wilayah di bawah.'));
+        } else {
+            const tdStyle = 'padding:6px 10px;text-align:left;border-bottom:1px solid var(--color-border, #2b3447);vertical-align:middle';
+            const tabel = h('table', { style: 'width:100%;border-collapse:collapse;font-size:.9rem' },
+                h('thead', {}, h('tr', {}, ...['Nama', 'Email', 'Wilayah', 'Jenis', 'Aksi'].map(t => h('th', { style: tdStyle }, t)))),
+                h('tbody', {}, ...semuaStaff.map(st => h('tr', {},
+                    h('td', { style: tdStyle }, h('strong', {}, st.full_name)),
+                    h('td', { style: tdStyle }, st.email),
+                    h('td', { style: tdStyle }, st.wilayah),
+                    h('td', { style: tdStyle }, LEVEL_LABEL[st.level] ?? 'Kecamatan'),
+                    h('td', { style: tdStyle + ';white-space:nowrap' }, ...tombolStaff(st))))));
+            ringkas.append(h('div', { style: 'overflow-x:auto' }, tabel));
+        }
+        listEl.append(ringkas);
+
         for (const r of d.regions) {
             const card = h('div', { class: 'section-card' }, h('h3', {}, r.name));
             card.append(h('p', { class: 'hint' }, `Jenis: ${LEVEL_LABEL[r.level] ?? 'Kecamatan'}`));
 
             // sekolah
-            card.append(h('h4', {}, `Sekolah (${r.schools.length})`));
-            if (!r.schools.length) card.append(h('p', { class: 'hint' }, 'Belum ada sekolah.'));
+            const sekolahBox = h('details', { style: 'margin:6px 0' },
+                h('summary', { style: 'cursor:pointer;font-weight:700;padding:4px 0' }, `Sekolah (${r.schools.length})`));
+            if (_sekolahTerbuka.has(r.region_id)) sekolahBox.open = true;
+            sekolahBox.addEventListener('toggle', () => {
+                if (sekolahBox.open) _sekolahTerbuka.add(r.region_id); else _sekolahTerbuka.delete(r.region_id);
+            });
+            card.append(sekolahBox);
+            if (!r.schools.length) sekolahBox.append(h('p', { class: 'hint' }, 'Belum ada sekolah.'));
             for (const s of r.schools) {
                 const jen = h('select', { class: 'input', style: 'width:auto' },
                     h('option', { value: '' }, '— jenjang —'),
@@ -750,7 +799,7 @@ async function loadRegions() {
                         showRegionMsg(`${s.name} dilepas dari wilayah.`, true); loadRegions(); loadSchools();
                     } catch (e) { showRegionMsg(e.message, false); }
                 }}, 'Lepas');
-                card.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0' },
+                sekolahBox.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0' },
                     h('strong', {}, s.name), jen, kab, prov, simpan, lepas,
                     h('span', { class: (s.share_with_region || s.share_kabupaten || s.share_provinsi) ? 'badge badge-success' : 'badge' },
                         'Berbagi — kecamatan: ' + (s.share_with_region ? 'ya' : 'tidak') +
@@ -771,7 +820,7 @@ async function loadRegions() {
                         showRegionMsg(`${sk.name} ditempatkan di ${r.name}.`, true); loadRegions(); loadSchools();
                     } catch (e) { showRegionMsg(e.message, false); }
                 });
-                card.append(pilih);
+                sekolahBox.append(pilih);
             }
 
             // pegawai
@@ -779,22 +828,7 @@ async function loadRegions() {
             if (!r.staff.length) card.append(h('p', { class: 'hint' }, 'Belum ada pegawai.'));
             for (const st of r.staff) {
                 card.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0' },
-                    h('strong', {}, st.full_name), h('span', { class: 'hint' }, st.email),
-                    h('button', { class: 'btn btn-sm', type: 'button', onclick: async () => {
-                        if (!confirm(`Buat kata sandi sementara baru untuk ${st.full_name}? Kata sandi lama langsung tidak berlaku.`)) return;
-                        try {
-                            const out = await regionApi({ action: 'reset_staff_password', auth_user_id: st.auth_user_id });
-                            document.getElementById('staff-cred-email').textContent    = out.email;
-                            document.getElementById('staff-cred-password').textContent = out.password;
-                            document.getElementById('staff-cred-box').style.display = 'block';
-                            showRegionMsg(`Kata sandi sementara ${out.full_name} dibuat. Salin sekarang dari kotak kredensial.`, true);
-                        } catch (e) { showRegionMsg(e.message, false); }
-                    }}, 'Reset kata sandi'),
-                    h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: async () => {
-                        if (!confirm(`Hapus akses ${st.full_name}? Akun login juga dihapus.`)) return;
-                        try { await regionApi({ action: 'remove_staff', auth_user_id: st.auth_user_id }); showRegionMsg('Pegawai dihapus.', true); loadRegions(); }
-                        catch (e) { showRegionMsg(e.message, false); }
-                    }}, 'Hapus')));
+                    h('strong', {}, st.full_name), h('span', { class: 'hint' }, st.email), ...tombolStaff(st)));
             }
             const nama  = h('input', { class: 'input', placeholder: 'Nama lengkap pegawai', required: true, minlength: 3 });
             const email = h('input', { class: 'input', type: 'email', placeholder: 'email@instansi.go.id', required: true });
