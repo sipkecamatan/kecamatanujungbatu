@@ -23,6 +23,7 @@ const migrationBersih = read('supabase/migrations/20261015040000_region_cleanup_
 const migrationSandi = read('supabase/migrations/20261015050000_region_staff_must_change_password.sql');
 const migrationOrtu = read('supabase/migrations/20261015060000_region_overview_orang_tua.sql');
 const migrationRentang = read('supabase/migrations/20261015070000_region_range.sql');
+const migrationGrup = read('supabase/migrations/20261016010000_region_group.sql');
 
 const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
 let passed = 0;
@@ -63,6 +64,7 @@ await db.exec(`CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql 
 await db.exec(migrationSandi);
 await db.exec(migrationOrtu);
 await db.exec(migrationRentang);
+await db.exec(migrationGrup);
 
 // Fixture: tiap sekolah punya 3 siswa, 10 sesi (10 hari terakhir), k sesi beratribut absensi,
 // dan `alpa` baris ALPA. Semua nama siswa memuat kata "RAHASIA" agar bocor mudah terdeteksi.
@@ -487,8 +489,70 @@ await test('tren rentang: mingguan dan bulanan mengembalikan baris; sekolah tak 
 });
 await test('rentang: anon tidak punya hak eksekusi', async () => {
   const g = async (r, f) => (await db.query(`SELECT has_function_privilege('${r}', '${f}', 'EXECUTE') AS v`)).rows[0].v;
-  assert.equal(await g('anon', 'public.fn_region_overview_range(date, date)'), false);
+  assert.equal(await g('anon', 'public.fn_region_overview_range(date, date, uuid, boolean)'), false);
   assert.equal(await g('anon', 'public.fn_region_school_trend_range(uuid, date, date, text)'), false);
+});
+
+// ── Dasbor dikelompokkan (kabupaten dan provinsi) ───────────────────
+const grup = async (authId, kel = null) =>
+  (await as(authId, `SELECT public.fn_region_overview_range(CURRENT_DATE - 29, CURRENT_DATE, ${kel ? "'" + kel + "'" : 'NULL'}) AS o`)).rows[0].o;
+const NOL = '00000000-0000-0000-0000-000000000000';
+
+await test('kelompok: pegawai kecamatan tetap menerima daftar sekolah, tanpa kelompok', async () => {
+  const o = await grup(STAFF_A);
+  assert.equal(o.mode_kelompok, null);
+  assert.equal(o.tingkat, 'KECAMATAN');
+  assert.ok(o.sekolah.length > 0);
+  assert.deepEqual(o.kelompok, []);
+  assert.equal(o.maks_hari, 366);
+});
+await test('kelompok: pegawai kabupaten menerima satu baris per kecamatan, tanpa daftar sekolah', async () => {
+  const o = await grup(STAFF_KAB);
+  assert.equal(o.mode_kelompok, 'KEC');
+  assert.deepEqual(o.sekolah, []);
+  const g = o.kelompok.find((x) => x.region_id === REG_A);
+  assert.ok(g, 'kelompok kecamatan A ada');
+  const semua = await namaSekolah(STAFF_KAB);
+  assert.equal(o.kelompok.reduce((a, x) => a + x.jumlah_sekolah, 0), semua.length);
+  assert.equal(o.total.siswa_aktif, o.kelompok.reduce((a, x) => a + x.siswa_aktif, 0));
+});
+await test('kelompok: membuka satu kecamatan memberi daftar sekolahnya', async () => {
+  const o = await grup(STAFF_KAB, REG_A);
+  assert.equal(o.mode_kelompok, null);
+  assert.deepEqual(o.sekolah.map((s) => s.nama).sort(), await namaSekolah(STAFF_KAB));
+  assert.ok(o.kelompok_nama);
+});
+await test('kelompok: pegawai provinsi turun bertingkat kabupaten, kecamatan, sekolah', async () => {
+  const atas = await grup(STAFF_PROV);
+  assert.equal(atas.mode_kelompok, 'KAB');
+  assert.deepEqual(atas.sekolah, []);
+  assert.ok(atas.kelompok.some((x) => x.region_id === KAB));
+  const kab = await grup(STAFF_PROV, KAB);
+  assert.equal(kab.mode_kelompok, 'KEC');
+  assert.ok(kab.kelompok.some((x) => x.region_id === REG_A));
+  const kec = await grup(STAFF_PROV, REG_A);
+  assert.equal(kec.mode_kelompok, null);
+  assert.ok(kec.sekolah.length > 0);
+});
+await test('kelompok: sekolah tanpa kecamatan menjadi kelompok tersendiri dan dapat dibuka', async () => {
+  await db.exec(`UPDATE schools SET kabupaten_id = '${KAB}', share_kabupaten = true WHERE school_id = '${S7.sid}'`);
+  try {
+    const o = await grup(STAFF_KAB);
+    const tanpa = o.kelompok.find((x) => x.region_id === null);
+    assert.ok(tanpa && tanpa.nama === 'Tanpa kecamatan' && tanpa.jumlah_sekolah === 1);
+    const buka = await grup(STAFF_KAB, NOL);
+    assert.deepEqual(buka.sekolah.map((s) => s.nama), ['SMA Belum Wilayah']);
+  } finally {
+    await db.exec(`UPDATE schools SET kabupaten_id = NULL, share_kabupaten = false WHERE school_id = '${S7.sid}'`);
+  }
+});
+await test('kelompok: tidak ada nama atau kolom siswa pada keluaran kelompok', async () => {
+  const teks = JSON.stringify([await grup(STAFF_KAB), await grup(STAFF_PROV)]);
+  assert.ok(!/RAHASIA|NIS-|student_id|full_name/i.test(teks));
+});
+await test('kelompok: fungsi lama fn_region_overview tetap memberi daftar sekolah penuh untuk pegawai kabupaten', async () => {
+  const o = await overview(STAFF_KAB);
+  assert.ok(o.sekolah.length > 0);
 });
 
 console.log(`REGION_LAYER_COMPLETE: ${passed} lulus; PGlite saja`);

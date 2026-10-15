@@ -11,7 +11,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 const $ = (id) => document.getElementById(id);
-const state = { overview: null, jenjang: 'SEMUA', periode: '30', dari: null, sampai: null, pengingatDitunda: false, wajibGanti: false };
+const state = { overview: null, jenjang: 'SEMUA', periode: '30', dari: null, sampai: null, jejak: [], pengingatDitunda: false, wajibGanti: false };
 
 // Pengingat unduh: tanggal terakhir diunduh disimpan di peramban pegawai, tidak di server.
 const KUNCI_UNDUH = 'sip-wilayah-terakhir-unduh';
@@ -84,12 +84,15 @@ function hitungRentang() {
 async function loadOverview() {
   setError('app-error', '');
   $('app-loading').hidden = false;
-  $('cards').hidden = $('jenjang-card').hidden = $('sekolah-card').hidden = $('method-card').hidden = $('trend-card').hidden = true;
+  $('cards').hidden = $('jenjang-card').hidden = $('sekolah-card').hidden = $('kelompok-card').hidden = $('method-card').hidden = $('trend-card').hidden = true;
 
   const r = hitungRentang();
   if (!r) { $('app-loading').hidden = true; setError('app-error', 'Rentang tanggal tidak valid: awal harus sebelum akhir, paling lama 366 hari.'); return; }
   state.dari = r.dari; state.sampai = r.sampai;
-  const { data, error } = await supabase.rpc('fn_region_overview_range', { p_from: r.dari, p_to: r.sampai });
+  const { data, error } = await supabase.rpc('fn_region_overview_range', {
+    p_from: r.dari, p_to: r.sampai,
+    p_kelompok: state.jejak.length ? state.jejak[state.jejak.length - 1].id : null,
+  });
   $('app-loading').hidden = true;
   if (error) {
     const denied = error.code === '42501' || /akses ditolak/i.test(error.message || '');
@@ -140,12 +143,22 @@ function bangunCsv(o) {
   } else {
     baris.push(['Tidak ditampilkan: tidak ada jenjang dengan minimal 2 sekolah yang membagikan data']);
   }
-  baris.push([], ['SEKOLAH'],
-    ['Sekolah', 'Jenjang', 'Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar', 'Status data']);
-  for (const s of o.sekolah) {
-    baris.push([s.nama, s.jenjang ?? '', s.siswa_aktif, s.orang_tua_aktif, s.cakupan_pct ?? '', s.kehadiran_pct ?? '',
-                piketCsv(s.terlambat, o.ambang_piket), piketCsv(s.izin_keluar, o.ambang_piket),
-                (STATUS[s.status] || STATUS.TIDAK_ADA_JADWAL).label]);
+  if (o.kelompok && o.kelompok.length) {
+    baris.push([], [o.mode_kelompok === 'KAB' ? 'KABUPATEN / KOTA' : 'KECAMATAN'],
+      [o.mode_kelompok === 'KAB' ? 'Kabupaten / Kota' : 'Kecamatan', 'Sekolah', 'Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar']);
+    for (const k of o.kelompok) {
+      baris.push([k.nama, k.jumlah_sekolah, k.siswa_aktif, k.orang_tua_aktif, k.cakupan_pct ?? '', k.kehadiran_pct ?? '',
+                  piketCsv(k.terlambat, o.ambang_piket), piketCsv(k.izin_keluar, o.ambang_piket)]);
+    }
+  }
+  if (o.sekolah && o.sekolah.length) {
+    baris.push([], ['SEKOLAH'],
+      ['Sekolah', 'Jenjang', 'Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar', 'Status data']);
+    for (const s of o.sekolah) {
+      baris.push([s.nama, s.jenjang ?? '', s.siswa_aktif, s.orang_tua_aktif, s.cakupan_pct ?? '', s.kehadiran_pct ?? '',
+                  piketCsv(s.terlambat, o.ambang_piket), piketCsv(s.izin_keluar, o.ambang_piket),
+                  (STATUS[s.status] || STATUS.TIDAK_ADA_JADWAL).label]);
+    }
   }
   return '\uFEFF' + baris.map(barisCsv).join('\r\n') + '\r\n';
 }
@@ -225,8 +238,53 @@ function render() {
   labelKolom('tbl-jenjang');
   $('jenjang-card').hidden = !(o.per_jenjang && o.per_jenjang.length);
 
-  // Filter jenjang
-  const jenjangs = ['SEMUA', ...new Set(o.sekolah.map((s) => s.jenjang || 'TIDAK_DIKETAHUI'))];
+  // Jejak wilayah dan kelompok (pegawai kabupaten dan provinsi)
+  const jejak = $('jejak'); jejak.replaceChildren();
+  const NOL = '00000000-0000-0000-0000-000000000000';
+  const bukaJejak = (n) => { state.jejak = state.jejak.slice(0, n); state.jenjang = 'SEMUA'; loadOverview(); };
+  if (state.jejak.length) {
+    jejak.append(el('button', { class: 'link', type: 'button', onclick: () => bukaJejak(0) }, o.tingkat === 'PROVINSI' ? 'Semua kabupaten/kota' : 'Semua kecamatan'));
+    state.jejak.forEach((j, i) => {
+      jejak.append(' › ');
+      if (i < state.jejak.length - 1) jejak.append(el('button', { class: 'link', type: 'button', onclick: () => bukaJejak(i + 1) }, j.nama));
+      else jejak.append(el('strong', {}, j.nama));
+    });
+  }
+  const modeKel = o.mode_kelompok;
+  const tk = $('tbl-kelompok').querySelector('tbody'); tk.replaceChildren();
+  if (modeKel) {
+    text($('kelompok-title'), modeKel === 'KAB' ? 'Kabupaten / Kota' : 'Kecamatan');
+    text($('th-kelompok'), modeKel === 'KAB' ? 'Kabupaten / Kota' : 'Kecamatan');
+    if (!(o.kelompok || []).length) {
+      tk.append(el('tr', {}, el('td', { colspan: 8, class: 'muted' }, 'Belum ada sekolah yang membagikan data.')));
+    }
+    for (const k of o.kelompok || []) {
+      tk.append(el('tr', { class: 'row-sekolah', onclick: () => {
+          state.jejak = state.jejak.concat([{ id: k.region_id || NOL, nama: k.nama }]);
+          state.jenjang = 'SEMUA'; loadOverview();
+        } },
+        el('td', {}, el('button', { class: 'link', type: 'button' }, k.nama)),
+        el('td', { class: 'num' }, k.jumlah_sekolah),
+        el('td', { class: 'num' }, k.siswa_aktif),
+        el('td', { class: 'num' }, k.orang_tua_aktif),
+        el('td', { class: 'num' }, pct(k.cakupan_pct)),
+        el('td', { class: 'num' }, pct(k.kehadiran_pct)),
+        el('td', { class: 'num' }, piket(k.terlambat, o.ambang_piket)),
+        el('td', { class: 'num' }, piket(k.izin_keluar, o.ambang_piket)),
+      ));
+    }
+    labelKolom('tbl-kelompok');
+  }
+  // Satu kartu saja yang tampil: kelompok, atau daftar sekolah (dengan jejak bila sedang membuka kelompok)
+  $('kelompok-card').hidden = !(modeKel || state.jejak.length);
+  if (!modeKel && state.jejak.length) {
+    text($('kelompok-title'), o.kelompok_nama || 'Sekolah');
+    $('tbl-kelompok').closest('.table-wrap').hidden = true;
+  } else {
+    $('tbl-kelompok').closest('.table-wrap').hidden = false;
+  }
+
+  // Filter jenjang = ['SEMUA', ...new Set(o.sekolah.map((s) => s.jenjang || 'TIDAK_DIKETAHUI'))];
   const chips = $('filter-jenjang'); chips.replaceChildren();
   for (const j of jenjangs) {
     chips.append(el('button', {
@@ -258,7 +316,7 @@ function render() {
     ));
   }
   labelKolom('tbl-sekolah');
-  $('sekolah-card').hidden = false;
+  $('sekolah-card').hidden = Boolean(modeKel);
   $('method-card').hidden = false;
   perbaruiPengingat();
 }
@@ -308,6 +366,7 @@ $('login-form').addEventListener('submit', async (e) => {
 $('logout-btn').addEventListener('click', async () => {
   await supabase.auth.signOut();
   state.overview = null;
+  state.jejak = [];
   showView('login');
 });
 $('unduh-btn').addEventListener('click', unduhCsv);
