@@ -45,6 +45,9 @@ function el(tag, props = {}, ...kids) {
   return n;
 }
 const pct = (v) => (v == null ? '—' : `${v}%`);
+// Nama wilayah di daftar resmi memuat induknya ("Kecamatan Ujung Batu, Kabupaten Rokan Hulu"). Pegawai hanya
+// mengenal nama wilayahnya sendiri, jadi yang ditampilkan hanya bagian sebelum koma pertama.
+const namaWilayah = (o) => String(o?.wilayah ?? '').split(',')[0].trim();
 // Hitungan piket: null berarti 1–4 kejadian yang disembunyikan server (ambang_piket = 5).
 const piket = (v, ambang) => (v == null ? `< ${ambang ?? 5}` : String(v));
 const tgl = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -124,7 +127,7 @@ function bangunCsv(o) {
   const dibuat = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
   const baris = [
     ['SIP - Dashboard Wilayah'],
-    ['Wilayah', o.wilayah ?? ''],
+    ['Wilayah', namaWilayah(o)],
     ['Periode', `${o.dari} s.d. ${o.sampai} (${o.jendela_hari} hari)`],
     ['Diunduh', dibuat],
     ['Catatan', 'Angka agregat dari sekolah yang disetujui kepala sekolah; tidak memuat nama atau identitas siswa. Total tampil bila minimal 3 sekolah; keterlambatan dan izin keluar 1-4 ditulis "< 5"; kehadiran kosong bila cakupan input di bawah ' + o.ambang_cakupan_pct + '%.'],
@@ -163,7 +166,7 @@ function bangunCsv(o) {
 function unduhCsv() {
   const o = state.overview;
   if (!o) return;
-  const nama = 'SIP-' + String(o.wilayah ?? 'wilayah').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  const nama = 'SIP-' + String(namaWilayah(o) || 'wilayah').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
              + `-${o.dari}_${o.sampai}.csv`;
   const url = URL.createObjectURL(new Blob([bangunCsv(o)], { type: 'text/csv;charset=utf-8' }));
   const a = el('a', { href: url, download: nama });
@@ -189,7 +192,7 @@ function perbaruiPengingat() {
 function render() {
   const o = state.overview;
   if (!o) return;
-  text($('wilayah'), `${o.wilayah ?? '—'} · ${tgl(o.dari)} – ${tgl(o.sampai)}`);
+  text($('wilayah'), `${namaWilayah(o) || '—'} · ${tgl(o.dari)} – ${tgl(o.sampai)}`);
   text($('ambang'), o.ambang_cakupan_pct);
 
   // Kartu ringkasan
