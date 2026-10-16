@@ -46,7 +46,7 @@ import {
     getClassProgramContext, getCpForSubject, checkElementDuplicate,
     getRegionSharingStatus, setRegionSharing, setRegionSharingLevel,
 } from './api.js';
-import { saveAttendanceBatch, flushPending, pendingCount, clearOfflineQueue } from './offline.js';
+import { saveAttendanceBatch, flushPending, pendingCount, rejectedCount } from './offline.js';
 import { initJurnalTab } from './jurnal.js';
 import { showPwaBanner } from '../../shared/pwa-banner.js';
 import {
@@ -1207,12 +1207,16 @@ async function updateSyncBanner() {
         el.className = 'sync-banner';
         document.body.appendChild(el);
     }
-    let n = 0;
+    let n = 0, ditolak = 0;
     try { n = await pendingCount(); } catch (_) { n = 0; }
+    try { ditolak = await rejectedCount(); } catch (_) { ditolak = 0; }
     if (n > 0) {
         el.textContent = navigator.onLine
             ? `⏳ ${n} item menunggu sinkron — menyinkronkan…`
             : `⏳ ${n} item tersimpan di perangkat — akan terkirim saat online`;
+        el.style.display = 'block';
+    } else if (ditolak > 0) {
+        el.textContent = `⚠️ ${ditolak} item ditolak server dan ditahan di perangkat ini. Hubungi admin sekolah; data belum terkirim.`;
         el.style.display = 'block';
     } else {
         el.style.display = 'none';

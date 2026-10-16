@@ -99,6 +99,19 @@ async function idbPurgeAttSession(scheduleId, sessionDate) {
     }
 }
 
+// ── Pemilik antrean (DG-06) ───────────────────────────────────
+// Tiap item diberi tanda pemilik (id akun auth) saat diantre. Saat flush, hanya item milik akun yang sedang login
+// yang dikirim; item milik akun lain DITAHAN (tidak dikirim atas nama orang lain dan tidak dibuang) sampai
+// pemiliknya login lagi di perangkat ini. Item lama tanpa tanda dianggap milik siapa pun yang sedang login.
+async function ownerId() {
+    const { data } = await _supabase.auth.getSession();
+    return data?.session?.user?.id ?? null;
+}
+const milikSaya = (item, me) => !item._owner || item._owner === me;
+const kunciItem = (item) => item.idempotency_key ?? item.journal_id;
+// Kegagalan sementara di sisi server/jaringan: item dipertahankan dan dicoba lagi nanti (DG-05).
+const sementara = (status) => status === 408 || status === 425 || status === 429 || (status >= 500 && status <= 599);
+
 // ── Helper: ambil token JWT ────────────────────────────────────
 async function getToken() {
     const { data: sess } = await _supabase.auth.getSession();
@@ -149,34 +162,48 @@ async function submitCase(cs) {
 
 // ── Helper flush untuk satu store ────────────────────────────
 async function flushStore(storeName, submitFn) {
-    const pending = await idbGetAllFrom(storeName);
-    if (pending.length === 0) return { synced: 0, remaining: 0 };
-    if (!navigator.onLine)    return { synced: 0, remaining: pending.length };
+    const me = await ownerId();
+    const semua = await idbGetAllFrom(storeName);
+    // Tanpa sesi login tidak ada pemilik yang dikenal: tahan semuanya dan minta login ulang (perilaku lama).
+    if (!me && semua.length > 0) return { synced: 0, remaining: semua.length, rejected: 0, sessionExpired: true };
+    // Hanya item milik akun ini yang diproses; item akun lain tetap di antrean (DG-06).
+    const pending = semua.filter((i) => milikSaya(i, me));
+    const ditolakAwal = pending.filter((i) => i._ditolak).length;
+    const antre = pending.filter((i) => !i._ditolak);
+    if (antre.length === 0) return { synced: 0, remaining: 0, rejected: ditolakAwal };
+    if (!navigator.onLine)    return { synced: 0, remaining: antre.length, rejected: ditolakAwal };
 
     let synced = 0;
-    for (const item of pending) {
+    let rejected = ditolakAwal;
+    for (const item of antre) {
         // Item dengan versi schema eksplisit yang berbeda → discard, jangan kirim
         if (item._schema_ver && item._schema_ver !== OFFLINE_SCHEMA_VER) {
             console.warn('[offline] discard item schema lama:', item.idempotency_key, item._schema_ver);
-            await idbDeleteFrom(storeName, item.idempotency_key);
+            await idbDeleteFrom(storeName, kunciItem(item));
             synced++;
             continue;
         }
         const r = await submitFn(item);
-        if (r.ok) { await idbDeleteFrom(storeName, item.idempotency_key); synced++; }
+        if (r.ok) { await idbDeleteFrom(storeName, kunciItem(item)); synced++; }
         else if (r.status === 401) {
             // Token habis — antrian dipertahankan, hentikan flush, minta login ulang
             console.warn('[offline] sesi habis, antrian ditahan sampai login ulang');
-            const remaining = (await idbGetAllFrom(storeName)).length;
-            return { synced, remaining, sessionExpired: true };
+            const sisa = (await idbGetAllFrom(storeName)).filter((i) => milikSaya(i, me) && !i._ditolak).length;
+            return { synced, remaining: sisa, rejected, sessionExpired: true };
         }
-        else if (!r.networkError) {
-            console.warn(`[offline][${storeName}] ditolak server, dibuang:`, item.idempotency_key, r.error);
-            await idbDeleteFrom(storeName, item.idempotency_key); synced++;
-        } else break;
+        else if (r.networkError || sementara(r.status)) {
+            // Jaringan putus atau server sementara gagal (5xx, 408, 429): JANGAN dibuang. Hentikan putaran ini; dicoba lagi nanti.
+            console.warn(`[offline][${storeName}] gagal sementara (status ${r.status ?? 'jaringan'}), item dipertahankan`);
+            break;
+        } else {
+            // Penolakan pasti (4xx lain): percuma diulang, tetapi jangan dibuang diam-diam. Tandai dan tahan di perangkat.
+            console.warn(`[offline][${storeName}] ditolak server, ditahan:`, kunciItem(item), r.error);
+            await idbPutTo(storeName, { ...item, _ditolak: { status: r.status ?? null, pesan: String(r.error ?? '').slice(0, 300), waktu: Date.now() } });
+            rejected++;
+        }
     }
-    const remaining = (await idbGetAllFrom(storeName)).length;
-    return { synced, remaining };
+    const sisa = (await idbGetAllFrom(storeName)).filter((i) => milikSaya(i, me) && !i._ditolak).length;
+    return { synced, remaining: sisa, rejected };
 }
 
 // ── API publik ────────────────────────────────────────────────
@@ -194,7 +221,7 @@ export async function saveAttendanceBatch(batch) {
     // Supersede: hapus batch tertunda untuk sesi yang sama sebelum antre yang baru,
     // agar hanya ada satu snapshot per sesi (cegah koreksi hilang, E1-1).
     await idbPurgeAttSession(batch.schedule_id, batch.session_date);
-    await idbPut({ ...batch, _schema_ver: OFFLINE_SCHEMA_VER });
+    await idbPut({ ...batch, _schema_ver: OFFLINE_SCHEMA_VER, _owner: await ownerId() });
     return { status: 'queued' };
 }
 
@@ -209,7 +236,7 @@ export async function saveObservation(obs) {
         if (r.ok) return { status: 'synced' };
         if (!r.networkError) return { status: 'error', error: r.error };
     }
-    await idbPutTo(STORE_OBS, { ...obs, _schema_ver: OFFLINE_SCHEMA_VER });
+    await idbPutTo(STORE_OBS, { ...obs, _schema_ver: OFFLINE_SCHEMA_VER, _owner: await ownerId() });
     return { status: 'queued' };
 }
 
@@ -224,7 +251,7 @@ export async function saveJournalEntry(jrn) {
         if (r.ok) return { status: 'synced' };
         if (!r.networkError) return { status: 'error', error: r.error };
     }
-    await idbPutTo(STORE_JRN, { ...jrn, _schema_ver: OFFLINE_SCHEMA_VER });
+    await idbPutTo(STORE_JRN, { ...jrn, _schema_ver: OFFLINE_SCHEMA_VER, _owner: await ownerId() });
     return { status: 'queued' };
 }
 
@@ -256,7 +283,7 @@ export async function deleteJournalEntryOffline(journalId) {
         if (!r.networkError) throw new Error(r.error);
         // jaringan gagal → antrikan
     }
-    await idbPutTo(STORE_JRN_DEL, { journal_id: journalId });
+    await idbPutTo(STORE_JRN_DEL, { journal_id: journalId, _owner: await ownerId() });
     return { status: 'queued' };
 }
 
@@ -271,7 +298,7 @@ export async function saveCase(cs) {
         if (r.ok) return { status: 'synced', case_id: cs.case_id };
         if (!r.networkError) return { status: 'error', error: r.error };
     }
-    await idbPutTo(STORE_CASE, { ...cs, _schema_ver: OFFLINE_SCHEMA_VER });
+    await idbPutTo(STORE_CASE, { ...cs, _schema_ver: OFFLINE_SCHEMA_VER, _owner: await ownerId() });
     return { status: 'queued', case_id: cs.case_id };
 }
 
@@ -290,6 +317,7 @@ export async function flushPending() {
     return {
         synced:         att.synced    + obs.synced    + jrn.synced    + cas.synced    + del.synced,
         remaining:      att.remaining + obs.remaining + jrn.remaining + cas.remaining + del.remaining,
+        rejected:       (att.rejected ?? 0) + (obs.rejected ?? 0) + (jrn.rejected ?? 0) + (cas.rejected ?? 0) + (del.rejected ?? 0),
         sessionExpired: !!(att.sessionExpired || obs.sessionExpired || jrn.sessionExpired || cas.sessionExpired || del.sessionExpired),
     };
 }
@@ -309,7 +337,8 @@ export async function clearOfflineQueue() {
     console.log('[offline] antrian dibersihkan saat logout');
 }
 
-export async function pendingCount() {
+async function itemMilikSaya() {
+    const me = await ownerId();
     const [att, obs, jrn, cas, del] = await Promise.all([
         idbGetAllFrom(STORE_ATT),
         idbGetAllFrom(STORE_OBS),
@@ -317,5 +346,15 @@ export async function pendingCount() {
         idbGetAllFrom(STORE_CASE),
         idbGetAllFrom(STORE_JRN_DEL),
     ]);
-    return att.length + obs.length + jrn.length + cas.length + del.length;
+    return [...att, ...obs, ...jrn, ...cas, ...del].filter((i) => milikSaya(i, me));
+}
+
+/** Jumlah item milik akun ini yang menunggu dikirim (tanpa yang sudah ditolak server). */
+export async function pendingCount() {
+    return (await itemMilikSaya()).filter((i) => !i._ditolak).length;
+}
+
+/** Jumlah item milik akun ini yang ditolak server secara pasti dan ditahan di perangkat. */
+export async function rejectedCount() {
+    return (await itemMilikSaya()).filter((i) => i._ditolak).length;
 }

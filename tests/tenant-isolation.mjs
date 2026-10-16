@@ -141,13 +141,18 @@ async function mgmtQueryCli(sql) {
     const berkas = gabung(dir, 'q.sql');
     tulisBerkas(berkas, sql);   // UTF-8 tanpa BOM
     try {
-        const r = spawnSync(`supabase db query --linked -f "${berkas}"`, { shell: true, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+        // -o json dipaksa: di terminal manusia CLI memakai tabel (kosong bila 0 baris, sehingga JSON.parse gagal);
+        // di mode agen keluarannya objek {rows}, di terminal manusia larik. Keduanya diterima di bawah.
+        const r = spawnSync(`supabase db query --linked -o json -f "${berkas}"`, { shell: true, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
         if (r.status !== 0) {
             const pesan = String(r.stderr || '').split(/\r?\n/).filter((l) => /unexpected status|ERROR|Failed/.test(l)).join(' ').slice(0, 500);
             throw new Error(`mgmtQuery(cli) ${r.status}: ${pesan || String(r.stderr || '').slice(0, 300)}`);
         }
-        const j = JSON.parse(r.stdout);
-        return j.rows ?? [];
+        const teks = String(r.stdout || '');
+        const awal = teks.search(/[\[{]/);
+        if (awal < 0) throw new Error(`mgmtQuery(cli): keluaran CLI bukan JSON (${teks.length} byte); stderr: ${String(r.stderr || '').slice(0, 200)}`);
+        const j = JSON.parse(teks.slice(awal));
+        return Array.isArray(j) ? j : (j.rows ?? []);
     } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 

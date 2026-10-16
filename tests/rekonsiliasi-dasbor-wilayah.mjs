@@ -19,10 +19,14 @@ function jalan(sql) {
   const f = join(dir, 'q.sql');
   writeFileSync(f, sql);
   try {
-    const r = spawnSync('supabase db query --linked -f "' + f + '"', { shell: true, encoding: 'utf8', maxBuffer: 256e6, cwd: ROOT });
+    const r = spawnSync('supabase db query --linked -o json -f "' + f + '"', { shell: true, encoding: 'utf8', maxBuffer: 256e6, cwd: ROOT });
     const out = String(r.stdout || '');
     if (r.status !== 0) throw new Error('cli ' + r.status + ': ' + String(r.stderr || '').split(/\r?\n/).filter((l) => /ERROR|unexpected/.test(l)).join(' ').slice(0, 500));
-    return JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)).rows ?? [];
+    // objek {rows} (mode agen) atau larik (terminal manusia, -o json)
+    const awal = out.search(/[\[{]/);
+    if (awal < 0) throw new Error('keluaran CLI bukan JSON (' + out.length + ' byte)');
+    const j = JSON.parse(out.slice(awal));
+    return Array.isArray(j) ? j : (j.rows ?? []);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 const arg = (k) => (process.argv.find((a) => a.startsWith(k + '=')) || '').split('=')[1];
