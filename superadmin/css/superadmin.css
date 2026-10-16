@@ -323,3 +323,5 @@ table.tbl-grid th.hl { border-bottom-color: var(--color-primary); }
 /* Tab Sekolah: teks tebal (nama sekolah, angka/label, judul) dan tombol sekunder memakai warna yang sama */
 [data-panel="schools"] strong, [data-panel="schools"] b, [data-panel="schools"] h4, [data-panel="schools"] th,
 [data-panel="schools"] .school-summary-name, [data-panel="schools"] .btn-secondary { color: var(--color-text-strong); }
+/* Tab Storage: isi tabel (nama tabel, ukuran, jumlah baris) memakai warna yang sama. Tab Pemeliharaan tidak punya teks terang yang perlu diredupkan. */
+[data-panel="storage"] td { color: var(--color-text-strong); }
