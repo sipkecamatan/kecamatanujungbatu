@@ -285,7 +285,7 @@ label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; c
 }
 
 /* ── Tab Wilayah: daftar wilayah berlipat (accordion satu-buka) dan tabel sekolah bergaris tegas ── */
-:root { --color-text-strong: #cbd5e1; --grid: #4b5b78; --grid-kuat: #8294b8; --zebra: rgba(255,255,255,.035); --hl: rgba(99,102,241,.14); --color-warning-bg: #3a2a08; }
+:root { --color-text-strong: #b4c0d3; --grid: #4b5b78; --grid-kuat: #8294b8; --zebra: rgba(255,255,255,.035); --hl: rgba(99,102,241,.14); --color-warning-bg: #3a2a08; }
 .acc { border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); overflow: hidden; margin-bottom: 10px; }
 .acc-h { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; text-align: left; font: inherit;
          color: var(--color-text); background: var(--color-surface); border: 0; padding: 14px 16px; cursor: pointer; min-height: 44px; }
