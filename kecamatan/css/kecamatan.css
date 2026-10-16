@@ -105,6 +105,7 @@ tbody tr.row-sekolah:hover { background: var(--muted-bg); }
   .topbar-actions { width: 100%; }
   .school-controls { grid-template-columns: 1fr; }
 }
+td.aksi-tren { display: none; }
 .container { grid-template-columns: minmax(0, 1fr); }
 .container > * { min-width: 0; }
 
@@ -123,4 +124,20 @@ tbody tr.row-sekolah:hover { background: var(--muted-bg); }
   td:first-child::before { display: none; }
   td[colspan] { display: block; text-align: left; }
   td[colspan]::before { display: none; }
+
+  /* Bagian yang bisa dilipat: judul menjadi tombol, isi disembunyikan saat tertutup */
+  .card.lipat h2 { display: flex; justify-content: space-between; align-items: center; gap: 8px; cursor: pointer; flex: 1 1 100%; }
+  .card.lipat h2::after { content: '▾'; color: var(--muted); }
+  .card.lipat.tertutup h2::after { content: '▸'; }
+  .card.lipat.tertutup > :not(.card-head):not(h2) { display: none; }
+  .card.lipat.tertutup > .card-head > :not(h2) { display: none; }
+  .card.lipat.tertutup .card-head { margin-bottom: 0; }
+
+  /* Baris jenjang/sekolah: tertutup hanya nama dan Hadir (%), terbuka menampilkan semuanya */
+  tbody tr.row-lipat { cursor: pointer; }
+  tbody tr.row-lipat:not(.terbuka) td:not(:first-child):not(.td-ringkas) { display: none; }
+  tbody tr.row-lipat:not(.terbuka) td.td-ringkas { border-bottom: 0; }
+  tbody tr.row-lipat td:first-child::after { content: '▸'; margin-left: auto; color: var(--muted); }
+  tbody tr.row-lipat.terbuka td:first-child::after { content: '▾'; }
+  tbody tr.row-sekolah.terbuka td.aksi-tren { display: flex; justify-content: flex-end; }
 }

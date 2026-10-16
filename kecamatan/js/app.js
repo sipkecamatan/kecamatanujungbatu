@@ -39,6 +39,53 @@ function labelKolom(tableId) {
     [...tr.children].forEach((td, i) => { if (!td.hasAttribute('colspan') && judul[i]) td.setAttribute('data-label', judul[i]); });
   }
 }
+// Layar sempit (<= 520px): bagian (kartu besar) dan baris jenjang/sekolah bisa dilipat. Layar lebar tidak berubah.
+// Bawaan: semua tertutup, dan hanya satu bagian (atau satu baris di dalam tabel) yang terbuka sekaligus;
+// membuka satu menutup yang lain. Keadaan tidak diingat.
+const layarSempit = window.matchMedia('(max-width: 520px)');
+const bagianLipat = () => document.querySelectorAll('main > section.card:not(#pengingat)');
+function setLipat(card, buka) {
+  if (buka) for (const lain of bagianLipat()) if (lain !== card && lain.classList.contains('lipat')) setLipat(lain, false);
+  card.classList.toggle('tertutup', !buka);
+  card.querySelector('h2')?.setAttribute('aria-expanded', String(buka));
+}
+function bukaLipat(card) { if (layarSempit.matches) setLipat(card, true); }
+function aturLipat() {
+  for (const card of bagianLipat()) {
+    const h = card.querySelector('h2');
+    if (!h) continue;
+    if (layarSempit.matches) {
+      card.classList.add('lipat');
+      h.setAttribute('role', 'button');
+      h.tabIndex = 0;
+      setLipat(card, false);
+    } else {
+      card.classList.remove('lipat', 'tertutup');
+      h.removeAttribute('role'); h.removeAttribute('tabindex'); h.removeAttribute('aria-expanded');
+    }
+  }
+}
+for (const card of bagianLipat()) {
+  const h = card.querySelector('h2');
+  if (!h) continue;
+  const alih = () => { if (layarSempit.matches) setLipat(card, card.classList.contains('tertutup')); };
+  h.addEventListener('click', alih);
+  h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alih(); } });
+}
+layarSempit.addEventListener('change', aturLipat);
+// Klik baris: di layar sempit membuka/menutup kartu baris; di layar lebar menjalankan aksi lamanya.
+function klikBaris(tr, aksiLebar) {
+  if (!layarSempit.matches) { aksiLebar(); return; }
+  const buka = !tr.classList.contains('terbuka');
+  if (buka) {
+    for (const lain of tr.parentElement.querySelectorAll('tr.terbuka')) {
+      lain.classList.remove('terbuka');
+      lain.querySelector('button.link')?.setAttribute('aria-expanded', 'false');
+    }
+  }
+  tr.classList.toggle('terbuka', buka);
+  tr.querySelector('button.link')?.setAttribute('aria-expanded', String(buka));
+}
 function text(el, value) { el.textContent = value == null ? '' : String(value); return el; }
 function el(tag, props = {}, ...kids) {
   const n = document.createElement(tag);
@@ -244,13 +291,13 @@ function render() {
   // Subtotal per jenjang: server hanya mengirim jenjang yang memiliki >= 2 sekolah berbagi.
   const tj = $('tbl-jenjang').querySelector('tbody'); tj.replaceChildren();
   for (const j of o.per_jenjang ?? []) {
-    tj.append(el('tr', {},
-      el('td', {}, j.jenjang === 'TIDAK_DIKETAHUI' ? '—' : j.jenjang),
+    tj.append(el('tr', { class: 'row-lipat', onclick: (e) => klikBaris(e.currentTarget, () => {}) },
+      el('td', {}, el('button', { class: 'link', type: 'button' }, j.jenjang === 'TIDAK_DIKETAHUI' ? '—' : j.jenjang)),
       el('td', { class: 'num' }, j.jumlah_sekolah),
       el('td', { class: 'num' }, j.siswa_aktif),
       el('td', { class: 'num' }, j.orang_tua_aktif),
       el('td', { class: 'num' }, pct(j.cakupan_pct)),
-      el('td', { class: 'num' }, pct(j.kehadiran_pct)),
+      el('td', { class: 'num td-ringkas' }, pct(j.kehadiran_pct)),
       el('td', { class: 'num' }, statusCell(j, 'sakit_pct')),
       el('td', { class: 'num' }, statusCell(j, 'izin_pct')),
       el('td', { class: 'num' }, statusCell(j, 'alpa_pct')),
@@ -288,20 +335,21 @@ function renderSchoolList(o) {
   for (const s of rows) {
     const st = STATUS[s.status] || STATUS.TIDAK_ADA_JADWAL;
     const cov = s.cakupan_pct;
-    tb.append(el('tr', { class: 'row-sekolah', onclick: () => loadTrend(s) },
+    tb.append(el('tr', { class: 'row-sekolah row-lipat', onclick: (e) => klikBaris(e.currentTarget, () => loadTrend(s)) },
       el('td', {}, el('button', { class: 'link', type: 'button' }, s.nama)),
       el('td', {}, s.jenjang || '—'),
       el('td', { class: 'num' }, s.siswa_aktif),
       el('td', { class: 'num' }, s.orang_tua_aktif),
       el('td', { class: 'num' },
         cov == null ? '—' : [el('span', { class: 'bar' }, el('span', { style: `width:${Math.min(cov, 100)}%` })), `${cov}%`]),
-      el('td', { class: 'num' }, pct(s.kehadiran_pct)),
+      el('td', { class: 'num td-ringkas' }, pct(s.kehadiran_pct)),
       el('td', { class: 'num' }, statusCell(s, 'sakit_pct')),
       el('td', { class: 'num' }, statusCell(s, 'izin_pct')),
       el('td', { class: 'num' }, statusCell(s, 'alpa_pct')),
       el('td', { class: 'num' }, piket(s.terlambat, o.ambang_piket)),
       el('td', { class: 'num' }, piket(s.izin_keluar, o.ambang_piket)),
       el('td', {}, el('span', { class: `badge ${st.cls}` }, st.label)),
+      el('td', { class: 'aksi-tren' }, el('button', { class: 'btn', type: 'button', onclick: (e) => { e.stopPropagation(); loadTrend(s); } }, 'Lihat tren')),
     ));
   }
   labelKolom('tbl-sekolah');
@@ -315,6 +363,7 @@ async function loadTrend(s) {
   const tb = $('tbl-trend').querySelector('tbody');
   tb.replaceChildren(el('tr', {}, el('td', { colspan: 5, class: 'muted' }, 'Memuat…')));
   card.hidden = false;
+  bukaLipat(card);
   const { data, error } = await supabase.rpc('fn_region_school_trend_range', {
     p_school_id: s.school_id, p_from: state.dari, p_to: state.sampai, p_granularitas: bulanan ? 'BULAN' : 'MINGGU' });
   tb.replaceChildren();
@@ -464,6 +513,7 @@ async function enterApp() {
   await loadOverview();
 }
 
+aturLipat();
 (async () => {
   const { data } = await supabase.auth.getSession();
   if (data.session) enterApp(); else showView('login');
