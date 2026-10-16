@@ -969,27 +969,47 @@ async function loadRegions() {
                 : 'Dasbor pegawai wilayah hanya menampilkan sekolah yang berbagi data (' + jumlahBerbagi + ' dari ' + r.schools.length + '). ' +
                   'Sisanya terhubung, tetapi kepala sekolah belum menyetujui berbagi ke tingkat ini.'));
             if (!r.schools.length) sekolahBox.append(h('p', { class: 'hint' }, 'Belum ada sekolah.'));
-            // Hanya tampil: penghubungan, pemutusan, dan penempatan sekolah diatur dari tab Sekolah
+            // Tabel hanya-tampil: penghubungan, pemutusan, dan penempatan sekolah diatur dari tab Sekolah
             // (editor terkunci dengan konfirmasi). Jenjang ditetapkan saat pendaftaran sekolah.
-            for (const s of r.schools) {
-                const nilai = (label, v) => h('span', {}, label + ': ', h('strong', {}, v));
-                let ciri, badge;
-                if (tingkatAtas) {
-                    const bagi = r.level === 'KABUPATEN' ? s.share_kabupaten : s.share_provinsi;
-                    const tingkat = r.level === 'KABUPATEN' ? 'kabupaten' : 'provinsi';
-                    ciri = [nilai('Jenjang', s.jenjang ?? '—')];
-                    badge = h('span', { class: bagi ? 'badge badge-success' : 'badge' }, `Berbagi — ${tingkat}: ${bagi ? 'ya' : 'tidak'}`);
-                } else {
-                    ciri = [nilai('Jenjang', s.jenjang ?? '—'),
-                            nilai('Kabupaten', s.kabupaten_id ? (namaById[s.kabupaten_id] ?? '—') : 'belum terhubung'),
-                            nilai('Provinsi', s.provinsi_id ? (namaById[s.provinsi_id] ?? '—') : 'belum terhubung')];
-                    badge = h('span', { class: (s.share_with_region || s.share_kabupaten || s.share_provinsi) ? 'badge badge-success' : 'badge' },
-                        'Berbagi — kecamatan: ' + (s.share_with_region ? 'ya' : 'tidak') +
-                        ' · kabupaten: ' + (s.kabupaten_id ? (s.share_kabupaten ? 'ya' : 'tidak') : '–') +
-                        ' · provinsi: ' + (s.provinsi_id ? (s.share_provinsi ? 'ya' : 'tidak') : '–'));
-                }
-                sekolahBox.append(h('div', { style: 'display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;margin:6px 0' },
-                    h('strong', {}, s.name), ...ciri, badge));
+            // Kolom sama di setiap kartu. "Tampil di dasbor ini" = terhubung + aktif + berbagi ke tingkat kartu ini,
+            // yaitu persis sekolah yang dilihat pegawai wilayah ini.
+            if (r.schools.length) {
+                const ringkasNama = (id) => (id && namaById[id] ? namaById[id].split(',')[0].replace(/^(Kecamatan|Kabupaten|Provinsi)\s+/, '') : null);
+                const gayaSel = 'padding:7px 10px;border-bottom:1px solid var(--color-border, #2b3447);vertical-align:middle;white-space:nowrap';
+                const gayaHead = 'padding:6px 10px;text-align:left;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--color-text-muted, #94a3b8);font-weight:700;white-space:nowrap';
+                const th = (teks, extra = {}, tengah = false) => h('th', { style: gayaHead + (tengah ? ';text-align:center' : ''), ...extra }, teks);
+                const sambung = (id) => id
+                    ? h('span', {}, ringkasNama(id) ?? '—')
+                    : h('span', { style: 'color:var(--color-text-muted, #94a3b8);font-style:italic' }, 'belum');
+                const bagiSel = (terhubung, ya) => h('td', { style: gayaSel + ';text-align:center' }, terhubung
+                    ? (ya ? h('strong', { style: 'color:var(--color-success, #4ade80)' }, 'Ya') : h('span', { style: 'color:var(--color-text-muted, #94a3b8)' }, 'Tidak'))
+                    : h('span', { style: 'color:var(--color-text-muted, #94a3b8)' }, '–'));
+                const tabel = h('table', { style: 'width:100%;border-collapse:collapse;font-size:.88rem;margin-top:6px' },
+                    h('thead', {},
+                        h('tr', {},
+                            th('Sekolah', { rowspan: 2 }), th('Jenjang', { rowspan: 2 }),
+                            th('Terhubung ke', { colspan: 3 }, true), th('Berbagi ke', { colspan: 3 }, true),
+                            th('Tampil di dasbor ini', { rowspan: 2 }, true)),
+                        h('tr', {}, ...['Kecamatan', 'Kabupaten', 'Provinsi', 'Kecamatan', 'Kabupaten', 'Provinsi'].map(x => th(x, {}, true)))),
+                    h('tbody', {}, ...r.schools.map(s => {
+                        const tampil = s.is_active && s[kolomBagi];
+                        return h('tr', { style: tampil ? '' : 'opacity:.72' },
+                            h('td', { style: gayaSel }, h('strong', {}, s.name)),
+                            h('td', { style: gayaSel }, s.jenjang ?? '—'),
+                            h('td', { style: gayaSel }, sambung(s.region_id)),
+                            h('td', { style: gayaSel }, sambung(s.kabupaten_id)),
+                            h('td', { style: gayaSel }, sambung(s.provinsi_id)),
+                            bagiSel(!!s.region_id, s.share_with_region),
+                            bagiSel(!!s.kabupaten_id, s.share_kabupaten),
+                            bagiSel(!!s.provinsi_id, s.share_provinsi),
+                            h('td', { style: gayaSel + ';text-align:center' },
+                                h('span', { class: tampil ? 'badge badge-active' : 'badge badge-inactive' }, tampil ? 'Ya' : (s.is_active ? 'Tidak' : 'Nonaktif'))));
+                    })));
+                sekolahBox.append(
+                    h('div', { style: 'overflow-x:auto' }, tabel),
+                    h('p', { class: 'hint', style: 'margin:6px 0 0' },
+                        '"Berbagi ke" adalah persetujuan kepala sekolah per tingkat. "–" berarti sekolah belum terhubung ke tingkat itu. ' +
+                        'Baris yang diredupkan tidak tampil di dasbor pegawai wilayah ini.'));
             }
 
             // pegawai: tabel di dalam kartu wilayahnya sendiri
