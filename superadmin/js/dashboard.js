@@ -874,9 +874,9 @@ function h(tag, props = {}, ...kids) {
     return n;
 }
 
-// Daftar sekolah per wilayah bisa dilipat; wilayah yang sedang dibuka diingat agar tidak menutup sendiri
-// setelah muat ulang (mis. sesudah menekan Simpan).
-const _sekolahTerbuka = new Set();
+// Daftar wilayah berlipat satu-buka (accordion): id wilayah yang terbuka diingat agar tidak menutup sendiri setelah muat ulang
+// (mis. sesudah mendaftarkan pegawai). undefined = belum pernah dimuat (wilayah pertama dibuka otomatis); null = semua tertutup.
+let _wilayahTerbuka;
 
 // Kotak kredensial berada di bawah seluruh daftar wilayah; tampilkan lalu gulir ke sana agar tidak terlewat.
 function tampilkanKredensialPegawai() {
@@ -945,83 +945,98 @@ async function loadRegions() {
                 h('span', { class: 'hint' }, 'Portal pegawai wilayah:'), kolomUrl, tombolSalin);
         };
 
-        for (const r of d.regions) {
-            const card = h('div', { class: 'section-card' }, h('h3', {}, r.name));
-            card.append(h('p', { class: 'hint' }, `Jenis: ${LEVEL_LABEL[r.level] ?? 'Kecamatan'}`));
-            const tingkatAtas = r.level === 'KABUPATEN' || r.level === 'PROVINSI';
+        // Daftar wilayah berlipat (accordion satu-buka): urut dari tingkat tertinggi; satu wilayah terbuka pada satu waktu.
+        // Pertama kali dimuat, wilayah pertama (Provinsi) terbuka; sesudahnya pilihan terakhir diingat lintas muat ulang.
+        const URUT_LEVEL = { PROVINSI: 0, KABUPATEN: 1, KECAMATAN: 2 };
+        const wilayahUrut = [...d.regions].sort((a, b) =>
+            (URUT_LEVEL[a.level] ?? 2) - (URUT_LEVEL[b.level] ?? 2) || String(a.name).localeCompare(String(b.name), 'id'));
+        if (_wilayahTerbuka === undefined && wilayahUrut.length) _wilayahTerbuka = wilayahUrut[0].region_id;
+        const daftarAcc = [];
+        const bukaWilayah = (id) => {
+            _wilayahTerbuka = (_wilayahTerbuka === id) ? null : id;
+            for (const a of daftarAcc) {
+                const buka = a.id === _wilayahTerbuka;
+                a.tombol.setAttribute('aria-expanded', String(buka));
+                a.badan.hidden = !buka;
+            }
+        };
 
-            // sekolah
+        for (const r of wilayahUrut) {
             // Dua angka berbeda: TERHUBUNG (ditempatkan superadmin pada wilayah ini) dan BERBAGI (kepala sekolah menyetujui berbagi ke tingkat ini).
-            // Dasbor pegawai wilayah hanya menampilkan yang berbagi dan aktif, sehingga angkanya sama dengan 'berbagi' di sini.
+            // Dasbor pegawai wilayah hanya menampilkan yang terhubung, aktif, dan berbagi ke tingkat wilayah ini.
             const kolomBagi = r.level === 'KABUPATEN' ? 'share_kabupaten' : r.level === 'PROVINSI' ? 'share_provinsi' : 'share_with_region';
-            const jumlahBerbagi = r.schools.filter(s => s.is_active && s[kolomBagi]).length;
-            const sekolahBox = h('details', { style: 'margin:6px 0' },
-                h('summary', { style: 'cursor:pointer;font-weight:700;padding:4px 0' },
-                    `Sekolah (${r.schools.length} terhubung · ${jumlahBerbagi} berbagi data)`));
-            if (_sekolahTerbuka.has(r.region_id)) sekolahBox.open = true;
-            sekolahBox.addEventListener('toggle', () => {
-                if (sekolahBox.open) _sekolahTerbuka.add(r.region_id); else _sekolahTerbuka.delete(r.region_id);
-            });
-            card.append(sekolahBox);
-            card.append(h('p', { class: 'hint' }, 'Penghubungan diatur dari tab Sekolah.'));
-            card.append(h('p', { class: 'hint' }, jumlahBerbagi === r.schools.length
-                ? 'Semua sekolah yang terhubung berbagi data; dasbor pegawai wilayah menampilkan ' + jumlahBerbagi + ' sekolah.'
-                : 'Dasbor pegawai wilayah hanya menampilkan sekolah yang berbagi data (' + jumlahBerbagi + ' dari ' + r.schools.length + '). ' +
-                  'Sisanya terhubung, tetapi kepala sekolah belum menyetujui berbagi ke tingkat ini.'));
-            if (!r.schools.length) sekolahBox.append(h('p', { class: 'hint' }, 'Belum ada sekolah.'));
-            // Tabel hanya-tampil: penghubungan, pemutusan, dan penempatan sekolah diatur dari tab Sekolah
-            // (editor terkunci dengan konfirmasi). Jenjang ditetapkan saat pendaftaran sekolah.
-            // Kolom sama di setiap kartu. "Tampil di dasbor ini" = terhubung + aktif + berbagi ke tingkat kartu ini,
-            // yaitu persis sekolah yang dilihat pegawai wilayah ini.
-            if (r.schools.length) {
+            const tampilDiDasbor = (s) => !!(s.is_active && s[kolomBagi]);
+            const jumlahBerbagi = r.schools.filter(tampilDiDasbor).length;
+            const buka = _wilayahTerbuka === r.region_id;
+            const tombol = h('button', { class: 'acc-h', type: 'button', 'aria-expanded': String(buka), onclick: () => bukaWilayah(r.region_id) },
+                h('span', { class: 'acc-t' }, r.name, h('span', { class: 'acc-lv' }, LEVEL_LABEL[r.level] ?? 'Kecamatan')),
+                h('span', { class: 'acc-chev', 'aria-hidden': 'true' }, '▾'),
+                h('span', { class: 'acc-m' }, `${r.schools.length} sekolah terhubung · ${jumlahBerbagi} tampil di dasbor · ${r.staff.length} pegawai`));
+            const body = h('div', { class: 'acc-b' });
+            body.hidden = !buka;
+            const card = h('div', { class: 'acc' }, tombol, body);
+            daftarAcc.push({ id: r.region_id, tombol, badan: body });
+
+            body.append(h('p', { class: 'hint' }, 'Penghubungan diatur dari tab Sekolah.'));
+
+            // Tabel hanya-tampil. Tiga tingkat, tiga status: Berbagi / Belum disetujui / Tidak terhubung.
+            // Kolom milik tingkat wilayah ini diberi latar karena itulah yang menentukan isi dasbor pegawai wilayah ini.
+            if (!r.schools.length) {
+                body.append(h('p', { class: 'hint' }, 'Belum ada sekolah.'));
+            } else {
                 const ringkasNama = (id) => (id && namaById[id] ? namaById[id].split(',')[0].replace(/^(Kecamatan|Kabupaten|Provinsi)\s+/, '') : null);
-                const gayaSel = 'padding:7px 6px;border-bottom:1px solid var(--color-border, #2b3447);vertical-align:middle;white-space:nowrap';
-                const gayaHead = 'padding:6px 6px;text-align:left;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--color-text-muted, #94a3b8);font-weight:700;white-space:nowrap';
-                const th = (teks, extra = {}, tengah = false, bungkus = false) =>
-                    h('th', { ...extra, style: gayaHead + (tengah ? ';text-align:center' : '') + (bungkus ? ';white-space:normal;min-width:70px' : '') }, teks);
-                const sambung = (id) => id
-                    ? h('span', {}, ringkasNama(id) ?? '—')
-                    : h('span', { style: 'color:var(--color-text-muted, #94a3b8);font-style:italic' }, 'belum');
-                const bagiSel = (terhubung, ya) => h('td', { style: gayaSel + ';text-align:center' }, terhubung
-                    ? (ya ? h('strong', { style: 'color:var(--color-success, #4ade80)' }, 'Ya') : h('span', { style: 'color:var(--color-text-muted, #94a3b8)' }, 'Tidak'))
-                    : h('span', { style: 'color:var(--color-text-muted, #94a3b8)' }, '–'));
-                const tabel = h('table', { style: 'width:100%;border-collapse:collapse;font-size:.88rem;margin-top:6px' },
-                    h('thead', {},
-                        h('tr', {},
-                            th('Sekolah', { rowspan: 2 }), th('Jenjang', { rowspan: 2 }),
-                            th('Terhubung ke', { colspan: 3 }, true), th('Berbagi ke', { colspan: 3 }, true),
-                            th('Tampil di dasbor ini', { rowspan: 2 }, true, true)),
-                        h('tr', {}, ...[['Kec', 'Kecamatan'], ['Kab', 'Kabupaten'], ['Prov', 'Provinsi'], ['Kec', 'Kecamatan'], ['Kab', 'Kabupaten'], ['Prov', 'Provinsi']]
-                            .map(([s, p]) => th(s, { title: p }, true)))),
-                    h('tbody', {}, ...r.schools.map(s => {
-                        const tampil = s.is_active && s[kolomBagi];
-                        return h('tr', { style: tampil ? '' : 'opacity:.72' },
-                            h('td', { style: gayaSel }, h('strong', {}, s.name)),
-                            h('td', { style: gayaSel }, s.jenjang ?? '—'),
-                            h('td', { style: gayaSel }, sambung(s.region_id)),
-                            h('td', { style: gayaSel }, sambung(s.kabupaten_id)),
-                            h('td', { style: gayaSel }, sambung(s.provinsi_id)),
-                            bagiSel(!!s.region_id, s.share_with_region),
-                            bagiSel(!!s.kabupaten_id, s.share_kabupaten),
-                            bagiSel(!!s.provinsi_id, s.share_provinsi),
-                            h('td', { style: gayaSel + ';text-align:center' },
-                                h('span', { class: tampil ? 'badge badge-active' : 'badge badge-inactive' }, tampil ? 'Ya' : (s.is_active ? 'Tidak' : 'Nonaktif'))));
-                    })));
-                sekolahBox.append(
-                    h('div', { style: 'overflow-x:auto' }, tabel),
-                    h('p', { class: 'hint', style: 'margin:6px 0 0' },
-                        '"Berbagi ke" adalah persetujuan kepala sekolah per tingkat. "–" berarti sekolah belum terhubung ke tingkat itu. ' +
-                        'Baris yang diredupkan tidak tampil di dasbor pegawai wilayah ini.'));
+                const TINGKAT = [
+                    { judul: 'Kecamatan', level: 'KECAMATAN', id: 'region_id', bagi: 'share_with_region' },
+                    { judul: 'Kabupaten', level: 'KABUPATEN', id: 'kabupaten_id', bagi: 'share_kabupaten' },
+                    { judul: 'Provinsi',  level: 'PROVINSI',  id: 'provinsi_id',  bagi: 'share_provinsi' },
+                ];
+                const milikSini = (t) => t.level === (r.level ?? 'KECAMATAN');
+                const sel = (s, t) => {
+                    const terhubung = !!s[t.id];
+                    const [kelas, teks] = !terhubung ? ['pill pill-tidak', 'Tidak terhubung'] : s[t.bagi] ? ['pill pill-ya', 'Berbagi'] : ['pill pill-tunggu', 'Belum disetujui'];
+                    return h('td', { class: 'tc' + (milikSini(t) ? ' hl' : '') },
+                        h('span', { class: kelas }, teks),
+                        terhubung ? h('span', { class: 'pill-sub' }, ringkasNama(s[t.id]) ?? '—') : null);
+                };
+                let saring = 'semua';
+                const tbody = h('tbody');
+                const isiBaris = () => {
+                    tbody.replaceChildren(...r.schools
+                        .filter(s => saring === 'semua' || (saring === 'tampil') === tampilDiDasbor(s))
+                        .map(s => h('tr', {},
+                            h('td', { class: 'nm' }, s.name, s.is_active ? null : h('span', { class: 'pill-sub' }, 'nonaktif, tidak tampil')),
+                            h('td', {}, s.jenjang ?? '—'),
+                            ...TINGKAT.map(t => sel(s, t)))));
+                };
+                const chips = h('div', { class: 'chips', role: 'group', 'aria-label': 'Saring daftar sekolah' });
+                const gambarChip = () => {
+                    chips.replaceChildren(...[['semua', 'Semua', r.schools.length], ['tampil', 'Tampil di dasbor', jumlahBerbagi],
+                                              ['tidak', 'Tidak tampil', r.schools.length - jumlahBerbagi]]
+                        .map(([k, t, n]) => h('button', { class: 'chip', type: 'button', 'aria-pressed': String(saring === k),
+                                                          onclick: () => { saring = k; gambarChip(); isiBaris(); } }, `${t} (${n})`)));
+                };
+                gambarChip(); isiBaris();
+                const tabel = h('table', { class: 'tbl-grid' },
+                    h('thead', {}, h('tr', {},
+                        h('th', {}, 'Sekolah'), h('th', {}, 'Jenjang'),
+                        ...TINGKAT.map(t => h('th', { class: 'tc' + (milikSini(t) ? ' hl' : '') }, t.judul,
+                            milikSini(t) ? h('span', { class: 'pill-sub' }, 'menentukan dasbor ini') : null)))),
+                    tbody);
+                body.append(chips, h('div', { class: 'tw' }, tabel),
+                    h('div', { class: 'legend' },
+                        h('span', {}, h('span', { class: 'pill pill-ya' }, 'Berbagi'), ' kepala sekolah menyetujui'),
+                        h('span', {}, h('span', { class: 'pill pill-tunggu' }, 'Belum disetujui'), ' terhubung, belum ada persetujuan'),
+                        h('span', {}, h('span', { class: 'pill pill-tidak' }, 'Tidak terhubung'), ' belum dihubungkan ke tingkat ini')));
             }
 
             // pegawai: tabel di dalam kartu wilayahnya sendiri
-            card.append(h('h4', { style: 'margin-top:14px' }, `Pegawai wilayah (${r.staff.length})`));
-            card.append(barisTautan(r.level));
+            body.append(h('h4', { style: 'margin-top:14px' }, `Pegawai wilayah (${r.staff.length})`));
+            body.append(barisTautan(r.level));
             if (!r.staff.length) {
-                card.append(h('p', { class: 'hint' }, 'Belum ada pegawai.'));
+                body.append(h('p', { class: 'hint' }, 'Belum ada pegawai.'));
             } else {
                 const tdStyle = 'padding:6px 10px;text-align:left;border-bottom:1px solid var(--color-border, #2b3447);vertical-align:middle';
-                card.append(h('div', { style: 'overflow-x:auto' },
+                body.append(h('div', { style: 'overflow-x:auto' },
                     h('table', { style: 'width:100%;border-collapse:collapse;font-size:.9rem' },
                         h('thead', {}, h('tr', {}, ...['Nama', 'Email', 'Aksi'].map(t => h('th', { style: tdStyle }, t)))),
                         h('tbody', {}, ...r.staff.map(st => h('tr', {},
@@ -1042,10 +1057,10 @@ async function loadRegions() {
                     nama.value = ''; email.value = ''; loadRegions();
                 } catch (e) { showRegionMsg(e.message, false); }
             }}, nama, email, h('button', { class: 'btn btn-primary btn-sm', type: 'submit' }, '+ Daftarkan pegawai'));
-            card.append(form);
+            body.append(form);
 
             // hapus wilayah: selalu boleh, dengan konfirmasi yang menyebut dampaknya (sekolah dilepas, pegawai dihapus)
-            card.append(h('div', { style: 'margin-top:14px;border-top:1px solid var(--color-border, #2b3447);padding-top:10px' },
+            body.append(h('div', { style: 'margin-top:14px;border-top:1px solid var(--color-border, #2b3447);padding-top:10px' },
                 h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: async () => {
                     const dampak = [];
                     if (r.schools.length) dampak.push(`${r.schools.length} sekolah akan dilepas dari wilayah ini dan persetujuan berbagi tingkat ini direset (kepala sekolah harus menyetujui ulang bila wilayah dibuat lagi)`);

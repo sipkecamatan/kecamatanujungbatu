@@ -283,3 +283,38 @@ label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; c
     .section-card { border-radius: var(--radius); }
     .school-actions .btn { min-width: 0; }
 }
+
+/* ── Tab Wilayah: daftar wilayah berlipat (accordion satu-buka) dan tabel sekolah bergaris tegas ── */
+:root { --grid: #4b5b78; --grid-kuat: #8294b8; --zebra: rgba(255,255,255,.035); --hl: rgba(99,102,241,.14); --color-warning-bg: #3a2a08; }
+.acc { border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); overflow: hidden; margin-bottom: 10px; }
+.acc-h { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; text-align: left; font: inherit;
+         color: var(--color-text); background: var(--color-surface); border: 0; padding: 14px 16px; cursor: pointer; min-height: 44px; }
+.acc-h:hover { background: #243247; }
+.acc-h:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.acc-h[aria-expanded="true"] { background: #243247; border-bottom: 1px solid var(--color-border); }
+.acc-t { font-weight: 700; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.acc-lv { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; background: var(--color-bg); color: var(--color-text-muted); padding: 2px 8px; border-radius: 6px; }
+.acc-m { grid-column: 1; color: var(--color-text-muted); font-size: 13px; }
+.acc-chev { grid-column: 2; grid-row: 1 / span 2; font-size: 16px; color: var(--color-text-muted); transition: transform .15s; }
+.acc-h[aria-expanded="true"] .acc-chev { transform: rotate(180deg); }
+.acc-b { padding: 14px 16px; }
+.acc-b[hidden] { display: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.chip { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); cursor: pointer; min-height: 32px; }
+.chip[aria-pressed="true"] { background: var(--color-primary); border-color: var(--color-primary); color: #fff; font-weight: 600; }
+.tw { overflow-x: auto; }
+table.tbl-grid { width: 100%; border-collapse: collapse; font-size: 14px; border: 2px solid var(--grid-kuat); }
+table.tbl-grid th, table.tbl-grid td { border: 1px solid var(--grid); padding: 9px 10px; vertical-align: middle; text-align: left; }
+table.tbl-grid thead th { background: #243247; border-bottom: 2px solid var(--grid-kuat); color: var(--color-text); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+table.tbl-grid tbody tr:nth-child(even) td { background-color: var(--zebra); }
+table.tbl-grid tbody tr:hover td { background-color: rgba(255,255,255,.07); }
+table.tbl-grid .tc { text-align: center; }
+table.tbl-grid .nm { font-weight: 700; white-space: nowrap; }
+table.tbl-grid th.hl, table.tbl-grid td.hl { background-image: linear-gradient(var(--hl), var(--hl)); }
+table.tbl-grid th.hl { border-bottom-color: var(--color-primary); }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.pill-ya { background: var(--color-success-bg); color: var(--color-success); }
+.pill-tunggu { background: var(--color-warning-bg); color: var(--color-warning); }
+.pill-tidak { background: #222c47; color: var(--color-text-muted); font-weight: 600; }
+.pill-sub { display: block; font-size: 12px; font-weight: 400; color: var(--color-text-muted); margin-top: 2px; text-transform: none; letter-spacing: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--color-text-muted); align-items: center; margin: 10px 0 4px; }
