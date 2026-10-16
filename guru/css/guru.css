@@ -166,7 +166,11 @@ label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
     border: 1px solid var(--color-border); background: var(--color-surface);
     transition: background .1s, border-color .1s;
 }
-.att-radio-label input { display: none; }
+/* DG-13: radio disembunyikan secara visual tetapi tetap dapat difokus dan dioperasikan dengan keyboard
+   (display:none menghapusnya dari urutan Tab). */
+.att-radio-label { position: relative; }
+.att-radio-label input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; overflow: hidden; pointer-events: none; }
+.att-radio-label:has(input:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .att-radio-label:has(input:checked) { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary); }
 .att-notes-input { max-width: 360px; }
 /* ── Attendance Carousel ── */

@@ -147,6 +147,11 @@ function markKasusAsSeen() {
 // ─── State ───────────────────────────────────────────────────
 let currentUser  = null;
 let config       = null;   // { current_academic_year, current_semester }
+// DG-04 / DG-08: nomor urut pemuatan modal absensi dan rekap. Hasil pemuatan lama yang selesai terlambat diabaikan
+// (dideklarasikan di sini agar sudah ada sebelum fungsi apa pun dijalankan).
+let _attModalSeq = 0;
+let _attModalFokusAsal = null;
+let _guruRecapSeq = 0;
 let jabatan      = [];
 let isTeacher    = false;  // hanya GURU & WALI_KELAS yang mengajar
 let myStudents         = [];     // for observation selector
@@ -749,6 +754,7 @@ function renderGuruRekapPage() {
 }
 
 async function loadGuruRecap() {
+    const seq       = ++_guruRecapSeq;
     const classId   = document.getElementById('guru-recap-class').value;
     const dateStart = document.getElementById('guru-recap-start').value;
     const dateEnd   = document.getElementById('guru-recap-end').value;
@@ -760,11 +766,13 @@ async function loadGuruRecap() {
     content.innerHTML = '<p class="hint">Memuat rekap…</p>';
     try {
         const enrolled = await getEnrolledStudents(classId, config.current_academic_year);
+        if (seq !== _guruRecapSeq) return;
         if (enrolled.length === 0) {
             content.innerHTML = '<p class="hint">Belum ada siswa aktif di kelas ini untuk tahun ajaran ini.</p>';
             return;
         }
         const rows = await getAttendanceSummaryByStudents(classId, config.current_academic_year, dateStart || null, dateEnd || null, currentUser.user_id);
+        if (seq !== _guruRecapSeq) return;
 
         _guruRekapRows      = rows;
         _guruRekapPage      = 0;
@@ -805,6 +813,7 @@ async function loadGuruRecap() {
         renderGuruRekapPage();
         document.getElementById('guru-recap-btn').textContent = 'Sembunyikan';
     } catch (err) {
+        if (seq !== _guruRecapSeq) return;
         content.innerHTML = `<div class="status-err">Gagal memuat rekap. ${esc(fe(err))}</div>`;
     }
 }
@@ -904,9 +913,16 @@ function renderScheduleRows(rows, contentEl, date) {
     document.getElementById('att-modal').addEventListener('click', e => {
         if (e.target === e.currentTarget) closeAttModal();
     });
+    const attModalEl = document.getElementById('att-modal');
+    if (!attModalEl._escTerpasang) {
+        attModalEl._escTerpasang = true;
+        attModalEl.addEventListener('keydown', e => { if (e.key === 'Escape') closeAttModal(); });
+    }
 }
 
 function openAttModal(btn) {
+    const seq      = ++_attModalSeq;
+    _attModalFokusAsal = document.activeElement;
     const modal    = document.getElementById('att-modal');
     const isPast   = btn.dataset.ispast === 'true';
     document.getElementById('att-modal-title').textContent =
@@ -917,12 +933,17 @@ function openAttModal(btn) {
     sipPrepareOpen(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    loadAttModalContent(btn.dataset.schedule, btn.dataset.class, btn.dataset.classname);
+    document.getElementById('att-modal-close')?.focus();   // DG-13: fokus pindah ke dalam dialog
+    loadAttModalContent(btn.dataset.schedule, btn.dataset.class, btn.dataset.classname, seq);
 }
 
 function closeAttModal() {
+    _attModalSeq++;   // DG-04: batalkan pemuatan yang masih berjalan
     sipCloseOverlay(document.getElementById('att-modal'));
     document.body.style.overflow = '';
+    // DG-13: kembalikan fokus ke tombol yang membuka modal
+    try { _attModalFokusAsal?.focus?.(); } catch (_) { /* elemen sudah tidak ada */ }
+    _attModalFokusAsal = null;
 }
 
 async function loadSchedule() {
@@ -1034,7 +1055,7 @@ async function loadWeekSchedule() {
     }
 }
 
-async function loadAttModalContent(scheduleId, classId, className) {
+async function loadAttModalContent(scheduleId, classId, className, seq) {
     const panel = document.getElementById('att-modal-body');
 
     try {
@@ -1042,6 +1063,7 @@ async function loadAttModalContent(scheduleId, classId, className) {
             getEnrolledStudents(classId, config.current_academic_year),
             getAttendanceForSession(scheduleId),
         ]);
+        if (seq !== _attModalSeq) return;   // DG-04: modal sudah ditutup atau diganti sesi lain
 
         if (students.length === 0) {
             panel.innerHTML = '<p class="hint">Tidak ada siswa terdaftar di kelas ini.</p>';
@@ -1136,6 +1158,7 @@ async function loadAttModalContent(scheduleId, classId, className) {
         const scheduleIds = (() => { try { return JSON.parse(document.querySelector(`.att-open-btn[data-schedule="${scheduleId}"]`)?.dataset?.scheduleIds ?? 'null'); } catch { return null; } })() ?? [scheduleId];
         panel.querySelector('.att-save').addEventListener('click', () => saveAttendance(scheduleIds, students));
     } catch (err) {
+        if (seq !== _attModalSeq) return;
         panel.innerHTML = `<div class="status-err">Gagal memuat data. ${esc(fe(err))}</div>`;
     }
 }
