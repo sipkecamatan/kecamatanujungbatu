@@ -319,4 +319,4 @@ table.tbl-grid th.hl { border-bottom-color: var(--color-primary); }
 .pill-sub { display: block; font-size: 12px; font-weight: 400; color: var(--color-text-muted); margin-top: 2px; text-transform: none; letter-spacing: 0; }
 .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--color-text-muted); align-items: center; margin: 10px 0 4px; }
 /* Teks tebal lain di tab Wilayah (nama pegawai, judul bagian) ikut lebih redup */
-[data-panel="regions"] strong, [data-panel="regions"] b, [data-panel="regions"] h4 { color: var(--color-text-strong); }
+[data-panel="regions"] strong, [data-panel="regions"] b, [data-panel="regions"] h4, [data-panel="regions"] th { color: var(--color-text-strong); }
