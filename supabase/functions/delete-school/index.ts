@@ -12,7 +12,7 @@ const BATCH_SIZE = 200;
 const AUTH_BATCH_SIZE = 50;
 const TIMEOUT_GUARD_MS = 25_000;
 
-type CursorStrategy = 'keyset' | 'remaining-set' | 'coaching-rpc' | 'null-document-refs' | 'auth';
+type CursorStrategy = 'keyset' | 'remaining-set' | 'coaching-rpc' | 'auth';
 type ManifestEntry = { table: string; pk: string[]; strategy: CursorStrategy };
 type ResumeFrom = {
     table: string;
@@ -36,8 +36,6 @@ const DELETE_MANIFEST: ManifestEntry[] = [
     table('observations', 'observation_id'),
     table('substitute_schedules', 'substitute_id'),
     table('teacher_attendance_log', 'log_id'),
-    table('ld_documents', 'document_id'),
-    table('evaluation_logs', 'log_id'),
     table('assessment_rubric_results', 'id'),
     table('assessment_results', 'id'),
     table('student_grades', 'id'),
@@ -50,11 +48,6 @@ const DELETE_MANIFEST: ManifestEntry[] = [
     { table: 'forum_post_subjects', pk: ['post_id', 'student_id'], strategy: 'remaining-set' },
     table('notifications', 'notification_id'),
     table('forum_posts', 'post_id'),
-    table('generation_jobs', 'job_id'),
-    table('teacher_document_approvals', 'approval_id'),
-    table('teacher_document_classes', 'id'),
-    table('__teacher_document_refs', 'doc_id', 'null-document-refs'),
-    table('teacher_documents', 'doc_id'),
     table('schedule_reapply_targets', 'target_id', 'remaining-set'),
     table('schedule_reapply_jobs', 'job_id'),
     table('pkl_attendance', 'pkl_attendance_id'),
@@ -71,12 +64,9 @@ const DELETE_MANIFEST: ManifestEntry[] = [
     table('student_groups', 'id'),
     table('student_updates', 'update_id'),
     table('duty_schedules', 'duty_id'),
-    table('ld_context_snapshots', 'snapshot_id'),
-    table('ld_program_knowledge_school', 'knowledge_id'),
     table('learning_objectives', 'id'),
     table('teaching_schedules', 'schedule_id'),
     table('schedule_templates', 'template_id'),
-    table('teaching_contexts', 'context_id'),
     table('tp_taught_status', 'id'),
     table('teaching_assignments', 'assignment_id'),
     table('schedule_time_slots', 'slot_id'),
@@ -87,7 +77,6 @@ const DELETE_MANIFEST: ManifestEntry[] = [
     table('login_devices', 'device_id'),
     table('teacher_journals', 'journal_id'),
     table('teacher_piket_assignments', 'assignment_id'),
-    table('teacher_profiles', 'profile_id'),
     table('pending_auth_deletions', 'queue_id'),
     table('academic_periods', 'id'),
     table('assessments', 'id'),
@@ -219,24 +208,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
                     deletedSoFar += Number(result?.deleted ?? 0);
                     lastId = result?.last_id ?? lastId;
                     if (!result?.has_more) break;
-                    continue;
-                }
-
-                if (entry.strategy === 'null-document-refs') {
-                    let query = admin.from('teacher_documents').select('doc_id')
-                        .eq('school_id', schoolId)
-                        .or('parent_doc_id.not.is.null,source_doc_id.not.is.null')
-                        .order('doc_id').limit(BATCH_SIZE);
-                    if (lastId) query = query.gt('doc_id', lastId);
-                    const { data: rows, error } = await query;
-                    if (error) throw new Error(`Gagal membaca teacher document refs: ${error.message}`);
-                    if (!rows?.length) break;
-                    const ids = rows.map(row => row.doc_id);
-                    const { error: updateError } = await admin.from('teacher_documents')
-                        .update({ parent_doc_id: null, source_doc_id: null })
-                        .in('doc_id', ids).eq('school_id', schoolId);
-                    if (updateError) throw new Error(`Gagal menetralkan teacher document refs: ${updateError.message}`);
-                    lastId = ids[ids.length - 1];
                     continue;
                 }
 
