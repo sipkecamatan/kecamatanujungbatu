@@ -975,9 +975,10 @@ async function loadRegions() {
             // yaitu persis sekolah yang dilihat pegawai wilayah ini.
             if (r.schools.length) {
                 const ringkasNama = (id) => (id && namaById[id] ? namaById[id].split(',')[0].replace(/^(Kecamatan|Kabupaten|Provinsi)\s+/, '') : null);
-                const gayaSel = 'padding:7px 10px;border-bottom:1px solid var(--color-border, #2b3447);vertical-align:middle;white-space:nowrap';
-                const gayaHead = 'padding:6px 10px;text-align:left;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--color-text-muted, #94a3b8);font-weight:700;white-space:nowrap';
-                const th = (teks, extra = {}, tengah = false) => h('th', { style: gayaHead + (tengah ? ';text-align:center' : ''), ...extra }, teks);
+                const gayaSel = 'padding:7px 6px;border-bottom:1px solid var(--color-border, #2b3447);vertical-align:middle;white-space:nowrap';
+                const gayaHead = 'padding:6px 6px;text-align:left;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--color-text-muted, #94a3b8);font-weight:700;white-space:nowrap';
+                const th = (teks, extra = {}, tengah = false, bungkus = false) =>
+                    h('th', { ...extra, style: gayaHead + (tengah ? ';text-align:center' : '') + (bungkus ? ';white-space:normal;min-width:70px' : '') }, teks);
                 const sambung = (id) => id
                     ? h('span', {}, ringkasNama(id) ?? '—')
                     : h('span', { style: 'color:var(--color-text-muted, #94a3b8);font-style:italic' }, 'belum');
@@ -989,8 +990,9 @@ async function loadRegions() {
                         h('tr', {},
                             th('Sekolah', { rowspan: 2 }), th('Jenjang', { rowspan: 2 }),
                             th('Terhubung ke', { colspan: 3 }, true), th('Berbagi ke', { colspan: 3 }, true),
-                            th('Tampil di dasbor ini', { rowspan: 2 }, true)),
-                        h('tr', {}, ...['Kecamatan', 'Kabupaten', 'Provinsi', 'Kecamatan', 'Kabupaten', 'Provinsi'].map(x => th(x, {}, true)))),
+                            th('Tampil di dasbor ini', { rowspan: 2 }, true, true)),
+                        h('tr', {}, ...[['Kec', 'Kecamatan'], ['Kab', 'Kabupaten'], ['Prov', 'Provinsi'], ['Kec', 'Kecamatan'], ['Kab', 'Kabupaten'], ['Prov', 'Provinsi']]
+                            .map(([s, p]) => th(s, { title: p }, true)))),
                     h('tbody', {}, ...r.schools.map(s => {
                         const tampil = s.is_active && s[kolomBagi];
                         return h('tr', { style: tampil ? '' : 'opacity:.72' },
