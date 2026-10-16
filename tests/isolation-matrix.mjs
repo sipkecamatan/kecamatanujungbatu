@@ -26,6 +26,7 @@ const migrationOrtu = read('supabase/migrations/20261015060000_region_overview_o
 const migrationRentang = read('supabase/migrations/20261015070000_region_range.sql');
 const migrationGrup = read('supabase/migrations/20261016010000_region_group.sql');
 const migrationWib = read('supabase/migrations/20261016020000_region_wib.sql');
+const migrationVisibilitas = read('supabase/migrations/20261016030000_region_visibility.sql');
 
 const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
 
@@ -58,6 +59,7 @@ await db.exec(migrationOrtu);
 await db.exec(migrationRentang);
 await db.exec(migrationGrup);
 await db.exec(migrationWib);
+await db.exec(migrationVisibilitas);
 
 const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const NOL = '00000000-0000-0000-0000-000000000000';
@@ -298,7 +300,7 @@ for (const actor of actors) {
   if (actor.regionKey && missing.length) controls.push(`M1 ${actor.key}: kontrol positif gagal (${missing.join(', ')})`);
 }
 
-// M2: rentang penuh dan mode berkelompok/daftar.
+// M2: rentang penuh; parameter lama tidak boleh mengubah cakupan atau metadata.
 for (const actor of actors) {
   for (const full of [true, false]) {
     const result = await overviewRange(actor, full);
