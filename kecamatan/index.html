@@ -86,31 +86,29 @@
         <p class="muted small">Jenjang tampil bila sedikitnya 2 sekolah pada jenjang itu membagikan data.</p>
       </section>
 
-      <section class="card" id="kelompok-card" hidden>
-        <div class="card-head">
-          <h2 id="kelompok-title">Kecamatan</h2>
-        </div>
-        <nav id="jejak" class="muted small" aria-label="Jejak wilayah"></nav>
-        <div class="table-wrap">
-          <table id="tbl-kelompok">
-            <thead>
-              <tr>
-                <th id="th-kelompok">Wilayah</th><th class="num">Sekolah</th><th class="num">Siswa aktif</th>
-                <th class="num">Orang tua aktif</th><th class="num">Cakupan input</th><th class="num">Kehadiran</th>
-                <th class="num">Terlambat</th><th class="num">Izin keluar</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <p class="muted small">Klik satu baris untuk membuka daftarnya. Angka dijumlahkan dari sekolah yang disetujui kepala sekolahnya.</p>
-      </section>
-
       <section class="card" id="sekolah-card" hidden>
         <div class="card-head">
           <h2>Sekolah</h2>
           <div id="filter-jenjang" class="chips" role="group" aria-label="Filter jenjang"></div>
         </div>
+        <div class="school-controls">
+          <div>
+            <label for="sekolah-search">Cari nama sekolah</label>
+            <input id="sekolah-search" type="search" placeholder="Cari nama sekolah" autocomplete="off" />
+          </div>
+          <div>
+            <label for="sekolah-sort">Urutkan</label>
+            <select id="sekolah-sort">
+              <option value="nama-asc">Nama A-Z</option>
+              <option value="nama-desc">Nama Z-A</option>
+              <option value="siswa-aktif">Siswa aktif terbanyak</option>
+              <option value="kehadiran-tinggi">Kehadiran tertinggi</option>
+              <option value="kehadiran-rendah">Kehadiran terendah</option>
+              <option value="terlambat">Terlambat terbanyak</option>
+            </select>
+          </div>
+        </div>
+        <p id="sekolah-count" class="muted small" aria-live="polite"></p>
         <div class="table-wrap">
           <table id="tbl-sekolah">
             <thead>
@@ -123,6 +121,8 @@
             <tbody></tbody>
           </table>
         </div>
+        <p id="sekolah-empty" class="muted" hidden>Tidak ada sekolah yang cocok.</p>
+        <button id="sekolah-more" class="btn" type="button" hidden>Tampilkan 50 lagi</button>
         <p class="muted small">Klik nama sekolah untuk melihat tren (mingguan; bulanan bila periode lebih dari 90 hari).</p>
       </section>
 

@@ -49,6 +49,9 @@ select { width: auto; }
 .chip { border: 1px solid var(--line); background: var(--card); color: var(--fg); border-radius: 999px;
   padding: .3rem .8rem; cursor: pointer; font: inherit; min-height: 36px; }
 .chip[aria-pressed="true"] { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+.school-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 240px); gap: 12px; margin-bottom: 8px; }
+.school-controls label { display: block; margin-bottom: .3rem; }
+.school-controls select { width: 100%; }
 
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
@@ -100,6 +103,7 @@ tbody tr.row-sekolah:hover { background: var(--muted-bg); }
   .stat .v { font-size: 1.35rem; }
   .stat .s { overflow-wrap: anywhere; }
   .topbar-actions { width: 100%; }
+  .school-controls { grid-template-columns: 1fr; }
 }
 .container { grid-template-columns: minmax(0, 1fr); }
 .container > * { min-width: 0; }
