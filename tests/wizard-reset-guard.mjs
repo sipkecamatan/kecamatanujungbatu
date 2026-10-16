@@ -3,6 +3,7 @@
 // sendiri tetap berhasil. Temuan audit jalur API 16 Okt 2026: penjaga lama "<>" meloloskan pemanggil NULL.
 //   SIP_ROOT=<folder repo> node tests/wizard-reset-guard.mjs
 //   TANPA_PERBAIKAN=1 ...  -> tidak memuat migrasi perbaikan; uji ini HARUS gagal (bukti uji menangkap celah).
+//   TANPA_JADWAL=1 ...     -> memuat penjaga (050000) tetapi bukan perbaikan reset jadwal (060000); uji reset jadwal HARUS gagal (42703).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
@@ -35,6 +36,7 @@ const migrationFiles = [
 const migrations = migrationFiles.map((f) => read(`supabase/migrations/${f}`));
 const migrationAbsensi = read('supabase/migrations/20261016040000_attendance_breakdown.sql');
 const migrationGuard = read('supabase/migrations/20261016050000_wizard_reset_guard.sql');
+const migrationJadwal = read('supabase/migrations/20261016060000_wizard_reset_schedules_fix.sql');
 
 const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
 let passed = 0;
@@ -68,7 +70,7 @@ for (const migration of migrations) await db.exec(migration);
 await db.exec(`CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;`);
 
 await db.exec(migrationAbsensi);
-if (!process.env.TANPA_PERBAIKAN) await db.exec(migrationGuard);
+if (!process.env.TANPA_PERBAIKAN) { await db.exec(migrationGuard); if (!process.env.TANPA_JADWAL) await db.exec(migrationJadwal); }
 
 const REGION_A = uuid(1);
 await db.exec(`INSERT INTO regions (region_id, name) VALUES ('${REGION_A}', 'Kecamatan Guard');`);
@@ -97,6 +99,21 @@ async function sekolah(kunci) {
       INSERT INTO attendance (schedule_id, student_id, status, source, recorded_by_user_id, school_id)
         VALUES ('${sch}', '${st}', 'HADIR', 'TEACHER_DECLARED', '${guru.user}', '${sid}');`);
   }
+  // Baris di SEMUA tabel anak yang harus dihapus fn_wizard_reset_schedules (empat tabel RESTRICT ke teaching_schedules,
+  // plus template dan penugasan), agar urutan penghapusan benar-benar teruji.
+  const siswaPertama = (await db.query(`SELECT student_id FROM students WHERE school_id = '${sid}' ORDER BY 1 LIMIT 1`)).rows[0].student_id;
+  try { await db.exec(`
+    INSERT INTO teaching_assignments (user_id, class_id, subject_id, academic_year, semester, school_id)
+      VALUES ('${guru.user}', '${cls}', '${subj}', '2026/2027', '1', '${sid}');
+    INSERT INTO schedule_templates (academic_year, semester, day_of_week, start_time, end_time, class_id, teacher_id, school_id)
+      VALUES ('2026/2027', '1', 'SENIN', '07:00', '08:00', '${cls}', '${guru.user}', '${sid}');
+    INSERT INTO teacher_attendance_log (schedule_id, user_id, activity_type, school_id)
+      VALUES ('${sch}', '${guru.user}', 'ATTENDANCE_SUBMITTED', '${sid}');
+    INSERT INTO substitute_schedules (schedule_id, substitute_user_id, granted_by_user_id, sync_token_expires_at, school_id)
+      VALUES ('${sch}', '${admin.user}', '${admin.user}', now() + interval '1 day', '${sid}');
+    INSERT INTO observations (student_id, author_user_id, sentiment, dimension, content, visibility, school_id, schedule_id)
+      VALUES ('${siswaPertama}', '${guru.user}', 'POSITIF', 'AKADEMIK', 'catatan uji', 'INTERNAL_SCHOOL', '${sid}', '${sch}');`);
+  } catch (e) { console.error('FIXTURE GALAT: ' + e.message); throw e; }
   return { sid, admin, guru };
 }
 const A = await sekolah('guarda'), B = await sekolah('guardb');
@@ -166,6 +183,18 @@ await test('fn_reapply_schedule_templates: hak EXECUTE pengguna login dicabut (j
   const r = await panggil(A.admin.auth, `SELECT public.fn_reapply_schedule_templates('2026/2027', '1'::semester, '${A.sid}'::uuid) AS v`);
   assert.equal(r.ok, false);
   assert.equal(r.kode, '42501', 'harus permission denied: ' + JSON.stringify(r));
+});
+await test('KONTROL POSITIF reset jadwal: ADMINISTRATIVE sekolah A menghapus jadwal beserta SEMUA tabel anak; sekolah B tidak tersentuh', async () => {
+  const tabel = ['teaching_schedules', 'teacher_attendance_log', 'substitute_schedules', 'observations', 'attendance', 'schedule_templates', 'teaching_assignments'];
+  for (const t of tabel) assert.ok((await hitung(t, A.sid)) > 0, 'prasyarat: sekolah A harus punya baris di ' + t);
+  const bAwal = Object.fromEntries(await Promise.all(tabel.map(async (t) => [t, await hitung(t, B.sid)])));
+  const r = await panggil(A.admin.auth, resetJadwal(A.sid));
+  assert.equal(r.ok, true, 'admin sekolah sendiri harus berhasil (sebelum perbaikan galat 42703 schedule_id): ' + JSON.stringify(r));
+  assert.deepEqual(r.nilai, { deleted_schedules: 1, deleted_templates: 1, deleted_assignments: 1 });
+  for (const t of tabel) {
+    assert.equal(await hitung(t, A.sid), 0, t + ' sekolah A harus kosong');
+    assert.equal(await hitung(t, B.sid), bAwal[t], t + ' sekolah B tidak boleh tersentuh');
+  }
 });
 await test('KONTROL POSITIF: ADMINISTRATIVE sekolah A tetap dapat mereset siswa sekolahnya sendiri; sekolah B tidak tersentuh', async () => {
   const bAwal = await hitung('students', B.sid);
