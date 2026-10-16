@@ -58,7 +58,8 @@ table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: .55rem .6rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
 th.num, td.num { text-align: right; }
 tbody tr.row-sekolah { cursor: pointer; }
-tbody tr.row-sekolah:hover { background: var(--muted-bg); }
+tbody tr.row-sekolah:hover, tbody tr.row-jenjang:hover { background: var(--muted-bg); }
+tbody tr.row-jenjang { cursor: pointer; }
 .link { background: none; border: 0; color: var(--primary); cursor: pointer; padding: 0; font: inherit; text-align: left; }
 
 .badge { display: inline-block; padding: .15rem .55rem; border-radius: 999px; font-size: .8rem; font-weight: 600; }
@@ -115,7 +116,7 @@ td.aksi-tren { display: none; }
   table, tbody, tr, td { display: block; width: 100%; }
   thead { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
   tbody tr { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; margin-bottom: 10px; background: var(--card); }
-  tbody tr.row-sekolah:hover { background: var(--card); }
+  tbody tr.row-sekolah:hover, tbody tr.row-jenjang:hover { background: var(--card); }
   td { display: flex; justify-content: space-between; align-items: center; gap: 12px;
        white-space: normal; border-bottom: 1px solid var(--line); padding: .4rem 0; text-align: right; }
   td:last-child { border-bottom: 0; }
@@ -139,5 +140,5 @@ td.aksi-tren { display: none; }
   tbody tr.row-lipat:not(.terbuka) td.td-ringkas { border-bottom: 0; }
   tbody tr.row-lipat td:first-child::after { content: '▸'; margin-left: auto; color: var(--muted); }
   tbody tr.row-lipat.terbuka td:first-child::after { content: '▾'; }
-  tbody tr.row-sekolah.terbuka td.aksi-tren { display: flex; justify-content: flex-end; }
+  tbody tr.row-lipat.terbuka td.aksi-tren { display: flex; justify-content: flex-end; }
 }

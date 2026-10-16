@@ -291,7 +291,7 @@ function render() {
   // Subtotal per jenjang: server hanya mengirim jenjang yang memiliki >= 2 sekolah berbagi.
   const tj = $('tbl-jenjang').querySelector('tbody'); tj.replaceChildren();
   for (const j of o.per_jenjang ?? []) {
-    tj.append(el('tr', { class: 'row-lipat', onclick: (e) => klikBaris(e.currentTarget, () => {}) },
+    tj.append(el('tr', { class: 'row-lipat row-jenjang', onclick: (e) => klikBaris(e.currentTarget, () => saringKeJenjang(j.jenjang)) },
       el('td', {}, el('button', { class: 'link', type: 'button' }, j.jenjang === 'TIDAK_DIKETAHUI' ? '—' : j.jenjang)),
       el('td', { class: 'num' }, j.jumlah_sekolah),
       el('td', { class: 'num' }, j.siswa_aktif),
@@ -303,6 +303,7 @@ function render() {
       el('td', { class: 'num' }, statusCell(j, 'alpa_pct')),
       el('td', { class: 'num' }, piket(j.terlambat, o.ambang_piket)),
       el('td', { class: 'num' }, piket(j.izin_keluar, o.ambang_piket)),
+      el('td', { class: 'aksi-tren' }, el('button', { class: 'btn', type: 'button', onclick: (e) => { e.stopPropagation(); saringKeJenjang(j.jenjang); } }, 'Lihat sekolahnya')),
     ));
   }
   labelKolom('tbl-jenjang');
@@ -322,6 +323,14 @@ function render() {
   $('sekolah-card').hidden = false;
   $('method-card').hidden = false;
   perbaruiPengingat();
+}
+
+// Klik jenjang di Subtotal: daftar Sekolah disaring ke jenjang itu (sama dengan chip jenjang) lalu digulirkan ke layar.
+function saringKeJenjang(jenjang) {
+  state.jenjang = jenjang; state.sekolahTampil = 50;
+  render();
+  bukaLipat($('sekolah-card'));
+  $('sekolah-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderSchoolList(o) {
