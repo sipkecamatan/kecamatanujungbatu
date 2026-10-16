@@ -27,6 +27,7 @@ const migrationRentang = read('supabase/migrations/20261015070000_region_range.s
 const migrationGrup = read('supabase/migrations/20261016010000_region_group.sql');
 const migrationWib = read('supabase/migrations/20261016020000_region_wib.sql');
 const migrationVisibilitas = read('supabase/migrations/20261016030000_region_visibility.sql');
+const migrationAbsensi = read('supabase/migrations/20261016040000_attendance_breakdown.sql');
 
 const db = await PGlite.create({ extensions: { uuid_ossp, pgcrypto, btree_gist } });
 
@@ -60,6 +61,7 @@ await db.exec(migrationRentang);
 await db.exec(migrationGrup);
 await db.exec(migrationWib);
 await db.exec(migrationVisibilitas);
+await db.exec(migrationAbsensi);
 
 const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const NOL = '00000000-0000-0000-0000-000000000000';

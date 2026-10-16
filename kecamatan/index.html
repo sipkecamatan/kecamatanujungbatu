@@ -76,7 +76,8 @@
             <thead>
               <tr>
                 <th>Jenjang</th><th class="num">Sekolah</th><th class="num">Siswa aktif</th>
-                <th class="num">Orang tua aktif</th><th class="num">Cakupan input</th><th class="num">Kehadiran</th>
+                <th class="num">Orang tua aktif</th><th class="num">Cakupan input</th><th class="num">Hadir (%)</th>
+                <th class="num">Sakit (%)</th><th class="num">Izin (%)</th><th class="num">Alpa (%)</th>
                 <th class="num">Terlambat</th><th class="num">Izin keluar</th>
               </tr>
             </thead>
@@ -114,7 +115,8 @@
             <thead>
               <tr>
                 <th>Sekolah</th><th>Jenjang</th><th class="num">Siswa aktif</th>
-                <th class="num">Orang tua aktif</th><th class="num">Cakupan input</th><th class="num">Kehadiran</th>
+                <th class="num">Orang tua aktif</th><th class="num">Cakupan input</th><th class="num">Hadir (%)</th>
+                <th class="num">Sakit (%)</th><th class="num">Izin (%)</th><th class="num">Alpa (%)</th>
                 <th class="num">Terlambat</th><th class="num">Izin keluar</th><th>Status data</th>
               </tr>
             </thead>
@@ -131,7 +133,7 @@
         <div class="table-wrap">
           <table id="tbl-trend">
             <thead><tr><th id="th-periode">Minggu mulai</th><th class="num">Sesi terjadwal</th><th class="num">Sesi tercatat</th>
-              <th class="num">Cakupan</th><th class="num">Kehadiran</th></tr></thead>
+              <th class="num">Cakupan</th><th class="num">Hadir (%)</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -141,7 +143,8 @@
         <h2>Cara membaca angka</h2>
         <ul class="method">
           <li><strong>Cakupan input</strong>: persentase sesi pelajaran terjadwal yang sudah dicatat absensinya pada periode terpilih. Sekolah yang belum menginput <em>tidak</em> dianggap tidak hadir.</li>
-          <li><strong>Kehadiran</strong>: persentase catatan berstatus hadir dari seluruh catatan absensi. Hanya ditampilkan bila cakupan input <span id="ambang"></span>% atau lebih, supaya angkanya bisa dibandingkan.</li>
+          <li><strong>Hadir, Sakit, Izin, Alpa</strong>: persentase masing-masing status dari seluruh catatan absensi (siswa x sesi). Izin adalah status tersendiri, bukan bagian dari alpa.</li>
+          <li>Persentase status hanya ditampilkan bila cakupan input <span id="ambang"></span>% atau lebih. Jumlah status 1 sampai 4 catatan ditulis sebagai &ldquo;&lt; 5&rdquo;; nol tetap ditampilkan sebagai 0%.</li>
           <li><strong>Total wilayah</strong> tampil bila sedikitnya 3 sekolah membagikan data; <strong>subtotal jenjang</strong> tampil bila jenjang itu punya sedikitnya 2 sekolah.</li>
           <li><strong>Orang tua aktif</strong>: jumlah akun orang tua yang terdaftar sebagai pengguna di sekolah (akun aktif, bukan berdasarkan kapan terakhir masuk). Hanya hitungan; tanpa nama.</li>
           <li><strong>Terlambat</strong> dan <strong>izin keluar</strong>: jumlah catatan guru piket pada periode terpilih. Jumlah 1 sampai 4 ditampilkan sebagai &ldquo;&lt; 5&rdquo; agar tidak mengarah ke individu.</li>

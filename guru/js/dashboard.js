@@ -3457,6 +3457,8 @@ async function loadKepsekMonitoring(period, academicYear = null, dateStart = nul
     const pctSiswa = document.getElementById('ks-pct-siswa');
     const pctGuru  = document.getElementById('ks-pct-guru');
     const detSiswa = document.getElementById('ks-detail-siswa');
+    const rincianAbsensi = document.getElementById('ks-rincian-absensi');
+    const rincianAbsensiHint = document.getElementById('ks-rincian-absensi-hint');
     const detGuru  = document.getElementById('ks-detail-guru');
     const hintEl   = document.getElementById('ks-chart-hint');
     const countLate  = document.getElementById('ks-count-late');
@@ -3465,6 +3467,8 @@ async function loadKepsekMonitoring(period, academicYear = null, dateStart = nul
     pctSiswa.textContent = '…';
     pctGuru.textContent  = '…';
     detSiswa.textContent = '';
+    rincianAbsensi.textContent = '';
+    rincianAbsensiHint.textContent = '';
     detGuru.textContent  = '';
     if (countLate)  countLate.textContent = '…';
     if (countExits) countExits.textContent = '…';
@@ -3492,6 +3496,16 @@ async function loadKepsekMonitoring(period, academicYear = null, dateStart = nul
         if (countLate)  countLate.textContent  = s.count_late  != null ? s.count_late  + ' siswa' : '—';
         if (countExits) countExits.textContent = s.count_exits != null ? s.count_exits + ' siswa' : '—';
         detSiswa.textContent = `${s.siswa_hadir ?? 0} / ${s.siswa_total ?? 0} siswa hadir`;
+        const rincian = s.rincian_absensi ?? {};
+        const barisAbsensi = Number(rincian.baris ?? 0);
+        if (barisAbsensi > 0) {
+            const persenStatus = (key) => `${(100 * Number(rincian[key] ?? 0) / barisAbsensi).toFixed(1)}% (${Number(rincian[key] ?? 0)})`;
+            rincianAbsensi.textContent = `Hadir ${persenStatus('hadir')} · Sakit ${persenStatus('sakit')} · Izin ${persenStatus('izin')} · Alpa ${persenStatus('alpa')}`;
+            rincianAbsensiHint.textContent = `dari ${barisAbsensi} catatan absensi (siswa x sesi) pada periode ini`;
+        } else {
+            rincianAbsensi.textContent = 'Belum ada catatan absensi pada periode ini';
+            rincianAbsensiHint.textContent = '';
+        }
         detGuru.textContent  = `${s.guru_hadir  ?? 0} / ${s.guru_total  ?? 0} guru hadir`;
 
         const chartData = d.chart ?? [];
@@ -3522,6 +3536,8 @@ async function loadKepsekMonitoring(period, academicYear = null, dateStart = nul
         errEl.style.display = 'block';
         pctSiswa.textContent = '—';
         pctGuru.textContent  = '—';
+        rincianAbsensi.textContent = '';
+        rincianAbsensiHint.textContent = '';
         if (countLate)  countLate.textContent = '—';
         if (countExits) countExits.textContent = '—';
         hintEl.textContent = '';

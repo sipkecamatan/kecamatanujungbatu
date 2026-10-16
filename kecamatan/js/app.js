@@ -51,6 +51,18 @@ function el(tag, props = {}, ...kids) {
   return n;
 }
 const pct = (v) => (v == null ? '—' : `${v}%`);
+function statusValue(row, key) {
+  const kecil = Array.isArray(row?.absen_kecil) && row.absen_kecil.includes(key);
+  return kecil ? '< 5' : pct(row?.[key]);
+}
+function statusCell(row, key) {
+  const value = statusValue(row, key);
+  return value === '< 5' ? el('span', { title: 'kurang dari 5 catatan' }, value) : value;
+}
+function statusCsv(row, key) { return statusValue(row, key) === '—' ? '' : statusValue(row, key); }
+function ringkasanAbsensi(row, hadirKey = 'kehadiran_pct') {
+  return `Hadir ${statusValue(row, hadirKey)} · Sakit ${statusValue(row, 'sakit_pct')} · Izin ${statusValue(row, 'izin_pct')} · Alpa ${statusValue(row, 'alpa_pct')}`;
+}
 // Nama wilayah di daftar resmi memuat induknya ("Kecamatan Ujung Batu, Kabupaten Rokan Hulu"). Pegawai hanya
 // mengenal nama wilayahnya sendiri, jadi yang ditampilkan hanya bagian sebelum koma pertama.
 const namaWilayah = (o) => String(o?.wilayah ?? '').split(',')[0].trim();
@@ -140,22 +152,22 @@ function bangunCsv(o) {
     ['Wilayah', namaWilayah(o)],
     ['Periode', `${o.dari} s.d. ${o.sampai} (${o.jendela_hari} hari)`],
     ['Diunduh', dibuat],
-    ['Catatan', 'Angka agregat dari sekolah yang disetujui kepala sekolah; tidak memuat nama atau identitas siswa. Total tampil bila minimal 3 sekolah; keterlambatan dan izin keluar 1-4 ditulis "< 5"; kehadiran kosong bila cakupan input di bawah ' + o.ambang_cakupan_pct + '%.'],
+    ['Catatan', `Angka agregat dari sekolah yang disetujui kepala sekolah; satuan absensi adalah catatan siswa x sesi. Tidak memuat nama atau identitas siswa. Total tampil bila minimal 3 sekolah; status absensi 1-4 ditulis "< 5"; persentase kosong bila cakupan input di bawah ${o.ambang_cakupan_pct}%.`],
     [],
   ];
   baris.push(['TOTAL']);
   if (o.total) {
-    baris.push(['Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar']);
-    baris.push([o.total.siswa_aktif, o.total.orang_tua_aktif, o.total.cakupan_pct ?? '', o.total.kehadiran_pct ?? '',
+    baris.push(['Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Hadir (%)', 'Sakit (%)', 'Izin (%)', 'Alpa (%)', 'Terlambat', 'Izin keluar']);
+    baris.push([o.total.siswa_aktif, o.total.orang_tua_aktif, o.total.cakupan_pct ?? '', statusCsv(o.total, 'kehadiran_pct'), statusCsv(o.total, 'sakit_pct'), statusCsv(o.total, 'izin_pct'), statusCsv(o.total, 'alpa_pct'),
                 piketCsv(o.total.terlambat, o.ambang_piket), piketCsv(o.total.izin_keluar, o.ambang_piket)]);
   } else {
     baris.push(['Tidak ditampilkan: kurang dari 3 sekolah membagikan data']);
   }
   baris.push([], ['SUBTOTAL JENJANG']);
   if (o.per_jenjang && o.per_jenjang.length) {
-    baris.push(['Jenjang', 'Sekolah', 'Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar']);
+    baris.push(['Jenjang', 'Sekolah', 'Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Hadir (%)', 'Sakit (%)', 'Izin (%)', 'Alpa (%)', 'Terlambat', 'Izin keluar']);
     for (const j of o.per_jenjang) {
-      baris.push([j.jenjang, j.jumlah_sekolah, j.siswa_aktif, j.orang_tua_aktif, j.cakupan_pct ?? '', j.kehadiran_pct ?? '',
+      baris.push([j.jenjang, j.jumlah_sekolah, j.siswa_aktif, j.orang_tua_aktif, j.cakupan_pct ?? '', statusCsv(j, 'kehadiran_pct'), statusCsv(j, 'sakit_pct'), statusCsv(j, 'izin_pct'), statusCsv(j, 'alpa_pct'),
                   piketCsv(j.terlambat, o.ambang_piket), piketCsv(j.izin_keluar, o.ambang_piket)]);
     }
   } else {
@@ -163,9 +175,9 @@ function bangunCsv(o) {
   }
   if (o.sekolah && o.sekolah.length) {
     baris.push([], ['SEKOLAH'],
-      ['Sekolah', 'Jenjang', 'Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Kehadiran (%)', 'Terlambat', 'Izin keluar', 'Status data']);
+      ['Sekolah', 'Jenjang', 'Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Hadir (%)', 'Sakit (%)', 'Izin (%)', 'Alpa (%)', 'Terlambat', 'Izin keluar', 'Status data']);
     for (const s of urutkanSekolah(o.sekolah, 'nama-asc')) {
-      baris.push([s.nama, s.jenjang ?? '', s.siswa_aktif, s.orang_tua_aktif, s.cakupan_pct ?? '', s.kehadiran_pct ?? '',
+      baris.push([s.nama, s.jenjang ?? '', s.siswa_aktif, s.orang_tua_aktif, s.cakupan_pct ?? '', statusCsv(s, 'kehadiran_pct'), statusCsv(s, 'sakit_pct'), statusCsv(s, 'izin_pct'), statusCsv(s, 'alpa_pct'),
                   piketCsv(s.terlambat, o.ambang_piket), piketCsv(s.izin_keluar, o.ambang_piket),
                   (STATUS[s.status] || STATUS.TIDAK_ADA_JADWAL).label]);
     }
@@ -207,7 +219,7 @@ function render() {
 
   // Kartu ringkasan
   const cards = $('cards'); cards.replaceChildren();
-  const stat = (k, v, s) => el('div', { class: 'stat' }, el('div', { class: 'k' }, k), el('div', { class: 'v' }, v), el('div', { class: 's' }, s));
+  const stat = (k, v, s, cls = '') => el('div', { class: `stat${cls ? ` ${cls}` : ''}` }, el('div', { class: 'k' }, k), el('div', { class: 'v' }, v), el('div', { class: 's' }, s));
   cards.append(
     stat('Sekolah menampilkan data', o.jumlah_sekolah_dibagikan, 'sekolah yang membagikan ringkasan kepada wilayah ini'),
     o.total
@@ -220,8 +232,11 @@ function render() {
       ? stat('Cakupan input', pct(o.total.cakupan_pct), 'sesi terjadwal yang sudah dicatat')
       : stat('Cakupan input', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
     o.total
-      ? stat('Kehadiran', pct(o.total.kehadiran_pct), 'hanya dari sekolah dengan data memadai')
-      : stat('Kehadiran', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
+      ? stat('Hadir', pct(o.total.kehadiran_pct), 'hanya dari sekolah dengan data memadai')
+      : stat('Hadir', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
+    o.total
+      ? stat('Rincian kehadiran', ringkasanAbsensi(o.total), '% dari catatan absensi (siswa x sesi)', 'rincian')
+      : stat('Rincian kehadiran', '—', 'tampil bila ≥ 3 sekolah membagikan data', 'rincian'),
     o.total
       ? stat('Terlambat', piket(o.total.terlambat, o.ambang_piket), 'catatan guru piket pada periode terpilih')
       : stat('Terlambat', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
@@ -241,6 +256,9 @@ function render() {
       el('td', { class: 'num' }, j.orang_tua_aktif),
       el('td', { class: 'num' }, pct(j.cakupan_pct)),
       el('td', { class: 'num' }, pct(j.kehadiran_pct)),
+      el('td', { class: 'num' }, statusCell(j, 'sakit_pct')),
+      el('td', { class: 'num' }, statusCell(j, 'izin_pct')),
+      el('td', { class: 'num' }, statusCell(j, 'alpa_pct')),
       el('td', { class: 'num' }, piket(j.terlambat, o.ambang_piket)),
       el('td', { class: 'num' }, piket(j.izin_keluar, o.ambang_piket)),
     ));
@@ -283,6 +301,9 @@ function renderSchoolList(o) {
       el('td', { class: 'num' },
         cov == null ? '—' : [el('span', { class: 'bar' }, el('span', { style: `width:${Math.min(cov, 100)}%` })), `${cov}%`]),
       el('td', { class: 'num' }, pct(s.kehadiran_pct)),
+      el('td', { class: 'num' }, statusCell(s, 'sakit_pct')),
+      el('td', { class: 'num' }, statusCell(s, 'izin_pct')),
+      el('td', { class: 'num' }, statusCell(s, 'alpa_pct')),
       el('td', { class: 'num' }, piket(s.terlambat, o.ambang_piket)),
       el('td', { class: 'num' }, piket(s.izin_keluar, o.ambang_piket)),
       el('td', {}, el('span', { class: `badge ${st.cls}` }, st.label)),
