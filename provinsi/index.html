@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Provinsi — SIP</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../kecamatan/css/kecamatan.css" />
+</head>
+<body data-tingkat="PROVINSI">
+
+  <!-- Login -->
+  <main id="view-login" class="login-wrap">
+    <form id="login-form" class="card login-card" autocomplete="on" novalidate>
+      <h1>Dashboard Provinsi</h1>
+      <p class="muted">Ringkasan agregat sekolah di wilayah Anda. Tidak menampilkan data per siswa.</p>
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required />
+      <label for="password">Kata sandi</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+      <p id="login-error" class="error" role="alert" hidden></p>
+      <button id="login-btn" class="btn primary" type="submit">Masuk</button>
+    </form>
+  </main>
+
+  <!-- Dashboard -->
+  <div id="view-app" hidden>
+    <header class="topbar">
+      <div>
+        <div class="brand">Dashboard Provinsi</div>
+        <div id="wilayah" class="muted"></div>
+      </div>
+      <div class="topbar-actions">
+        <label class="muted" for="window">Periode</label>
+        <select id="window">
+          <option value="7">7 hari terakhir</option>
+          <option value="14">14 hari terakhir</option>
+          <option value="30" selected>30 hari terakhir</option>
+          <option value="bulan-ini">Bulan ini</option>
+          <option value="bulan-lalu">Bulan lalu</option>
+          <option value="semester">Semester ini</option>
+          <option value="tahun-ajaran">Tahun ajaran ini</option>
+          <option value="tahun">Tahun kalender ini</option>
+          <option value="bebas">Rentang tanggal…</option>
+        </select>
+        <span id="rentang-bebas" hidden>
+          <input id="tgl-dari" type="date" aria-label="Dari tanggal">
+          <input id="tgl-sampai" type="date" aria-label="Sampai tanggal">
+          <button id="rentang-terapkan" class="btn" type="button">Terapkan</button>
+        </span>
+        <button id="unduh-btn" class="btn" type="button">Unduh data (CSV)</button>
+        <button id="pw-open-btn" class="btn" type="button">Ganti kata sandi</button>
+        <button id="logout-btn" class="btn" type="button">Keluar</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <p id="app-error" class="error" role="alert" hidden></p>
+      <p id="app-loading" class="muted">Memuat…</p>
+
+      <section id="pengingat" class="card pengingat" role="status" hidden>
+        <span id="pengingat-teks"></span>
+        <span class="pengingat-aksi">
+          <button id="pengingat-unduh" class="btn primary" type="button">Unduh sekarang</button>
+          <button id="pengingat-nanti" class="btn" type="button">Nanti</button>
+        </span>
+      </section>
+
+      <section id="cards" class="cards" hidden></section>
+
+      <section class="card" id="jenjang-card" hidden>
+        <div class="card-head"><h2>Subtotal per jenjang</h2></div>
+        <div class="table-wrap">
+          <table id="tbl-jenjang">
+            <thead>
+              <tr>
+                <th>Jenjang</th><th class="num">Sekolah</th><th class="num">Siswa aktif</th>
+                <th class="num">Orang tua aktif</th><th class="num">Cakupan input</th><th class="num">Kehadiran</th>
+                <th class="num">Terlambat</th><th class="num">Izin keluar</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="muted small">Jenjang tampil bila sedikitnya 2 sekolah pada jenjang itu membagikan data.</p>
+      </section>
+
+      <section class="card" id="sekolah-card" hidden>
+        <div class="card-head">
+          <h2>Sekolah</h2>
+          <div id="filter-jenjang" class="chips" role="group" aria-label="Filter jenjang"></div>
+        </div>
+        <div class="school-controls">
+          <div>
+            <label for="sekolah-search">Cari nama sekolah</label>
+            <input id="sekolah-search" type="search" placeholder="Cari nama sekolah" autocomplete="off" />
+          </div>
+          <div>
+            <label for="sekolah-sort">Urutkan</label>
+            <select id="sekolah-sort">
+              <option value="nama-asc">Nama A-Z</option>
+              <option value="nama-desc">Nama Z-A</option>
+              <option value="siswa-aktif">Siswa aktif terbanyak</option>
+              <option value="kehadiran-tinggi">Kehadiran tertinggi</option>
+              <option value="kehadiran-rendah">Kehadiran terendah</option>
+              <option value="terlambat">Terlambat terbanyak</option>
+            </select>
+          </div>
+        </div>
+        <p id="sekolah-count" class="muted small" aria-live="polite"></p>
+        <div class="table-wrap">
+          <table id="tbl-sekolah">
+            <thead>
+              <tr>
+                <th>Sekolah</th><th>Jenjang</th><th class="num">Siswa aktif</th>
+                <th class="num">Orang tua aktif</th><th class="num">Cakupan input</th><th class="num">Kehadiran</th>
+                <th class="num">Terlambat</th><th class="num">Izin keluar</th><th>Status data</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p id="sekolah-empty" class="muted" hidden>Tidak ada sekolah yang cocok.</p>
+        <button id="sekolah-more" class="btn" type="button" hidden>Tampilkan 50 lagi</button>
+        <p class="muted small">Klik nama sekolah untuk melihat tren (mingguan; bulanan bila periode lebih dari 90 hari).</p>
+      </section>
+
+      <section class="card" id="trend-card" hidden>
+        <div class="card-head"><h2 id="trend-title">Tren mingguan</h2></div>
+        <div class="table-wrap">
+          <table id="tbl-trend">
+            <thead><tr><th id="th-periode">Minggu mulai</th><th class="num">Sesi terjadwal</th><th class="num">Sesi tercatat</th>
+              <th class="num">Cakupan</th><th class="num">Kehadiran</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" id="method-card" hidden>
+        <h2>Cara membaca angka</h2>
+        <ul class="method">
+          <li><strong>Cakupan input</strong>: persentase sesi pelajaran terjadwal yang sudah dicatat absensinya pada periode terpilih. Sekolah yang belum menginput <em>tidak</em> dianggap tidak hadir.</li>
+          <li><strong>Kehadiran</strong>: persentase catatan berstatus hadir dari seluruh catatan absensi. Hanya ditampilkan bila cakupan input <span id="ambang"></span>% atau lebih, supaya angkanya bisa dibandingkan.</li>
+          <li><strong>Total wilayah</strong> tampil bila sedikitnya 3 sekolah membagikan data; <strong>subtotal jenjang</strong> tampil bila jenjang itu punya sedikitnya 2 sekolah.</li>
+          <li><strong>Orang tua aktif</strong>: jumlah akun orang tua yang terdaftar sebagai pengguna di sekolah (akun aktif, bukan berdasarkan kapan terakhir masuk). Hanya hitungan; tanpa nama.</li>
+          <li><strong>Terlambat</strong> dan <strong>izin keluar</strong>: jumlah catatan guru piket pada periode terpilih. Jumlah 1 sampai 4 ditampilkan sebagai &ldquo;&lt; 5&rdquo; agar tidak mengarah ke individu.</li>
+          <li>Pegawai hanya melihat sekolah yang oleh superadmin dicatat berada di wilayahnya (sebagai kecamatan, kabupaten, atau provinsi), tidak sekolah wilayah lain.</li>
+          <li><strong>Unduh data (CSV)</strong>: menyimpan salinan angka yang tampil pada periode terpilih (total dan tiap sekolah). Berkas memuat nama wilayah, periode, dan tanggal unduh; aturan privasi sama dengan layar. Disarankan diunduh secara berkala; dasbor mengingatkan bila sudah lebih dari 30 hari.</li>
+          <li>Hanya sekolah yang kepala sekolahnya menyetujui berbagi data yang tampil. Tidak ada nama atau data pribadi siswa.</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <!-- Ganti kata sandi -->
+  <dialog id="pw-dialog" class="card pw-dialog">
+    <form id="pw-form" autocomplete="off" novalidate>
+      <h2>Ganti kata sandi</h2>
+      <p id="pw-wajib" class="muted" role="status" hidden>Anda masuk dengan kata sandi sementara. Buat kata sandi baru untuk melanjutkan; dasbor baru dapat dibuka setelah itu.</p>
+      <label for="pw-current">Kata sandi saat ini</label>
+      <input id="pw-current" type="password" autocomplete="current-password" required />
+      <label for="pw-new">Kata sandi baru <span class="muted small">(minimal 10 karakter)</span></label>
+      <input id="pw-new" type="password" autocomplete="new-password" required minlength="10" />
+      <label for="pw-confirm">Ulangi kata sandi baru</label>
+      <input id="pw-confirm" type="password" autocomplete="new-password" required />
+      <p id="pw-error" class="error" role="alert" hidden></p>
+      <p id="pw-ok" class="muted" role="status" hidden></p>
+      <div class="pw-actions">
+        <button id="pw-cancel" class="btn" type="button">Batal</button>
+        <button id="pw-submit" class="btn primary" type="submit">Simpan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="../kecamatan/js/app.js"></script>
+</body>
+</html>

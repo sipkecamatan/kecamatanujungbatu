@@ -14,6 +14,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 const $ = (id) => document.getElementById(id);
 const state = { overview: null, jenjang: 'SEMUA', kataSekolah: '', urutanSekolah: 'nama-asc', sekolahTampil: 50, periode: '30', dari: null, sampai: null, pengingatDitunda: false, wajibGanti: false };
 
+// Alamat dasbor per tingkat. Alamat hanya pintu masuk: tingkat pegawai ditentukan server dari akun yang masuk,
+// tidak pernah dari alamat. Akun yang membuka alamat tingkat lain dialihkan ke alamat tingkatnya (daftar tetap, bukan
+// masukan pengguna). Sesi dipakai bersama karena ketiga alamat satu asal.
+const ALAMAT_TINGKAT = { KECAMATAN: '../kecamatan/', KABUPATEN: '../kabupaten/', PROVINSI: '../provinsi/' };
+const TINGKAT_HALAMAN = document.body.dataset.tingkat || 'KECAMATAN';
+
 // Pengingat unduh: tanggal terakhir diunduh disimpan di peramban pegawai, tidak di server.
 const KUNCI_UNDUH = 'sip-wilayah-terakhir-unduh';
 const BATAS_HARI_UNDUH = 30;
@@ -107,6 +113,10 @@ async function loadOverview() {
   if (data?.mode_kelompok != null) {
     state.overview = null;
     setError('app-error', 'Server belum diperbarui. Hubungi operator.');
+    return;
+  }
+  if (data?.tingkat && data.tingkat !== TINGKAT_HALAMAN && ALAMAT_TINGKAT[data.tingkat]) {
+    location.replace(new URL(ALAMAT_TINGKAT[data.tingkat], location.href).href);
     return;
   }
   state.overview = data;

@@ -932,8 +932,10 @@ async function loadRegions() {
         ];
 
         // Tautan portal pegawai wilayah, siap disalin untuk dibagikan bersama kredensial
-        const urlPortal = new URL('../kecamatan/', location.href).href;
-        const barisTautan = () => {
+        // Alamat dasbor menurut jenis wilayah (kecamatan, kabupaten, provinsi); tingkat pegawai tetap ditentukan server.
+        const ALAMAT_DASBOR = { KABUPATEN: '../kabupaten/', PROVINSI: '../provinsi/' };
+        const barisTautan = (level) => {
+            const urlPortal = new URL(ALAMAT_DASBOR[level] ?? '../kecamatan/', location.href).href;
             const kolomUrl = h('input', { class: 'input', type: 'text', readonly: true, value: urlPortal,
                                           style: 'flex:1;min-width:220px', 'aria-label': 'Tautan portal pegawai wilayah' });
             const tombolSalin = h('button', { class: 'btn btn-sm', type: 'button', onclick: async () => {
@@ -1023,7 +1025,7 @@ async function loadRegions() {
 
             // pegawai: tabel di dalam kartu wilayahnya sendiri
             card.append(h('h4', { style: 'margin-top:14px' }, `Pegawai wilayah (${r.staff.length})`));
-            card.append(barisTautan());
+            card.append(barisTautan(r.level));
             if (!r.staff.length) {
                 card.append(h('p', { class: 'hint' }, 'Belum ada pegawai.'));
             } else {
