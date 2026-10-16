@@ -84,6 +84,7 @@ if (!process.env.SUPABASE_ACCESS_TOKEN && process.env.SIP_MGMT_MODE !== 'cli') {
 }
 
 import { checkWizardGuard } from './lib/wizard-guard-check.mjs';
+import { checkPiketPolicy } from './lib/piket-policy-check.mjs';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync as tulisBerkas, readFileSync as bacaBerkas } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -2315,6 +2316,8 @@ async function main() {
 
     // CHECK 21 — penjaga fungsi hapus-data wizard (modul bersama; juga diuji di PGlite)
     await checkWizardGuard({ mgmtQuery, log });
+    // CHECK 22 — batas baris RLS teacher_piket_assignments (modul bersama; juga diuji di PGlite)
+    await checkPiketPolicy({ mgmtQuery, log });
 
     // ── Ringkasan ────────────────────────────────────────────────
     console.log(`\n${'='.repeat(52)}`);
