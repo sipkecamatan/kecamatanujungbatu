@@ -3,6 +3,7 @@
 // Tidak membaca tabel sekolah mana pun secara langsung.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { saringSekolah, urutkanSekolah, potong } from './daftar.js';
+import { nilaiStatus, nilaiStatusCsv } from './format.js';
 
 const SUPABASE_URL      = 'https://lqgzpiohxdzkkmxjtwor.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxxZ3pwaW9oeGR6a2tteGp0d29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4OTA2MjksImV4cCI6MjEwNzQ2NjYyOX0.omL9CGL5Ckcm2SXquYbXHr-aE8mLUe6H9FewDou-Lp4';
@@ -51,15 +52,12 @@ function el(tag, props = {}, ...kids) {
   return n;
 }
 const pct = (v) => (v == null ? '—' : `${v}%`);
-function statusValue(row, key) {
-  const kecil = Array.isArray(row?.absen_kecil) && row.absen_kecil.includes(key);
-  return kecil ? '< 5' : pct(row?.[key]);
-}
+const statusValue = nilaiStatus;
 function statusCell(row, key) {
   const value = statusValue(row, key);
   return value === '< 5' ? el('span', { title: 'kurang dari 5 catatan' }, value) : value;
 }
-function statusCsv(row, key) { return statusValue(row, key) === '—' ? '' : statusValue(row, key); }
+const statusCsv = nilaiStatusCsv;
 function ringkasanAbsensi(row, hadirKey = 'kehadiran_pct') {
   return `Hadir ${statusValue(row, hadirKey)} · Sakit ${statusValue(row, 'sakit_pct')} · Izin ${statusValue(row, 'izin_pct')} · Alpa ${statusValue(row, 'alpa_pct')}`;
 }
