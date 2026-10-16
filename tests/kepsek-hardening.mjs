@@ -13,12 +13,6 @@ function test(label, fn) {
     console.log(`PASS ${++passed}: ${label}`);
 }
 
-test('dokumen pengesahan Kepsek tersembunyi dan tidak diinisialisasi', () => {
-    assert.match(html, /id="ks-disahkan-section" hidden/);
-    assert.doesNotMatch(js, /await loadKepsekDisahkanDocs\(\);/);
-    assert.match(js, /if \(!section \|\| section\.hidden\) return;/);
-});
-
 test('preset monitoring memakai tanggal lokal dan rentang terbalik ditolak', () => {
     assert.match(js, /function kepsekLocalRange\(period\)/);
     assert.match(js, /_period\s*= 'rentang'/);

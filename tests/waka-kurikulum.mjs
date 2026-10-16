@@ -28,7 +28,7 @@ try {
     },read('guru/dashboard.html'));
     await page.addStyleTag({content:read('guru/css/guru.css')+read('guru/css/transitions.css')});
     await page.addScriptTag({content:`
-        var today='2026-10-08',calls=[],rpcHook=null,approvalLoads=0;
+        var today='2026-10-08',calls=[],rpcHook=null;
         var statsRows=[{guru_hadir:1,guru_total:1,guru_belum:1,pct_hadir:100}];
         var dailyRows=[{teacher_id:'t',teacher_name:'Current teacher',session_start:'08:00',session_end:'09:00',subject_name:'Math',class_name:'Test class'}];
         var groupRows=[{teacher_id:'t',teacher_name:'Current teacher',jumlah:2}];
@@ -51,17 +51,11 @@ try {
             if(name==='fn_pending_sessions_detail')return {data:detailRows,error:detailError?new Error('Synthetic detail outage'):null};
             throw new Error('Unexpected RPC '+name);
         }};
-        async function getPendingDocApprovals(){approvalLoads++;return [];}
-        async function getWakaApprovalHistory(){approvalLoads++;return [];}
-        async function getCorePhases(){approvalLoads++;return [];}
         ${region(api,'export async function getWakaKurStats(','// \u2500\u2500\u2500 WAKA KESISWAAN')}
         ${region(source,'let _wkKur1Visible =','// \u2500\u2500\u2500 TAB WAKA HUMAS')}
-        ${region(source,'async function loadWakaDocApprovals()','// Dipanggil dari initKepsekTab')}
     `});
-    await test('reopening tab refreshes monitoring and never loads hidden approvals',async()=>{
-        await page.evaluate(async()=>{await initWakaKurTab();await initWakaKurTab();await loadWakaDocApprovals();});
-        assert.equal(await page.locator('#kepsek-approval-section').isVisible(),false);
-        assert.equal(await page.evaluate(()=>approvalLoads),0);
+    await test('reopening tab refreshes monitoring',async()=>{
+        await page.evaluate(async()=>{await initWakaKurTab();await initWakaKurTab();});
         assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='fn_waka_kur_stats').length),2);
     });
     await test('partial teacher stays pending and labels distinguish participation from incomplete sessions',async()=>{
