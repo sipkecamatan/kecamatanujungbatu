@@ -53,6 +53,7 @@
  *
  * CARA JALANKAN:
  *   SUPABASE_ACCESS_TOKEN=sbp_xxx node tests/tenant-isolation.mjs
+ *   Atau TANPA token (memakai login CLI Supabase yang sudah tertaut): SIP_MGMT_MODE=cli node tests/tenant-isolation.mjs
  *   (opsional: PROJECT_REF=... ; default = lqgzpiohxdzkkmxjtwor)
  *   Token = access token CLI Supabase (Windows Credential Manager:
  *   "Supabase CLI:supabase", blob UTF-8). anon key diambil otomatis
@@ -63,7 +64,7 @@
 
 // Auto-load .env jika SUPABASE_ACCESS_TOKEN belum tersedia di shell.
 // Memakai node:fs bawaan — tanpa dependency eksternal.
-if (!process.env.SUPABASE_ACCESS_TOKEN) {
+if (!process.env.SUPABASE_ACCESS_TOKEN && process.env.SIP_MGMT_MODE !== 'cli') {
     try {
         const { readFileSync } = await import('node:fs');
         const { fileURLToPath } = await import('node:url');
@@ -83,8 +84,15 @@ if (!process.env.SUPABASE_ACCESS_TOKEN) {
 }
 
 import { checkWizardGuard } from './lib/wizard-guard-check.mjs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync as tulisBerkas, readFileSync as bacaBerkas } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join as gabung } from 'node:path';
 const REF   = process.env.PROJECT_REF || 'lqgzpiohxdzkkmxjtwor';
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
+// Mode CLI (SIP_MGMT_MODE=cli): TANPA token. SQL dijalankan lewat `supabase db query --linked` memakai login CLI yang sudah
+// tertaut; kunci anon (publik) dibaca dari kecamatan/js/app.js. Pemuat .env dan token dilewati sepenuhnya.
+const MODE_CLI = process.env.SIP_MGMT_MODE === 'cli';
 const MGMT  = `https://api.supabase.com/v1/projects/${REF}`;
 const BASE  = `https://${REF}.supabase.co`;
 
@@ -109,7 +117,7 @@ const PRIVILEGED_RPCS = [
     'fn_stakeholder_summary', 'fn_update_school_branding',
 ];
 
-if (!TOKEN) {
+if (!TOKEN && !MODE_CLI) {
     console.error('FATAL: env SUPABASE_ACCESS_TOKEN wajib diisi.');
     process.exit(2);
 }
@@ -122,7 +130,26 @@ const log = {
     warn: (m) => console.log(`  ⚠ ${m}`),
 };
 
-async function mgmtQuery(sql) {
+async function mgmtQuery(sql) { return MODE_CLI ? mgmtQueryCli(sql) : mgmtQueryApi(sql); }
+
+// Jalankan SQL lewat CLI Supabase yang sudah login. CLI mengembalikan { rows } dari pernyataan terakhir yang menghasilkan baris
+// (cocok dengan pola "begin; ...; select ...; rollback;"). Galat SQL = kode keluar bukan nol.
+async function mgmtQueryCli(sql) {
+    const dir = mkdtempSync(gabung(tmpdir(), 'sip-iso-'));
+    const berkas = gabung(dir, 'q.sql');
+    tulisBerkas(berkas, sql);   // UTF-8 tanpa BOM
+    try {
+        const r = spawnSync(`supabase db query --linked -f "${berkas}"`, { shell: true, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+        if (r.status !== 0) {
+            const pesan = String(r.stderr || '').split(/\r?\n/).filter((l) => /unexpected status|ERROR|Failed/.test(l)).join(' ').slice(0, 500);
+            throw new Error(`mgmtQuery(cli) ${r.status}: ${pesan || String(r.stderr || '').slice(0, 300)}`);
+        }
+        const j = JSON.parse(r.stdout);
+        return j.rows ?? [];
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+async function mgmtQueryApi(sql) {
     const res = await fetch(`${MGMT}/database/query`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
@@ -133,6 +160,12 @@ async function mgmtQuery(sql) {
 }
 
 async function getAnonKey() {
+    if (MODE_CLI) {
+        const src = bacaBerkas(new URL('../kecamatan/js/app.js', import.meta.url), 'utf8');
+        const m = src.match(/SUPABASE_ANON_KEY\s*=\s*'([^']+)'/);
+        if (!m) throw new Error('kunci anon tidak ditemukan di kecamatan/js/app.js');
+        return m[1];
+    }
     const res = await fetch(`${MGMT}/api-keys`, { headers: { Authorization: `Bearer ${TOKEN}` } });
     if (!res.ok) throw new Error(`api-keys ${res.status}`);
     const keys = await res.json();
