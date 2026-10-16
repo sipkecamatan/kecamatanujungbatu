@@ -58,9 +58,6 @@ function statusCell(row, key) {
   return value === '< 5' ? el('span', { title: 'kurang dari 5 catatan' }, value) : value;
 }
 const statusCsv = nilaiStatusCsv;
-function ringkasanAbsensi(row, hadirKey = 'kehadiran_pct') {
-  return `Hadir ${statusValue(row, hadirKey)} · Sakit ${statusValue(row, 'sakit_pct')} · Izin ${statusValue(row, 'izin_pct')} · Alpa ${statusValue(row, 'alpa_pct')}`;
-}
 // Nama wilayah di daftar resmi memuat induknya ("Kecamatan Ujung Batu, Kabupaten Rokan Hulu"). Pegawai hanya
 // mengenal nama wilayahnya sendiri, jadi yang ditampilkan hanya bagian sebelum koma pertama.
 const namaWilayah = (o) => String(o?.wilayah ?? '').split(',')[0].trim();
@@ -232,9 +229,9 @@ function render() {
     o.total
       ? stat('Hadir', pct(o.total.kehadiran_pct), 'hanya dari sekolah dengan data memadai')
       : stat('Hadir', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),
-    o.total
-      ? stat('Rincian kehadiran', ringkasanAbsensi(o.total), '% dari catatan absensi (siswa x sesi)', 'rincian')
-      : stat('Rincian kehadiran', '—', 'tampil bila ≥ 3 sekolah membagikan data', 'rincian'),
+    ...[['Sakit', 'sakit_pct'], ['Izin', 'izin_pct'], ['Alpa', 'alpa_pct']].map(([judul, kunci]) => (o.total
+      ? stat(judul, statusValue(o.total, kunci), '% dari catatan absensi (siswa x sesi)')
+      : stat(judul, '—', 'total tampil bila ≥ 3 sekolah membagikan data'))),
     o.total
       ? stat('Terlambat', piket(o.total.terlambat, o.ambang_piket), 'catatan guru piket pada periode terpilih')
       : stat('Terlambat', '—', 'total tampil bila ≥ 3 sekolah membagikan data'),

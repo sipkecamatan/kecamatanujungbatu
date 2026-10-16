@@ -42,7 +42,6 @@ select { width: auto; }
 .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
 .stat .k { color: var(--muted); font-size: .85rem; }
 .stat .v { font-size: 1.7rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
-.stat.rincian .v { font-size: 1rem; line-height: 1.35; }
 .stat .s { color: var(--muted); font-size: .8rem; }
 
 .card-head { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; margin-bottom: 8px; }
