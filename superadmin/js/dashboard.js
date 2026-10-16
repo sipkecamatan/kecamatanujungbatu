@@ -843,7 +843,6 @@ document.addEventListener('superadmin-ready', () => {
 });
 
 // ── Wilayah (kecamatan, kabupaten, atau provinsi) ─────────────────────────────────────────
-const JENJANG_OPSI = ['SMP', 'SMA', 'SMK'];
 
 async function regionApi(body) {
     const saKey = getSaKey(); if (!saKey) throw new Error('Sesi berakhir');
@@ -903,10 +902,8 @@ async function loadRegions() {
         const d = await regionApi({ action: 'list' });
         listEl.replaceChildren();
 
-        // pilihan kabupaten dan provinsi untuk tiap sekolah
-        const idByKode = Object.fromEntries(d.regions.filter(r => r.kode).map(r => [r.kode, r.region_id]));
-        const opsiKab  = d.regions.filter(r => r.level === 'KABUPATEN');
-        const opsiProv = d.regions.filter(r => r.level === 'PROVINSI');
+        // nama wilayah menurut id, untuk menampilkan keterhubungan sekolah (hanya tampil; pengaturannya di tab Sekolah)
+        const namaById = Object.fromEntries(d.regions.map(x => [x.region_id, x.name]));
         const LEVEL_LABEL = { KECAMATAN: 'Kecamatan', KABUPATEN: 'Kabupaten', PROVINSI: 'Provinsi' };
 
         if (!d.regions.length) listEl.append(h('p', { class: 'hint' }, 'Belum ada wilayah. Buat satu di atas.'));
@@ -966,70 +963,33 @@ async function loadRegions() {
                 if (sekolahBox.open) _sekolahTerbuka.add(r.region_id); else _sekolahTerbuka.delete(r.region_id);
             });
             card.append(sekolahBox);
-            if (tingkatAtas) card.append(h('p', { class: 'hint' }, 'Penghubungan diatur dari tab Sekolah.'));
+            card.append(h('p', { class: 'hint' }, 'Penghubungan diatur dari tab Sekolah.'));
             card.append(h('p', { class: 'hint' }, jumlahBerbagi === r.schools.length
                 ? 'Semua sekolah yang terhubung berbagi data; dasbor pegawai wilayah menampilkan ' + jumlahBerbagi + ' sekolah.'
                 : 'Dasbor pegawai wilayah hanya menampilkan sekolah yang berbagi data (' + jumlahBerbagi + ' dari ' + r.schools.length + '). ' +
                   'Sisanya terhubung, tetapi kepala sekolah belum menyetujui berbagi ke tingkat ini.'));
             if (!r.schools.length) sekolahBox.append(h('p', { class: 'hint' }, 'Belum ada sekolah.'));
+            // Hanya tampil: penghubungan, pemutusan, dan penempatan sekolah diatur dari tab Sekolah
+            // (editor terkunci dengan konfirmasi). Jenjang ditetapkan saat pendaftaran sekolah.
             for (const s of r.schools) {
+                const nilai = (label, v) => h('span', {}, label + ': ', h('strong', {}, v));
+                let ciri, badge;
                 if (tingkatAtas) {
                     const bagi = r.level === 'KABUPATEN' ? s.share_kabupaten : s.share_provinsi;
                     const tingkat = r.level === 'KABUPATEN' ? 'kabupaten' : 'provinsi';
-                    sekolahBox.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0' },
-                        h('strong', {}, s.name),
-                        h('span', {}, `Jenjang: ${s.jenjang ?? '—'}`),
-                        h('span', { class: bagi ? 'badge badge-success' : 'badge' }, `Berbagi — ${tingkat}: ${bagi ? 'ya' : 'tidak'}`)));
-                    continue;
-                }
-                const jen = h('select', { class: 'input', style: 'width:auto' },
-                    h('option', { value: '' }, '— jenjang —'),
-                    ...JENJANG_OPSI.map(j => h('option', { value: j, selected: s.jenjang === j }, j)));
-                const pilihTingkat = (opsi, terpilih, label) => h('select', { class: 'input', style: 'width:auto', title: label },
-                    h('option', { value: '' }, `— ${label} —`),
-                    ...opsi.map(o => h('option', { value: o.region_id, selected: terpilih === o.region_id }, o.name)));
-                // Bila belum diisi: turunkan dari kode kecamatan (7 digit -> kabupaten 4, provinsi 2).
-                const defKab  = r.kode && r.kode.length === 7 ? idByKode[r.kode.slice(0, 4)] : null;
-                const defProv = r.kode && r.kode.length === 7 ? idByKode[r.kode.slice(0, 2)] : null;
-                const kab  = pilihTingkat(opsiKab,  s.kabupaten_id || defKab  || null, 'kabupaten');
-                const prov = pilihTingkat(opsiProv, s.provinsi_id  || defProv || null, 'provinsi');
-                const simpan = h('button', { class: 'btn btn-sm', type: 'button', onclick: async () => {
-                    try {
-                        await regionApi({ action: 'assign_school', school_id: s.school_id, region_id: r.region_id, jenjang: jen.value || null,
-                                          kabupaten_id: kab.value || null, provinsi_id: prov.value || null });
-                        showRegionMsg(`Data ${s.name} disimpan.`, true); loadRegions();
-                    } catch (e) { showRegionMsg(e.message, false); }
-                }}, 'Simpan');
-                const lepas = h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: async () => {
-                    if (!confirm(`Lepas ${s.name} dari ${r.name}? Persetujuan berbagi akan direset.`)) return;
-                    try {
-                        await regionApi({ action: 'assign_school', school_id: s.school_id, region_id: null, kabupaten_id: null, provinsi_id: null, jenjang: s.jenjang });
-                        showRegionMsg(`${s.name} dilepas dari wilayah.`, true); loadRegions(); loadSchools();
-                    } catch (e) { showRegionMsg(e.message, false); }
-                }}, 'Lepas');
-                sekolahBox.append(h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0' },
-                    h('strong', {}, s.name), jen, kab, prov, simpan, lepas,
-                    h('span', { class: (s.share_with_region || s.share_kabupaten || s.share_provinsi) ? 'badge badge-success' : 'badge' },
+                    ciri = [nilai('Jenjang', s.jenjang ?? '—')];
+                    badge = h('span', { class: bagi ? 'badge badge-success' : 'badge' }, `Berbagi — ${tingkat}: ${bagi ? 'ya' : 'tidak'}`);
+                } else {
+                    ciri = [nilai('Jenjang', s.jenjang ?? '—'),
+                            nilai('Kabupaten', s.kabupaten_id ? (namaById[s.kabupaten_id] ?? '—') : 'belum terhubung'),
+                            nilai('Provinsi', s.provinsi_id ? (namaById[s.provinsi_id] ?? '—') : 'belum terhubung')];
+                    badge = h('span', { class: (s.share_with_region || s.share_kabupaten || s.share_provinsi) ? 'badge badge-success' : 'badge' },
                         'Berbagi — kecamatan: ' + (s.share_with_region ? 'ya' : 'tidak') +
                         ' · kabupaten: ' + (s.kabupaten_id ? (s.share_kabupaten ? 'ya' : 'tidak') : '–') +
-                        ' · provinsi: ' + (s.provinsi_id ? (s.share_provinsi ? 'ya' : 'tidak') : '–'))));
-            }
-
-            // tambah sekolah yang belum punya wilayah
-            if (!tingkatAtas && d.schools_tanpa_wilayah.length) {
-                const pilih = h('select', { class: 'input', style: 'width:auto' },
-                    h('option', { value: '' }, '+ tempatkan sekolah…'),
-                    ...d.schools_tanpa_wilayah.map(s => h('option', { value: s.school_id }, s.name)));
-                pilih.addEventListener('change', async () => {
-                    if (!pilih.value) return;
-                    const sk = d.schools_tanpa_wilayah.find(x => x.school_id === pilih.value);
-                    try {
-                        const kolom = { KABUPATEN: 'kabupaten_id', PROVINSI: 'provinsi_id' }[r.level] ?? 'region_id';
-                        await regionApi({ action: 'assign_school', school_id: pilih.value, [kolom]: r.region_id, jenjang: sk.jenjang ?? null });
-                        showRegionMsg(`${sk.name} ditempatkan di ${r.name}.`, true); loadRegions(); loadSchools();
-                    } catch (e) { showRegionMsg(e.message, false); }
-                });
-                sekolahBox.append(pilih);
+                        ' · provinsi: ' + (s.provinsi_id ? (s.share_provinsi ? 'ya' : 'tidak') : '–'));
+                }
+                sekolahBox.append(h('div', { style: 'display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;margin:6px 0' },
+                    h('strong', {}, s.name), ...ciri, badge));
             }
 
             // pegawai: tabel di dalam kartu wilayahnya sendiri
