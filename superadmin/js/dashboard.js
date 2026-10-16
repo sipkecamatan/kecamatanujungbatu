@@ -954,14 +954,23 @@ async function loadRegions() {
             const tingkatAtas = r.level === 'KABUPATEN' || r.level === 'PROVINSI';
 
             // sekolah
+            // Dua angka berbeda: TERHUBUNG (ditempatkan superadmin pada wilayah ini) dan BERBAGI (kepala sekolah menyetujui berbagi ke tingkat ini).
+            // Dasbor pegawai wilayah hanya menampilkan yang berbagi dan aktif, sehingga angkanya sama dengan 'berbagi' di sini.
+            const kolomBagi = r.level === 'KABUPATEN' ? 'share_kabupaten' : r.level === 'PROVINSI' ? 'share_provinsi' : 'share_with_region';
+            const jumlahBerbagi = r.schools.filter(s => s.is_active && s[kolomBagi]).length;
             const sekolahBox = h('details', { style: 'margin:6px 0' },
-                h('summary', { style: 'cursor:pointer;font-weight:700;padding:4px 0' }, `Sekolah (${r.schools.length})`));
+                h('summary', { style: 'cursor:pointer;font-weight:700;padding:4px 0' },
+                    `Sekolah (${r.schools.length} terhubung · ${jumlahBerbagi} berbagi data)`));
             if (_sekolahTerbuka.has(r.region_id)) sekolahBox.open = true;
             sekolahBox.addEventListener('toggle', () => {
                 if (sekolahBox.open) _sekolahTerbuka.add(r.region_id); else _sekolahTerbuka.delete(r.region_id);
             });
             card.append(sekolahBox);
             if (tingkatAtas) card.append(h('p', { class: 'hint' }, 'Penghubungan diatur dari tab Sekolah.'));
+            card.append(h('p', { class: 'hint' }, jumlahBerbagi === r.schools.length
+                ? 'Semua sekolah yang terhubung berbagi data; dasbor pegawai wilayah menampilkan ' + jumlahBerbagi + ' sekolah.'
+                : 'Dasbor pegawai wilayah hanya menampilkan sekolah yang berbagi data (' + jumlahBerbagi + ' dari ' + r.schools.length + '). ' +
+                  'Sisanya terhubung, tetapi kepala sekolah belum menyetujui berbagi ke tingkat ini.'));
             if (!r.schools.length) sekolahBox.append(h('p', { class: 'hint' }, 'Belum ada sekolah.'));
             for (const s of r.schools) {
                 if (tingkatAtas) {
