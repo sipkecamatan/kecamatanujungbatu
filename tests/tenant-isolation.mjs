@@ -82,6 +82,7 @@ if (!process.env.SUPABASE_ACCESS_TOKEN) {
     }
 }
 
+import { checkWizardGuard } from './lib/wizard-guard-check.mjs';
 const REF   = process.env.PROJECT_REF || 'lqgzpiohxdzkkmxjtwor';
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const MGMT  = `https://api.supabase.com/v1/projects/${REF}`;
@@ -2109,7 +2110,7 @@ async function main() {
             eq('P1', 'C19 SMA,C19 SMK', 'P1: pegawai hanya melihat sekolah dibagikan di wilayahnya (SMP & wilayah lain tak terlihat)',
                 'P1: daftar sekolah tidak sesuai');
             eq('P2', 'null', 'P2: total wilayah tersembunyi bila < 3 sekolah membagikan', 'P2: total tampil padahal < 3 sekolah');
-            eq('P2b', '2/3', 'P2b: hitung "2 dari 3" hanya jumlah, bukan identitas', 'P2b: hitung sekolah tidak sesuai');
+            eq('P2b', '2/2', 'P2b: jumlah "terdaftar" sama dengan jumlah terlihat (sekolah tak-berbagi tidak bocor; migrasi 20261016030000)', 'P2b: hitung sekolah tidak sesuai');
             if (R.P3 === undefined) log.fail('P3: tidak ada hasil terukur');
             else {
                 let tot = null; try { tot = JSON.parse(R.P3); } catch { /* biarkan */ }
@@ -2278,6 +2279,9 @@ async function main() {
             }
         }
     }
+
+    // CHECK 21 — penjaga fungsi hapus-data wizard (modul bersama; juga diuji di PGlite)
+    await checkWizardGuard({ mgmtQuery, log });
 
     // ── Ringkasan ────────────────────────────────────────────────
     console.log(`\n${'='.repeat(52)}`);
