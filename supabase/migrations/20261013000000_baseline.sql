@@ -11651,7 +11651,7 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 --     url := 'https://<PROYEK-BARU>.supabase.co/functions/v1/evaluate-teacher-indicators',
 --     headers := jsonb_build_object(
 --       'Content-Type', 'application/json',
---       'X-Superadmin-Key', '8269838d9831005ff9723d419a1bdb4003e50bf6b4b75383b6ba9f254e2a93de'
+--       'X-Superadmin-Key', '<DIISI-SAAT-AKTIVASI>'
 --     ),
 --     body := '{}'::jsonb
 --   );
