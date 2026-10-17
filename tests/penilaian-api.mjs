@@ -101,6 +101,19 @@ await uji('A-05 menghapus seluruh rekap satu TP (asesmen sumatif dihapus) tanpa 
   await M.deleteGradeRecapForTp('S', 'C', 'T1', 1, '2026/2027');
   assert.equal(db.grade_recap.length, 3); assert.ok(db.grade_recap.every((r) => !(r.learning_objective_id === 'T1' && r.class_id === 'C' && r.semester === 1)));
 });
+await uji('A-09 ekspor satu mapel: rekap TP mapel lain pada kelas yang sama tidak ikut', async () => {
+  const rekap = [
+    { student_id: 's1', learning_objective_id: 'TP-MTK-1', nilai_akhir: 80 },
+    { student_id: 's1', learning_objective_id: 'TP-IND-1', nilai_akhir: 90 },   // mapel lain milik guru yang sama
+    { student_id: 's2', learning_objective_id: 'TP-IND-2', nilai_akhir: 70 },
+    { student_id: 's2', learning_objective_id: 'TP-MTK-2', nilai_akhir: 60 },
+  ];
+  const r = M.rekapUntukMapel(rekap, ['TP-MTK-1', 'TP-MTK-2']);
+  assert.deepEqual(r.map((x) => x.learning_objective_id), ['TP-MTK-1', 'TP-MTK-2']);
+  assert.deepEqual(M.rekapUntukMapel(rekap, []), [], 'tanpa daftar TP mapel, tidak ada rekap yang dapat dipastikan miliknya');
+  assert.deepEqual(M.rekapUntukMapel(null, ['x']), []);
+});
+
 
 console.log(`\nPENILAIAN_API: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);

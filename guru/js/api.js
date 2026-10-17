@@ -2118,6 +2118,15 @@ export async function getGradeRecap(schoolId, classId, semester, year) {
         .order('id'));
 }
 
+/**
+ * Sisakan hanya rekap milik mata pelajaran yang sedang diekspor (A-09): rekap kelas memuat semua TP semua mapel guru pada kelas/semester/tahun itu,
+ * sedangkan TP mapel ini diketahui dari daftar TP (kelas, mapel, tahun, semester). Daftar TP kosong = tidak ada rekap yang dapat dipastikan milik mapel ini.
+ */
+export function rekapUntukMapel(rows, tpIds) {
+    const milik = new Set(tpIds ?? []);
+    return (rows ?? []).filter((r) => milik.has(r.learning_objective_id));
+}
+
 /** Rekap kelas untuk ekspor, dipaginasi (A-11). */
 export async function getGradeRecapRows(schoolId, classId, semester, year) {
     return ambilSemuaHalaman(() => supabase

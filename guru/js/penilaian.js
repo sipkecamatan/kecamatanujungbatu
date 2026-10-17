@@ -6,7 +6,7 @@ import {
     getStudentsForClass,
     getAssessments, createAssessment, updateAssessment, deleteAssessment,
     getAssessmentResults, upsertAssessmentResult, deleteAssessmentResult, getResultsForAssessments, getGradeRecapRows,
-    deleteGradeRecapForStudents, deleteGradeRecapForTp,
+    deleteGradeRecapForStudents, deleteGradeRecapForTp, rekapUntukMapel,
     getStudentGroups, upsertStudentGroup,
     upsertGradeRecapBatch, getGradeRecap, hitungRekapTp, hapusRekapTp,
     getCp, upsertCp, createCpElemen, updateCpElemen, deleteCpElemen,
@@ -2258,7 +2258,8 @@ async function downloadPenilaianExcel() {
         // Format: satu baris per siswa, ambil nilai akhir tertinggi (jika banyak TP)
         // atau buat satu baris per TP jika ada banyak TP
         const recapBySiswa = {};
-        (gradeRecapRows || []).forEach(r => {
+        // A-09: hanya rekap TP milik mapel yang diekspor (rekap kelas juga memuat TP mapel lain milik guru yang sama).
+        rekapUntukMapel(gradeRecapRows, tpCache.map(t => t.id)).forEach(r => {
             if (!recapBySiswa[r.student_id]) recapBySiswa[r.student_id] = [];
             recapBySiswa[r.student_id].push(r);
         });
