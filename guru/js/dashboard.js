@@ -4213,7 +4213,8 @@ async function renderKasusViewers(kasus, ctx, seq) {
     box.style.display = 'none';
 
     // Pengawas (Waka Kesiswaan/Kepsek) yang membuka kasus orang lain: dicatat server (maks. 1x/jam), pembuat dapat melihatnya.
-    if (isOversight) logCaseOversightView(kasus.case_id).catch(() => {});
+    // Ditunggu dulu agar pembukaan ini sendiri sudah ikut tampil pada log di bawah.
+    if (isOversight) await logCaseOversightView(kasus.case_id).catch(() => {});
 
     if (isReaderOnly) {
         box.innerHTML = `<p style="margin:0;font-size:13px">👁️ Anda membaca kasus ini karena <strong>ditandai</strong> oleh pembuat atau penanganinya. Anda hanya dapat membaca.</p>`;
@@ -4249,9 +4250,11 @@ async function renderKasusViewers(kasus, ctx, seq) {
 
     box.innerHTML = `
         <h4 style="margin:0 0 6px">Pembaca Kasus</h4>
+        ${isOversight ? `<p class="hint" style="margin:0;font-size:12px">Anda membaca kasus ini sebagai ${currentUser.role_type === 'WAKA_KESISWAAN' ? 'Waka Kesiswaan' : 'Kepala Sekolah'}.
+            Pembukaan ini dicatat dan dapat dilihat oleh pembuat dan penangan kasus.</p>` : `
         <p class="hint" style="margin:0 0 8px;font-size:12px">Selain pembuat, penangan, Waka Kesiswaan, dan Kepala Sekolah, kasus ini hanya dapat dibaca oleh orang yang Anda tandai.
-            Orang yang ditandai hanya membaca; orang tua dan siswa hanya melihat komentar yang ditandai terlihat.</p>
-        ${viewers.length ? `<ul style="list-style:none;margin:0 0 8px;padding:0;font-size:13px">${baris}</ul>` : '<p class="hint" style="margin:0 0 8px">Belum ada yang ditandai.</p>'}
+            Orang yang ditandai hanya membaca; orang tua dan siswa hanya melihat komentar yang ditandai terlihat.</p>`}
+        ${bisaTandai ? `${viewers.length ? `<ul style="list-style:none;margin:0 0 8px;padding:0;font-size:13px">${baris}</ul>` : '<p class="hint" style="margin:0 0 8px">Belum ada yang ditandai.</p>'}` : ''}
         ${bisaTandai ? `
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <select id="${ctx.prefix}-tag-select" class="input" style="flex:1;min-width:180px"><option value="">Memuat kandidat…</option></select>
