@@ -322,7 +322,7 @@ export async function insertObservation({ obsId, authorId, studentId, dimension,
         sentiment,
         visibility,
         content,
-        observed_at:     localDateStr(),
+        observed_at:     jakartaDateStr(),   // A-06: tanggal WIB, bukan zona waktu perangkat
     };
     const result = await saveObservation(payload);
     return { ...result, observation_id };

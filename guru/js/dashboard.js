@@ -349,6 +349,12 @@ async function init() {
     document.getElementById('hdr-role').textContent = roleLabel;
 
     document.getElementById('logout-btn')?.addEventListener('click', async () => {
+        // A-07: data belum terkirim tetap di perangkat ini; beri tahu sebelum keluar.
+        let belum = 0;
+        try { belum = await pendingCount(); } catch (_) { belum = 0; }
+        if (belum > 0 && !confirm(`Ada ${belum} data yang belum terkirim ke server. Data itu tetap tersimpan di perangkat ini dan akan dikirim saat Anda login lagi dengan akun yang sama. Tetap keluar?`)) return;
+        // Salinan data siswa/riwayat di perangkat dibersihkan agar tidak tertinggal di perangkat bersama.
+        try { Object.keys(localStorage).filter(k => k.startsWith('smkhr:')).forEach(k => localStorage.removeItem(k)); } catch (_) {}
         await logout();
         window.location.replace(getLoginUrl());
     });
@@ -1343,9 +1349,9 @@ async function initObsForm() {
     function populateStudentSelect(className) {
         studentSelEl.innerHTML = '<option value="">— Pilih siswa —</option>';
         hiddenEl.value = '';
-        if (!className) return;
+        // A-10: "Semua Kelas" (nilai kosong) menampilkan seluruh siswa yang diajar.
         myStudents
-            .filter(s => s.class_name === className)
+            .filter(s => !className || s.class_name === className)
             .forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.student_id;
@@ -1355,6 +1361,7 @@ async function initObsForm() {
     }
 
     classFilterEl.addEventListener('change', () => populateStudentSelect(classFilterEl.value));
+    populateStudentSelect(classFilterEl.value);   // A-10: daftar siswa langsung terisi (Semua Kelas)
 
     studentSelEl.addEventListener('change', () => {
         hiddenEl.value = studentSelEl.value;
@@ -1370,6 +1377,12 @@ async function initObsForm() {
             statusEl.style.display = 'block';
             statusEl.style.color = 'var(--color-danger)';
             statusEl.textContent = 'Pilih siswa terlebih dahulu.';
+            return;
+        }
+        if (obsContentEl.value.trim().length < 10) {   // A-12: sama dengan aturan server
+            statusEl.className = 'status-msg status-err';
+            statusEl.style.display = 'block';
+            statusEl.textContent = '✗ Catatan minimal 10 karakter.';
             return;
         }
         const visibility = visSelect.value;
@@ -1392,6 +1405,7 @@ async function initObsForm() {
             statusEl.className = 'status-msg status-ok';
             statusEl.style.display = 'block';
             form.reset();
+            obsCharCountEl.textContent = '0';   // A-11
             hiddenEl.value = '';
             studentSelEl.value = '';
             if (r.status === 'synced') await loadObsHistory();
