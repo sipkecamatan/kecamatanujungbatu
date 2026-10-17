@@ -60,7 +60,7 @@ export function pasangNilaiPimpinan(panel, ctx) {
           <button type="button" class="btn btn-primary btn-sm" id="np-muat">Tampilkan</button>
         </div>
         <div id="np-hasil"></div>`;
-    panel.appendChild(kartu);
+    (panel.querySelector('.page-body') || panel).appendChild(kartu);   // di dalam kolom isi (lebar dan tengah sama dengan kartu lain)
     const hasil = kartu.querySelector('#np-hasil');
 
     kartu.querySelector('#np-muat').addEventListener('click', async (e) => {

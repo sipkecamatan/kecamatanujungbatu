@@ -61,6 +61,12 @@ await uji('pasang: sekali saja (panggilan kedua tidak menggandakan); panel koson
   assert.equal(n, 1); M.pasangNilaiPimpinan(null, { esc });
   assert.ok(x.kartu.innerHTML.includes('id="np-muat"'));
 });
+await uji('kartu dipasang di dalam .page-body bila ada (kolom isi), bukan langsung di panel tab', () => {
+  const x = buatPanel(); const kolom = { diisi: null, appendChild(k) { this.diisi = k; } };
+  const asliQ = x.panel.querySelector; x.panel.querySelector = (q) => (q === '.page-body' ? kolom : asliQ(q));
+  M.pasangNilaiPimpinan(x.panel, { esc, tahun: '2026/2027', semester: 1 });
+  assert.ok(kolom.diisi, 'tidak masuk ke .page-body'); assert.equal(x.panel._k, null);
+});
 await uji('Tampilkan: memanggil server dengan tahun dan semester; hasil tampil; galat ditampilkan dan tombol aktif kembali', async () => {
   const x = buatPanel(); M.pasangNilaiPimpinan(x.panel, { esc, tahun: '2026/2027', semester: 1 });
   globalThis.__api.rows = [tp({})];
