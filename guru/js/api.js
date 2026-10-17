@@ -1031,6 +1031,37 @@ export async function getCase(caseId) {
     return data;
 }
 
+// ── Pembaca kasus (penonton) — migrasi 20261017040000 ──
+export async function listCaseViewers(caseId) {
+    const { data, error } = await supabase.rpc('fn_case_list_viewers', { p_case_id: caseId });
+    if (error) throw error;
+    return data ?? [];
+}
+export async function getCaseTagCandidates(caseId) {
+    const { data, error } = await supabase.rpc('fn_case_tag_candidates', { p_case_id: caseId });
+    if (error) throw error;
+    return data ?? [];
+}
+export async function addCaseViewer(caseId, userId) {
+    const { data, error } = await supabase.rpc('fn_case_add_viewer', { p_case_id: caseId, p_user_id: userId });
+    if (error) throw error;
+    return data;
+}
+export async function removeCaseViewer(caseId, userId) {
+    const { data, error } = await supabase.rpc('fn_case_remove_viewer', { p_case_id: caseId, p_user_id: userId });
+    if (error) throw error;
+    return data;
+}
+export async function logCaseOversightView(caseId) {
+    const { error } = await supabase.rpc('fn_case_log_oversight_view', { p_case_id: caseId });
+    if (error) throw error;
+}
+export async function listCaseAccessLog(caseId) {
+    const { data, error } = await supabase.rpc('fn_case_list_access_log', { p_case_id: caseId });
+    if (error) throw error;
+    return data ?? [];
+}
+
 export async function getEscalationCandidates(caseId) {
     const { data, error } = await supabase.rpc('fn_get_escalation_candidates', {
         p_case_id: caseId,

@@ -31,7 +31,7 @@ function jalankan(sql) {
 const terapkan = process.env.UJI_TERAPKAN_MIGRASI === '1';
 // Pastikan migrasi terpasang; bila belum, uji tidak bermakna (kecuali diterapkan di dalam transaksi uji).
 if (!terapkan) {
-  const ada = jalankan("select (to_regproc('public.fn_case_add_viewer(uuid,uuid)') is not null)::text as ada;");
+  const ada = jalankan("select (to_regprocedure('public.fn_case_add_viewer(uuid,uuid)') is not null)::text as ada;");
   if (ada[0]?.ada !== 'true') { console.log('SKIP: migrasi 20261017040000_kasus_penonton belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
 }
 const migrasi = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261017040000_kasus_penonton.sql'), 'utf8') + '\n' : '';

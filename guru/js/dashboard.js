@@ -32,6 +32,7 @@ import {
     shareCoachingCaseToStudent, unshareCoachingCaseFromStudent,
     shareCoachingCaseToParent, unshareCoachingCaseFromParent,
     getEscalationCandidates,
+    listCaseViewers, getCaseTagCandidates, addCaseViewer, removeCaseViewer, logCaseOversightView, listCaseAccessLog,
     getUnreadNotifCount, getRecentNotifications, markNotificationsRead,
     registerLoginDevice,
     getForumRecipientCandidates, getForumSekolahPosts, getForumSekolahSentPosts,
@@ -3960,8 +3961,10 @@ async function initKasusTab() {
             closeKasusModal();
             if (r._queued) {
                 showCreateMsg('Kasus disimpan lokal. Akan dikirim saat koneksi kembali.', false);
+                await loadKasusList();
+            } else {
+                await openKasusDetail(r.case_id);   // panel "Pembaca Kasus" tersedia langsung untuk menandai siapa yang boleh membaca
             }
-            await loadKasusList();
         } catch (err) {
             showCreateMsg(fe(err, 's'), true);
         } finally {
@@ -4130,6 +4133,7 @@ async function openKasusDetail(caseId, ctx = kasusCtxDefault) {
         if (ctx.currentId !== caseId || ctx.detailSeq !== seq) return;
         renderKasusDetail(kasus, ctx);
         renderKasusEvents(events, ctx);
+        renderKasusViewers(kasus, ctx, seq);   // tidak ditunggu: kegagalan panel tidak boleh menghalangi aksi
         await renderKasusActions(kasus, ctx, seq);
     } catch (err) {
         if (ctx.currentId !== caseId || ctx.detailSeq !== seq) return;
@@ -4180,6 +4184,121 @@ function renderKasusEvents(events, ctx = kasusCtxDefault) {
                 ${text ? `<p style="font-size:13px; margin:0; color:var(--color-text)">${esc(text)}</p>` : ''}
             </div>`;
     }).join('');
+}
+
+const VIEWER_ROLE_LABEL = { WALI_KELAS: 'Wali Kelas', BK: 'Guru BK', GURU: 'Guru', KAPRODI: 'Kaprodi', ORTU: 'Orang tua', SISWA: 'Siswa', TU: 'Tata Usaha',
+    WAKA_KESISWAAN: 'Waka Kesiswaan', WAKA_KURIKULUM: 'Waka Kurikulum', WAKA_HUMAS: 'Waka Humas', KEPSEK: 'Kepala Sekolah' };
+
+/**
+ * Panel "Pembaca Kasus": siapa yang boleh membaca kasus ini selain pembuat, penangan, Waka Kesiswaan, dan Kepala Sekolah.
+ * Pembuat/penangan saat ini boleh menandai; hanya pembuat boleh mencabut. Server (RLS + fungsi) tetap penentu akhir.
+ */
+async function renderKasusViewers(kasus, ctx, seq) {
+    const isCurrent = () => ctx.currentId === kasus.case_id && ctx.detailSeq === seq;
+    const me        = currentUser.user_id;
+    const isCreator = kasus.created_by_user_id === me;
+    const isHandler = kasus.current_handler_user_id === me;
+    const isOversight = (currentUser.role_type === 'KEPSEK' || currentUser.is_kepsek === true || currentUser.role_type === 'WAKA_KESISWAAN') && !isCreator && !isHandler;
+    const isReaderOnly = !isCreator && !isHandler && !isOversight;
+    const header = kEl(ctx, 'detail-header');
+    let box = kEl(ctx, 'viewers-block');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = `${ctx.prefix}-viewers-block`;
+        box.className = 'section-card';
+        box.style.marginTop = '12px';
+        header.parentNode.insertBefore(box, header.nextSibling);
+    }
+    box.style.display = 'none';
+
+    // Pengawas (Waka Kesiswaan/Kepsek) yang membuka kasus orang lain: dicatat server (maks. 1x/jam), pembuat dapat melihatnya.
+    if (isOversight) logCaseOversightView(kasus.case_id).catch(() => {});
+
+    if (isReaderOnly) {
+        box.innerHTML = `<p style="margin:0;font-size:13px">👁️ Anda membaca kasus ini karena <strong>ditandai</strong> oleh pembuat atau penanganinya. Anda hanya dapat membaca.</p>`;
+        box.style.display = 'block';
+        return;
+    }
+
+    const bisaTandai = isCreator || isHandler;
+    let viewers = [], log = [];
+    try {
+        if (bisaTandai) viewers = await listCaseViewers(kasus.case_id);
+        if (bisaTandai || isOversight) log = await listCaseAccessLog(kasus.case_id).catch(() => []);
+    } catch (err) {
+        if (!isCurrent()) return;
+        box.innerHTML = `<p class="status-err" style="margin:0">Gagal memuat daftar pembaca. ${esc(fe(err))}</p>`;
+        box.style.display = 'block';
+        return;
+    }
+    if (!isCurrent()) return;
+
+    const baris = viewers.map(v => `
+        <li style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0">
+            <span>${esc(v.full_name)} <span style="color:var(--color-text-muted)">(${esc(VIEWER_ROLE_LABEL[v.role_type] ?? v.role_type)})</span></span>
+            ${isCreator ? `<button type="button" class="btn btn-sm btn-danger-outline" data-cabut="${v.user_id}">Cabut</button>` : ''}
+        </li>`).join('');
+    const logHtml = log.length ? `
+        <details style="margin-top:10px;font-size:12px"><summary>Dibuka oleh pengawas (${log.length})</summary>
+            <ul style="margin:6px 0 0;padding-left:18px">${log.map(l => `<li>${esc(l.full_name)} (${esc(VIEWER_ROLE_LABEL[l.role_type] ?? l.role_type)}) — ${fmt(l.viewed_at)}</li>`).join('')}</ul>
+        </details>` : '';
+
+    box.innerHTML = `
+        <h4 style="margin:0 0 6px">Pembaca Kasus</h4>
+        <p class="hint" style="margin:0 0 8px;font-size:12px">Selain pembuat, penangan, Waka Kesiswaan, dan Kepala Sekolah, kasus ini hanya dapat dibaca oleh orang yang Anda tandai.
+            Orang yang ditandai hanya membaca; orang tua dan siswa hanya melihat komentar yang ditandai terlihat.</p>
+        ${viewers.length ? `<ul style="list-style:none;margin:0 0 8px;padding:0;font-size:13px">${baris}</ul>` : '<p class="hint" style="margin:0 0 8px">Belum ada yang ditandai.</p>'}
+        ${bisaTandai ? `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <select id="${ctx.prefix}-tag-select" class="input" style="flex:1;min-width:180px"><option value="">Memuat kandidat…</option></select>
+            <button type="button" class="btn btn-primary btn-sm" id="${ctx.prefix}-tag-btn" disabled>Tandai</button>
+        </div>` : ''}
+        <p id="${ctx.prefix}-tag-msg" style="font-size:12px;margin:6px 0 0;min-height:16px"></p>
+        ${logHtml}`;
+    box.style.display = 'block';
+    if (!bisaTandai) return;
+
+    const sel = kEl(ctx, 'tag-select'), btn = kEl(ctx, 'tag-btn'), msg = kEl(ctx, 'tag-msg');
+    const tampil = (teks, galat) => { msg.style.color = galat ? 'var(--color-danger)' : 'var(--color-success)'; msg.textContent = teks; };
+    const sudah = new Set(viewers.map(v => v.user_id));
+    try {
+        const kand = (await getCaseTagCandidates(kasus.case_id)).filter(c => !sudah.has(c.user_id));
+        if (!isCurrent()) return;
+        sel.innerHTML = kand.length
+            ? '<option value="">Pilih orang yang ditandai…</option>' + kand.map(c => `<option value="${c.user_id}">${esc(c.full_name)} — ${esc(c.relation_label)}</option>`).join('')
+            : '<option value="">Tidak ada kandidat lagi</option>';
+    } catch (err) {
+        if (!isCurrent()) return;
+        sel.innerHTML = '<option value="">Gagal memuat kandidat</option>';
+        tampil(fe(err), true);
+    }
+    sel.addEventListener('change', () => { btn.disabled = !sel.value; });
+    btn.addEventListener('click', async () => {
+        if (!sel.value) return;
+        btn.disabled = true; sel.disabled = true;
+        try {
+            await addCaseViewer(kasus.case_id, sel.value);
+            if (!isCurrent()) return;
+            await renderKasusViewers(kasus, ctx, seq);
+            tampil('Ditandai. Yang bersangkutan menerima pemberitahuan singkat tanpa isi kasus.', false);
+        } catch (err) {
+            if (!isCurrent()) return;
+            sel.disabled = false; btn.disabled = false;
+            tampil(fe(err, 's'), true);
+        }
+    });
+    box.querySelectorAll('[data-cabut]').forEach(b => b.addEventListener('click', async () => {
+        b.disabled = true;
+        try {
+            await removeCaseViewer(kasus.case_id, b.dataset.cabut);
+            if (!isCurrent()) return;
+            await renderKasusViewers(kasus, ctx, seq);
+        } catch (err) {
+            if (!isCurrent()) return;
+            b.disabled = false;
+            tampil(fe(err, 's'), true);
+        }
+    }));
 }
 
 // Selaras dengan fn_validate_escalation; DUDI bukan penerima eskalasi internal.
