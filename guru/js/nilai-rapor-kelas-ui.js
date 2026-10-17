@@ -50,6 +50,20 @@ export function htmlMatriks(m, esc) {
         '</tbody></table></div>';
 }
 
+/**
+ * Dokumen halaman cetak. Mendatar (landscape) bila mapel banyak; wadah gulir layar dimatikan agar kolom tidak terpotong di kertas;
+ * nama dan NIS tidak terlipat; judul kolom diulang pada tiap halaman; baris tidak terbelah antar halaman.
+ */
+export function htmlCetak(m, judul, esc) {
+    const mendatar = m.kolom.length > 4;
+    return `<!doctype html><meta charset="utf-8"><title>Nilai Rapor ${esc(judul)}</title>` +
+        `<style>@page{size:A4 ${mendatar ? 'landscape' : 'portrait'};margin:10mm}` +
+        `body{font:${mendatar ? 10 : 12}px Arial,sans-serif;margin:0}div{overflow:visible!important}table{border-collapse:collapse;width:100%}` +
+        `th,td{border:1px solid #444;padding:3px 5px}th{background:#eee}td:nth-child(1),td:nth-child(2){white-space:nowrap}` +
+        `thead{display:table-header-group}tr{page-break-inside:avoid}</style>` +
+        `<h3>Nilai Rapor — ${esc(judul)}</h3>` + htmlMatriks(m, esc);
+}
+
 /** Baris untuk lembar Excel (header + data). */
 export function barisExcel(m) {
     return [['Nama', 'NIS', ...m.kolom.map((k) => k.nama)],
@@ -133,9 +147,7 @@ export function pasangNilaiRaporKelas(panel, ctx) {
         if (!matriks) return;
         const w = globalThis.open('', '_blank');
         if (!w) { alert('Jendela cetak diblokir peramban. Izinkan pop-up untuk situs ini.'); return; }
-        w.document.write(`<!doctype html><meta charset="utf-8"><title>Nilai Rapor ${esc(judul)}</title>` +
-            '<style>body{font:12px Arial,sans-serif;margin:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #444;padding:4px 6px}th{background:#eee}</style>' +
-            `<h3>Nilai Rapor — ${esc(judul)}</h3>` + htmlMatriks(matriks, esc));
+        w.document.write(htmlCetak(matriks, judul, esc));
         w.document.close(); w.focus(); w.print();
     });
 

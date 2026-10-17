@@ -49,6 +49,17 @@ await uji('baris Excel: header Nama, NIS, mapel; sel kosong menjadi string koson
   assert.deepEqual(x[0], ['Nama', 'NIS', 'Matematika']); assert.deepEqual(x[1], ['Budi <b>', '1', 85]); assert.deepEqual(x[2], ['Adnan', '2', '']);
 });
 
+await uji('halaman cetak: mendatar bila mapel > 4, tegak bila sedikit; wadah gulir dimatikan; nama tidak terlipat; judul kolom diulang; judul di-escape', () => {
+  const sedikit = M.htmlCetak(M.susunMatriks(siswa, [r({})]), 'XI <AKL>', esc);
+  assert.ok(sedikit.includes('size:A4 portrait') && !sedikit.includes('landscape'));
+  const banyak = M.htmlCetak(M.susunMatriks(siswa, ['a', 'b', 'c', 'd', 'e'].map((k) => r({ subject_id: k, subject: { name: k } }))), 'X', esc);
+  assert.ok(banyak.includes('size:A4 landscape'));
+  for (const h of [sedikit, banyak]) {
+    assert.ok(h.includes('overflow:visible!important') && h.includes('white-space:nowrap') && h.includes('table-header-group') && h.includes('<table'));
+  }
+  assert.ok(sedikit.includes('XI &lt;AKL&gt;') && !sedikit.includes('<AKL>'));
+});
+
 // DOM minimal
 const buatDom = () => {
   const el = {};
