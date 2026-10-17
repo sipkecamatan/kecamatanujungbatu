@@ -2178,13 +2178,8 @@ async function renderActivityLogPanel() {
     panelContent.innerHTML = '<p class="hint">Memuat log aktivitas…</p>';
 
     const [evRes, obsRes] = await Promise.allSettled([
-        supabase
-            .from('coaching_case_events')
-            .select(`event_type, created_at,
-                coaching_case:coaching_cases ( title, student:students ( full_name ) ),
-                author:users ( full_name )`)
-            .order('created_at', { ascending: false })
-            .limit(50),
+        // Admin tidak membaca judul/isi kasus: fungsi khusus hanya mengembalikan jenis, waktu, siswa, dan pelaku.
+        supabase.rpc('fn_admin_case_activity', { p_limit: 50 }),
         supabase
             .from('observations')
             .select(`observation_id, dimension, sentiment, content, created_at, is_void, void_reason,
@@ -2208,14 +2203,13 @@ async function renderActivityLogPanel() {
     const caseHtml = caseEvents.length === 0
         ? '<p class="hint">Belum ada aktivitas kasus.</p>'
         : `<table class="table" style="font-size:13px">
-            <thead><tr><th>Waktu</th><th>Aktivitas</th><th>Kasus</th><th>Siswa</th><th>Oleh</th></tr></thead>
+            <thead><tr><th>Waktu</th><th>Aktivitas</th><th>Siswa</th><th>Oleh</th></tr></thead>
             <tbody>${caseEvents.map(e => `
                 <tr>
                     <td style="white-space:nowrap">${fmtTs(e.created_at)}</td>
                     <td>${esc(EVENT_LABELS[e.event_type] ?? e.event_type)}</td>
-                    <td>${esc(e.coaching_case?.title ?? '—')}</td>
-                    <td>${esc(e.coaching_case?.student?.full_name ?? '—')}</td>
-                    <td>${esc(e.author?.full_name ?? '—')}</td>
+                    <td>${esc(e.student_name ?? '—')}</td>
+                    <td>${esc(e.author_name ?? '—')}</td>
                 </tr>`).join('')}
             </tbody>
            </table>`;

@@ -375,18 +375,18 @@ async function getCloseSummary(period) {
         supabase.from('students')
             .select('student_id', { count: 'exact', head: true })
             .eq('student_status', 'AKTIF'),
-        supabase.from('coaching_cases')
-            .select('case_id', { count: 'exact', head: true })
-            .neq('status', 'CLOSED'),
+        // Admin tidak membaca baris kasus; hitungan lewat fungsi khusus admin.
+        supabase.rpc('fn_admin_case_counts'),
     ]);
     if (obs.error)      throw obs.error;
     if (students.error) throw students.error;
     if (cases.error)    throw cases.error;
+    const kasusTerbuka = Number(cases.data?.open ?? 0);
 
     return {
         observationCount:   obs.count      ?? 0,
         activeStudentCount: students.count ?? 0,
-        openCaseCount:      cases.count    ?? 0,
+        openCaseCount:      kasusTerbuka,
     };
 }
 

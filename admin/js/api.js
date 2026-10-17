@@ -911,10 +911,14 @@ export async function checkDependencies(table, id) {
 
     const results = await Promise.all(
         deps.map(({ table: depTable, column }) =>
-            supabase
-                .from(depTable)
-                .select('*', { count: 'exact', head: true })
-                .eq(column, id)
+            depTable === 'coaching_cases'
+                // Admin tidak membaca baris kasus; hitungan lewat fungsi khusus admin.
+                ? supabase.rpc('fn_admin_case_count_for_students', { p_student_ids: [id] })
+                    .then(({ data, error }) => ({ count: Number(data ?? 0), error }))
+                : supabase
+                    .from(depTable)
+                    .select('*', { count: 'exact', head: true })
+                    .eq(column, id)
         )
     );
 

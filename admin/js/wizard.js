@@ -3682,7 +3682,8 @@ const DELETE_ORDER_CHECKS = {
     6: [ // Siswa: data transaksional harus kosong (enrollment & student_parents di-cascade)
         { label: 'Kehadiran',   table: 'attendance',    query: q => q.select('attendance_id', { count: 'exact', head: true }) },
         { label: 'Observasi',   table: 'observations',  query: q => q.select('observation_id', { count: 'exact', head: true }) },
-        { label: 'Kasus',       table: 'coaching_cases', query: q => q.select('case_id', { count: 'exact', head: true }) },
+        // Admin tidak membaca baris kasus; hitungan lewat fungsi khusus admin (seluruh kasus sekolah).
+        { label: 'Kasus',       table: 'coaching_cases', query: () => supabase.rpc('fn_admin_case_count_for_students', { p_student_ids: null }).then(({ data, error }) => ({ count: Number(data ?? 0), error })) },
         { label: 'PKL',         table: 'pkl_placements', query: q => q.select('placement_id', { count: 'exact', head: true }) },
     ],
     8: [ // DUDI: PKL harus kosong
