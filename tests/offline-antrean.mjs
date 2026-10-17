@@ -104,6 +104,28 @@ await uji('T14 submit awal saat server 403: tetap dilaporkan galat, tidak diantr
   assert.equal(r.status, 'error'); assert.equal([...store('obs_queue').values()].length, 0);
 });
 
+await uji('T15 kasus mengantre tampil di daftar milik pembuatnya; akun lain tidak melihat dan tidak bisa menghapusnya', async () => {
+  online = false;
+  await M.saveCase({ idempotency_key: 'c1', case_id: 'case-1', title: 'Judul uji', track: 'SEKOLAH', _nama_siswa: 'Budi Uji' });
+  const a = await M.listQueuedCases();
+  assert.equal(a.length, 1); assert.equal(a[0].studentName, 'Budi Uji'); assert.equal(a[0].title, 'Judul uji'); assert.equal(a[0].ditolak, false);
+  userSaatIni = 'user-B';
+  assert.equal((await M.listQueuedCases()).length, 0, 'akun lain melihat antrean akun A');
+  assert.equal(await M.discardQueuedCase('c1'), false, 'akun lain dapat menghapus kasus akun A');
+  assert.equal([...store('case_queue').values()].length, 1);
+  userSaatIni = 'user-A';
+  assert.equal(await M.discardQueuedCase('c1'), true);
+  assert.equal([...store('case_queue').values()].length, 0); assert.equal((await M.listQueuedCases()).length, 0);
+});
+await uji('T16 kasus yang ditolak server tetap tampil (ditandai ditolak, dengan pesan) sampai dihapus dari perangkat', async () => {
+  online = false; await M.saveCase({ idempotency_key: 'c2', case_id: 'case-2', title: 'Ditolak', track: 'SEKOLAH', _nama_siswa: 'Siti Uji' });
+  online = true; jawaban = () => ({ status: 403, body: { error: { message: 'Bukan guru penugas' } } });
+  await M.flushPending();
+  const a = await M.listQueuedCases();
+  assert.equal(a.length, 1); assert.equal(a[0].ditolak, true); assert.match(a[0].pesan, /Bukan guru penugas/);
+  assert.equal(await M.discardQueuedCase('c2'), true); assert.equal((await M.listQueuedCases()).length, 0);
+});
+
 
 console.log(`\nOFFLINE_ANTREAN: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);

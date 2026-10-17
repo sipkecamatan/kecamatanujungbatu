@@ -1093,7 +1093,7 @@ export async function getCoachingCaseEvents(caseId) {
     return data ?? [];
 }
 
-export async function createCase({ studentId, title, description, track, audience = 'PRIVATE', authorUserId, authorRole }) {
+export async function createCase({ studentId, studentName = null, title, description, track, audience = 'PRIVATE', authorUserId, authorRole }) {
     const payload = {
         idempotency_key:    crypto.randomUUID(),
         case_id:            crypto.randomUUID(),
@@ -1104,6 +1104,8 @@ export async function createCase({ studentId, title, description, track, audienc
         title,
         description,
         audience,
+        // Hanya untuk tampilan antrean luring di perangkat (server mengabaikan kunci berawalan garis bawah).
+        _nama_siswa:        studentName,
     };
     const r = await saveCase(payload);
     if (r.status === 'error') throw new Error(r.error);

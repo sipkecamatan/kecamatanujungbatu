@@ -354,6 +354,32 @@ async function itemMilikSaya() {
 }
 
 /** Jumlah item milik akun ini yang menunggu dikirim (tanpa yang sudah ditolak server). */
+/**
+ * Kasus yang masih mengantre di perangkat ini (milik akun yang login): menunggu kirim atau ditolak server.
+ * Dipakai daftar kasus agar kasus yang baru dibuat saat luring tidak "hilang" dari pandangan pembuat.
+ */
+export async function listQueuedCases() {
+    const me = await ownerId();
+    return (await idbGetAllFrom(STORE_CASE)).filter((i) => milikSaya(i, me)).map((i) => ({
+        key:        kunciItem(i),
+        case_id:    i.case_id,
+        title:      i.title,
+        studentName: i._nama_siswa ?? null,
+        track:      i.track,
+        ditolak:    !!i._ditolak,
+        pesan:      i._ditolak?.pesan ?? null,
+    }));
+}
+
+/** Buang satu kasus dari antrean perangkat ini (hanya milik akun yang login). Tidak pernah menyentuh server. */
+export async function discardQueuedCase(key) {
+    const me = await ownerId();
+    const item = (await idbGetAllFrom(STORE_CASE)).find((i) => kunciItem(i) === key);
+    if (!item || !milikSaya(item, me)) return false;
+    await idbDeleteFrom(STORE_CASE, key);
+    return true;
+}
+
 export async function pendingCount() {
     return (await itemMilikSaya()).filter((i) => !i._ditolak).length;
 }

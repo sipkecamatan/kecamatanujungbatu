@@ -48,7 +48,7 @@ import {
     getClassProgramContext, getCpForSubject, checkElementDuplicate,
     getRegionSharingStatus, setRegionSharing, setRegionSharingLevel,
 } from './api.js';
-import { saveAttendanceBatch, flushPending, pendingCount, rejectedCount } from './offline.js';
+import { saveAttendanceBatch, flushPending, pendingCount, rejectedCount, listQueuedCases, discardQueuedCase } from './offline.js';
 import { initJurnalTab } from './jurnal.js';
 import { showPwaBanner } from '../../shared/pwa-banner.js';
 import {
@@ -3987,6 +3987,7 @@ async function initKasusTab() {
         try {
             const r = await createCase({
                 studentId:   sId,
+                studentName: (document.getElementById('kasus-c-student-search').value || '').trim() || null,
                 title,
                 description: desc,
                 track,
@@ -4051,9 +4052,62 @@ function showKasusLoadError(err, ctx, retry, append = false) {
     });
 }
 
+/**
+ * Kasus yang masih mengantre di perangkat (dibuat saat luring atau server gagal sementara): tampil di atas daftar, dengan tombol
+ * "Hapus dari perangkat". Hanya untuk tab Pembinaan Siswa, tempat kasus dibuat.
+ */
+async function renderKasusAntrean(ctx = kasusCtxDefault) {
+    if (ctx !== kasusCtxDefault) return;
+    const contentEl = kEl(ctx, 'list-content');
+    if (!contentEl) return;
+    let box = kEl(ctx, 'antrean');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = `${ctx.prefix}-antrean`;
+        contentEl.parentNode.insertBefore(box, contentEl);
+    }
+    let items = [];
+    try { items = await listQueuedCases(); } catch (_) { items = []; }
+    if (!items.length) { box.innerHTML = ''; return; }
+    box.innerHTML = `
+        <div class="section-card" style="margin-bottom:12px;border-left:3px solid var(--color-warning)">
+            <h4 style="margin:0 0 6px">Menunggu dikirim (${items.length})</h4>
+            <p class="hint" style="margin:0 0 8px;font-size:12px">Kasus ini baru tersimpan di perangkat ini dan belum ada di server. Kasus akan dikirim otomatis saat koneksi kembali.</p>
+            ${items.map(i => `
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:0.5px solid var(--color-border)">
+                <div style="flex:1;min-width:180px">
+                    <strong style="font-size:13px">${esc(i.title ?? '—')}</strong>
+                    <div style="font-size:12px;color:var(--color-text-muted)">${esc(i.studentName ?? 'Siswa')} · ${esc(CASE_TRACK_LABEL[i.track] ?? i.track ?? '')}
+                        · ${i.ditolak ? `<span style="color:var(--color-danger)">Ditolak server${i.pesan ? ': ' + esc(i.pesan) : ''}</span>` : 'Menunggu koneksi'}</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-danger-outline" data-buang-antrean="${esc(i.key)}">Hapus dari perangkat</button>
+            </div>`).join('')}
+            <div style="margin-top:8px"><button type="button" class="btn btn-sm btn-secondary" id="${ctx.prefix}-antrean-kirim">Coba kirim sekarang</button>
+                <span id="${ctx.prefix}-antrean-msg" style="font-size:12px;margin-left:8px"></span></div>
+        </div>`;
+    box.querySelectorAll('[data-buang-antrean]').forEach(btn => btn.addEventListener('click', async () => {
+        if (!window.confirm('Hapus kasus ini dari perangkat? Kasus yang belum terkirim akan hilang dan tidak dapat dikembalikan.')) return;
+        btn.disabled = true;
+        try { await discardQueuedCase(btn.dataset.buangAntrean); } catch (_) { /* tampilan dimuat ulang di bawah */ }
+        await renderKasusAntrean(ctx);
+        if (typeof updateSyncBanner === 'function') updateSyncBanner().catch?.(() => {});
+    }));
+    kEl(ctx, 'antrean-kirim')?.addEventListener('click', async (e) => {
+        e.target.disabled = true;
+        const msg = kEl(ctx, 'antrean-msg');
+        try {
+            const r = await flushPending();
+            if (msg) msg.textContent = r.sessionExpired ? 'Sesi habis, login ulang.' : (r.synced ? `${r.synced} terkirim.` : 'Belum terkirim (masih luring atau server sibuk).');
+            if (r.synced) await loadKasusList(false, ctx);
+        } catch (err) { if (msg) msg.textContent = fe(err, 's'); }
+        e.target.disabled = false;
+    });
+}
+
 async function loadKasusList(append = false, ctx = kasusCtxDefault) {
     const seq = ++ctx.listSeq;
     const contentEl = kEl(ctx, 'list-content');
+    if (!append) renderKasusAntrean(ctx);   // tidak ditunggu: antrean tampil walau pemuatan daftar gagal (luring)
     kEl(ctx, 'list-error')?.remove();
     if (!append) {
         ctx.allCases = [];
