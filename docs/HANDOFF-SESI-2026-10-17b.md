@@ -133,3 +133,9 @@ Keputusan Romo: (a) guru berperan ganda tidak boleh terblokir; (b) guru punya to
 - Uji: `tests/nilai-rapor-ui.mjs` (7), `tests/penilaian-api.mjs` (9), `tests/nilai-pimpinan-ui.mjs` (5), LIVE `tests/nilai-keterlihatan.mjs` (18, setelah migrasi dipasang). Layar belum dicoba di peramban sungguhan.
 - Belum diputuskan Romo: apakah Kaprodi/Waka Humas/Waka Kesiswaan dicabut aksesnya membaca semua nilai; nasib kebijakan baca `WALI_KELAS` lama pada asesmen/rekap.
 - Urutan Romo: `supabase db push`, `supabase functions deploy sync-journal`, `supabase functions deploy delete-school`, `git push origin main`.
+
+### 12b. Uji nyata di peramban (disiapkan 17 Okt malam; menunggu alat peramban)
+Migrasi `…150000` dan `…160000` sudah terpasang di Supabase (terverifikasi `supabase migration list`). Komit `8fb845f` dan komit pencabutan akses sudah dibuat; Romo sudah `git push`.
+Server lokal (python http.server, satu port per akun karena sesi login per origin): 8123 guru, 8124 Waka Kurikulum, 8125 Kepsek, 8126 siswa, 8127 orang tua; URL `http://127.0.0.1:<port>/guru/index.html?school=smkuji1` (siswa `/student/index.html`, orang tua `/parent/index.html`). Romo sudah login di semua tab.
+Tokoh uji: guru Anwar Batubara, S.Pd (NIP 198904202014101946; XI AKL 1 dan XI AKL 2, Komputerisasi Akuntansi; belum punya nilai rapor); siswa Adnan Kurnia Azzam (NIS 2025100541, XI AKL 1); orang tua Nanda Maulana Azzam (NIK 9901013006760529).
+Langkah: guru simpan nilai Adnan tanpa centang, siswa saja, orang tua saja, keduanya; setelah tiap simpan cek portal siswa dan orang tua (label "Nilai rapor") dan basis data; Waka Kurikulum dan Kepsek: kartu "Nilai per Tujuan Pembelajaran"; Waka Humas/Kesiswaan tidak melihat nilai. Alat `mcp__claude-in-chrome__*` tidak terdaftar pada sesi ini walau ekstensi disambung ulang; mulai sesi baru dengan Chrome sudah terbuka.
