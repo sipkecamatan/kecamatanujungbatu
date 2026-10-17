@@ -49,6 +49,7 @@ import {
     getRegionSharingStatus, setRegionSharing, setRegionSharingLevel,
 } from './api.js';
 import { pasangNilaiPimpinan } from './nilai-pimpinan-ui.js';
+import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
 import { saveAttendanceBatch, flushPending, pendingCount, rejectedCount, listQueuedCases, discardQueuedCase } from './offline.js';
 import { initJurnalTab } from './jurnal.js';
 import { showPwaBanner } from '../../shared/pwa-banner.js';
@@ -1601,6 +1602,7 @@ async function initWaliTab() {
     const info = await getWaliKelasInfo(classId);
     document.getElementById('wali-class-title').textContent =
         `Kelas Walian — ${info?.name ?? ''}`;
+    pasangNilaiRaporKelas(document.getElementById('tab-wali_kelas'), { esc, mode: 'wali', classId, className: info?.name ?? '', tahun: config?.current_academic_year, semester: config?.current_semester });
 
     const today    = localDateStr();
     const monthAgo = localDateStr(new Date(Date.now() - 30 * 86400000));
@@ -2897,6 +2899,7 @@ const _wkKurStatsSeq = {};
 
 async function initWakaKurTab() {
     pasangNilaiPimpinan(document.getElementById('tab-waka_kurikulum'), { esc, tahun: config?.current_academic_year, semester: config?.current_semester });
+    pasangNilaiRaporKelas(document.getElementById('tab-waka_kurikulum'), { esc, mode: 'pimpinan', tahun: config?.current_academic_year, semester: config?.current_semester });
     if (!_wkKurTabInit) {
         _wkKurTabInit = true;
         // Default Panel 2: 7 hari terakhir — selaras dengan scope Panel 1 (hari ini)
@@ -3375,6 +3378,7 @@ function kepsekLocalRange(period) {
 
 async function initKepsekTab() {
     pasangNilaiPimpinan(document.getElementById('tab-kepsek'), { esc, tahun: config?.current_academic_year, semester: config?.current_semester });
+    pasangNilaiRaporKelas(document.getElementById('tab-kepsek'), { esc, mode: 'pimpinan', tahun: config?.current_academic_year, semester: config?.current_semester });
     if (!_ksTabInit) {
         _ksTabInit = true;
         wireSimpleAccordion('ks-chart-card');
