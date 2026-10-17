@@ -255,6 +255,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 return forbidden(`Pelanggaran aturan domain: ${msg}`);
             }
 
+            // Penolakan pasti harus 4xx (bukan 500): antrean luring menganggap 5xx "sementara" dan mengulangnya selamanya.
+            const kode = (rpcError as { code?: string }).code ?? '';
+            if (msg.includes('Periode sudah ditutup')) {
+                return badRequest('Periode akademik untuk tanggal sesi ini sudah ditutup');
+            }
+            if (kode === 'P0004' || msg.includes('schedule_not_found')) {
+                return badRequest('Jadwal tidak ditemukan');
+            }
+            if (kode === 'P0005' || msg.includes('invalid_enum_value')) {
+                return badRequest('Nilai absensi tidak valid');
+            }
+
             console.error('[sync-attendance-batch] RPC error:', rpcError);
             return internalError(rpcError);
         }
