@@ -4186,6 +4186,7 @@ function renderKasusEvents(events, ctx = kasusCtxDefault) {
     }).join('');
 }
 
+const _labelHubunganKasus = new Map();
 const VIEWER_ROLE_LABEL = { WALI_KELAS: 'Wali Kelas', BK: 'Guru BK', GURU: 'Guru', KAPRODI: 'Kaprodi', ORTU: 'Orang tua', SISWA: 'Siswa', TU: 'Tata Usaha',
     WAKA_KESISWAAN: 'Waka Kesiswaan', WAKA_KURIKULUM: 'Waka Kurikulum', WAKA_HUMAS: 'Waka Humas', KEPSEK: 'Kepala Sekolah' };
 
@@ -4221,9 +4222,9 @@ async function renderKasusViewers(kasus, ctx, seq) {
     }
 
     const bisaTandai = isCreator || isHandler;
-    let viewers = [], log = [];
+    let viewers = [], log = [], kandSemua = [];
     try {
-        if (bisaTandai) viewers = await listCaseViewers(kasus.case_id);
+        if (bisaTandai) [viewers, kandSemua] = await Promise.all([listCaseViewers(kasus.case_id), getCaseTagCandidates(kasus.case_id).catch(() => [])]);
         if (bisaTandai || isOversight) log = await listCaseAccessLog(kasus.case_id).catch(() => []);
     } catch (err) {
         if (!isCurrent()) return;
@@ -4233,9 +4234,12 @@ async function renderKasusViewers(kasus, ctx, seq) {
     }
     if (!isCurrent()) return;
 
+    // Server tidak mengembalikan penonton yang sudah ditandai sebagai kandidat, jadi label hubungan diingat selama sesi.
+    kandSemua.forEach(c => _labelHubunganKasus.set(`${kasus.case_id}:${c.user_id}`, c.relation_label));
+    const labelPembaca = v => _labelHubunganKasus.get(`${kasus.case_id}:${v.user_id}`) ?? (v.role_type === 'GURU' ? 'Guru' : (VIEWER_ROLE_LABEL[v.role_type] ?? v.role_type));
     const baris = viewers.map(v => `
         <li style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0">
-            <span>${esc(v.full_name)} <span style="color:var(--color-text-muted)">(${esc(VIEWER_ROLE_LABEL[v.role_type] ?? v.role_type)})</span></span>
+            <span>${esc(v.full_name)} <span style="color:var(--color-text-muted)">(${esc(labelPembaca(v))})</span></span>
             ${isCreator ? `<button type="button" class="btn btn-sm btn-danger-outline" data-cabut="${v.user_id}">Cabut</button>` : ''}
         </li>`).join('');
     const logHtml = log.length ? `
@@ -4262,10 +4266,14 @@ async function renderKasusViewers(kasus, ctx, seq) {
     const tampil = (teks, galat) => { msg.style.color = galat ? 'var(--color-danger)' : 'var(--color-success)'; msg.textContent = teks; };
     const sudah = new Set(viewers.map(v => v.user_id));
     try {
-        const kand = (await getCaseTagCandidates(kasus.case_id)).filter(c => !sudah.has(c.user_id));
+        const kand = kandSemua.filter(c => !sudah.has(c.user_id));
         if (!isCurrent()) return;
+        // Dikelompokkan per hubungan dengan kasus (Wali Kelas, Guru Wali, … Staf lain) agar daftar panjang tetap mudah dipindai.
+        const kelompok = new Map();
+        for (const c of kand) { if (!kelompok.has(c.relation_label)) kelompok.set(c.relation_label, []); kelompok.get(c.relation_label).push(c); }
         sel.innerHTML = kand.length
-            ? '<option value="">Pilih orang yang ditandai…</option>' + kand.map(c => `<option value="${c.user_id}">${esc(c.full_name)} — ${esc(c.relation_label)}</option>`).join('')
+            ? '<option value="">Pilih orang yang ditandai…</option>' + [...kelompok].map(([lbl, arr]) =>
+                `<optgroup label="${esc(lbl)}">${arr.map(c => `<option value="${c.user_id}">${esc(c.full_name)}</option>`).join('')}</optgroup>`).join('')
             : '<option value="">Tidak ada kandidat lagi</option>';
     } catch (err) {
         if (!isCurrent()) return;
