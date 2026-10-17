@@ -244,7 +244,7 @@ export async function getAttendanceForSession(scheduleId) {
 export async function getMyStudents(userId, academicYear, semester) {
     const { data, error } = await supabase
         .from('teaching_assignments')
-        .select('class:classes ( class_id, name, enrollments:class_enrollments ( withdrawn_at, student:students ( student_id, nis, full_name, student_status ) ) )')
+        .select('class:classes ( class_id, name, enrollments:class_enrollments ( withdrawn_at, academic_year, student:students ( student_id, nis, full_name, student_status ) ) )')
         .eq('user_id', userId)
         .eq('academic_year', academicYear)
         .eq('semester', semester)
@@ -257,6 +257,7 @@ export async function getMyStudents(userId, academicYear, semester) {
         for (const en of ta.class?.enrollments ?? []) {
             const s = en.student;
             if (en.withdrawn_at || s?.student_status !== 'AKTIF') continue;
+            if (en.academic_year && en.academic_year !== academicYear) continue;   // A-09: hanya pendaftaran tahun ajaran berjalan
             if (s && !seen.has(s.student_id)) {
                 seen.add(s.student_id);
                 students.push({ ...s, class_id: ta.class?.class_id, class_name: ta.class?.name });
@@ -871,6 +872,7 @@ export async function getMyObservations(userId, { limit = 100, offset = 0 } = {}
         `, { count: 'exact' })
         .eq('author_user_id', userId)
         .order('created_at', { ascending: false })
+        .order('observation_id', { ascending: false })   // A-08: pemecah seri agar halaman tidak melewatkan/menggandakan baris
         .range(offset, offset + limit - 1);
     if (error) throw error;
     return { rows: data ?? [], total: count ?? 0 };
