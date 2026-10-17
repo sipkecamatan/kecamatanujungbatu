@@ -18,7 +18,7 @@ end $f$;
 do $$
 declare
   sid uuid; yr text; sm semester; guru uuid; cls uuid; subj uuid; stu uuid; stu2 uuid; ortu uuid; siswa_u uuid; kep uuid; wakur uuid; wakes uuid; bk uuid; adm uuid; guru_flag uuid;
-  lo1 uuid; asmt uuid; q text; ringkas text;
+  lo1 uuid; asmt uuid; q text; ringkas text; kaprodi uuid; wakhum uuid; qa text;
 begin
   select school_id into sid from schools where slug = 'smkuji1';
   select current_academic_year, current_semester into yr, sm from school_config where school_id = sid;
@@ -37,6 +37,8 @@ begin
   select user_id into bk from users where school_id = sid and role_type = 'BK' and teacher_code is not null and is_active limit 1;
   select user_id into adm from users where school_id = sid and role_type = 'ADMINISTRATIVE' and is_active limit 1;
   select user_id into guru_flag from users where school_id = sid and role_type = 'GURU' and is_active and user_id <> guru order by user_id limit 1;
+  select user_id into kaprodi from users where school_id = sid and role_type = 'KAPRODI' and is_active limit 1;
+  select user_id into wakhum from users where school_id = sid and role_type = 'WAKA_HUMAS' and is_active limit 1;
   insert into hasil_uji(k,v) values ('persona', format('guru=%s kelas=%s siswa=%s siswa2=%s ortu=%s siswa_akun=%s kepsek=%s wakur=%s wakes=%s bk_mengajar=%s admin=%s guru_lain=%s',
     guru is not null, cls is not null, stu is not null, stu2 is not null, ortu is not null, siswa_u is not null, kep is not null, wakur is not null, wakes is not null, bk is not null, adm is not null, guru_flag is not null));
 
@@ -70,6 +72,13 @@ begin
   update users set role_type = 'GURU', is_waka_kurikulum = true where user_id = wakur;   -- Waka Kurikulum yang tercatat sebagai GURU + tanda peran tambahan
   perform set_config('app.bypass_users_guard', 'off', true);
   insert into hasil_uji(k,v) values ('P7_guru_dengan_tanda_waka_kurikulum', pg_temp.jalan(wakur, q));
+
+  -- 2b. Akses baca nilai dipersempit (migrasi 20261017160000): hanya Kepsek dan Waka Kurikulum; Kaprodi, Waka Humas, Waka Kesiswaan ditolak
+  qa := format('select (select count(*) from assessments where id = %L)::text||''/''||(select count(*) from assessment_results where assessment_id = %L)::text', asmt, asmt);
+  insert into hasil_uji(k,v) values ('R1_pimpinan_akademik_membaca', format('kepsek=%s waka_kurikulum=%s', pg_temp.jalan(kep, qa), pg_temp.jalan(wakur, qa)));
+  insert into hasil_uji(k,v) values ('R2_peran_lain_dicabut', format('kaprodi=%s waka_humas=%s waka_kesiswaan=%s', coalesce(pg_temp.jalan(kaprodi, qa), 'tanpa_akun'), coalesce(pg_temp.jalan(wakhum, qa), 'tanpa_akun'), pg_temp.jalan(wakes, qa)));
+  insert into hasil_uji(k,v) values ('R3_guru_pemilik_tetap_membaca', pg_temp.jalan(guru, qa));
+  insert into hasil_uji(k,v) values ('R4_kebijakan_wali_kelas_lama_hilang', (select count(*)::text from pg_policies where schemaname='public' and policyname in ('rls_assessments_select_wali','rls_assessment_results_select_wali','rls_grade_recap_select_wali')));
 
   -- 3. Nilai rapor: terlihat siswa/orang tua hanya atas izin guru (bawaan tidak terlihat)
   insert into grade_final (school_id, class_id, subject_id, student_id, teacher_id, academic_year, semester, nilai_rapor, metode)
