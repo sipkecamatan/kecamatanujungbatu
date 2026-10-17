@@ -130,8 +130,10 @@ await uji('nilai rapor: simpan, perbarui baris yang sama, baca hanya periode yan
     { studentId: 's2', nilai_rapor: 70 },
   ]);
   assert.equal(db.grade_final.length, 2);
+  assert.ok(db.grade_final.every((r) => r.is_visible_siswa === false && r.is_visible_ortu === false), 'bawaan harus tidak terlihat');
   assert.equal(db.grade_final[1].metode, 'MANUAL'); assert.deepEqual(db.grade_final[1].tp_optimal, []);
-  await M.upsertGradeFinalBatch('S', 'C', 'M', 'G', '2026/2027', 1, [{ studentId: 's1', nilai_rapor: 90, metode: 'BOBOT' }]);   // baris yang sama: diperbarui, bukan ganda
+  await M.upsertGradeFinalBatch('S', 'C', 'M', 'G', '2026/2027', 1, [{ studentId: 's1', nilai_rapor: 90, metode: 'BOBOT', is_visible_siswa: true }]);   // baris yang sama: diperbarui, bukan ganda
+  assert.deepEqual([db.grade_final[0].is_visible_siswa, db.grade_final[0].is_visible_ortu], [true, false]);
   assert.equal(db.grade_final.length, 2); assert.equal(db.grade_final.find((r) => r.student_id === 's1').nilai_rapor, 90);
   db.grade_final.push({ ...kunci, student_id: 's9', semester: 2, nilai_rapor: 10 }, { ...kunci, student_id: 's8', subject_id: 'LAIN', nilai_rapor: 11 });
   const baca = await M.getGradeFinal('S', 'C', 'M', '2026/2027', '1');

@@ -66,6 +66,9 @@ export async function renderNilaiRapor(body, ctx) {
 
     const st = {
         metode: tersimpan[0]?.metode && METODE_RAPOR[tersimpan[0].metode] ? tersimpan[0].metode : 'RATA',
+        // Izin tampil di portal: aktif bila SEMUA nilai rapor tersimpan sudah diizinkan (berlaku untuk seluruh kelas ini pada mapel dan semester ini)
+        visSiswa: tersimpan.length > 0 && tersimpan.every((r) => r.is_visible_siswa === true),
+        visOrtu:  tersimpan.length > 0 && tersimpan.every((r) => r.is_visible_ortu === true),
         bobot: {},
         rows: {},
     };
@@ -136,7 +139,11 @@ export async function renderNilaiRapor(body, ctx) {
             '<div style="font-size:12px;color:var(--color-text-muted);margin-bottom:10px">' +
             'Nilai rapor adalah <strong>nilai akhir yang Anda tetapkan</strong> (0–100) untuk satu semester, dihitung dari penilaian <strong>sumatif</strong> (formatif tidak digabung). ' +
             'Kolom Saran hanyalah bantuan hitung. Tanda <strong>T</strong> (TP dicapai optimal) dan <strong>R</strong> (TP perlu peningkatan) dipakai untuk deskripsi capaian di e-Rapor. ' +
-            'Nilai ini hanya terlihat oleh Anda, wali kelas, Kepala Sekolah, dan Waka Kurikulum; tidak tampil di portal siswa atau orang tua.</div>' +
+            'Nilai rapor terlihat oleh Anda, wali kelas, Kepala Sekolah, dan Waka Kurikulum. Siswa dan orang tua baru melihatnya di portal bila Anda mengizinkan di bawah ini.</div>' +
+            '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:13px">' +
+            '<label style="display:flex;align-items:center;gap:6px;font-weight:normal"><input type="checkbox" id="nr-vis-siswa"' + (st.visSiswa ? ' checked' : '') + '> Izinkan <strong>siswa</strong> melihat nilai rapor</label>' +
+            '<label style="display:flex;align-items:center;gap:6px;font-weight:normal"><input type="checkbox" id="nr-vis-ortu"' + (st.visOrtu ? ' checked' : '') + '> Izinkan <strong>orang tua</strong> melihat nilai rapor</label>' +
+            '<span style="color:var(--color-text-muted);font-size:12px">Berlaku untuk semua siswa kelas ini; tersimpan saat Anda menekan Simpan Nilai Rapor.</span></div>' +
             '<div class="rc-filter-bar" style="justify-content:space-between"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
             '<select id="nr-metode">' + Object.entries(METODE_RAPOR).map(([k, v]) => '<option value="' + k + '"' + (st.metode === k ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select>' +
             '<button type="button" class="pen-btn" data-nr="isi-saran">Isi dari saran</button></div>' +
@@ -167,6 +174,8 @@ export async function renderNilaiRapor(body, ctx) {
     body.onchange = (e) => {
         const t = e.target;
         if (t.id === 'nr-metode') { st.metode = t.value; segarkanSaran(); return; }
+        if (t.id === 'nr-vis-siswa') { st.visSiswa = !!t.checked; return; }
+        if (t.id === 'nr-vis-ortu')  { st.visOrtu  = !!t.checked; return; }
         if (t.classList.contains('nr-bobot')) { st.bobot[t.dataset.aid] = parseFloat(t.value) || 0; segarkanSaran(); return; }
         const tr = t.closest('tr'); const sid = tr?.dataset.sid ?? tr?.dataset.sidDetail; if (!sid || !st.rows[sid]) return;
         const row = st.rows[sid];
@@ -218,6 +227,7 @@ export async function renderNilaiRapor(body, ctx) {
                 metode: saran !== null && Number(row.nilai) === saran ? st.metode : 'MANUAL',
                 tp_optimal: [...row.optimal], tp_perlu: [...row.perlu],
                 deskripsi_tertinggi: des.tertinggi, deskripsi_terendah: des.terendah,
+                is_visible_siswa: st.visSiswa === true, is_visible_ortu: st.visOrtu === true,
             });
         }
         _menyimpan = true; btn.disabled = true; btn.textContent = 'Menyimpan…';
