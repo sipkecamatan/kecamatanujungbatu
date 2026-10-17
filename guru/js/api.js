@@ -2139,6 +2139,20 @@ export async function getGradeRecapRows(schoolId, classId, semester, year) {
         .order('id'));
 }
 
+// ─── Waka Kurikulum / Kepala Sekolah: nilai setiap TP (dihitung otomatis; migrasi 20261017150000) ───
+
+export async function getNilaiPerTp(year = null, semester = null) {
+    const { data, error } = await supabase.rpc('fn_nilai_per_tp', { p_year: year, p_semester: semester });
+    if (error) throw error;
+    return data ?? [];
+}
+
+export async function getNilaiPerTpSiswa(tpId) {
+    const { data, error } = await supabase.rpc('fn_nilai_per_tp_siswa', { p_tp_id: tpId });
+    if (error) throw error;
+    return data ?? [];
+}
+
 // ─── Nilai rapor per mata pelajaran (tabel grade_final; migrasi 20261017140000) ───
 
 /** Nilai rapor tersimpan satu kelas + mapel + periode (hanya milik guru pemanggil, ditegakkan RLS), dipaginasi. */
@@ -2170,6 +2184,8 @@ export async function upsertGradeFinalBatch(schoolId, classId, subjectId, teache
                 nilai_rapor: r.nilai_rapor, metode: r.metode ?? 'MANUAL',
                 tp_optimal: r.tp_optimal ?? [], tp_perlu: r.tp_perlu ?? [],
                 deskripsi_tertinggi: r.deskripsi_tertinggi || null, deskripsi_terendah: r.deskripsi_terendah || null,
+                // Izin tampil di portal (bawaan tidak terlihat; migrasi 20261017150000)
+                is_visible_siswa: r.is_visible_siswa === true, is_visible_ortu: r.is_visible_ortu === true,
                 updated_at: now,
             })),
             { onConflict: 'class_id,subject_id,student_id,academic_year,semester,teacher_id' }

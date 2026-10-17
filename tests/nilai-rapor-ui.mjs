@@ -108,6 +108,26 @@ await uji('server menolak: guru diberi tahu galat dan tombol Simpan aktif kembal
   assert.ok(globalThis.__api.panggilan.some((p) => p[0] === 'upsert'));
 });
 
+await uji('izin tampil: bawaan mati; centang siswa saja / ortu saja / keduanya terkirim pada setiap baris; dimuat kembali dari data tersimpan', async () => {
+  const centang = (b, id, v) => b.onchange({ target: { id, checked: v, value: '', dataset: {}, classList: { contains: () => false }, closest: () => null } });
+  let b = badan(); await M.renderNilaiRapor(b, ctx);
+  assert.ok(b.innerHTML.includes('id="nr-vis-siswa"') && b.innerHTML.includes('id="nr-vis-ortu"'), 'centang izin tidak tampil');
+  assert.ok(!/id="nr-vis-siswa" checked/.test(b.innerHTML) && !/id="nr-vis-ortu" checked/.test(b.innerHTML), 'bawaan harus tidak terlihat');
+  await klik(b, 'isi-saran'); await klik(b, 'simpan');
+  let rows = globalThis.__api.panggilan.find((p) => p[0] === 'upsert')[1][6];
+  assert.ok(rows.every((r) => r.is_visible_siswa === false && r.is_visible_ortu === false), 'bawaan terkirim tidak false');
+  for (const [s, o] of [[true, false], [false, true], [true, true]]) {
+    globalThis.__api.panggilan = [];
+    centang(b, 'nr-vis-siswa', s); centang(b, 'nr-vis-ortu', o); await klik(b, 'simpan');
+    rows = globalThis.__api.panggilan.find((p) => p[0] === 'upsert')[1][6];
+    assert.ok(rows.length >= 2 && rows.every((r) => r.is_visible_siswa === s && r.is_visible_ortu === o), `kombinasi ${s}/${o} salah`);
+  }
+  globalThis.__api.data.tersimpan = [{ student_id: 's1', nilai_rapor: '70', metode: 'RATA', tp_optimal: [], tp_perlu: [], is_visible_siswa: true, is_visible_ortu: false },
+                                     { student_id: 's2', nilai_rapor: '90', metode: 'RATA', tp_optimal: [], tp_perlu: [], is_visible_siswa: true, is_visible_ortu: false }];
+  b = badan(); await M.renderNilaiRapor(b, ctx);
+  assert.match(b.innerHTML, /id="nr-vis-siswa" checked/); assert.ok(!/id="nr-vis-ortu" checked/.test(b.innerHTML));
+});
+
 fs.rmSync(dirTmp, { recursive: true, force: true });
 console.log(`\nNILAI_RAPOR_UI: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);
