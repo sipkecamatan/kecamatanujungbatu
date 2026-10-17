@@ -76,6 +76,8 @@ begin
   insert into hasil_uji(k,v) values ('S7_cabut_oleh_pembuat', pg_temp.jalan(creator, format('select fn_case_remove_viewer(%L,%L)::text', cid, wali)));
   insert into hasil_uji(k,v) values ('S7b_wali_setelah_dicabut', pg_temp.jalan(wali, qkasus));
 
+  -- Penyiapan keadaan sebagai sesi layanan (bukan pengguna): sisa klaim JWT dari pg_temp.jalan dikosongkan agar aturan eskalasi (auth.uid()) tidak berlaku.
+  perform set_config('request.jwt.claims', '', true); perform set_config('request.jwt.claim.sub', '', true);
   insert into coaching_case_events (case_id, school_id, event_type, author_user_id, is_visible_to_student, payload) values (cid, sid, 'ESCALATED', creator, false, jsonb_build_object('new_handler_user_id', wali, 'note', 'uji'));
   insert into coaching_case_events (case_id, school_id, event_type, author_user_id, is_visible_to_student, payload) values (cid, sid, 'ESCALATED', wali, false, jsonb_build_object('new_handler_user_id', bk, 'note', 'uji'));
   insert into hasil_uji(k,v) values ('S8_setelah_eskalasi', format('pembuat=%s penangan_sebelumnya_wali=%s penangan_baru_bk=%s lain=%s',

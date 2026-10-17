@@ -36,6 +36,9 @@ if (!terapkan) {
 }
 const migrasi = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261017040000_kasus_penonton.sql'), 'utf8') + '\n' : '';
 
+// Keadaan awal sekolah uji (kasus uji manual bisa tertinggal): pemeriksaan jumlah dibuat RELATIF terhadap keadaan awal ini.
+const awal = jalankan("select (select count(*) from coaching_cases)::int as kasus, (select count(*) from notifications where type = 'CASE_TAGGED')::int as notif;")[0] ?? { kasus: 0, notif: 0 };
+
 const baris = jalankan('begin;\n' + migrasi + badan + '\nrollback;\n');
 const nilai = new Map(baris.map((r) => [r.k, String(r.v)]));
 let lulus = 0, gagal = 0;
@@ -65,13 +68,13 @@ sama('S8d_pembuat_masih_boleh_mencabut', '{"ok": true, "dicabut": 1}');
 sama('S9_log_pengawas', 'kepsek_pertama=true kepsek_kedua=false waka=true pembuat=false penonton=false');
 sama('S9b_log_dibaca_pembuat', '2');
 ditolak('S9c_log_ditolak_bagi_guru_lain', '42501');
-cek('S10_admin', nilai.get('S10_admin') === 'hitungan={"open": 1, "total": 1} aktivitas_baris=5 baca_langsung_kasus=0 baca_langsung_event=0 guru_memanggil_fungsi_admin=GALAT:42501');
+cek('S10_admin', String(nilai.get('S10_admin') ?? '').replace(/aktivitas_baris=\d+/, 'aktivitas_baris=N') === `hitungan={"open": ${awal.kasus + 1}, "total": ${awal.kasus + 1}} aktivitas_baris=N baca_langsung_kasus=0 baca_langsung_event=0 guru_memanggil_fungsi_admin=GALAT:42501`);
 sama('S10b_aktivitas_admin_tanpa_judul', 'true');
-sama('S10c_hitungan_kasus_admin', 'semua=1 siswa_kasus=1 siswa_lain=0 guru=GALAT:42501');
+sama('S10c_hitungan_kasus_admin', `semua=${awal.kasus + 1} siswa_kasus=1 siswa_lain=0 guru=GALAT:42501`);   // siswa_kasus: siswa uji tidak punya kasus lain
 
 // Sesudah ROLLBACK tidak boleh ada sisa.
 const sisa = jalankan("select (select count(*) from coaching_cases)::int as kasus, (select count(*) from notifications where type = 'CASE_TAGGED')::int as notif;");
-cek('SISA: tidak ada kasus dan notifikasi uji tertinggal', sisa[0]?.kasus === 0 && sisa[0]?.notif === 0, JSON.stringify(sisa[0]));
+cek('SISA: tidak ada kasus dan notifikasi uji tertinggal (sama dengan keadaan awal)', sisa[0]?.kasus === awal.kasus && sisa[0]?.notif === awal.notif, JSON.stringify({ awal, sisa: sisa[0] }));
 
 console.log(`\nKASUS_PENONTON: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);
