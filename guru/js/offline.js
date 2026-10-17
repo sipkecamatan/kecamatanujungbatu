@@ -261,13 +261,14 @@ export async function saveJournalEntry(jrn) {
 // ── Kirim satu delete jurnal ke Supabase ─────────────────────
 async function submitJournalDelete(item) {
     try {
-        const { error } = await _supabase
+        const { error, status } = await _supabase
             .from('teacher_journals')
             .delete()
             .eq('journal_id', item.journal_id);
         if (error) {
             const networkError = error.message?.includes('Failed to fetch') || error.code === 'PGRST301';
-            return { ok: false, networkError, error: error.message };
+            // A-07: sertakan status HTTP agar 5xx/408/429 dikenali sebagai kegagalan sementara (item ditahan), bukan penolakan pasti.
+            return { ok: false, networkError, status, error: error.message };
         }
         return { ok: true };
     } catch (e) {
@@ -283,8 +284,8 @@ export async function deleteJournalEntryOffline(journalId) {
     if (navigator.onLine) {
         const r = await submitJournalDelete({ journal_id: journalId });
         if (r.ok) return { status: 'deleted' };
-        if (!r.networkError) throw new Error(r.error);
-        // jaringan gagal → antrikan
+        if (!r.networkError && !sementara(r.status)) throw new Error(r.error);
+        // jaringan gagal atau server gagal sementara → antrikan
     }
     await idbPutTo(STORE_JRN_DEL, { journal_id: journalId, _owner: await ownerId() });
     return { status: 'queued' };

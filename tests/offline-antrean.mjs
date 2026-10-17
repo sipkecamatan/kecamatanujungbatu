@@ -38,7 +38,8 @@ let online = true;
 Object.defineProperty(globalThis, 'navigator', { value: { get onLine() { return online; } }, configurable: true });
 let userSaatIni = 'user-A'; let punyaSesi = true;
 let jawaban = () => ({ status: 200, body: { data: {} } }); let panggilan = 0;
-globalThis.__sb = { auth: { getSession: async () => ({ data: { session: punyaSesi ? { access_token: 'tok', user: { id: userSaatIni } } : null } }) }, from: () => ({}) };
+let jawabanDb = () => ({ error: null, status: 204 });   // tiruan supabase.from('teacher_journals').delete().eq(...)
+globalThis.__sb = { auth: { getSession: async () => ({ data: { session: punyaSesi ? { access_token: 'tok', user: { id: userSaatIni } } : null } }) }, from: () => ({ delete: () => ({ eq: async () => jawabanDb() }) }) };
 globalThis.fetch = async () => { panggilan++; const j = jawaban(); if (j.jaringan) throw new TypeError('Failed to fetch'); return { ok: j.status >= 200 && j.status < 300, status: j.status, json: async () => j.body }; };
 
 // ── muat modul dengan api.js ditiru ──
@@ -124,6 +125,29 @@ await uji('T16 kasus yang ditolak server tetap tampil (ditandai ditolak, dengan 
   const a = await M.listQueuedCases();
   assert.equal(a.length, 1); assert.equal(a[0].ditolak, true); assert.match(a[0].pesan, /Bukan guru penugas/);
   assert.equal(await M.discardQueuedCase('c2'), true); assert.equal((await M.listQueuedCases()).length, 0);
+});
+
+await uji('T17 hapus jurnal luring: server 503 menahan item (bukan penolakan pasti) (A-07)', async () => {
+  online = false; await M.deleteJournalEntryOffline('j1');
+  online = true; jawabanDb = () => ({ error: { message: 'upstream error' }, status: 503 });
+  const r = await M.flushPending();
+  const item = [...store('jrn_del_queue').values()];
+  assert.equal(item.length, 1, 'item hapus jurnal hilang'); assert.equal(item[0]._ditolak, undefined, 'item 5xx ditandai ditolak');
+  assert.equal(r.synced, 0); assert.equal(r.rejected, 0);
+  jawabanDb = () => ({ error: null, status: 204 });
+  const r2 = await M.flushPending(); assert.equal(r2.synced, 1); assert.equal([...store('jrn_del_queue').values()].length, 0);
+});
+await uji('T18 hapus jurnal luring: penolakan pasti 403 ditandai ditolak dan tidak diulang', async () => {
+  online = false; await M.deleteJournalEntryOffline('j2');
+  online = true; jawabanDb = () => ({ error: { message: 'permission denied' }, status: 403 });
+  const r = await M.flushPending();
+  const item = [...store('jrn_del_queue').values()];
+  assert.equal(item.length, 1); assert.ok(item[0]._ditolak, 'item 403 tidak ditandai ditolak'); assert.equal(r.rejected, 1);
+});
+await uji('T19 hapus jurnal saat online dan server 503: diantrekan, bukan dilempar sebagai galat', async () => {
+  jawabanDb = () => ({ error: { message: 'upstream error' }, status: 503 });
+  const r = await M.deleteJournalEntryOffline('j3');
+  assert.equal(r.status, 'queued'); assert.equal([...store('jrn_del_queue').values()].length, 1);
 });
 
 

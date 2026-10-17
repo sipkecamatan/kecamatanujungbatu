@@ -5,7 +5,8 @@ import {
     getKktps, createKktp, updateKktp, deleteKktp,
     getStudentsForClass,
     getAssessments, createAssessment, updateAssessment, deleteAssessment,
-    getAssessmentResults, upsertAssessmentResult,
+    getAssessmentResults, upsertAssessmentResult, deleteAssessmentResult, getResultsForAssessments, getGradeRecapRows,
+    deleteGradeRecapForStudents, deleteGradeRecapForTp,
     getStudentGroups, upsertStudentGroup,
     upsertGradeRecapBatch, getGradeRecap, hitungRekapTp, hapusRekapTp,
     getCp, upsertCp, createCpElemen, updateCpElemen, deleteCpElemen,
@@ -1475,6 +1476,14 @@ async function openAsmtModal(editAsmt) {
                             status: data.predikat ?? null,
                             tindak_lanjut: data.tl ?? null,
                         });
+                    } else if (editAsmt) {
+                        // A-04: nilai dan predikat sengaja dikosongkan guru -> hasil lama tidak dibiarkan dipakai.
+                        if (data.tl) {
+                            // tindak lanjut yang sudah diisi tetap disimpan (tanpa nilai/predikat)
+                            await upsertAssessmentResult(_schoolId, _kelasId, asmtId, sid, { nilai: null, status: null, tindak_lanjut: data.tl });
+                        } else {
+                            await deleteAssessmentResult(asmtId, sid);
+                        }
                     }
                 }
             }
@@ -1594,7 +1603,7 @@ async function renderPelaksanaan() {
         await ensureUser();  // populates _schoolId before any query
         const [asmts, roster, sGroups] = await Promise.all([
             getAssessments(_schoolId, _kelasId, _subjectId, _year, Number(_semester)),
-            getStudentsForClass(_kelasId),
+            getStudentsForClass(_kelasId, _year, _semester),
             getStudentGroups(_schoolId, _kelasId),
         ]);
         _asmtCache   = asmts;
@@ -1622,7 +1631,16 @@ function confirmDeleteAsmt(asmtId, origBtn) {
     row.appendChild(bar);
     bar.querySelector('.pen-del-yes').addEventListener('click', async function () {
         this.disabled = true; this.textContent = 'Menghapus…';
-        try { await deleteAssessment(asmtId); await renderPelaksanaan(); }
+        try {
+            const dihapus = _asmtCache.find(a => a.id === asmtId);
+            await deleteAssessment(asmtId);
+            // A-05: rekap nilai akhir TP itu dihitung dari asesmen ini; membiarkannya menyisakan angka basi. Dihapus; guru menyimpan ulang dari Rekap.
+            if (dihapus?.jenis === 'SUMATIF' && dihapus.learning_objective_id) {
+                await deleteGradeRecapForTp(_schoolId, _kelasId, dihapus.learning_objective_id, Number(_semester), _year);
+                alert('Penilaian dihapus. Rekap nilai akhir untuk TP terkait ikut dihapus karena sudah tidak sesuai; buka bagian Rekap lalu Simpan Rekap ulang.');
+            }
+            await renderPelaksanaan();
+        }
         catch (err) { bar.remove(); origBtn.style.display = ''; alert('Gagal hapus: ' + err.message); }
     });
     bar.querySelector('.pen-del-no').addEventListener('click', () => { bar.remove(); origBtn.style.display = ''; });
@@ -1715,7 +1733,7 @@ async function _renderRecapContent(body) {
         if (!_asmtCache.length || !_rosterCache.length) {
             const [asmts, roster, sGroups] = await Promise.all([
                 getAssessments(_schoolId, _kelasId, _subjectId, _year, Number(_semester)),
-                getStudentsForClass(_kelasId),
+                getStudentsForClass(_kelasId, _year, _semester),
                 getStudentGroups(_schoolId, _kelasId),
             ]);
             _asmtCache    = asmts;
@@ -1907,9 +1925,10 @@ async function _renderRecapContent(body) {
                     throw new Error('Rekap butuh Tujuan Pembelajaran. Buat TP dulu di section Perencanaan, lalu tautkan ke penilaian Sumatif.');
                 }
                 const rows = [];
+                const tanpaNilai = [];
                 for (const s of roster) {  // iterate semua siswa, bukan hanya halaman aktif
                     const h = hasilSiswa[s.id] || {};
-                    if (h.nilai == null) continue;
+                    if (h.nilai == null) { tanpaNilai.push(s.id); continue; }
                     // Tercapai bila predikat BSH ke atas; MB dan BB = belum tercapai;
                     // null bila KKTP belum ada sehingga tidak bisa dinilai.
                     const pred = kktpPredikat(h.nilai);
@@ -1921,6 +1940,8 @@ async function _renderRecapContent(body) {
                 }
                 await upsertGradeRecapBatch(_schoolId, _kelasId, recapTpId,
                     Number(_semester), _year, rows);
+                // A-05: siswa yang kini tanpa nilai tidak boleh meninggalkan rekap lama yang basi.
+                await deleteGradeRecapForStudents(_schoolId, _kelasId, recapTpId, Number(_semester), _year, tanpaNilai);
                 toast('Rekap berhasil disimpan');
             } catch (err) {
                 toast('Gagal simpan: ' + (err.message || 'Terjadi kesalahan'), false);
@@ -2093,32 +2114,17 @@ async function downloadPenilaianExcel() {
 
         const [asmts, roster] = await Promise.all([
             getAssessments(_schoolId, _kelasId, _subjectId, _year, Number(_semester)),
-            getStudentsForClass(_kelasId),
+            getStudentsForClass(_kelasId, _year, _semester),
         ]);
 
         const asmtIds = asmts.map(a => a.id);
 
         // Nilai numerik (SUMATIF / DIAGNOSTIK_K)
-        let resultsRows = [];
-        if (asmtIds.length) {
-            const { data, error } = await supabase
-                .from('assessment_results')
-                .select('assessment_id, student_id, nilai, status, tindak_lanjut')
-                .in('assessment_id', asmtIds)
-                .eq('school_id', _schoolId);
-            if (error) throw error;
-            resultsRows = data || [];
-        }
+        // A-11: dipaginasi agar ekspor banyak asesmen tidak terpotong diam-diam di batas 1000 baris PostgREST.
+        const resultsRows = await getResultsForAssessments(asmtIds, _schoolId);
 
         // Rekap nilai akhir per TP per siswa
-        const { data: gradeRecapRows, error: grErr } = await supabase
-            .from('grade_recap')
-            .select('student_id, learning_objective_id, nilai_akhir, kktp_tercapai, deskripsi_capaian')
-            .eq('class_id', _kelasId)
-            .eq('school_id', _schoolId)
-            .eq('academic_year', _year)
-            .eq('semester', Number(_semester));
-        if (grErr) throw grErr;
+        const gradeRecapRows = await getGradeRecapRows(_schoolId, _kelasId, Number(_semester), _year);
 
         // TP cache (sudah ada di _tpCache, tapi pastikan terisi)
         let tpCache = _tpCache;

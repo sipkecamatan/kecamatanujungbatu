@@ -1925,16 +1925,45 @@ export async function deleteKktp(id) {
 
 // ─── Penilaian: Students roster per kelas ────────────────────────────────────
 
-export async function getStudentsForClass(classId) {
-    const { data, error } = await supabase
-        .from('class_enrollments')
-        .select('student_id, students!inner(student_id, full_name, student_status)')
-        .eq('class_id', classId);
-    if (error) throw error;
-    return (data ?? [])
-        .filter(r => r.students && ['AKTIF', 'PKL'].includes(r.students.student_status))
-        .map(r => ({ id: r.students.student_id, nama: r.students.full_name ?? '' }))
-        .sort((a, b) => a.nama.localeCompare(b.nama, 'id'));
+/**
+ * Ambil SEMUA baris sebuah kueri dengan paginasi (PostgREST memotong respons di 1000 baris tanpa pemberitahuan).
+ * `buat` harus mengembalikan kueri BARU berurutan stabil (order unik) pada setiap pemanggilan.
+ */
+async function ambilSemuaHalaman(buat, ukuran = 1000) {
+    const semua = [];
+    for (let dari = 0; ; dari += ukuran) {
+        const { data, error } = await buat().range(dari, dari + ukuran - 1);
+        if (error) throw error;
+        const baris = data ?? [];
+        semua.push(...baris);
+        if (baris.length < ukuran) break;
+    }
+    return semua;
+}
+
+/**
+ * Roster penilaian: siswa AKTIF/PKL yang terdaftar di kelas ini pada tahun ajaran + semester yang diminta (A-01),
+ * tanpa duplikat dan tanpa pendaftaran yang sudah ditarik. Membawa NIS untuk ekspor (A-10).
+ */
+export async function getStudentsForClass(classId, academicYear = null, semester = null) {
+    const baris = await ambilSemuaHalaman(() => {
+        let q = supabase
+            .from('class_enrollments')
+            .select('enrollment_id, student_id, students!inner(student_id, nis, full_name, student_status)')
+            .eq('class_id', classId)
+            .is('withdrawn_at', null)
+            .order('enrollment_id');
+        if (academicYear) q = q.eq('academic_year', academicYear);
+        if (semester != null && semester !== '') q = q.eq('semester', String(semester));
+        return q;
+    });
+    const unik = new Map();
+    for (const r of baris) {
+        const s = r.students;
+        if (!s || !['AKTIF', 'PKL'].includes(s.student_status) || unik.has(s.student_id)) continue;
+        unik.set(s.student_id, { id: s.student_id, nama: s.full_name ?? '', nis: s.nis ?? '' });
+    }
+    return [...unik.values()].sort((a, b) => a.nama.localeCompare(b.nama, 'id'));
 }
 
 // ─── Penilaian: Assessments ───────────────────────────────────────────────────
@@ -1980,12 +2009,32 @@ export async function deleteAssessment(id) {
 // ─── Penilaian: Assessment Results ───────────────────────────────────────────
 
 export async function getAssessmentResults(assessmentId) {
-    const { data, error } = await supabase
+    return ambilSemuaHalaman(() => supabase
         .from('assessment_results')
         .select('*')
-        .eq('assessment_id', assessmentId);
+        .eq('assessment_id', assessmentId)
+        .order('student_id'));
+}
+
+/** Hasil banyak asesmen sekaligus, dipaginasi agar tidak terpotong di 1000 baris (A-11). */
+export async function getResultsForAssessments(assessmentIds, schoolId) {
+    if (!assessmentIds?.length) return [];
+    return ambilSemuaHalaman(() => supabase
+        .from('assessment_results')
+        .select('assessment_id, student_id, nilai, status, tindak_lanjut')
+        .in('assessment_id', assessmentIds)
+        .eq('school_id', schoolId)
+        .order('assessment_id').order('student_id'));
+}
+
+/** Hapus hasil satu siswa pada satu asesmen (nilai yang dikosongkan guru; A-04). */
+export async function deleteAssessmentResult(assessmentId, studentId) {
+    const { error } = await supabase
+        .from('assessment_results')
+        .delete()
+        .eq('assessment_id', assessmentId)
+        .eq('student_id', studentId);
     if (error) throw error;
-    return data ?? [];
 }
 
 export async function upsertAssessmentResult(schoolId, classId, assessmentId, studentId, payload) {
@@ -2059,15 +2108,54 @@ export async function upsertGradeRecapBatch(schoolId, classId, loId, semester, y
 }
 
 export async function getGradeRecap(schoolId, classId, semester, year) {
-    const { data, error } = await supabase
+    return ambilSemuaHalaman(() => supabase
         .from('grade_recap')
         .select('*')
         .eq('school_id', schoolId)
         .eq('class_id', classId)
         .eq('semester', semester)
+        .eq('academic_year', year)
+        .order('id'));
+}
+
+/** Rekap kelas untuk ekspor, dipaginasi (A-11). */
+export async function getGradeRecapRows(schoolId, classId, semester, year) {
+    return ambilSemuaHalaman(() => supabase
+        .from('grade_recap')
+        .select('student_id, learning_objective_id, nilai_akhir, kktp_tercapai, deskripsi_capaian')
+        .eq('class_id', classId)
+        .eq('school_id', schoolId)
+        .eq('academic_year', year)
+        .eq('semester', semester)
+        .order('id'));
+}
+
+/** Hapus rekap siswa tertentu pada satu TP: siswa yang nilainya kini kosong tidak boleh meninggalkan rekap lama (A-05). */
+export async function deleteGradeRecapForStudents(schoolId, classId, loId, semester, year, studentIds) {
+    if (!studentIds?.length) return;
+    const { error } = await supabase
+        .from('grade_recap')
+        .delete()
+        .eq('school_id', schoolId)
+        .eq('class_id', classId)
+        .eq('learning_objective_id', loId)
+        .eq('semester', semester)
+        .eq('academic_year', year)
+        .in('student_id', studentIds);
+    if (error) throw error;
+}
+
+/** Hapus seluruh rekap satu TP pada kelas/semester/tahun ini (rekap menjadi basi bila asesmen sumatifnya dihapus; A-05). */
+export async function deleteGradeRecapForTp(schoolId, classId, loId, semester, year) {
+    const { error } = await supabase
+        .from('grade_recap')
+        .delete()
+        .eq('school_id', schoolId)
+        .eq('class_id', classId)
+        .eq('learning_objective_id', loId)
+        .eq('semester', semester)
         .eq('academic_year', year);
     if (error) throw error;
-    return data ?? [];
 }
 
 export async function hitungRekapTp(tpId) {
