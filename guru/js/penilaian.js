@@ -6,11 +6,13 @@ import {
     getStudentsForClass,
     getAssessments, createAssessment, updateAssessment, deleteAssessment,
     getAssessmentResults, upsertAssessmentResult, deleteAssessmentResult, getResultsForAssessments, getGradeRecapRows,
-    deleteGradeRecapForStudents, deleteGradeRecapForTp, rekapUntukMapel,
+    deleteGradeRecapForStudents, deleteGradeRecapForTp, getGradeFinal,
     getStudentGroups, upsertStudentGroup,
     upsertGradeRecapBatch, getGradeRecap, hitungRekapTp, hapusRekapTp,
     getCp, upsertCp, createCpElemen, updateCpElemen, deleteCpElemen,
 } from './api.js';
+import { renderNilaiRapor } from './nilai-rapor-ui.js';
+import { susunLembarERapor } from './nilai-rapor.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -1649,6 +1651,19 @@ function confirmDeleteAsmt(asmtId, origBtn) {
 
 // ── Section 3: Rekap Nilai ────────────────────────────────────────────────────
 
+// ── Section 4: Nilai Rapor (satu nilai akhir per siswa per mapel; lihat nilai-rapor-ui.js) ──
+
+async function renderRapor() {
+    const body = document.getElementById('pen-rapor-body');
+    if (!body) return;
+    if (!ctxOk()) { body.innerHTML = '<p class="pen-placeholder">Pilih kelas, mapel, tahun, dan semester.</p>'; return; }
+    await ensureUser();   // mengisi _schoolId dan _teacherId
+    await renderNilaiRapor(body, {
+        schoolId: _schoolId, teacherId: _teacherId, classId: _kelasId, subjectId: _subjectId,
+        year: _year, semester: _semester, esc, toast,
+    });
+}
+
 async function renderRecap() {
     const body = document.getElementById('pen-rekap-body');
     if (!body) return;
@@ -2265,40 +2280,11 @@ async function downloadPenilaianExcel() {
 
         // ── Sheet 2: e-Rapor ──────────────────────────────────────────────────
 
-        const s2Header = ['NO', 'NIS', 'NAMA PESERTA DIDIK', 'NILAI AKHIR', 'KETERCAPAIAN KOMPETENSI'];
-        const s2Rows   = [];
-
-        // Kelompokkan grade_recap per siswa (ambil rata-rata atau semua baris per siswa)
-        // Format: satu baris per siswa, ambil nilai akhir tertinggi (jika banyak TP)
-        // atau buat satu baris per TP jika ada banyak TP
-        const recapBySiswa = {};
-        // A-09: hanya rekap TP milik mapel yang diekspor (rekap kelas juga memuat TP mapel lain milik guru yang sama).
-        rekapUntukMapel(gradeRecapRows, tpCache.map(t => t.id)).forEach(r => {
-            if (!recapBySiswa[r.student_id]) recapBySiswa[r.student_id] = [];
-            recapBySiswa[r.student_id].push(r);
-        });
-
-        const sortedRoster = [...roster].sort((a, b) =>
-            (a.nama || a.full_name || '').localeCompare(b.nama || b.full_name || '', 'id')
-        );
-
-        let no = 1;
-        for (const siswa of sortedRoster) {
-            const recaps = recapBySiswa[siswa.id];
-            if (recaps && recaps.length) {
-                // Satu baris per TP
-                for (const r of recaps) {
-                    const nilaiAkhir = r.nilai_akhir ?? '';
-                    const ketercapaian = r.kktp_tercapai === true ? 1 : r.kktp_tercapai === false ? 0 : '';
-                    s2Rows.push([no, siswa.nis || '', siswa.nama || siswa.full_name || '', nilaiAkhir, ketercapaian]);
-                    no++;
-                }
-            } else {
-                // Siswa belum ada rekap → baris kosong
-                s2Rows.push([no, siswa.nis || '', siswa.nama || siswa.full_name || '', '', '']);
-                no++;
-            }
-        }
+        // Nilai rapor per mata pelajaran (tabel grade_final) dari bagian "Nilai Rapor": satu baris per siswa, T/R pada kolom TP.
+        // Susunan kolom mengikuti deskripsi Panduan e-Rapor SMK 2025; belum dicocokkan dengan berkas "Format Nilai Kelas" resmi.
+        const gfRows   = await getGradeFinal(_schoolId, _kelasId, _subjectId, _year, _semester);
+        const raporMap = Object.fromEntries(gfRows.map(r => [r.student_id, r]));
+        const { header: s2Header, rows: s2Rows } = susunLembarERapor({ roster, tps: tpCache, rapor: raporMap });
 
         // ── Build workbook ────────────────────────────────────────────────────
 
@@ -2330,6 +2316,7 @@ function initCollapse() {
         { headId: 'pen-perencanaan-header', bodyId: 'pen-perencanaan-body' },
         { headId: 'pen-pelaksanaan-header', bodyId: 'pen-pelaksanaan-body' },
         { headId: 'pen-rekap-header',       bodyId: 'pen-rekap-body' },
+        { headId: 'pen-rapor-header',       bodyId: 'pen-rapor-body' },
     ].forEach(cfg => {
         const h = document.getElementById(cfg.headId);
         const b = document.getElementById(cfg.bodyId);
@@ -2344,6 +2331,7 @@ function initCollapse() {
                 if (cfg.bodyId === 'pen-perencanaan-body') renderPerencanaan();
                 if (cfg.bodyId === 'pen-pelaksanaan-body') renderPelaksanaan();
                 if (cfg.bodyId === 'pen-rekap-body')       renderRecap();
+                if (cfg.bodyId === 'pen-rapor-body')       renderRapor();
             }
         });
     });
@@ -2370,7 +2358,11 @@ async function renderAll() {
 
         '<div class="pen-section"><div class="pen-section-header" id="pen-rekap-header">' +
         '<span>Rekap Penilaian</span><span class="pen-chevron">▼</span></div>' +
-        '<div class="pen-section-body" id="pen-rekap-body"></div></div>';
+        '<div class="pen-section-body" id="pen-rekap-body"></div></div>' +
+
+        '<div class="pen-section"><div class="pen-section-header" id="pen-rapor-header">' +
+        '<span>Nilai Rapor</span><span class="pen-chevron">▼</span></div>' +
+        '<div class="pen-section-body" id="pen-rapor-body"></div></div>';
 
     if (!_delegInit) {
         container.addEventListener('click', e => {

@@ -2139,6 +2139,60 @@ export async function getGradeRecapRows(schoolId, classId, semester, year) {
         .order('id'));
 }
 
+// ─── Nilai rapor per mata pelajaran (tabel grade_final; migrasi 20261017140000) ───
+
+/** Nilai rapor tersimpan satu kelas + mapel + periode (hanya milik guru pemanggil, ditegakkan RLS), dipaginasi. */
+export async function getGradeFinal(schoolId, classId, subjectId, year, semester) {
+    return ambilSemuaHalaman(() => supabase
+        .from('grade_final')
+        .select('*')
+        .eq('school_id', schoolId)
+        .eq('class_id', classId)
+        .eq('subject_id', subjectId)
+        .eq('academic_year', year)
+        .eq('semester', Number(semester))
+        .order('id'));
+}
+
+/**
+ * Simpan nilai rapor banyak siswa sekaligus (satu permintaan: semua atau tidak sama sekali).
+ * rows: [{ studentId, nilai_rapor, metode, tp_optimal, tp_perlu, deskripsi_tertinggi, deskripsi_terendah }]
+ */
+export async function upsertGradeFinalBatch(schoolId, classId, subjectId, teacherId, year, semester, rows) {
+    if (!rows?.length) return;
+    const now = new Date().toISOString();
+    const { error } = await supabase
+        .from('grade_final')
+        .upsert(
+            rows.map((r) => ({
+                school_id: schoolId, class_id: classId, subject_id: subjectId, teacher_id: teacherId,
+                student_id: r.studentId, academic_year: year, semester: Number(semester),
+                nilai_rapor: r.nilai_rapor, metode: r.metode ?? 'MANUAL',
+                tp_optimal: r.tp_optimal ?? [], tp_perlu: r.tp_perlu ?? [],
+                deskripsi_tertinggi: r.deskripsi_tertinggi || null, deskripsi_terendah: r.deskripsi_terendah || null,
+                updated_at: now,
+            })),
+            { onConflict: 'class_id,subject_id,student_id,academic_year,semester,teacher_id' }
+        );
+    if (error) throw error;
+}
+
+/** Hapus nilai rapor siswa tertentu (nilai dikosongkan guru) pada satu kelas + mapel + periode. */
+export async function deleteGradeFinalForStudents(schoolId, classId, subjectId, teacherId, year, semester, studentIds) {
+    if (!studentIds?.length) return;
+    const { error } = await supabase
+        .from('grade_final')
+        .delete()
+        .eq('school_id', schoolId)
+        .eq('class_id', classId)
+        .eq('subject_id', subjectId)
+        .eq('teacher_id', teacherId)
+        .eq('academic_year', year)
+        .eq('semester', Number(semester))
+        .in('student_id', studentIds);
+    if (error) throw error;
+}
+
 /** Hapus rekap siswa tertentu pada satu TP: siswa yang nilainya kini kosong tidak boleh meninggalkan rekap lama (A-05). */
 export async function deleteGradeRecapForStudents(schoolId, classId, loId, semester, year, studentIds) {
     if (!studentIds?.length) return;

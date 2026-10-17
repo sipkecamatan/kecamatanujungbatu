@@ -19,6 +19,7 @@ class Kueri {
   constructor(tabel) { this.t = tabel; this.f = []; this.op = 'select'; this.ord = []; this.rng = null; this.jejak = { tabel, filter: [] }; catatan.push(this.jejak); }
   select() { return this; }
   delete() { this.op = 'delete'; return this; }
+  upsert(baris, opsi) { this.op = 'upsert'; this.baris = Array.isArray(baris) ? baris : [baris]; this.kunci = String(opsi?.onConflict ?? '').split(','); return this; }
   eq(k, v) { this.f.push((r) => String(r[k]) === String(v)); this.jejak.filter.push(['eq', k, v]); return this; }
   is(k, v) { this.f.push((r) => (r[k] ?? null) === v); this.jejak.filter.push(['is', k, v]); return this; }
   in(k, arr) { this.f.push((r) => arr.includes(r[k])); this.jejak.filter.push(['in', k]); return this; }
@@ -27,6 +28,14 @@ class Kueri {
   then(res, rej) { return Promise.resolve(this.jalan()).then(res, rej); }
   jalan() {
     const semua = db[this.t] ?? [];
+    if (this.op === 'upsert') {
+      const tbl = db[this.t] ?? (db[this.t] = []);
+      for (const b of this.baris) {
+        const i = tbl.findIndex((r) => this.kunci.every((k) => String(r[k]) === String(b[k])));
+        if (i >= 0) tbl[i] = { ...tbl[i], ...b }; else tbl.push({ ...b });
+      }
+      return { data: null, error: null };
+    }
     if (this.op === 'delete') {
       const sisa = semua.filter((r) => !this.f.every((fn) => fn(r)));
       db[this.t] = sisa;
@@ -112,6 +121,26 @@ await uji('A-09 ekspor satu mapel: rekap TP mapel lain pada kelas yang sama tida
   assert.deepEqual(r.map((x) => x.learning_objective_id), ['TP-MTK-1', 'TP-MTK-2']);
   assert.deepEqual(M.rekapUntukMapel(rekap, []), [], 'tanpa daftar TP mapel, tidak ada rekap yang dapat dipastikan miliknya');
   assert.deepEqual(M.rekapUntukMapel(null, ['x']), []);
+});
+
+await uji('nilai rapor: simpan, perbarui baris yang sama, baca hanya periode yang diminta, hapus yang dikosongkan', async () => {
+  const kunci = { school_id: 'S', class_id: 'C', subject_id: 'M', teacher_id: 'G', academic_year: '2026/2027', semester: 1 };
+  await M.upsertGradeFinalBatch('S', 'C', 'M', 'G', '2026/2027', '1', [
+    { studentId: 's1', nilai_rapor: 80, metode: 'RATA', tp_optimal: ['t1'], tp_perlu: ['t2'], deskripsi_tertinggi: 'A', deskripsi_terendah: 'B' },
+    { studentId: 's2', nilai_rapor: 70 },
+  ]);
+  assert.equal(db.grade_final.length, 2);
+  assert.equal(db.grade_final[1].metode, 'MANUAL'); assert.deepEqual(db.grade_final[1].tp_optimal, []);
+  await M.upsertGradeFinalBatch('S', 'C', 'M', 'G', '2026/2027', 1, [{ studentId: 's1', nilai_rapor: 90, metode: 'BOBOT' }]);   // baris yang sama: diperbarui, bukan ganda
+  assert.equal(db.grade_final.length, 2); assert.equal(db.grade_final.find((r) => r.student_id === 's1').nilai_rapor, 90);
+  db.grade_final.push({ ...kunci, student_id: 's9', semester: 2, nilai_rapor: 10 }, { ...kunci, student_id: 's8', subject_id: 'LAIN', nilai_rapor: 11 });
+  const baca = await M.getGradeFinal('S', 'C', 'M', '2026/2027', '1');
+  assert.deepEqual(baca.map((r) => r.student_id).sort(), ['s1', 's2']);   // semester 2 dan mapel lain tidak ikut
+  await M.deleteGradeFinalForStudents('S', 'C', 'M', 'G', '2026/2027', '1', ['s2']);
+  assert.deepEqual(db.grade_final.filter((r) => r.semester === 1 && r.subject_id === 'M').map((r) => r.student_id), ['s1']);
+  assert.equal(db.grade_final.length, 3);   // baris semester 2 dan mapel lain utuh
+  await M.deleteGradeFinalForStudents('S', 'C', 'M', 'G', '2026/2027', '1', []);   // daftar kosong = tidak menghapus apa pun
+  assert.equal(db.grade_final.length, 3);
 });
 
 
