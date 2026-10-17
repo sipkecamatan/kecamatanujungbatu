@@ -78,6 +78,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (rpcError) {
             const msg = (rpcError as { message?: string }).message ?? '';
             if (msg.includes('owner_not_found')) return badRequest('Pemilik jurnal tidak ditemukan');
+            // Penolakan pasti (batas tanggal jurnal, trigger fn_teacher_journal_date_check) harus 4xx agar antrean luring tidak mengulangnya selamanya.
+            if (msg.includes('jurnal_tanggal')) return badRequest('Tanggal jurnal tidak valid (tidak boleh di masa depan atau lebih dari satu tahun ke belakang)');
             console.error('[sync-journal] RPC error:', rpcError);
             return internalError(rpcError);
         }
