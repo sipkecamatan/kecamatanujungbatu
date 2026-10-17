@@ -400,16 +400,12 @@ export async function closeSemester(period, config) {
     // yang akan advance current_academic_year dan current_semester.
 }
 
-/** Inserts a new ACTIVE academic_period for semester 2. */
-async function openNextSemester(academicYear, startDate, endDate) {
-    const { error } = await supabase
-        .from('academic_periods')
-        .insert({
-            academic_year: academicYear,
-            semester:      '2',
-            start_date:    startDate,
-            end_date:      endDate,
-            status:        'ACTIVE',
-        });
+/**
+ * Membuka Semester 2: periode ACTIVE + salinan pendaftaran kelas Semester 1 ke Semester 2 (fn_open_next_semester, migrasi 20261017110000).
+ * Tanpa salinan itu absensi dan daftar siswa Semester 2 kosong/ditolak. Idempotent. `academicYear` tidak dikirim: server memakai konfigurasi sekolah.
+ */
+async function openNextSemester(_academicYear, startDate, endDate) {
+    const { data, error } = await supabase.rpc('fn_open_next_semester', { p_start_date: startDate, p_end_date: endDate });
     if (error) throw error;
+    return data;
 }

@@ -773,7 +773,7 @@ async function loadGuruRecap() {
 
     content.innerHTML = '<p class="hint">Memuat rekap…</p>';
     try {
-        const enrolled = await getEnrolledStudents(classId, config.current_academic_year);
+        const enrolled = await getEnrolledStudents(classId, config.current_academic_year, config.current_semester);
         if (seq !== _guruRecapSeq) return;
         if (enrolled.length === 0) {
             content.innerHTML = '<p class="hint">Belum ada siswa aktif di kelas ini untuk tahun ajaran ini.</p>';
@@ -1068,7 +1068,7 @@ async function loadAttModalContent(scheduleId, classId, className, seq) {
 
     try {
         const [students, existing] = await Promise.all([
-            getEnrolledStudents(classId, config.current_academic_year),
+            getEnrolledStudents(classId, config.current_academic_year, config.current_semester),
             getAttendanceForSession(scheduleId),
         ]);
         if (seq !== _attModalSeq) return;   // DG-04: modal sudah ditutup atau diganti sesi lain

@@ -198,19 +198,24 @@ export async function getClassesByProgram(programId) {
 /**
  * Daftar siswa aktif di suatu kelas (via class_enrollments, tidak withdrawn).
  */
-export async function getEnrolledStudents(classId, academicYear) {
-    const { data, error } = await supabase
+export async function getEnrolledStudents(classId, academicYear, semester = null) {
+    let req = supabase
         .from('class_enrollments')
-        .select('student:students ( student_id, nis, full_name, student_status )')
+        .select('semester, student:students ( student_id, nis, full_name, student_status )')
         .eq('class_id', classId)
         .eq('academic_year', academicYear)
         .is('withdrawn_at', null);
+    // DG-02: pendaftaran bersifat per semester; tanpa filter ini roster Semester 1 dan 2 tercampur (siswa ganda).
+    if (semester) req = req.eq('semester', semester);
+    const { data, error } = await req;
     if (error) throw error;
     // DROPOUT-1 (Tema I): roster kelas hanya siswa AKTIF — siswa KELUAR/LULUS/PKL
     // tak ikut diabsen di kelas (PKL diabsen via pkl_attendance). Riwayat mereka
     // tetap terlihat di tampilan lain; ini hanya menyaring daftar absen harian.
-    return (data ?? []).map(r => r.student)
-        .filter(s => s && s.student_status === 'AKTIF')
+    const unik = new Map();
+    for (const r of (data ?? [])) if (r.student && !unik.has(r.student.student_id)) unik.set(r.student.student_id, r.student);
+    return [...unik.values()]
+        .filter(s => s.student_status === 'AKTIF')
         .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
 }
 
@@ -244,7 +249,7 @@ export async function getAttendanceForSession(scheduleId) {
 export async function getMyStudents(userId, academicYear, semester) {
     const { data, error } = await supabase
         .from('teaching_assignments')
-        .select('class:classes ( class_id, name, enrollments:class_enrollments ( withdrawn_at, academic_year, student:students ( student_id, nis, full_name, student_status ) ) )')
+        .select('class:classes ( class_id, name, enrollments:class_enrollments ( withdrawn_at, academic_year, semester, student:students ( student_id, nis, full_name, student_status ) ) )')
         .eq('user_id', userId)
         .eq('academic_year', academicYear)
         .eq('semester', semester)
@@ -258,6 +263,7 @@ export async function getMyStudents(userId, academicYear, semester) {
             const s = en.student;
             if (en.withdrawn_at || s?.student_status !== 'AKTIF') continue;
             if (en.academic_year && en.academic_year !== academicYear) continue;   // A-09: hanya pendaftaran tahun ajaran berjalan
+            if (en.semester && semester && String(en.semester) !== String(semester)) continue;   // DG-02: dan semester berjalan
             if (s && !seen.has(s.student_id)) {
                 seen.add(s.student_id);
                 students.push({ ...s, class_id: ta.class?.class_id, class_name: ta.class?.name });
