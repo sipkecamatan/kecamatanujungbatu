@@ -2153,6 +2153,26 @@ export async function getNilaiPerTpSiswa(tpId) {
     return data ?? [];
 }
 
+// ─── Layar baca nilai rapor kelas (wali kelas, Kepsek, Waka Kurikulum; hak baca ditegakkan RLS grade_final) ───
+
+/** Semua kelas sekolah (RLS membatasi ke sekolah sendiri); untuk pilihan kelas pimpinan. */
+export async function getKelasSekolah() {
+    const { data, error } = await supabase.from('classes').select('class_id, name').eq('is_active', true).order('name');
+    if (error) throw error;
+    return (data ?? []).sort((a, b) => a.name.localeCompare(b.name, 'id'));
+}
+
+/** Nilai rapor SEMUA mata pelajaran satu kelas pada satu periode, dengan nama mapel dan guru pengisi. */
+export async function getGradeFinalKelas(classId, year, semester) {
+    return ambilSemuaHalaman(() => supabase
+        .from('grade_final')
+        .select('student_id, subject_id, teacher_id, nilai_rapor, updated_at, subject:subjects(name), teacher:users(full_name)')
+        .eq('class_id', classId)
+        .eq('academic_year', year)
+        .eq('semester', Number(semester))
+        .order('id'));
+}
+
 // ─── Nilai rapor per mata pelajaran (tabel grade_final; migrasi 20261017140000) ───
 
 /** Nilai rapor tersimpan satu kelas + mapel + periode (hanya milik guru pemanggil, ditegakkan RLS), dipaginasi. */
