@@ -965,7 +965,7 @@ export async function getCases({
     let req = supabase
         .from('coaching_cases')
         .select(`
-            case_id, title, status, track, current_handler_user_id,
+            case_id, title, status, track, current_handler_user_id, created_by_user_id,
             created_at,
             student:students(student_id, full_name, nis),
             handler:users!coaching_cases_current_handler_user_id_fkey(full_name)

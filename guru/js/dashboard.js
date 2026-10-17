@@ -3811,6 +3811,8 @@ const ESCALATION_CHAIN = {
     SEKOLAH: ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','KEPSEK'],
     PKL:     ['DUDI','KAPRODI','WAKA_KESISWAAN','KEPSEK'],
 };
+// Satu langkah mundur yang diizinkan (server menegakkan aturan yang sama).
+const STATUS_BACK_ONE = { UNDER_REVIEW: 'OPEN', INTERVENTION: 'UNDER_REVIEW', MONITORING: 'INTERVENTION' };
 const STATUS_AFTER_CURRENT = {
     OPEN:         ['UNDER_REVIEW','INTERVENTION','MONITORING'],
     UNDER_REVIEW: ['INTERVENTION','MONITORING'],
@@ -4087,10 +4089,15 @@ function renderKasusList(ctx = kasusCtxDefault) {
         return;
     }
 
+    // Badge "Pembaca": kasus yang terlihat hanya karena Anda ditandai (bukan pembuat, penangan, Kepsek, atau Waka Kesiswaan).
+    const pengawas = currentUser.role_type === 'KEPSEK' || currentUser.is_kepsek === true || currentUser.role_type === 'WAKA_KESISWAAN';
+    const sebagaiPembaca = r => !pengawas && r.created_by_user_id !== currentUser.user_id && r.current_handler_user_id !== currentUser.user_id;
+
     contentEl.innerHTML = ctx.allCases.map(r => `
         <div class="kasus-row" data-id="${r.case_id}">
             <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px; flex-wrap:wrap">
                 <strong style="font-size:14px; flex:1">${esc(r.title)}</strong>
+                ${sebagaiPembaca(r) ? '<span class="badge" style="background:var(--color-bg-alt)" title="Anda ditandai sebagai pembaca kasus ini">👁️ Pembaca</span>' : ''}
                 <span class="badge kasus-badge-${(r.status||'').toLowerCase()}">${esc(CASE_STATUS_LABEL[r.status] ?? r.status)}</span>
             </div>
             <div style="font-size:12px; color:var(--color-text-muted); margin-top:4px">
@@ -4360,23 +4367,26 @@ async function renderKasusActions(kasus, ctx = kasusCtxDefault, seq = ctx.detail
     const escalateTo    = kEl(ctx, 'escalate-to');
     const statusSel     = kEl(ctx, 'new-status');
 
-    if (kasus.status === 'CLOSED') {
-        actionsEl.style.display = 'none';
-        return;
-    }
-
     const isHandler = kasus.current_handler_user_id === currentUser.user_id;
     const isKepsek = currentUser.role_type === 'KEPSEK' || currentUser.is_kepsek === true;
-    if (!isHandler && !isKepsek) {
+    // Kasus CLOSED hanya dapat dibuka kembali oleh Waka Kesiswaan atau Kepala Sekolah (ke Pemantauan, bercatatan).
+    const bisaBukaKembali = kasus.status === 'CLOSED' && (isKepsek || currentUser.role_type === 'WAKA_KESISWAAN');
+    const commentBlock = kEl(ctx, 'comment-block');
+    if (kasus.status === 'CLOSED' && !bisaBukaKembali) {
         actionsEl.style.display = 'none';
         return;
     }
+    if (!isHandler && !isKepsek && !bisaBukaKembali) {
+        actionsEl.style.display = 'none';
+        return;
+    }
+    if (commentBlock) commentBlock.style.display = bisaBukaKembali ? 'none' : '';
 
     actionsEl.style.display = 'none';
 
     // ── Eskalasi: kandidat dari fn_get_escalation_candidates ──
     const isInternal = INTERNAL_CASE_ROLES.includes(currentUser.role_type);
-    if (isInternal) {
+    if (isInternal && !bisaBukaKembali) {
         escalateTo.innerHTML = '<option value="">Memuat…</option>';
         escalateBlock.style.display = 'block';
         const warnEl = kEl(ctx, 'escalate-warn');
@@ -4402,11 +4412,15 @@ async function renderKasusActions(kasus, ctx = kasusCtxDefault, seq = ctx.detail
 
     // ── Status change ──
     const statusControls = kEl(ctx, 'status-change-controls') ?? statusBlock;
-    const nextStatuses = STATUS_AFTER_CURRENT[kasus.status] ?? [];
-    if ((isHandler || isKepsek) && nextStatuses.length) {
-        statusSel.innerHTML = nextStatuses.map(s =>
-            `<option value="${s}">${esc(CASE_STATUS_LABEL[s])}</option>`
-        ).join('');
+    // Maju bebas; mundur hanya satu langkah (wajib catatan); kasus CLOSED dibuka kembali ke Pemantauan (wajib catatan).
+    const nextStatuses = bisaBukaKembali ? [] : (STATUS_AFTER_CURRENT[kasus.status] ?? []);
+    const mundurKe = STATUS_BACK_ONE[kasus.status];
+    const opsiStatus = bisaBukaKembali
+        ? [`<option value="MONITORING" data-wajib-catatan="1">Buka kembali (ke ${esc(CASE_STATUS_LABEL.MONITORING)}) — catatan wajib</option>`]
+        : [...nextStatuses.map(s => `<option value="${s}">${esc(CASE_STATUS_LABEL[s])}</option>`),
+           ...(mundurKe ? [`<option value="${mundurKe}" data-wajib-catatan="1">↩ Mundur ke ${esc(CASE_STATUS_LABEL[mundurKe])} — catatan wajib</option>`] : [])];
+    if ((isHandler || isKepsek || bisaBukaKembali) && opsiStatus.length) {
+        statusSel.innerHTML = opsiStatus.join('');
         statusControls.style.display = 'block';
     } else {
         statusControls.style.display = 'none';
@@ -4414,11 +4428,11 @@ async function renderKasusActions(kasus, ctx = kasusCtxDefault, seq = ctx.detail
     if (statusControls !== statusBlock) statusBlock.style.display = 'block';
 
     // Close: Kepsek/BK/handler
-    const canClose = currentUser.role_type === 'KEPSEK' || isHandler;
+    const canClose = !bisaBukaKembali && (currentUser.role_type === 'KEPSEK' || isHandler);
     closeBtn.style.display = canClose ? 'inline-flex' : 'none';
 
     // ── Bagikan Kasus (hanya internal) ──
-    if (isInternal) {
+    if (isInternal && !bisaBukaKembali) {
         audienceBlock.innerHTML = `
             <h4 style="margin:0 0 8px">Bagikan Kasus</h4>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -4550,6 +4564,12 @@ async function renderKasusActions(kasus, ctx = kasusCtxDefault, seq = ctx.detail
         const newSt = kEl(ctx, 'new-status').value;
         const note  = kEl(ctx, 'status-note').value.trim();
         const msgEl = kEl(ctx, 'status-msg');
+        const wajibCatatan = kEl(ctx, 'new-status').selectedOptions[0]?.dataset.wajibCatatan === '1';
+        if (wajibCatatan && note.length < 5) {
+            msgEl.style.color = 'var(--color-danger)';
+            msgEl.textContent = 'Mundur atau membuka kembali kasus wajib disertai catatan (minimal 5 karakter).';
+            return;
+        }
         newStatusBtn.disabled = true; newStatusBtn.textContent = 'Menyimpan…';
         try {
             await changeCoachingCaseStatus({ caseId: kasus.case_id, previousStatus: kasus.status, newStatus: newSt, note, authorUserId: currentUser.user_id, schoolId: currentUser.school_id });
@@ -4570,7 +4590,7 @@ async function renderKasusActions(kasus, ctx = kasusCtxDefault, seq = ctx.detail
         if (newCloseBtn.dataset.confirming !== 'yes') {
             newCloseBtn.dataset.confirming = 'yes';
             msgEl.style.color   = 'var(--color-warning)';
-            msgEl.textContent   = 'Kasus yang ditutup tidak bisa dibuka kembali. Klik "Tutup Kasus" sekali lagi untuk konfirmasi.';
+            msgEl.textContent   = 'Kasus yang ditutup hanya dapat dibuka kembali oleh Waka Kesiswaan atau Kepala Sekolah. Klik "Tutup Kasus" sekali lagi untuk konfirmasi.';
             newCloseBtn.textContent = 'Konfirmasi Tutup';
             setTimeout(() => {
                 if (isCurrent() && newCloseBtn.dataset.confirming === 'yes') {
