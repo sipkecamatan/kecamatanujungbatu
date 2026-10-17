@@ -1550,7 +1550,7 @@ function renderObsHistory(rows, listEl) {
                 <span style="font-size:11px;color:var(--color-text-muted)">${fmt(r.observed_at)}</span>
             </div>
             ${isVoid ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:11px;color:var(--color-danger)">
-                <span>⊘ ${r.voided_by && r.voided_by === r.author_user_id ? 'Dibatalkan oleh Anda' : 'Disembunyikan oleh admin'}</span>
+                <span>⊘ ${r.voided_by && r.voided_by === r.author_user_id ? 'Dibatalkan oleh Anda' : 'Disembunyikan'}</span>
                 ${r.void_reason ? `<span style="color:var(--color-text-muted)">— ${esc(r.void_reason)}</span>` : ''}
             </div>` : ''}
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center">

@@ -368,10 +368,8 @@ async function getCurrentPeriod(config) {
 
 async function getCloseSummary(period) {
     const [obs, students, cases] = await Promise.all([
-        supabase.from('observations')
-            .select('observation_id', { count: 'exact', head: true })
-            .gte('observed_at', period.start_date)
-            .lte('observed_at', period.end_date),
+        // Catatan Siswa tertutup bagi admin: hanya hitungan lewat fungsi khusus admin.
+        supabase.rpc('fn_admin_observation_count', { p_from: period.start_date, p_to: period.end_date }),
         supabase.from('students')
             .select('student_id', { count: 'exact', head: true })
             .eq('student_status', 'AKTIF'),
@@ -384,7 +382,7 @@ async function getCloseSummary(period) {
     const kasusTerbuka = Number(cases.data?.open ?? 0);
 
     return {
-        observationCount:   obs.count      ?? 0,
+        observationCount:   Number(obs.data ?? 0),
         activeStudentCount: students.count ?? 0,
         openCaseCount:      kasusTerbuka,
     };

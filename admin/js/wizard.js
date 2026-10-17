@@ -3681,7 +3681,8 @@ const DELETE_ORDER_CHECKS = {
     ],
     6: [ // Siswa: data transaksional harus kosong (enrollment & student_parents di-cascade)
         { label: 'Kehadiran',   table: 'attendance',    query: q => q.select('attendance_id', { count: 'exact', head: true }) },
-        { label: 'Observasi',   table: 'observations',  query: q => q.select('observation_id', { count: 'exact', head: true }) },
+        // Catatan Siswa tertutup bagi admin: hanya hitungan lewat fungsi khusus admin.
+        { label: 'Observasi',   table: 'observations',  query: () => supabase.rpc('fn_admin_observation_count', {}).then(({ data, error }) => ({ count: Number(data ?? 0), error })) },
         // Admin tidak membaca baris kasus; hitungan lewat fungsi khusus admin (seluruh kasus sekolah).
         { label: 'Kasus',       table: 'coaching_cases', query: () => supabase.rpc('fn_admin_case_count_for_students', { p_student_ids: null }).then(({ data, error }) => ({ count: Number(data ?? 0), error })) },
         { label: 'PKL',         table: 'pkl_placements', query: q => q.select('placement_id', { count: 'exact', head: true }) },
@@ -3691,7 +3692,7 @@ const DELETE_ORDER_CHECKS = {
     ],
     11: [ // Jadwal: data transaksional harus kosong
         { label: 'Kehadiran',       table: 'attendance',           query: q => q.select('attendance_id', { count: 'exact', head: true }) },
-        { label: 'Observasi',       table: 'observations',         query: q => q.select('observation_id', { count: 'exact', head: true }).not('schedule_id', 'is', null) },
+        { label: 'Observasi',       table: 'observations',         query: () => supabase.rpc('fn_admin_observation_count', { p_with_schedule: true }).then(({ data, error }) => ({ count: Number(data ?? 0), error })) },
         { label: 'Guru pengganti',  table: 'substitute_schedules', query: q => q.select('substitute_id', { count: 'exact', head: true }) },
     ],
 };

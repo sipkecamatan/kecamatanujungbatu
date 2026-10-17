@@ -94,14 +94,13 @@ export async function cancelAcademicYear(configId) {
  * dan riwayat PKL. Semua mengecualikan entri yang di-void.
  */
 export async function getAlumniRecap(studentId) {
-    const [stuRes, attRes, obsRes, pklRes] = await Promise.all([
+    const [stuRes, attRes, pklRes] = await Promise.all([
         supabase.from('students')
             .select(`full_name, nis, graduated_academic_year, graduated_at, student_status,
                 program:programs ( name ),
                 enrollment:class_enrollments ( academic_year, class:classes ( name ) )`)
             .eq('student_id', studentId).maybeSingle(),
         supabase.from('attendance').select('status').eq('student_id', studentId).eq('is_void', false),
-        supabase.from('observations').select('sentiment').eq('student_id', studentId).eq('is_void', false),
         supabase.from('pkl_placements')
             .select('start_date, end_date, is_active, dudi_user_id')
             .eq('student_id', studentId).order('start_date', { ascending: false }),
@@ -109,18 +108,12 @@ export async function getAlumniRecap(studentId) {
 
     if (stuRes.error) throw stuRes.error;
     if (attRes.error) throw attRes.error;
-    if (obsRes.error) throw obsRes.error;
     if (pklRes.error) throw pklRes.error;
     const student = stuRes.data;
     if (!student) throw new Error('Data siswa tidak ditemukan.');
 
     const attendance = {};
     for (const r of (attRes.data ?? [])) attendance[r.status] = (attendance[r.status] ?? 0) + 1;
-
-    let obsPositif = 0, obsPerhatian = 0;
-    for (const o of (obsRes.data ?? [])) {
-        if (o.sentiment === 'POSITIF') obsPositif++; else obsPerhatian++;
-    }
 
     // Nama DUDI untuk tiap penempatan PKL (lookup terpisah agar tak bergantung nama FK)
     const placements = pklRes.data ?? [];
@@ -139,7 +132,7 @@ export async function getAlumniRecap(studentId) {
         completed:  !p.is_active && !!p.end_date,
     }));
 
-    return { student, attendance, obsPositif, obsPerhatian, pkl };
+    return { student, attendance, pkl };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -237,27 +230,7 @@ export async function purgeExpiredStudents(studentIds, resumeFrom = null) {
  * @param {string} observationId
  * @param {string} reason - alasan pembatalan (wajib, untuk jejak audit)
  */
-export async function voidObservation(observationId, reason) {
-    const me = await getCurrentUserRow();
-    if (!me) throw new Error('Sesi tidak ditemukan. Silakan login ulang.');
-
-    const { data, error } = await supabase
-        .from('observations')
-        .update({
-            is_void:     true,
-            void_reason: reason?.trim() || null,
-            voided_by:   me.user_id,
-            voided_at:   new Date().toISOString(),
-        })
-        .eq('observation_id', observationId)
-        .eq('is_void', false)   // idempoten: hanya yang belum dibatalkan
-        .select('observation_id')
-        .maybeSingle();
-
-    if (error) throw error;
-    if (!data) throw new Error('Observasi tidak ditemukan atau sudah dibatalkan.');
-    return data;
-}
+// Catatan Siswa tertutup bagi admin: pembatalan hanya oleh penulis (portal guru).
 
 export function requireAdministrativeOrRedirect(userRow) {
     if (!userRow || userRow.role_type !== 'ADMINISTRATIVE'
@@ -911,7 +884,11 @@ export async function checkDependencies(table, id) {
 
     const results = await Promise.all(
         deps.map(({ table: depTable, column }) =>
-            depTable === 'coaching_cases'
+            depTable === 'observations'
+                // Admin tidak membaca isi catatan siswa; hanya hitungan lewat fungsi khusus admin.
+                ? supabase.rpc('fn_admin_observation_count', column === 'schedule_id' ? { p_schedule_id: id } : { p_student_id: id })
+                    .then(({ data, error }) => ({ count: Number(data ?? 0), error }))
+            : depTable === 'coaching_cases'
                 // Admin tidak membaca baris kasus; hitungan lewat fungsi khusus admin.
                 ? supabase.rpc('fn_admin_case_count_for_students', { p_student_ids: [id] })
                     .then(({ data, error }) => ({ count: Number(data ?? 0), error }))

@@ -7,7 +7,7 @@
 
 import { applyBrandingById, getLoginUrl } from '../../shared/branding.js';
 import { initSessionGuard } from '../../shared/session-guard.js';
-import { supabase, getCurrentUserRow, requireAdministrativeOrRedirect, getSchoolConfig, logout, getPrograms, getClasses, fetchAllRows, countStudentsWithoutAccount, provisionStudentAccounts, updateSchoolBranding, getSchoolBranding, setUserActive, deactivateStaff, checkTeacherScheduleDependencies, releaseTeacherFromSchedules, voidObservation, getAlumniRecap, cancelAcademicYear, getStaleStaff, deactivateStaleStaff, deleteUserWithAuth, restoreUser, purgeUser, getDeletedUsers, adminResetUserPassword, updateAlumniCareer, markStudentKeluar, reEnrollStudent, getRetentionCandidates, purgeExpiredStudents, getScheduleTemplates, getTimeSlots, getTeacherList, getForumBkStaff, getForumGuruWaliCandidates, getBkAssignments, getGuruWaliAssignments, assignBkToClass, revokeBkFromClass, assignGuruWaliToStudent, revokeGuruWaliFromStudent,
+import { supabase, getCurrentUserRow, requireAdministrativeOrRedirect, getSchoolConfig, logout, getPrograms, getClasses, fetchAllRows, countStudentsWithoutAccount, provisionStudentAccounts, updateSchoolBranding, getSchoolBranding, setUserActive, deactivateStaff, checkTeacherScheduleDependencies, releaseTeacherFromSchedules, getAlumniRecap, cancelAcademicYear, getStaleStaff, deactivateStaleStaff, deleteUserWithAuth, restoreUser, purgeUser, getDeletedUsers, adminResetUserPassword, updateAlumniCareer, markStudentKeluar, reEnrollStudent, getRetentionCandidates, purgeExpiredStudents, getScheduleTemplates, getTimeSlots, getTeacherList, getForumBkStaff, getForumGuruWaliCandidates, getBkAssignments, getGuruWaliAssignments, assignBkToClass, revokeBkFromClass, assignGuruWaliToStudent, revokeGuruWaliFromStudent,
     getDutyStaffCandidates, getDutySchedules, revokeDutySchedule,
     getAdminPanelDudi, getAdminPanelStaff } from './api.js';
 import { mountSemesterPanel } from './semester.js';
@@ -1862,7 +1862,6 @@ async function printAlumniRecap(studentId) {
             <tbody>${attRows}</tbody></table>
         ${pctHadir !== null ? `<p style="font-size:13px;margin-top:6px">Persentase kehadiran: <strong>${pctHadir}%</strong> (${hadir} dari ${totalAtt} sesi tercatat)</p>` : ''}
         <h2>Catatan Pembinaan</h2>
-        <p style="font-size:13px">Catatan positif/prestasi: <strong>${recap.obsPositif}</strong> · Catatan perhatian: <strong>${recap.obsPerhatian}</strong></p>
         <h2>Praktik Kerja Lapangan (PKL)</h2>
         <table><thead><tr><th>Tempat (DUDI)</th><th>Periode</th><th>Status</th></tr></thead>
             <tbody>${pklRows}</tbody></table>
@@ -2177,19 +2176,13 @@ async function renderAcademicYearPanel() {
 async function renderActivityLogPanel() {
     panelContent.innerHTML = '<p class="hint">Memuat log aktivitas…</p>';
 
-    const [evRes, obsRes] = await Promise.allSettled([
+    const [evRes] = await Promise.allSettled([
         // Admin tidak membaca judul/isi kasus: fungsi khusus hanya mengembalikan jenis, waktu, siswa, dan pelaku.
         supabase.rpc('fn_admin_case_activity', { p_limit: 50 }),
-        supabase
-            .from('observations')
-            .select(`observation_id, dimension, sentiment, content, created_at, is_void, void_reason,
-                author:users!observations_author_user_id_fkey ( full_name, role_type ),
-                student:students ( full_name )`)
-            .order('created_at', { ascending: false })
-            .limit(50),
+        // Catatan Siswa tertutup bagi admin: tidak ada log catatan di sini.
     ]);
 
-    const errors = [evRes, obsRes].flatMap(r => {
+    const errors = [evRes].flatMap(r => {
         if (r.status === 'rejected') return [r.reason?.message ?? 'Gagal membaca sumber log'];
         return r.value?.error ? [r.value.error.message ?? 'Gagal membaca sumber log'] : [];
     });
@@ -2198,7 +2191,6 @@ async function renderActivityLogPanel() {
         return;
     }
     const caseEvents = evRes.value.data ?? [];
-    const obsRows    = obsRes.value.data ?? [];
 
     const caseHtml = caseEvents.length === 0
         ? '<p class="hint">Belum ada aktivitas kasus.</p>'
@@ -2214,27 +2206,9 @@ async function renderActivityLogPanel() {
             </tbody>
            </table>`;
 
-    const obsHtml = obsRows.length === 0
-        ? '<p class="hint">Belum ada observasi.</p>'
-        : `<table class="table" style="font-size:13px">
-            <thead><tr><th>Waktu</th><th>Dimensi</th><th>Sentimen</th><th>Siswa</th><th>Oleh</th><th>Aksi</th></tr></thead>
-            <tbody>${obsRows.map(o => `
-                <tr style="${o.is_void ? 'opacity:.55' : ''}">
-                    <td style="white-space:nowrap">${fmtTs(o.created_at)}</td>
-                    <td${o.is_void ? ' style="text-decoration:line-through"' : ''}>${esc(DIMENSION_LABELS_ADMIN[o.dimension] ?? o.dimension)}</td>
-                    <td>${o.sentiment === 'POSITIF' ? '✅ Positif' : '⚠ Perlu Perhatian'}</td>
-                    <td>${esc(o.student?.full_name ?? '—')}</td>
-                    <td>${esc(o.author?.full_name ?? '—')}</td>
-                    <td>${o.is_void
-                        ? `<span class="badge badge-warning" title="${esc(o.void_reason ?? '')}">Dibatalkan</span>`
-                        : `<button class="btn btn-sm btn-warning obs-void-btn" data-obs-id="${o.observation_id}" data-obs-content="${esc((o.content ?? '').slice(0, 80))}">Batalkan</button>`}</td>
-                </tr>`).join('')}
-            </tbody>
-           </table>`;
-
     panelContent.innerHTML = `
         <h3>Log Aktivitas</h3>
-        <p class="hint" style="margin-bottom:20px">50 entri terbaru per kategori, urut terbaru di atas.</p>
+        <p class="hint" style="margin-bottom:20px">50 entri terbaru, urut terbaru di atas.</p>
 
         <details open style="margin-bottom:16px">
             <summary style="cursor:pointer; font-weight:600; margin-bottom:8px">
@@ -2243,38 +2217,8 @@ async function renderActivityLogPanel() {
             <div style="overflow-x:auto">${caseHtml}</div>
         </details>
 
-        <details open>
-            <summary style="cursor:pointer; font-weight:600; margin-bottom:8px">
-                Observasi Siswa (${obsRows.length})
-            </summary>
-            <p class="hint" style="margin:0 0 8px;font-size:12px">Observasi yang salah bisa dibatalkan — akan disembunyikan dari siswa &amp; orang tua, tapi tetap tercatat untuk audit.</p>
-            <div style="overflow-x:auto">${obsHtml}</div>
-        </details>
     `;
 
-    panelContent.querySelectorAll('.obs-void-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const obsId   = btn.dataset.obsId;
-            const preview = btn.dataset.obsContent || '';
-            const reason  = await showInputModal(
-                `Batalkan observasi ini?\n\n"${preview}${preview.length >= 80 ? '…' : ''}"\n\nAlasan pembatalan (wajib):`,
-                { placeholder: 'Tuliskan alasan…', okClass: 'btn-danger' }
-            );
-            if (reason === null) return;
-            if (!reason.trim()) { alert('Alasan pembatalan wajib diisi.'); return; }
-
-            btn.disabled = true;
-            btn.textContent = 'Memproses…';
-            try {
-                await voidObservation(obsId, reason);
-                await renderActivityLogPanel();
-            } catch (err) {
-                alert(`Gagal membatalkan: ${err.message}`);
-                btn.disabled = false;
-                btn.textContent = 'Batalkan';
-            }
-        });
-    });
 }
 
 // ─────────────────────────────────────────────────────────────
