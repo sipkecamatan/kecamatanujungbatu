@@ -93,6 +93,17 @@ await uji('T8 item lama tanpa tanda pemilik tetap terkirim oleh akun mana pun', 
   store('att_queue').set('lama', { idempotency_key: 'lama', schedule_id: 's', session_date: '2026-10-16', records: [] }); userSaatIni = 'user-B';
   const r = await M.flushPending(); assert.equal(r.synced, 1); assert.equal(isiStore().length, 0);
 });
+await uji('T13 submit awal saat server 500: catatan masuk antrean, tidak hilang (A-02)', async () => {
+  jawaban = () => ({ status: 500, body: { error: { message: 'Terjadi kesalahan pada server' } } });
+  const r = await M.saveObservation({ idempotency_key: 'o1', student_id: 's1', content: 'isi catatan uji' });
+  assert.equal(r.status, 'queued'); assert.equal([...store('obs_queue').values()].length, 1);
+});
+await uji('T14 submit awal saat server 403: tetap dilaporkan galat, tidak diantre', async () => {
+  jawaban = () => ({ status: 403, body: { error: { message: 'ditolak' } } });
+  const r = await M.saveObservation({ idempotency_key: 'o2', student_id: 's1', content: 'isi catatan uji' });
+  assert.equal(r.status, 'error'); assert.equal([...store('obs_queue').values()].length, 0);
+});
+
 
 console.log(`\nOFFLINE_ANTREAN: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);

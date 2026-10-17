@@ -216,7 +216,8 @@ export async function saveAttendanceBatch(batch) {
     if (navigator.onLine) {
         const r = await submitBatch(batch);
         if (r.ok) return { status: 'synced' };
-        if (!r.networkError) return { status: 'error', error: r.error };
+        // Jaringan putus ATAU server gagal sementara (5xx/408/425/429): simpan ke antrean, jangan buang input pengguna.
+        if (!r.networkError && !sementara(r.status)) return { status: 'error', error: r.error };
     }
     // Supersede: hapus batch tertunda untuk sesi yang sama sebelum antre yang baru,
     // agar hanya ada satu snapshot per sesi (cegah koreksi hilang, E1-1).
@@ -234,7 +235,8 @@ export async function saveObservation(obs) {
     if (navigator.onLine) {
         const r = await submitObservation(obs);
         if (r.ok) return { status: 'synced' };
-        if (!r.networkError) return { status: 'error', error: r.error };
+        // Jaringan putus ATAU server gagal sementara (5xx/408/425/429): simpan ke antrean, jangan buang input pengguna.
+        if (!r.networkError && !sementara(r.status)) return { status: 'error', error: r.error };
     }
     await idbPutTo(STORE_OBS, { ...obs, _schema_ver: OFFLINE_SCHEMA_VER, _owner: await ownerId() });
     return { status: 'queued' };
@@ -249,7 +251,8 @@ export async function saveJournalEntry(jrn) {
     if (navigator.onLine) {
         const r = await submitJournal(jrn);
         if (r.ok) return { status: 'synced' };
-        if (!r.networkError) return { status: 'error', error: r.error };
+        // Jaringan putus ATAU server gagal sementara (5xx/408/425/429): simpan ke antrean, jangan buang input pengguna.
+        if (!r.networkError && !sementara(r.status)) return { status: 'error', error: r.error };
     }
     await idbPutTo(STORE_JRN, { ...jrn, _schema_ver: OFFLINE_SCHEMA_VER, _owner: await ownerId() });
     return { status: 'queued' };
@@ -296,7 +299,8 @@ export async function saveCase(cs) {
     if (navigator.onLine) {
         const r = await submitCase(cs);
         if (r.ok) return { status: 'synced', case_id: cs.case_id };
-        if (!r.networkError) return { status: 'error', error: r.error };
+        // Jaringan putus ATAU server gagal sementara (5xx/408/425/429): simpan ke antrean, jangan buang input pengguna.
+        if (!r.networkError && !sementara(r.status)) return { status: 'error', error: r.error };
     }
     await idbPutTo(STORE_CASE, { ...cs, _schema_ver: OFFLINE_SCHEMA_VER, _owner: await ownerId() });
     return { status: 'queued', case_id: cs.case_id };
