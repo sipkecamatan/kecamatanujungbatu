@@ -949,15 +949,16 @@ async function main() {
         else if (!s3) log.fail('S3: policy rls_cce_read_staff TIDAK ADA');
         else log.fail(`S3: rls_cce_read_staff kehilangan role exclusion atau fn_can_see_coaching_case — qual: ${s3.qual.replace(/\s+/g, ' ').slice(0, 200)}`);
 
-        // S4: student_updates default-deny untuk SISWA/ORTU (by design — tidak ada policy)
+        // S4: student_updates TERTUTUP sepenuhnya (keputusan Romo 17 Okt 2026): tabel tidak dipakai klien mana pun, jadi tidak boleh ada
+        // policy SELECT sama sekali (rls_student_updates_read_staff dicabut migrasi 20261017100000). Policy baru = kebocoran yang harus ditinjau.
         const suRead = pols.filter((p) => p.tablename === 'student_updates' && (p.cmd === 'SELECT' || p.cmd === 'ALL'));
         const suLeak = suRead.filter((p) => /'SISWA'|'ORTU'/.test(p.qual));
         if (suRead.length === 0)
-            log.fail('S4: student_updates tidak punya policy SELECT sama sekali — staf pun tak bisa baca (bug fungsional)');
-        else if (suLeak.length === 0)
-            log.pass(`S4: student_updates default-deny untuk SISWA/ORTU (policy SELECT: ${suRead.map((p) => p.policyname).join(', ')})`);
-        else
+            log.pass('S4: student_updates tertutup sepenuhnya (tanpa policy SELECT; tidak dipakai klien)');
+        else if (suLeak.length > 0)
             log.fail(`S4: student_updates punya policy yang menyebut SISWA/ORTU: ${suLeak.map((p) => p.policyname).join(', ')}`);
+        else
+            log.fail(`S4: student_updates seharusnya tertutup tetapi punya policy SELECT: ${suRead.map((p) => p.policyname).join(', ')}`);
 
         // S5: predikat RLS callable authenticated, TIDAK callable anon
         const fns = await mgmtQuery(`
@@ -1519,6 +1520,7 @@ async function main() {
             JOIN users u_s  ON u_s.user_id  = s.user_id
             JOIN users u_a  ON u_a.user_id  = o.author_user_id
             WHERE u_s.auth_user_id IS NOT NULL
+              AND o.is_void = false   -- catatan yang dibatalkan memang disembunyikan dari siswa/ortu; bukan bahan uji baca
             ORDER BY o.created_at DESC
             LIMIT 1;
         `);
