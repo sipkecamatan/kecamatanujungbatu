@@ -27,6 +27,7 @@ import {
     getAttendanceRecapPerClass, getOpenCases,
     getPrograms, getStudentAttendanceSessions,
     getMyObservations,
+    voidObservation,
     getCases, getCasesAll, getCase, getCoachingCaseEvents, createCase, getCoachingCasesCount,
     addCoachingNote, escalateCoachingCase, changeCoachingCaseStatus, closeCoachingCase,
     shareCoachingCaseToStudent, unshareCoachingCaseFromStudent,
@@ -1549,7 +1550,7 @@ function renderObsHistory(rows, listEl) {
                 <span style="font-size:11px;color:var(--color-text-muted)">${fmt(r.observed_at)}</span>
             </div>
             ${isVoid ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:11px;color:var(--color-danger)">
-                <span>⊘ Disembunyikan oleh admin</span>
+                <span>⊘ ${r.voided_by && r.voided_by === r.author_user_id ? 'Dibatalkan oleh Anda' : 'Disembunyikan oleh admin'}</span>
                 ${r.void_reason ? `<span style="color:var(--color-text-muted)">— ${esc(r.void_reason)}</span>` : ''}
             </div>` : ''}
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center">
@@ -1558,9 +1559,28 @@ function renderObsHistory(rows, listEl) {
                 <span style="font-size:11px;padding:2px 8px;border-radius:20px;color:${visColor};background:var(--color-bg-alt)">${visLabel}</span>
             </div>
             <p style="margin:0 0 6px;white-space:pre-wrap;color:var(--color-text)">${esc(r.content)}</p>
+            ${isVoid ? '' : `<button type="button" class="btn btn-sm btn-danger-outline" data-void-obs="${esc(r.observation_id)}">Batalkan catatan</button>`}
         </div>`;
     }).join('');
 
+    // B-04: penulis dapat membatalkan catatannya (disembunyikan dari siswa/orang tua, tidak dihapus). Dipasang sekali.
+    if (!listEl._voidTerpasang) {
+        listEl._voidTerpasang = true;
+        listEl.addEventListener('click', async (e) => {
+            const btn = e.target.closest('[data-void-obs]');
+            if (!btn) return;
+            const alasan = window.prompt('Alasan membatalkan catatan ini (minimal 5 karakter). Catatan akan disembunyikan dari siswa dan orang tua.');
+            if (alasan === null) return;
+            btn.disabled = true;
+            try {
+                await voidObservation(btn.dataset.voidObs, alasan);
+                await loadObsHistory();
+            } catch (err) {
+                btn.disabled = false;
+                setObsHistoryNotice(listEl, `Gagal membatalkan catatan. ${fe(err, 's')}`, 'status-err');
+            }
+        });
+    }
 }
 
 // ─── TAB WALI KELAS ──────────────────────────────────────────

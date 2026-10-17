@@ -81,6 +81,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (rpcError) {
             const msg = (rpcError as { message?: string }).message ?? '';
             if (msg.includes('author_not_found')) return badRequest('Penulis tidak ditemukan');
+            // Penolakan pasti (bukan galat server) harus 4xx agar antrean luring tidak mencobanya selamanya.
+            const kode = (rpcError as { code?: string }).code ?? '';
+            if (msg.includes('student_not_taught') || kode === '42501') return forbidden('Anda tidak mengajar siswa ini');
+            if (msg.includes('student_not_in_school')) return badRequest('Siswa tidak ditemukan di sekolah ini');
+            if (msg.includes('Periode sudah ditutup')) return badRequest('Periode akademik untuk tanggal ini sudah ditutup');
             console.error('[sync-observation] RPC error:', rpcError);
             return internalError(rpcError);
         }

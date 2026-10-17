@@ -862,12 +862,19 @@ export async function updateJournalEntry(journalId, entryDate, content, userId) 
     });
 }
 
+/** Penulis membatalkan catatannya sendiri (disembunyikan dari siswa/orang tua, tidak dihapus). Alasan minimal 5 karakter. */
+export async function voidObservation(observationId, reason) {
+    const { data, error } = await supabase.rpc('fn_void_observation', { p_observation_id: observationId, p_reason: reason });
+    if (error) throw error;
+    return data;
+}
+
 export async function getMyObservations(userId, { limit = 100, offset = 0 } = {}) {
     const { data, error, count } = await supabase
         .from('observations')
         .select(`
             observation_id, dimension, sentiment, visibility, content, observed_at, created_at,
-            student_id, author_user_id, is_void, void_reason,
+            student_id, author_user_id, is_void, void_reason, voided_by,
             student:students!observations_student_id_fkey ( full_name, nis )
         `, { count: 'exact' })
         .eq('author_user_id', userId)
