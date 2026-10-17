@@ -42,6 +42,7 @@ const DELETE_MANIFEST: ManifestEntry[] = [
     table('assessment_rubric_criteria', 'id'),
     table('assessment_criteria', 'id'),
     table('grade_recap', 'id'),
+    table('grade_final', 'id'),
     { table: 'forum_post_acknowledgements', pk: ['post_id', 'user_id'], strategy: 'remaining-set' },
     { table: 'forum_post_audience', pk: ['post_id', 'user_id'], strategy: 'remaining-set' },
     table('forum_post_comments', 'comment_id'),
