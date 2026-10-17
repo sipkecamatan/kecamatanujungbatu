@@ -34,6 +34,7 @@ let _rcYear     = null;
 let _rcJenis    = 'SUMATIF'; // DIAGNOSTIK_NK | DIAGNOSTIK_K | FORMATIF | SUMATIF
 let _rcTeknik   = '';
 let _rcInstrumen = '';
+let _rcTp       = '';        // '' = semua TP; rekap tersimpan PER TP (A-03)
 let _rcMetode   = 'rata';   // 'rata' | 'bobot' | 'terbaik'
 let _rcBobots   = {};       // { asmt_id: number }
 let _rcLastSumatifIds = [];
@@ -1750,7 +1751,8 @@ async function _renderRecapContent(body) {
         const isSumatif = _rcJenis === 'SUMATIF';
         const filtered = _asmtCache.filter(a => a.jenis === _rcJenis
             && (!_rcTeknik   || a.teknik    === _rcTeknik)
-            && (!_rcInstrumen || a.instrumen === _rcInstrumen));
+            && (!_rcInstrumen || a.instrumen === _rcInstrumen)
+            && (!_rcTp       || a.learning_objective_id === _rcTp));
 
         if (!filtered.length) {
             body.innerHTML =
@@ -1828,11 +1830,15 @@ async function _renderRecapContent(body) {
         }
 
         // pick TP for kktp check
-        const linkedTpId = _asmtCache.find(a => a.jenis === 'SUMATIF' && a.learning_objective_id)?.learning_objective_id;
+        // A-03: rekap tersimpan PER TP. TP sasaran ditentukan dari penilaian sumatif yang tampil (atau filter TP), bukan penilaian pertama mana pun.
+        const tpTerkait  = [...new Set(filtered.filter(a => a.jenis === 'SUMATIF' && a.learning_objective_id).map(a => a.learning_objective_id))];
+        const linkedTpId = _rcTp || (tpTerkait.length === 1 ? tpTerkait[0] : undefined);
         const kktpForTp  = (isSumatif && linkedTpId) ? (await getKktps(linkedTpId)) : [];
         // TP yang dipakai sebagai anchor rekap. grade_recap.learning_objective_id NOT NULL,
         // jadi tanpa TP sama sekali rekap tidak bisa disimpan.
-        const recapTpId  = linkedTpId || _tpCache[0]?.id || null;
+        // Beberapa TP tampil sekaligus: tidak ada TP sasaran yang sah (menyimpan ke satu TP akan mencampur TP lain) -> guru diminta memilih satu TP.
+        const recapTpId  = linkedTpId || (tpTerkait.length === 0 ? (_tpCache[0]?.id || null) : null);
+        const banyakTp   = !linkedTpId && tpTerkait.length > 1;
 
         // Kembalikan label predikat (SB/BSH/MB/BB) sesuai rentang KKTP, atau null
         // bila nilai kosong / KKTP belum ada / nilai di luar semua rentang.
@@ -1921,6 +1927,9 @@ async function _renderRecapContent(body) {
             const btn = body.querySelector('[data-action="rc-simpan"]');
             btn.disabled = true; btn.textContent = 'Menyimpan…';
             try {
+                if (banyakTp) {
+                    throw new Error('Penilaian sumatif yang tampil terkait beberapa TP. Pilih satu TP pada filter "TP", lalu simpan; rekap tersimpan per TP.');
+                }
                 if (!recapTpId) {
                     throw new Error('Rekap butuh Tujuan Pembelajaran. Buat TP dulu di section Perencanaan, lalu tautkan ke penilaian Sumatif.');
                 }
@@ -1961,6 +1970,8 @@ function _rcFilterBar() {
         '<option value="' + v + '"' + (_rcJenis === v ? ' selected' : '') + '>' + esc(JENIS_LABEL[v] ?? v) + '</option>').join('');
     const metodeOpts = [['rata','Rata-rata'],['bobot','Bobot'],['terbaik','Nilai Terbaik']].map(([v, l]) =>
         '<option value="' + v + '"' + (_rcMetode === v ? ' selected' : '') + '>' + l + '</option>').join('');
+    const tpOpts = '<option value="">Semua TP</option>' + _tpCache.map(t =>
+        '<option value="' + esc(t.id) + '"' + (_rcTp === t.id ? ' selected' : '') + '>' + esc(t.kode_tp || t.id) + '</option>').join('');
     const teknikOpts = ['', ...TEKNIK_LIST].map(v =>
         '<option value="' + v + '"' + (_rcTeknik === v ? ' selected' : '') + '>' + (v || 'Semua Teknik') + '</option>').join('');
     return (
@@ -1970,6 +1981,7 @@ function _rcFilterBar() {
         // Metode hanya relevan untuk SUMATIF — jenis lain tidak dihitung nilai akhirnya
         (_rcJenis === 'SUMATIF' ? '<select id="rc-metode">' + metodeOpts + '</select>' : '') +
         '<select id="rc-teknik">' + teknikOpts + '</select>' +
+        (_rcJenis === 'SUMATIF' && _tpCache.length ? '<select id="rc-tp" title="Rekap nilai akhir tersimpan per Tujuan Pembelajaran">' + tpOpts + '</select>' : '') +
         '</div>' +
         '<button class="pen-btn" data-action="asmt-download-excel">⬇ Unduh Excel</button>' +
         '</div>'
@@ -1982,9 +1994,11 @@ function _wireRcFilters(body) {
         _rcMetode    = 'rata';
         _rcTeknik    = '';
         _rcInstrumen = '';
+        _rcTp        = '';
         _rcPage      = 0;
         _renderRecapContent(body);
     });
+    body.querySelector('#rc-tp')?.addEventListener('change', e => { _rcTp = e.target.value; _rcPage = 0; _renderRecapContent(body); });
     body.querySelector('#rc-metode')?.addEventListener('change', e => { _rcMetode = e.target.value; _rcPage = 0; _renderRecapContent(body); });
     body.querySelector('#rc-teknik')?.addEventListener('change', e => { _rcTeknik = e.target.value; _rcInstrumen = ''; _rcPage = 0; _renderRecapContent(body); });
 }
@@ -2540,6 +2554,7 @@ window.initPenilaianPanel = function (kelasId, subjectId, year, semester, progra
     _asmtCache    = [];
     _rosterCache  = [];
     _rcSemester   = null;
+    _rcTp         = '';
     _rcYear       = null;
     _cpId         = null;
 

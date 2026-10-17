@@ -18,7 +18,7 @@ end $f$;
 do $$
 declare
   sid uuid; guru uuid; cls uuid; cls_lain uuid; yr text; sm semester; subj uuid; asmt uuid;
-  stu uuid; stu_lain uuid; stu_sekolah_lain uuid; jid uuid := gen_random_uuid();
+  stu uuid; stu_lain uuid; stu_sekolah_lain uuid; jid uuid := gen_random_uuid(); guru_lain uuid; lo_milik uuid; lo_kelas_lain uuid; lo_orang uuid;
   hasil text := 'insert into assessment_results (school_id, class_id, assessment_id, student_id, nilai) values (%L, %L, %L, %L, 80) returning ''ok''';
   jur text := 'insert into teacher_journals (journal_id, owner_user_id, school_id, content, entry_date) values (%L, %L, %L, ''isi jurnal uji'', %s) returning ''ok''';
 begin
@@ -55,5 +55,19 @@ begin
   insert into hasil_uji(k,v) values ('J4_sebelas_bulan_lalu', pg_temp.jalan(guru, format(jur, gen_random_uuid(), guru, sid, 'public.fn_hari_ini() - 330')));
   insert into hasil_uji(k,v) values ('J5_ubah_isi_tanpa_ubah_tanggal', pg_temp.jalan(guru, format('update teacher_journals set content = ''isi diubah uji'' where journal_id = %L returning ''ok''', jid)));
   insert into hasil_uji(k,v) values ('J6_ubah_tanggal_ke_masa_depan', pg_temp.jalan(guru, format('update teacher_journals set entry_date = public.fn_hari_ini() + 3 where journal_id = %L returning ''ok''', jid)));
+
+  -- A-08: penandaan TP "sudah diajarkan" hanya untuk TP yang ada, milik guru pemanggil, pada kelas yang dikirim
+  select user_id into guru_lain from users where school_id = sid and teacher_code is not null and user_id <> guru order by user_id limit 1;
+  insert into learning_objectives (school_id, teacher_id, class_id, subject_id, academic_year, semester, kode_tp, deskripsi_tp)
+    values (sid, guru, cls, subj, yr, sm::text::int, 'UJI-1', 'TP uji milik guru') returning id into lo_milik;
+  insert into learning_objectives (school_id, teacher_id, class_id, subject_id, academic_year, semester, kode_tp, deskripsi_tp)
+    values (sid, guru, cls_lain, subj, yr, sm::text::int, 'UJI-2', 'TP uji kelas lain') returning id into lo_kelas_lain;
+  insert into learning_objectives (school_id, teacher_id, class_id, subject_id, academic_year, semester, kode_tp, deskripsi_tp)
+    values (sid, guru_lain, cls, subj, yr, sm::text::int, 'UJI-3', 'TP uji milik guru lain') returning id into lo_orang;
+  insert into hasil_uji(k,v) values ('T1_tp_milik_di_kelasnya', pg_temp.jalan(guru, format('select count(*)::text from fn_toggle_tp_taught(%L, %L, true)', cls, lo_milik::text)));
+  insert into hasil_uji(k,v) values ('T2_tp_milik_tetapi_kelas_salah', pg_temp.jalan(guru, format('select count(*)::text from fn_toggle_tp_taught(%L, %L, true)', cls_lain, lo_milik::text)));
+  insert into hasil_uji(k,v) values ('T3_tp_tidak_ada', pg_temp.jalan(guru, format('select count(*)::text from fn_toggle_tp_taught(%L, %L, true)', cls, gen_random_uuid()::text)));
+  insert into hasil_uji(k,v) values ('T4_tp_milik_guru_lain', pg_temp.jalan(guru, format('select count(*)::text from fn_toggle_tp_taught(%L, %L, true)', cls, lo_orang::text)));
+  insert into hasil_uji(k,v) values ('T5_tercatat_hanya_satu', (select count(*)::text from tp_taught_status where teacher_id = guru));
 end $$;
 select k, v from hasil_uji order by no;
