@@ -260,7 +260,8 @@ export async function fetchCases(studentId) {
             )
         `)
         .eq('student_id', studentId)
-        .eq('is_shared_to_parent', true)
+        // Tanpa filter is_shared_to_parent: RLS hanya mengizinkan kasus yang dibagikan ke orang tua ATAU yang
+        // menandai orang tua ini sebagai pembaca; event yang terbaca pun hanya yang ditandai terlihat.
         .order('created_at', { ascending: false });
     if (error) throw error;
     await attachPortalUserLabels(supabase, data ?? [], [['handler', 'current_handler_user_id']]);

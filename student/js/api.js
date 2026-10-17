@@ -174,7 +174,8 @@ export async function getMyCases(studentId) {
             )
         `)
         .eq('student_id', studentId)
-        .eq('is_shared_to_student', true)
+        // Tanpa filter is_shared_to_student: RLS hanya mengizinkan kasus yang dibagikan ke siswa ATAU yang
+        // menandai siswa ini sebagai pembaca.
         .order('created_at', { ascending: false });
     if (error) throw error;
     await attachPortalUserLabels(supabase, data ?? [], [['handler', 'current_handler_user_id']]);
