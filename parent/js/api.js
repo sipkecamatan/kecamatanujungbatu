@@ -381,11 +381,18 @@ export async function getMyChildren(schoolId) {
 
 // ─── Forum Sekolah ────────────────────────────────────────────
 
+// Audit Forum A-10: halaman berikutnya = posting yang LEBIH LAMA daripada kursor (tanggal, lalu post_id sebagai pembeda). Berbeda dengan offset,
+// daftar tidak bergeser bila ada posting baru masuk di antara dua permintaan dan tidak ragu-ragu pada posting berwaktu sama.
+// after = { created_at, post_id } milik posting terakhir yang sudah tampil (created_at dipakai apa adanya sebagai teks, jangan diubah ke Date: presisi mikrodetik).
+function sesudahKursorForum(q, after) {
+    if (!after) return q;
+    return q.or(`created_at.lt."${after.created_at}",and(created_at.eq."${after.created_at}",post_id.lt.${after.post_id})`);
+}
 /**
- * Ambil posting Forum Sekolah untuk inbox ortu.
+ * Ambil posting Forum Sekolah untuk inbox ortu. after: kursor halaman berikutnya ({ created_at, post_id }); null = halaman pertama.
  */
-export async function getForumSekolahPosts(schoolId, userId, limit = 20, offset = 0) {
-    const { data, error } = await supabase
+export async function getForumSekolahPosts(schoolId, userId, limit = 20, after = null) {
+    const q = supabase
         .from('forum_posts')
         .select(`
             post_id, title, body, attachment_url, attachment_name, attachment_path,
@@ -397,9 +404,11 @@ export async function getForumSekolahPosts(schoolId, userId, limit = 20, offset 
         .eq('scope_type', 'SEKOLAH')
         .eq('school_id', schoolId)
         .is('deleted_at', null)
-        .eq('forum_post_audience.user_id', userId)
+        .eq('forum_post_audience.user_id', userId);
+    const { data, error } = await sesudahKursorForum(q, after)
         .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .order('post_id', { ascending: false })
+        .limit(limit);
     if (error) throw error;
     await attachPortalUserLabels(supabase, data ?? [], [['author', 'author_user_id']]);
     return (data ?? []).map(({ forum_post_audience: _a, ...rest }) => rest);
@@ -409,8 +418,8 @@ export async function getForumSekolahPosts(schoolId, userId, limit = 20, offset 
  * Ambil posting yang dibuat ortu (tab Terkirim).
  * Bug #9 fix: ganti inline query di portal.js dengan fungsi helper ini.
  */
-export async function getForumSekolahSentPosts(schoolId, callerId, limit = 20, offset = 0) {
-    const { data, error } = await supabase
+export async function getForumSekolahSentPosts(schoolId, callerId, limit = 20, after = null) {
+    const q = supabase
         .from('forum_posts')
         .select(`
             post_id, title, body, attachment_url, attachment_name, attachment_path,
@@ -422,9 +431,11 @@ export async function getForumSekolahSentPosts(schoolId, callerId, limit = 20, o
         .eq('scope_type', 'SEKOLAH')
         .eq('school_id', schoolId)
         .eq('author_user_id', callerId)
-        .is('deleted_at', null)
+        .is('deleted_at', null);
+    const { data, error } = await sesudahKursorForum(q, after)
         .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .order('post_id', { ascending: false })
+        .limit(limit);
     if (error) throw error;
     return data ?? [];
 }

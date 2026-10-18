@@ -886,7 +886,7 @@ init().catch(err => {
 
 // ─── Forum Sekolah ────────────────────────────────────────────
 
-let _forumOffset   = 0;
+let _forumCursor   = null;   // audit Forum A-10: { created_at, post_id } posting terakhir yang tampil; null = dari awal
 let _forumHasMore  = false;
 let _forumInitDone = false;
 
@@ -915,7 +915,7 @@ async function loadForumPosts(loadMore = false) {
     const LIMIT     = 20;
 
     if (!loadMore) {
-        _forumOffset = 0;
+        _forumCursor = null;
         listEl.innerHTML = '';
     }
     loadingEl.style.display = '';
@@ -923,11 +923,11 @@ async function loadForumPosts(loadMore = false) {
 
     try {
         const posts = await getForumSekolahPosts(
-            currentUser.school_id, currentUser.user_id, LIMIT, _forumOffset);
+            currentUser.school_id, currentUser.user_id, LIMIT, _forumCursor);
 
         loadingEl.style.display = 'none';
 
-        if (!posts.length && _forumOffset === 0) {
+        if (!posts.length && !_forumCursor) {
             loadingEl.style.display = '';
             loadingEl.textContent   = 'Belum ada pengumuman untukmu.';
             moreBtn.style.display   = 'none';
@@ -935,7 +935,10 @@ async function loadForumPosts(loadMore = false) {
         }
 
         posts.forEach(p => listEl.appendChild(renderForumCard(p)));
-        _forumOffset += posts.length;
+        if (posts.length) {
+            const terakhir = posts[posts.length - 1];
+            _forumCursor = { created_at: terakhir.created_at, post_id: terakhir.post_id };
+        }
         _forumHasMore = posts.length === LIMIT;
         moreBtn.style.display = _forumHasMore ? '' : 'none';
     } catch (e) {

@@ -1344,12 +1344,20 @@ export async function getForumRecipientCandidates(
     return data ?? [];
 }
 
+// Audit Forum A-10: halaman berikutnya = posting yang LEBIH LAMA daripada kursor (tanggal, lalu post_id sebagai pembeda). Berbeda dengan offset,
+// daftar tidak bergeser bila ada posting baru masuk di antara dua permintaan dan tidak ragu-ragu pada posting berwaktu sama.
+// after = { created_at, post_id } milik posting terakhir yang sudah tampil (created_at dipakai apa adanya sebagai teks, jangan diubah ke Date: presisi mikrodetik).
+function sesudahKursorForum(q, after) {
+    if (!after) return q;
+    return q.or(`created_at.lt."${after.created_at}",and(created_at.eq."${after.created_at}",post_id.lt.${after.post_id})`);
+}
 /**
  * Ambil posting Forum Sekolah untuk inbox caller.
  * Filter: scope_type='SEKOLAH', caller ada di forum_post_audience.
+ * after: kursor halaman berikutnya ({ created_at, post_id } posting terakhir yang tampil); null = halaman pertama.
  */
-export async function getForumSekolahPosts(schoolId, callerId, limit = 20, offset = 0) {
-    const { data, error } = await supabase
+export async function getForumSekolahPosts(schoolId, callerId, limit = 20, after = null) {
+    const q = supabase
         .from('forum_posts')
         .select(`
             post_id, title, body, attachment_url, attachment_name, attachment_path,
@@ -1363,9 +1371,11 @@ export async function getForumSekolahPosts(schoolId, callerId, limit = 20, offse
         .eq('scope_type', 'SEKOLAH')
         .eq('school_id', schoolId)
         .is('deleted_at', null)
-        .eq('forum_post_audience.user_id', callerId)
+        .eq('forum_post_audience.user_id', callerId);
+    const { data, error } = await sesudahKursorForum(q, after)
         .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .order('post_id', { ascending: false })
+        .limit(limit);
     if (error) throw error;
     return (data ?? []).map(({ audience: _a, ...rest }) => rest);
 }
@@ -1423,10 +1433,10 @@ export async function getForumSekolahSentPostById(postId, schoolId, callerId) {
 }
 
 /**
- * Ambil posting yang dibuat oleh caller (tab Terkirim).
+ * Ambil posting yang dibuat oleh caller (tab Terkirim). after: lihat getForumSekolahPosts.
  */
-export async function getForumSekolahSentPosts(schoolId, callerId, limit = 20, offset = 0) {
-    const { data, error } = await supabase
+export async function getForumSekolahSentPosts(schoolId, callerId, limit = 20, after = null) {
+    const q = supabase
         .from('forum_posts')
         .select(`
             post_id, title, body, attachment_url, attachment_name, attachment_path,
@@ -1440,9 +1450,11 @@ export async function getForumSekolahSentPosts(schoolId, callerId, limit = 20, o
         .eq('scope_type', 'SEKOLAH')
         .eq('school_id', schoolId)
         .eq('author_user_id', callerId)
-        .is('deleted_at', null)
+        .is('deleted_at', null);
+    const { data, error } = await sesudahKursorForum(q, after)
         .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .order('post_id', { ascending: false })
+        .limit(limit);
     if (error) throw error;
     return data ?? [];
 }

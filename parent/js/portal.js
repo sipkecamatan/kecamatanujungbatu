@@ -838,7 +838,7 @@ logoutBtn.addEventListener('click', async () => {
 // ─── Forum Sekolah ────────────────────────────────────────────
 
 let _forumMode      = 'masuk';
-let _forumOffset    = 0;
+let _forumCursor    = null;   // audit Forum A-10: { created_at, post_id } posting terakhir yang tampil; null = dari awal
 let _forumHasMore   = false;
 let _forumInitDone  = false;
 let _forumChildren  = [];   // [{ user_id, full_name, class_id, academic_year }]
@@ -875,13 +875,13 @@ async function initForumSection(signal = null) {
 function initForumListeners() {
     // Sub-tab
     document.getElementById('forum-tab-masuk')?.addEventListener('click', () => {
-        _forumMode = 'masuk'; _forumOffset = 0;
+        _forumMode = 'masuk'; _forumCursor = null;
         document.getElementById('forum-tab-masuk').className = 'btn btn-primary';
         document.getElementById('forum-tab-terkirim').className = 'btn btn-secondary';
         loadForumPosts();
     });
     document.getElementById('forum-tab-terkirim')?.addEventListener('click', () => {
-        _forumMode = 'terkirim'; _forumOffset = 0;
+        _forumMode = 'terkirim'; _forumCursor = null;
         document.getElementById('forum-tab-masuk').className = 'btn btn-secondary';
         document.getElementById('forum-tab-terkirim').className = 'btn btn-primary';
         loadForumPosts();
@@ -924,7 +924,7 @@ async function loadForumPosts(loadMore = false, signal = null) {
     const LIMIT     = 20;
 
     if (!loadMore) {
-        _forumOffset = 0;
+        _forumCursor = null;
         listEl.innerHTML = '';
     }
     loadingEl.style.display = '';
@@ -935,16 +935,16 @@ async function loadForumPosts(loadMore = false, signal = null) {
         let posts;
         if (_forumMode === 'masuk') {
             posts = await getForumSekolahPosts(
-                currentUser.school_id, currentUser.user_id, LIMIT, _forumOffset);
+                currentUser.school_id, currentUser.user_id, LIMIT, _forumCursor);
         } else {
             posts = await getForumSekolahSentPosts(
-                currentUser.school_id, currentUser.user_id, LIMIT, _forumOffset);
+                currentUser.school_id, currentUser.user_id, LIMIT, _forumCursor);
         }
         if (signal?.aborted) return false;
 
         loadingEl.style.display = 'none';
 
-        if (!posts.length && _forumOffset === 0) {
+        if (!posts.length && !_forumCursor) {
             loadingEl.style.display = '';
             loadingEl.textContent   = _forumMode === 'masuk'
                 ? 'Belum ada pengumuman untukmu.'
@@ -953,7 +953,10 @@ async function loadForumPosts(loadMore = false, signal = null) {
         }
 
         posts.forEach(p => listEl.appendChild(renderForumCard(p)));
-        _forumOffset += posts.length;
+        if (posts.length) {
+            const terakhir = posts[posts.length - 1];
+            _forumCursor = { created_at: terakhir.created_at, post_id: terakhir.post_id };
+        }
         _forumHasMore = posts.length === LIMIT;
         moreBtn.style.display = _forumHasMore ? '' : 'none';
         return true;
@@ -1222,7 +1225,7 @@ async function submitForumBuat() {
         _forumMode = 'terkirim';
         document.getElementById('forum-tab-masuk').className    = 'btn btn-secondary';
         document.getElementById('forum-tab-terkirim').className = 'btn btn-primary';
-        _forumOffset = 0;
+        _forumCursor = null;
         // ORT-08: kegagalan muat ulang tidak boleh dilaporkan sebagai gagal kirim.
         try {
             await loadForumPosts();

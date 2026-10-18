@@ -5138,7 +5138,7 @@ async function _piketRenderExits() {
 
 // ─── Forum Sekolah — State ─────────────────────────────────────
 let _forumMode        = 'masuk';   // 'masuk' | 'terkirim'
-let _forumOffset      = 0;
+let _forumCursor      = null;     // audit Forum A-10: { created_at, post_id } posting terakhir yang tampil; null = dari awal
 let _forumHasMore     = false;
 let _forumTabInit     = false;
 let _forumScope       = null;      // dari fn_get_user_forum_scope
@@ -5244,14 +5244,14 @@ async function initForumTab() {
 
     // Sub-tab buttons
     document.getElementById('forum-tab-masuk').addEventListener('click', () => {
-        _forumMode = 'masuk'; _forumOffset = 0;
+        _forumMode = 'masuk'; _forumCursor = null;
         localStorage.setItem('guru_forum_sub_tab', 'masuk');
         document.getElementById('forum-tab-masuk').className = 'btn btn-primary';
         document.getElementById('forum-tab-terkirim').className = 'btn btn-secondary';
         loadForumPosts();
     });
     document.getElementById('forum-tab-terkirim').addEventListener('click', () => {
-        _forumMode = 'terkirim'; _forumOffset = 0;
+        _forumMode = 'terkirim'; _forumCursor = null;
         localStorage.setItem('guru_forum_sub_tab', 'terkirim');
         document.getElementById('forum-tab-masuk').className = 'btn btn-secondary';
         document.getElementById('forum-tab-terkirim').className = 'btn btn-primary';
@@ -5323,7 +5323,7 @@ async function loadForumPosts(append = false) {
     const LIMIT = 20;
 
     if (!append) {
-        _forumOffset = 0;
+        _forumCursor = null;
         listEl.innerHTML = '';
         loadingEl.textContent = 'Memuat forum\u2026';
         loadingEl.style.display = 'block';
@@ -5334,10 +5334,10 @@ async function loadForumPosts(append = false) {
         let posts;
         if (_forumMode === 'masuk') {
             posts = await getForumSekolahPosts(
-                currentUser.school_id, currentUser.user_id, LIMIT, _forumOffset);
+                currentUser.school_id, currentUser.user_id, LIMIT, _forumCursor);
         } else {
             posts = await getForumSekolahSentPosts(
-                currentUser.school_id, currentUser.user_id, LIMIT, _forumOffset);
+                currentUser.school_id, currentUser.user_id, LIMIT, _forumCursor);
         }
         loadingEl.style.display = 'none';
         if (!posts.length && !append) {
@@ -5345,7 +5345,10 @@ async function loadForumPosts(append = false) {
             return;
         }
         listEl.insertAdjacentHTML('beforeend', posts.map(renderForumPostCard).join(''));
-        _forumOffset += posts.length;
+        if (posts.length) {
+            const terakhir = posts[posts.length - 1];
+            _forumCursor = { created_at: terakhir.created_at, post_id: terakhir.post_id };
+        }
         _forumHasMore = posts.length === LIMIT;
         moreBtn.style.display = _forumHasMore ? 'inline-block' : 'none';
         wireForumCards();
@@ -6737,7 +6740,7 @@ async function submitForumPost() {
         _forumMode = 'terkirim';
         document.getElementById('forum-tab-masuk').className    = 'btn btn-secondary';
         document.getElementById('forum-tab-terkirim').className = 'btn btn-primary';
-        _forumOffset = 0;
+        _forumCursor = null;
         loadForumPosts();
     } catch (err) {
         // FUNC-01 poin 1: file yang terlanjur ter-upload tapi tidak jadi
