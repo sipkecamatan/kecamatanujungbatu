@@ -1820,6 +1820,9 @@ async function _renderRecapContent(body) {
         const roster = _rosterCache;
         const hasSiswa = roster.length > 0;
 
+        // B-08: bobot diisi guru sendiri dan totalnya harus tepat 100% (tidak dinormalkan diam-diam)
+        const totalBobotIsi = (isSumatif && _rcMetode === 'bobot') ? filtered.reduce((j, a) => j + (parseFloat(_rcBobots[a.id]) || 0), 0) : 100;
+        const bobotSah = Math.abs(totalBobotIsi - 100) < 0.001;
         // compute final values
         const hasilSiswa = {};
         for (const s of roster) {
@@ -1831,6 +1834,7 @@ async function _renderRecapContent(body) {
                 const valid = nilais.filter(n => n != null);
                 nilai = valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
             } else if (_rcMetode === 'bobot') {
+                if (!bobotSah) { nilai = null; hasilSiswa[s.id] = { nilai, nilais }; continue; }   // B-08: bobot belum 100% -> tanpa nilai akhir
                 let sum = 0, totalBobot = 0;
                 filtered.forEach((a, i) => {
                     const b = parseFloat(_rcBobots[a.id] || 0);
@@ -1907,7 +1911,11 @@ async function _renderRecapContent(body) {
         // bobot row
         let bobotHtml = '';
         if (isSumatif && _rcMetode === 'bobot') {
-            bobotHtml = '<div style="margin:8px 0;font-size:12px"><strong>Set bobot tiap sumatif (total harus 100%):</strong><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
+            const selisih = Math.round(Math.abs(100 - totalBobotIsi) * 1000) / 1000;
+            const statusBobot = bobotSah
+                ? '<span style="color:var(--color-success)">Total ' + totalBobotIsi + '% ✓</span>'
+                : '<span style="color:var(--color-danger)">Total ' + totalBobotIsi + '% — ' + (totalBobotIsi < 100 ? 'kurang ' : 'lebih ') + selisih + '%; nilai akhir dan Simpan Rekap baru aktif bila total tepat 100%</span>';
+            bobotHtml = '<div style="margin:8px 0;font-size:12px"><strong>Isi bobot tiap sumatif (total harus 100%):</strong> ' + statusBobot + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
                 filtered.map(a => (
                     '<label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:normal">' +
                     esc(a.instrumen || a.teknik) +
@@ -1942,6 +1950,9 @@ async function _renderRecapContent(body) {
             const btn = body.querySelector('[data-action="rc-simpan"]');
             btn.disabled = true; btn.textContent = 'Menyimpan…';
             try {
+                if (!bobotSah) {
+                    throw new Error('Total bobot harus tepat 100% (sekarang ' + totalBobotIsi + '%). Perbaiki bobot, lalu simpan.');
+                }
                 if (banyakTp) {
                     throw new Error('Penilaian sumatif yang tampil terkait beberapa TP. Pilih satu TP pada filter "TP", lalu simpan; rekap tersimpan per TP.');
                 }

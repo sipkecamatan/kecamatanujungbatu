@@ -32,11 +32,20 @@ uji('opsi pembobotan: contoh panduan (bobot 20/20/20/40: Edo = 80, Dayu = 73, Si
   assert.equal(h({ a: 87, b: 79, c: 80, d: 78 }), 80);
   assert.equal(h({ a: 90, b: 90, c: 90, d: 94 }), 92);
 });
-uji('opsi pembobotan: bobot tidak 100 dinormalkan; penilaian tanpa nilai atau tanpa bobot diabaikan', () => {
-  assert.equal(M.hitungNilaiRapor({ metode: 'BOBOT', asesmen: A('a', 'b'), nilai: { a: 100, b: 50 }, bobot: { a: 1, b: 1 } }), 75);
-  assert.equal(M.hitungNilaiRapor({ metode: 'BOBOT', asesmen: A('a', 'b', 'c'), nilai: { a: 100, b: 50, c: null }, bobot: { a: 50, b: 50, c: 50 } }), 75);
-  assert.equal(M.hitungNilaiRapor({ metode: 'BOBOT', asesmen: A('a'), nilai: { a: 90 }, bobot: {} }), null);
-  assert.equal(M.hitungNilaiRapor({ metode: 'BOBOT', asesmen: A('a'), nilai: { a: 90 }, bobot: { a: 0 } }), null);
+uji('opsi pembobotan: bobot harus tepat 100 (B-08); bobot sisa dinormalkan hanya bila penilaian belum bernilai', () => {
+  const h = (asesmen, nilai, bobot) => M.hitungNilaiRapor({ metode: 'BOBOT', asesmen, nilai, bobot });
+  assert.equal(h(A('a', 'b'), { a: 100, b: 50 }, { a: 1, b: 1 }), null);              // total 2: tanpa saran
+  assert.equal(h(A('a', 'b'), { a: 100, b: 50 }, { a: 60, b: 20 }), null);            // total 80: tanpa saran
+  assert.equal(h(A('a', 'b'), { a: 100, b: 50 }, { a: 50, b: 50 }), 75);
+  assert.equal(h(A('a', 'b', 'c'), { a: 100, b: 50, c: null }, { a: 40, b: 40, c: 20 }), 75);   // c belum bernilai: sisa dinormalkan
+  assert.equal(h(A('a'), { a: 90 }, {}), null);
+  assert.equal(h(A('a'), { a: 90 }, { a: 0 }), null);
+});
+uji('totalBobot: sah hanya bila tepat 100', () => {
+  assert.deepEqual(M.totalBobot(A('a', 'b'), { a: 60, b: 40 }), { total: 100, sah: true });
+  assert.deepEqual(M.totalBobot(A('a', 'b'), { a: 60, b: 20 }), { total: 80, sah: false });
+  assert.deepEqual(M.totalBobot(A('a', 'b'), { a: 60.5, b: 40.5 }), { total: 101, sah: false });
+  assert.equal(M.totalBobot(A('a'), {}).sah, false);
 });
 uji('opsi persentase: contoh panduan (3 dari 4 TP tercapai = 75; 2 dari 4 = 50; 4 dari 4 = 100)', () => {
   const asesmen = ['t1', 't2', 't3', 't4'].map((tp) => ({ id: 'a-' + tp, tpId: tp }));

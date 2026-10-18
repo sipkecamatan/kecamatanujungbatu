@@ -19,6 +19,12 @@ export const METODE_RAPOR = {
 const angka = (v) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
 const bulat = (n) => (n === null ? null : Math.min(100, Math.max(0, Math.round(n))));   // pembulatan normal, di dalam 0-100
 
+/** Total bobot yang diisi guru untuk daftar penilaian; sah bila tepat 100 (B-08: guru mengisi bobot sendiri, total harus 100%). */
+export function totalBobot(asesmen, bobot = {}) {
+    const total = (asesmen ?? []).reduce((j, a) => j + (angka(bobot?.[a.id]) ?? 0), 0);
+    return { total: Math.round(total * 1000) / 1000, sah: Math.abs(total - 100) < 0.001 };
+}
+
 /** Rata-rata nilai per TP (hanya penilaian sumatif yang terkait TP dan sudah bernilai). Hasil: { [tpId]: rata-rata }. */
 export function nilaiPerTp(asesmen, nilai) {
     const jumlah = {};
@@ -47,6 +53,7 @@ export function hitungNilaiRapor({ metode, asesmen, nilai, bobot = {}, tercapaiP
         return arr.length ? bulat(arr.reduce((x, y) => x + y, 0) / arr.length) : null;
     }
     if (metode === 'BOBOT') {
+        if (!totalBobot(daftar, bobot).sah) return null;   // bobot belum 100%: tidak ada saran (tidak dinormalkan diam-diam)
         const dipakai = [];
         let tot = 0;
         for (const a of daftar) {
@@ -56,7 +63,7 @@ export function hitungNilaiRapor({ metode, asesmen, nilai, bobot = {}, tercapaiP
         }
         if (tot <= 0) return null;
         // Mengikuti contoh Panduan Pembelajaran dan Asesmen 2025 (hal. 57): kontribusi tiap penilaian dibulatkan (mis. 83 x 20% = 16,6 -> 17),
-        // lalu dijumlahkan. Bobot yang tidak berjumlah 100 dinormalkan terhadap total yang dipakai.
+        // lalu dijumlahkan. Bila ada penilaian yang belum bernilai bagi seorang siswa, bobot sisanya dinormalkan.
         return bulat(dipakai.reduce((jml, [n, bb]) => jml + Math.round((n * bb) / tot), 0));
     }
     if (metode === 'PERSEN') {

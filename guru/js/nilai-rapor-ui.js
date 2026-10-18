@@ -9,7 +9,7 @@ import {
     getAssessments, getStudentsForClass, getResultsForAssessments, getTps, getKktps,
     getGradeFinal, upsertGradeFinalBatch, deleteGradeFinalForStudents,
 } from './api.js';
-import { METODE_RAPOR, hitungNilaiRapor, nilaiPerTp, sarankanTR, susunDeskripsi, susunLembarERapor } from './nilai-rapor.js';
+import { METODE_RAPOR, totalBobot, hitungNilaiRapor, nilaiPerTp, sarankanTR, susunDeskripsi, susunLembarERapor } from './nilai-rapor.js';
 
 let _seq = 0;            // nomor muat: hasil muat lama yang selesai terlambat dibuang
 let _menyimpan = false;  // cegah simpan ganda
@@ -100,8 +100,10 @@ export async function renderNilaiRapor(body, ctx) {
     // ── HTML ──
     const bobotHtml = () => {
         if (st.metode !== 'BOBOT') return '';
-        const total = sumatif.reduce((j, a) => j + (Number(st.bobot[a.id]) || 0), 0);
-        return '<div style="margin:8px 0;font-size:12px"><strong>Bobot tiap penilaian sumatif</strong> (bobot dinormalkan terhadap totalnya; total saat ini ' + total + '%):' +
+        const { total, sah } = totalBobot(sumatif, st.bobot);
+        const status = sah ? '<span style="color:var(--color-success)">Total ' + total + '% ✓</span>'
+            : '<span style="color:var(--color-danger)">Total ' + total + '% — ' + (total < 100 ? 'kurang ' : 'lebih ') + Math.round(Math.abs(100 - total) * 1000) / 1000 + '%; saran nilai baru muncul bila total tepat 100%</span>';
+        return '<div style="margin:8px 0;font-size:12px"><strong>Bobot tiap penilaian sumatif</strong> (isi sendiri; total harus 100%): ' + status +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
             sumatif.map((a) => '<label style="display:flex;align-items:center;gap:4px;font-weight:normal">' + esc(a.instrumen || a.teknik || 'Sumatif') +
                 '<input type="number" class="nr-bobot" data-aid="' + esc(a.id) + '" min="0" max="100" value="' + esc(String(st.bobot[a.id] ?? 0)) + '" style="width:64px"></label>').join('') +
