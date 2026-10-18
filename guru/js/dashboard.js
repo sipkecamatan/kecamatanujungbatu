@@ -3902,6 +3902,7 @@ const EVENT_TYPE_LABEL = {
 const KASUS_PAGE    = 50;
 let _kasusTabInit   = false;
 let _kasusTabBusy   = false;
+const _kasusSiswaDiketahui = new Map();
 let _kasusSearchSeq = 0;
 
 /**
@@ -4011,9 +4012,17 @@ async function initKasusTab() {
         if (isBroadObserver) {
             try {
                 const remote = await searchStudents(raw, currentUser.school_id);
+                remote.forEach(s => _kasusSiswaDiketahui.set(s.student_id, s));
                 const seen = new Set(local.map(s => s.student_id));
                 hits = [...local, ...remote.filter(s => !seen.has(s.student_id))];
-            } catch { /* fallback lokal */ }
+            } catch {
+                // Luring: pakai siswa yang pernah muncul di pencarian sesi ini
+                const seen = new Set(local.map(s => s.student_id));
+                const lama = [..._kasusSiswaDiketahui.values()].filter(s => !seen.has(s.student_id) &&
+                    (s.full_name.toLowerCase().includes(q) || s.nis?.includes(q)));
+                hits = [...local, ...lama];
+                if (!hits.length && !navigator.onLine) showCreateMsg('Sedang luring: pencarian siswa lain butuh koneksi. Hubungkan kembali, atau pilih siswa yang Anda ajar.', true);
+            }
         }
         const modal = document.getElementById('kasus-create-modal');
         if (seq !== _kasusSearchSeq || modal.style.display !== 'flex' || modal.classList.contains('sip-exit')) return;
