@@ -14,3 +14,6 @@ backup_*.sql
 
 # Berkas sementara Office
 ~$*
+
+# Catatan kerja dan handoff: lokal saja (repo publik)
+docs/
