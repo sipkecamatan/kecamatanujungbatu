@@ -24,6 +24,7 @@ import { ok, badRequest, forbidden, conflict,
          checkSchemaVersion }        from '../_shared/response.ts';
 import { resolveAuth, isAuthError }  from '../_shared/auth.ts';
 import { getAdminClient }            from '../_shared/db.ts';
+import { cleanupUserForumContent }   from '../_shared/forum-cleanup.ts';
 
 Deno.serve(async (req: Request): Promise<Response> => {
 
@@ -139,6 +140,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
             () => admin.from('tp_taught_status').delete().eq('teacher_id', user_id),
             () => admin.from('notifications').delete().eq('recipient_user_id', user_id),
             () => admin.from('student_parents').delete().eq('parent_user_id', user_id),
+            // Audit Forum A-06: komentar dan posting yang ditarik berkunci RESTRICT ke users; tanpa langkah ini penghapusan berakhir 500.
+            async () => {
+                try {
+                    const r = await cleanupUserForumContent(admin, user_id, user.school_id, { onlyWithdrawn: true });
+                    if (r.storageError) console.warn('[delete-user] lampiran forum:', r.storageError);
+                    return { error: null };
+                } catch (e) {
+                    return { error: e };
+                }
+            },
         ];
         for (const cleanup of cleanupSteps) {
             const { error: cleanupError } = await cleanup();

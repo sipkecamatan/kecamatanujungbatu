@@ -20,6 +20,7 @@ import { ok, badRequest, forbidden,
          checkSchemaVersion }        from '../_shared/response.ts';
 import { resolveAuth, isAuthError }  from '../_shared/auth.ts';
 import { getAdminClient }            from '../_shared/db.ts';
+import { cleanupUserForumContent }   from '../_shared/forum-cleanup.ts';
 
 Deno.serve(async (req: Request): Promise<Response> => {
 
@@ -149,6 +150,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 if (ids.length < BATCH_SIZE) break;
             }
         }
+
+        // Audit Forum A-06: komentar dan posting berkunci RESTRICT ke users; bersihkan dulu (akun sudah di-soft-delete, semua posting ikut dihapus).
+        try {
+            const forum = await cleanupUserForumContent(admin, user_id, user.school_id, { onlyWithdrawn: false });
+            if (forum.storageError) console.warn('[purge-user] lampiran forum:', forum.storageError);
+        } catch (e) {
+            return internalError(e);
+        }
+
+        // notifications.recipient_user_id berkunci NO ACTION ke users: notifikasi yang diterima pengguna harus dibuang dulu (delete-user sudah melakukannya;
+        // tanpa langkah ini purge pengguna yang pernah menerima notifikasi, mis. dari komentar forum, gagal dengan galat 500).
+        const { error: notifErr } = await admin.from('notifications').delete().eq('recipient_user_id', user_id);
+        if (notifErr) return internalError(notifErr);
 
         // Hard-delete baris users
         const { error: deleteErr } = await admin

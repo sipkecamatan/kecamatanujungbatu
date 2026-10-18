@@ -7,12 +7,14 @@
 
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
 import { getAdminClient } from '../_shared/db.ts';
+import { removeForumAttachmentBatch } from '../_shared/forum-cleanup.ts';
 
 const BATCH_SIZE = 200;
 const AUTH_BATCH_SIZE = 50;
+const STORAGE_BATCH_SIZE = 100;
 const TIMEOUT_GUARD_MS = 25_000;
 
-type CursorStrategy = 'keyset' | 'remaining-set' | 'coaching-rpc' | 'auth';
+type CursorStrategy = 'keyset' | 'remaining-set' | 'coaching-rpc' | 'auth' | 'storage';
 type ManifestEntry = { table: string; pk: string[]; strategy: CursorStrategy };
 type ResumeFrom = {
     table: string;
@@ -49,6 +51,9 @@ const DELETE_MANIFEST: ManifestEntry[] = [
     { table: 'forum_post_subjects', pk: ['post_id', 'student_id'], strategy: 'remaining-set' },
     table('notifications', 'notification_id'),
     table('forum_posts', 'post_id'),
+    // Audit Forum A-07: berkas lampiran berada di Storage (bucket forum-attachments, folder = school_id) dan tidak ikut terhapus bersama baris database.
+    // Dihapus per awalan folder, tidak bergantung pada path di baris posting. Idempoten dan dapat dilanjutkan (resume) karena berkas yang sudah terhapus tak muncul lagi.
+    { table: '__forum_attachments', pk: ['name'], strategy: 'storage' },
     table('schedule_reapply_targets', 'target_id', 'remaining-set'),
     table('schedule_reapply_jobs', 'job_id'),
     table('pkl_attendance', 'pkl_attendance_id'),
@@ -209,6 +214,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
                     deletedSoFar += Number(result?.deleted ?? 0);
                     lastId = result?.last_id ?? lastId;
                     if (!result?.has_more) break;
+                    continue;
+                }
+
+                if (entry.strategy === 'storage') {
+                    const removedCount = await removeForumAttachmentBatch(admin, schoolId, STORAGE_BATCH_SIZE);
+                    if (removedCount === 0) break;
+                    deletedSoFar += removedCount;
                     continue;
                 }
 
