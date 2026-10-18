@@ -179,6 +179,8 @@ export function validateAudienceForRole(
     return null;
 }
 export const VISIBILITY_LEVEL   = ['PRIVATE','RESTRICTED','PUBLIC','INTERNAL_SCHOOL','STUDENT_VISIBLE','SISWA_SAJA','ORTU_SAJA','SISWA_DAN_ORTU'] as const;
+// Visibilitas yang boleh dipakai guru pada catatan siswa (sama dengan formulir dan kebijakan tulis rls_observations_insert). RESTRICTED hanya milik jalur DUDI.
+export const OBSERVATION_VISIBILITY = ['PRIVATE','SISWA_SAJA','ORTU_SAJA','SISWA_DAN_ORTU'] as const;
 export const OBSERVATION_SENTIMENT  = ['POSITIF','NEGATIF'] as const;
 export const OBSERVATION_DIMENSION  = ['AKADEMIK','KEHADIRAN','PERILAKU','SOSIAL','AFEKTIF','BAKAT_MINAT','FISIK','LAINNYA'] as const;
 
@@ -231,7 +233,7 @@ export const OBSERVATION_SCHEMA: FieldDef[] = [
     ['sentiment',       V.enum(OBSERVATION_SENTIMENT),       true],
     ['dimension',       V.enum(OBSERVATION_DIMENSION),       true],
     ['content',         V.str(10, 1000),                     true],
-    ['visibility',      V.enum(VISIBILITY_LEVEL),            true],
+    ['visibility',      V.enum(OBSERVATION_VISIBILITY),      true],
     ['observed_at',     V.isoDate,                           true],
     // Optional
     ['schedule_id',     V.uuid,                              false],
