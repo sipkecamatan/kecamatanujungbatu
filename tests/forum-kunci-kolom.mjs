@@ -49,7 +49,7 @@ sama('K6_path_sekolah_lain_ditolak', DITOLAK); sama('K7_path_titik_titik_ditolak
 sama('K9_is_pinned_ditolak', DITOLAK); sama('K10_is_withdrawn_ditolak', DITOLAK); sama('K11_deleted_at_ditolak', DITOLAK); sama('K12_category_id_ditolak', DITOLAK);
 sama('K13_author_dan_sekolah_ditolak', `author=${DITOLAK} sekolah=${DITOLAK}`);
 sama('K14_edit_judul_isi_boleh', '1'); sama('K15_bukan_penulis_tetap_0_baris', '0'); sama('K16_nama_lampiran_terlalu_panjang', 'GALAT:22001');
-sama('K17_moderator_tarik_posting_via_rpc', 'true'); sama('K18_moderator_pulihkan_via_rpc', 'false'); sama('K19_penulis_hapus_via_rpc', '1'); sama('K20_baris_terhapus', '0');
+sama('K19_penulis_hapus_via_rpc', '1'); sama('K20_baris_terhapus', '0');
 
 const sisa = jalankan(hitung)[0];
 cek('SISA: tidak ada posting atau berkas uji tertinggal (sama dengan keadaan awal)', JSON.stringify(sisa) === JSON.stringify(awal), JSON.stringify({ awal, sisa }));

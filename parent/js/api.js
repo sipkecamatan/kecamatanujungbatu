@@ -476,15 +476,6 @@ export async function createIzinOrtu(studentId, alasan, keterangan, idempotencyK
     return data;
 }
 
-/**
- * Tarik atau pulihkan izin milik sendiri (aturan produk Romo 18 Okt 2026: fitur tarik posting perlu ada). Yang ditarik hilang dari semua penerima tetapi tetap terlihat penulis.
- */
-export async function setForumPostWithdrawn(postId, withdrawn) {
-    const { data, error } = await supabase.rpc('fn_toggle_forum_post_withdrawn', { p_post_id: postId, p_withdrawn: withdrawn });
-    if (error) throw error;
-    return data?.[0]?.is_withdrawn ?? withdrawn;
-}
-
 export async function getForumPostComments(postId) {
     const { data, error } = await supabase
         .from('forum_post_comments')

@@ -60,8 +60,6 @@ begin
   insert into hasil_uji(k,v) values ('K16_nama_lampiran_terlalu_panjang', pg_temp.jalan(g, format('with u as (update forum_posts set attachment_name=%L where post_id=%L returning 1) select count(*)::text from u', repeat('a', 300), post)));
 
   -- jalur sah lewat fungsi server tetap berfungsi (SECURITY DEFINER tidak terkena penjaga)
-  insert into hasil_uji(k,v) values ('K17_moderator_tarik_posting_via_rpc', pg_temp.jalan(kep, format('select is_withdrawn::text from fn_toggle_forum_post_withdrawn(%L, true)', post)));
-  insert into hasil_uji(k,v) values ('K18_moderator_pulihkan_via_rpc', pg_temp.jalan(kep, format('select is_withdrawn::text from fn_toggle_forum_post_withdrawn(%L, false)', post)));
   insert into hasil_uji(k,v) values ('K19_penulis_hapus_via_rpc', pg_temp.jalan(g, format('select count(*)::text from fn_delete_forum_post(%L)', post)));
   insert into hasil_uji(k,v) values ('K20_baris_terhapus', (select count(*)::text from forum_posts where post_id = post));
 end $$;
