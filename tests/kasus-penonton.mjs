@@ -2,7 +2,7 @@
 // Seluruh skenario berjalan di dalam transaksi yang SELALU dibatalkan (ROLLBACK) pada data sekolah uji smkuji1;
 // tidak ada data yang berubah. Butuh login CLI Supabase tertaut dan migrasi sudah terpasang.
 // Pakai:  node tests/kasus-penonton.mjs
-//   UJI_TERAPKAN_MIGRASI=1 node tests/kasus-penonton.mjs   -> menerapkan berkas migrasi DI DALAM transaksi uji
+//   UJI_TERAPKAN_MIGRASI=1 node tests/kasus-penonton.mjs   -> menerapkan migrasi 20261018160000 DI DALAM transaksi uji (yang lama sudah terpasang)
 //   (dibatalkan juga), untuk memeriksa sebelum `supabase db push`.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
@@ -31,10 +31,13 @@ function jalankan(sql) {
 const terapkan = process.env.UJI_TERAPKAN_MIGRASI === '1';
 // Pastikan migrasi terpasang; bila belum, uji tidak bermakna (kecuali diterapkan di dalam transaksi uji).
 if (!terapkan) {
-  const ada = jalankan("select (to_regprocedure('public.fn_case_add_viewer(uuid,uuid)') is not null)::text as ada;");
-  if (ada[0]?.ada !== 'true') { console.log('SKIP: migrasi 20261017040000_kasus_penonton belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
+  const ada = jalankan("select (to_regprocedure('public.fn_case_add_viewer(uuid,uuid)') is not null and to_regprocedure('public.fn_portal_cases(uuid)') is not null)::text as ada;");
+  if (ada[0]?.ada !== 'true') { console.log('SKIP: migrasi 20261017040000_kasus_penonton dan 20261018160000_kasus_portal_tanpa_judul_dan_deskripsi belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
 }
-const migrasi = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261017040000_kasus_penonton.sql'), 'utf8') + '\n' : '';
+// Migrasi 20261017040000 sudah terpasang di produksi (tidak idempoten); mode terapkan hanya memuat migrasi baru (20261018160000) di dalam transaksi uji.
+const migrasi = terapkan
+  ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261018160000_kasus_portal_tanpa_judul_dan_deskripsi.sql'), 'utf8') + '\n'
+  : '';
 
 // Keadaan awal sekolah uji (kasus uji manual bisa tertinggal): pemeriksaan jumlah dibuat RELATIF terhadap keadaan awal ini.
 const awal = jalankan("select (select count(*) from coaching_cases)::int as kasus, (select count(*) from notifications where type = 'CASE_TAGGED')::int as notif;")[0] ?? { kasus: 0, notif: 0 };
@@ -53,7 +56,8 @@ mulai('S2_kandidat', 'Wali Kelas:1, Guru Wali:1, Guru BK:1, Kaprodi:1, Orang tua
 sama('S2b_kandidat_tanpa_pembuat', 'true');
 ditolak('S2c_kandidat_ditolak_bagi_lain', '42501');
 cek('S3_tandai', (nilai.get('S3_tandai').match(/"ditambahkan": true/g) || []).length === 4);
-sama('S3b_lihat_setelah_tandai', 'wali=1 guruwali=1 bk=0 lain=0 admin=0 ortu=1 siswa=1');
+// Siswa dan orang tua tidak lagi membaca tabel kasus langsung (judul/deskripsi untuk staf; migrasi 20261018160000); mereka membaca lewat fn_portal_cases (uji kasus-portal).
+sama('S3b_lihat_setelah_tandai', 'wali=1 guruwali=1 bk=0 lain=0 admin=0 ortu=0 siswa=0');
 sama('S4_notifikasi', '4 notifikasi CASE_TAGGED; mengandung judul kasus=false');
 cek('S5_event_dilihat_total_2', /^wali=([3-9]) ortu=1 siswa=1$/.test(nilai.get('S5_event_dilihat_total_2') || ''));
 for (const k of ['S5b_penonton_tak_bisa_menulis_event', 'S5c_penonton_tak_bisa_menambah_penonton', 'S5d_penonton_tak_bisa_mencabut', 'S5e_bukan_penonton_tak_bisa_melihat_daftar']) ditolak(k, '42501');

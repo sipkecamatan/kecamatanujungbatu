@@ -250,23 +250,14 @@ export async function fetchObservations(studentId, dateStart = null, dateEnd = n
 }
 
 export async function fetchCases(studentId) {
-    const { data, error } = await supabase
-        .from('coaching_cases')
-        .select(`
-            case_id, title, description, status, created_at,
-            current_handler_user_id,
-            events:coaching_case_events (
-                event_id, event_type, payload, created_at, is_visible_to_student, author_user_id
-            )
-        `)
-        .eq('student_id', studentId)
-        // Tanpa filter is_shared_to_parent: RLS hanya mengizinkan kasus yang dibagikan ke orang tua ATAU yang
-        // menandai orang tua ini sebagai pembaca; event yang terbaca pun hanya yang ditandai terlihat.
-        .order('created_at', { ascending: false });
+    // Orang tua TIDAK membaca tabel kasus langsung: judul dan deskripsi kasus ditulis untuk staf (keputusan Romo 18 Okt 2026).
+    // fn_portal_cases hanya mengembalikan status, tanggal, penangan, dan komentar yang ditandai terlihat, untuk kasus yang dibagikan ATAU yang menandai orang tua ini.
+    const { data: hasil, error } = await supabase.rpc('fn_portal_cases', { p_student_id: studentId });
     if (error) throw error;
-    await attachPortalUserLabels(supabase, data ?? [], [['handler', 'current_handler_user_id']]);
-    await attachPortalUserLabels(supabase, (data ?? []).flatMap(c => c.events ?? []), [['author', 'author_user_id']]);
-    return (data ?? []).map(c => ({
+    const data = Array.isArray(hasil) ? hasil : [];
+    await attachPortalUserLabels(supabase, data, [['handler', 'current_handler_user_id']]);
+    await attachPortalUserLabels(supabase, data.flatMap(c => c.events ?? []), [['author', 'author_user_id']]);
+    return data.map(c => ({
         ...c,
         events: (c.events ?? [])
             .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),

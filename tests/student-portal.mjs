@@ -16,7 +16,7 @@ function api(portal) {
         return q;
     },rpc:async(name,args)=>{
         state.rpcs.push({name,args});
-        return {data:structuredClone(name==='fn_portal_attendance'?state.history:state.labels.filter(r=>args.p_user_ids.includes(r.user_id))),error:state.error};
+        return {data:structuredClone(name==='fn_portal_attendance'?state.history:name==='fn_portal_cases'?state.data:state.labels.filter(r=>args.p_user_ids.includes(r.user_id))),error:state.error};
     }};
     const ctx=vm.createContext({console:quiet,supabase,Date,Map,localStorage:{}});
     const source=read(portal+'/js/api.js').replace(/^import[^\n]*\n/gm,'')

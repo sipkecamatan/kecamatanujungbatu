@@ -1092,12 +1092,19 @@ async function main() {
                 const selAllEv = ` select count(*)::int as cnt from coaching_case_events where case_id = '${C13_CASE}';`;
                 const selSu    = ` select count(*)::int as cnt from student_updates where update_id = '${C13_SU}';`;
 
-                await probe('F1', d13.siswa_auth, selCase, 1,
-                    'siswa subjek bisa baca kasus yang dibagikan (is_shared_to_student=true)',
-                    'siswa subjek TIDAK bisa baca kasus yang dibagikan — read-path siswa rusak');
-                await probe('F2', d13.siswa_auth, selVis, 1,
-                    'siswa subjek bisa baca event is_visible_to_student=true',
-                    'siswa subjek TIDAK bisa baca event yang ditandai visible — read-path rusak');
+                // Keputusan Romo 18 Okt 2026 (migrasi 20261018160000): siswa/ortu TIDAK membaca tabel kasus langsung (judul dan deskripsi untuk staf);
+                // jalur baca sah mereka adalah fn_portal_cases (status, penangan, dan komentar yang ditandai terlihat).
+                const selPortalKasus  = ` select jsonb_array_length(fn_portal_cases('${d13.student_id}'))::int as cnt;`;
+                const selPortalEvents = ` select jsonb_array_length(fn_portal_cases('${d13.student_id}')->0->'events')::int as cnt;`;
+                await probe('F1', d13.siswa_auth, selCase, 0,
+                    'siswa subjek TIDAK membaca tabel kasus langsung (judul/deskripsi tertutup)',
+                    'BOCOR: siswa subjek membaca tabel kasus langsung (judul/deskripsi terbuka)');
+                await probe('F1b', d13.siswa_auth, selPortalKasus, 1,
+                    'siswa subjek melihat kasus yang dibagikan lewat fn_portal_cases',
+                    'siswa subjek TIDAK melihat kasus yang dibagikan lewat fn_portal_cases — read-path siswa rusak');
+                await probe('F2', d13.siswa_auth, selPortalEvents, 1,
+                    'siswa subjek melihat tepat 1 event is_visible_to_student=true lewat fn_portal_cases',
+                    'jumlah event terlihat siswa subjek salah — read-path rusak atau event internal bocor');
                 await probe('F3', d13.siswa_auth, selHid, 0,
                     'siswa subjek TIDAK bisa baca event is_visible_to_student=false',
                     'BOCOR: siswa membaca event internal (is_visible_to_student=false)');
@@ -1105,12 +1112,15 @@ async function main() {
                 else await probe('F4', d13.lain_auth, selCase, 0,
                     'siswa lain TIDAK bisa baca kasus siswa subjek — isolasi per-siswa OK',
                     'BOCOR: siswa lain membaca kasus milik siswa subjek');
-                await probe('F5', d13.ortu_auth, selCase, 1,
-                    'ortu siswa subjek bisa baca kasus (is_shared_to_parent=true)',
-                    'ortu siswa subjek TIDAK bisa baca kasus yang dibagikan — read-path ortu rusak');
-                await probe('F6', d13.ortu_auth, selVis, 1,
-                    'ortu siswa subjek bisa baca event is_visible_to_student=true',
-                    'ortu siswa subjek TIDAK bisa baca event visible — read-path ortu rusak');
+                await probe('F5', d13.ortu_auth, selCase, 0,
+                    'ortu siswa subjek TIDAK membaca tabel kasus langsung (judul/deskripsi tertutup)',
+                    'BOCOR: ortu siswa subjek membaca tabel kasus langsung (judul/deskripsi terbuka)');
+                await probe('F5b', d13.ortu_auth, selPortalKasus, 1,
+                    'ortu siswa subjek melihat kasus yang dibagikan lewat fn_portal_cases',
+                    'ortu siswa subjek TIDAK melihat kasus yang dibagikan lewat fn_portal_cases — read-path ortu rusak');
+                await probe('F6', d13.ortu_auth, selPortalEvents, 1,
+                    'ortu siswa subjek melihat tepat 1 event is_visible_to_student=true lewat fn_portal_cases',
+                    'jumlah event terlihat ortu siswa subjek salah — read-path rusak atau event internal bocor');
                 await probe('F7', d13.guru_auth, selAllEv, 3,
                     'GURU creator bisa baca SEMUA event (tidak dibatasi is_visible_to_student)',
                     'GURU creator tidak melihat seluruh event kasusnya');

@@ -680,9 +680,6 @@ async function loadCases(studentId, signal = null) {
         }
         casesListEl.innerHTML = cases.map(c => {
             const isClosed = c.status === 'CLOSED';
-            const descHtml = c.description
-                ? `<p style="margin:8px 0 0;font-size:0.9rem;color:var(--color-text)">${esc(c.description)}</p>`
-                : '';
             const eventsHtml = c.events.length === 0 ? '' : `
                 <div style="margin-top:10px;border-top:1px solid var(--color-border,#e5e7eb);padding-top:10px">
                     ${c.events.map(e => `
@@ -693,13 +690,12 @@ async function loadCases(studentId, signal = null) {
                 </div>`;
             return `<div style="padding:14px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;margin-bottom:12px;border-left:3px solid ${isClosed ? '#9ca3af' : '#f59e0b'}">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
-                    <strong>${esc(c.title)}</strong>
+                    <strong>Kasus pembinaan</strong>
                     <span style="font-size:0.75rem;padding:2px 8px;border-radius:12px;background:${isClosed ? '#e5e7eb' : '#d1fae5'};color:${isClosed ? '#374151' : '#065f46'}">${CASE_STATUS_LABEL[c.status] ?? c.status}</span>
                 </div>
                 <div style="font-size:0.8rem;color:var(--color-text-muted,#6b7280);margin-top:4px">
                     Ditindaklanjuti oleh: ${esc(c.handler?.full_name ?? '—')} · ${formatDate(c.created_at)}
                 </div>
-                ${descHtml}
                 ${eventsHtml}
             </div>`;
         }).join('');

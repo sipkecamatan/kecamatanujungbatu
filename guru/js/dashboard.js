@@ -4380,7 +4380,8 @@ async function renderKasusViewers(kasus, ctx, seq) {
 
     // Server tidak mengembalikan penonton yang sudah ditandai sebagai kandidat, jadi label hubungan diingat selama sesi.
     kandSemua.forEach(c => _labelHubunganKasus.set(`${kasus.case_id}:${c.user_id}`, c.relation_label));
-    const labelPembaca = v => _labelHubunganKasus.get(`${kasus.case_id}:${v.user_id}`) ?? (v.role_type === 'GURU' ? 'Guru' : (VIEWER_ROLE_LABEL[v.role_type] ?? v.role_type));
+    // Label hubungan berasal dari server (fn_case_list_viewers.relation_label); ingatan sesi dan peran akun hanya cadangan.
+    const labelPembaca = v => v.relation_label ?? _labelHubunganKasus.get(`${kasus.case_id}:${v.user_id}`) ?? (v.role_type === 'GURU' ? 'Guru' : (VIEWER_ROLE_LABEL[v.role_type] ?? v.role_type));
     const baris = viewers.map(v => `
         <li style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0">
             <span>${esc(v.full_name)} <span style="color:var(--color-text-muted)">(${esc(labelPembaca(v))})</span></span>
@@ -4396,7 +4397,7 @@ async function renderKasusViewers(kasus, ctx, seq) {
         ${isOversight ? `<p class="hint" style="margin:0;font-size:12px">Anda membaca kasus ini sebagai ${currentUser.role_type === 'WAKA_KESISWAAN' ? 'Waka Kesiswaan' : 'Kepala Sekolah'}.
             Pembukaan ini dicatat dan dapat dilihat oleh pembuat dan penangan kasus.</p>` : `
         <p class="hint" style="margin:0 0 8px;font-size:12px">Selain pembuat, penangan, Waka Kesiswaan, dan Kepala Sekolah, kasus ini hanya dapat dibaca oleh orang yang Anda tandai.
-            Orang yang ditandai hanya membaca; orang tua dan siswa hanya melihat komentar yang ditandai terlihat.</p>`}
+            Orang yang ditandai hanya membaca. Orang tua dan siswa hanya melihat status kasus, nama penangan, dan komentar yang ditandai terlihat; judul dan deskripsi kasus tidak.</p>`}
         ${bisaTandai ? `${viewers.length ? `<ul style="list-style:none;margin:0 0 8px;padding:0;font-size:13px">${baris}</ul>` : '<p class="hint" style="margin:0 0 8px">Belum ada yang ditandai.</p>'}` : ''}
         ${bisaTandai ? `
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -4738,6 +4739,9 @@ async function refreshKasusDetail(ctx = kasusCtxDefault) {
         if (ctx.currentId !== caseId || ctx.detailSeq !== seq) return;
         renderKasusDetail(kasus, ctx);
         renderKasusEvents(events, ctx);
+        // Panel pembaca ikut digambar ulang dengan nomor urut baru (seperti openKasusDetail); tanpa ini tombol Tandai/Cabut memegang nomor lama
+        // setelah komentar, eskalasi, atau ubah status, sehingga daftar tidak diperbarui lagi (temuan uji nyata 18 Okt 2026).
+        renderKasusViewers(kasus, ctx, seq);
         await renderKasusActions(kasus, ctx, seq);
         if (ctx.currentId !== caseId || ctx.detailSeq !== seq) return;
         const idx = ctx.allCases.findIndex(c => c.case_id === caseId);

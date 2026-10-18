@@ -698,18 +698,14 @@ function renderCases(cases) {
                         <p style="margin:4px 0 0">${esc(e.payload?.text ?? '')}</p>
                     </div>`).join('')}
             </div>`;
-        const descHtml = c.description
-            ? `<p style="margin:8px 0 0;font-size:0.9rem;color:var(--color-text)">${esc(c.description)}</p>`
-            : '';
         return `<div class="obs-card" style="border-left:3px solid ${isClosed ? 'var(--color-text-muted,#6b7280)' : 'var(--color-warning,#f59e0b)'}">
             <div class="obs-meta" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
-                <strong>${esc(c.title)}</strong>
+                <strong>Kasus pembinaan</strong>
                 <span class="badge ${isClosed ? 'badge-izin' : 'badge-hadir'}" style="font-size:0.75rem">${statusLabel}</span>
             </div>
             <div style="font-size:0.8rem;color:var(--color-text-muted,#9ca3af);margin-top:4px">
                 Ditindaklanjuti oleh: ${esc(c.handler?.full_name ?? '—')} · ${fmt(c.created_at)}
             </div>
-            ${descHtml}
             ${eventsHtml}
         </div>`;
     }).join('');
