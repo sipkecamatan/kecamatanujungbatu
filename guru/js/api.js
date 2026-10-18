@@ -2212,7 +2212,7 @@ export async function getGradeFinal(schoolId, classId, subjectId, year, semester
 
 /**
  * Simpan nilai rapor banyak siswa sekaligus (satu permintaan: semua atau tidak sama sekali).
- * rows: [{ studentId, nilai_rapor, metode, tp_optimal, tp_perlu, deskripsi_tertinggi, deskripsi_terendah }]
+ * rows: [{ studentId, nilai_rapor, metode, rumus, tp_optimal, tp_perlu, deskripsi_tertinggi, deskripsi_terendah }]
  */
 export async function upsertGradeFinalBatch(schoolId, classId, subjectId, teacherId, year, semester, rows) {
     if (!rows?.length) return;
@@ -2228,6 +2228,8 @@ export async function upsertGradeFinalBatch(schoolId, classId, subjectId, teache
                 deskripsi_tertinggi: r.deskripsi_tertinggi || null, deskripsi_terendah: r.deskripsi_terendah || null,
                 // Izin tampil di portal (bawaan tidak terlihat; migrasi 20261017150000)
                 is_visible_siswa: r.is_visible_siswa === true, is_visible_ortu: r.is_visible_ortu === true,
+                // Rumus yang ditetapkan guru (metode + bobot persen), disimpan sekali agar tidak diisi ulang (migrasi 20261018200000)
+                rumus: r.rumus ?? null,
                 updated_at: now,
             })),
             { onConflict: 'class_id,subject_id,student_id,academic_year,semester,teacher_id' }

@@ -5,10 +5,10 @@ import {
     getKktps, createKktp, updateKktp, deleteKktp,
     getStudentsForClass,
     getAssessments, createAssessment, updateAssessment, deleteAssessment,
-    getAssessmentResults, upsertAssessmentResult, deleteAssessmentResult, getResultsForAssessments, getGradeRecapRows,
-    deleteGradeRecapForStudents, deleteGradeRecapForTp, getGradeFinal,
+    getAssessmentResults, upsertAssessmentResult, deleteAssessmentResult, getResultsForAssessments,
+    deleteGradeRecapForTp, getGradeFinal,
     getStudentGroups, upsertStudentGroup,
-    upsertGradeRecapBatch, getGradeRecap, hitungRekapTp, hapusRekapTp,
+    hitungRekapTp, hapusRekapTp,
     getCp, upsertCp, createCpElemen, updateCpElemen, deleteCpElemen,
 } from './api.js';
 import { renderNilaiRapor } from './nilai-rapor-ui.js';
@@ -37,8 +37,6 @@ let _rcJenis    = 'SUMATIF'; // DIAGNOSTIK_NK | DIAGNOSTIK_K | FORMATIF | SUMATI
 let _rcTeknik   = '';
 let _rcInstrumen = '';
 let _rcTp       = '';        // '' = semua TP; rekap tersimpan PER TP (A-03)
-let _rcMetode   = 'rata';   // 'rata' | 'bobot' | 'terbaik'
-let _rcBobots   = {};       // { asmt_id: number }
 let _rcLastSumatifIds = [];
 let _rcHasil    = null;
 let _rcPage     = 0;        // halaman aktif paginasi siswa di rekap
@@ -1677,10 +1675,9 @@ function confirmDeleteAsmt(asmtId, origBtn) {
         try {
             const dihapus = _asmtCache.find(a => a.id === asmtId);
             await deleteAssessment(asmtId);
-            // A-05: rekap nilai akhir TP itu dihitung dari asesmen ini; membiarkannya menyisakan angka basi. Dihapus; guru menyimpan ulang dari Rekap.
+            // Rekap kini hanya tampilan (tidak menyimpan lagi). Sisa rekap lama (data sebelum 18 Okt 2026) untuk TP itu tetap dibersihkan agar tidak menyisakan angka basi.
             if (dihapus?.jenis === 'SUMATIF' && dihapus.learning_objective_id) {
                 await deleteGradeRecapForTp(_schoolId, _kelasId, dihapus.learning_objective_id, Number(_semester), _year);
-                alert('Penilaian dihapus. Rekap nilai akhir untuk TP terkait ikut dihapus karena sudah tidak sesuai; buka bagian Rekap lalu Simpan Rekap ulang.');
             }
             await renderPelaksanaan();
         }
@@ -1797,7 +1794,7 @@ async function _renderRecapContent(body) {
             _sGroupsCache = Object.fromEntries(sGroups.map(g => [g.student_id, g.grup]));
         }
         // Rekap bisa dibuka tanpa lewat Perencanaan, jadi _tpCache mungkin masih kosong.
-        // Tanpa ini recapTpId jatuh ke null dan guard simpan salah menuduh 'TP belum ada'.
+        // Tanpa ini filter TP pada Rekap tidak berisi daftar TP.
         if (!_tpCache.length) {
             _tpCache = await getTps(_kelasId, _subjectId, _year, Number(_semester));
         }
@@ -1819,7 +1816,7 @@ async function _renderRecapContent(body) {
 
         // Non-SUMATIF: nilai siswa tidak ada di assessment_results — datanya
         // instrumen-centric di kolom konten JSONB. Tampilkan label kategori,
-        // tanpa nilai akhir, tanpa KKTP, tanpa tombol Simpan Rekap.
+        // tanpa nilai akhir dan tanpa KKTP (Rekap kini hanya tampilan).
         if (!isSumatif) {
             const labelMaps = {};
             filtered.forEach(a => {
@@ -1858,63 +1855,10 @@ async function _renderRecapContent(body) {
         }));
 
         const roster = _rosterCache;
-        const hasSiswa = roster.length > 0;
 
-        // B-08: bobot diisi guru sendiri dan totalnya harus tepat 100% (tidak dinormalkan diam-diam)
-        const totalBobotIsi = (isSumatif && _rcMetode === 'bobot') ? filtered.reduce((j, a) => j + (parseFloat(_rcBobots[a.id]) || 0), 0) : 100;
-        const bobotSah = Math.abs(totalBobotIsi - 100) < 0.001;
-        // compute final values
-        const hasilSiswa = {};
-        for (const s of roster) {
-            const nilais = filtered.map(a => allResults[a.id]?.[s.id]?.nilai ?? null);
-            let nilai = null;
-            if (!isSumatif) {
-                nilai = null;   // jenis non-SUMATIF tidak dihitung nilai akhirnya
-            } else if (_rcMetode === 'rata') {
-                const valid = nilais.filter(n => n != null);
-                nilai = valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
-            } else if (_rcMetode === 'bobot') {
-                if (!bobotSah) { nilai = null; hasilSiswa[s.id] = { nilai, nilais }; continue; }   // B-08: bobot belum 100% -> tanpa nilai akhir
-                let sum = 0, totalBobot = 0;
-                filtered.forEach((a, i) => {
-                    const b = parseFloat(_rcBobots[a.id] || 0);
-                    if (nilais[i] != null && b > 0) { sum += nilais[i] * b; totalBobot += b; }
-                });
-                nilai = totalBobot > 0 ? sum / totalBobot : null;
-            } else if (_rcMetode === 'terbaik') {
-                const valid = nilais.filter(n => n != null);
-                nilai = valid.length ? Math.max(...valid) : null;
-            }
-            hasilSiswa[s.id] = { nilai, nilais };
-        }
-
-        // pick TP for kktp check
-        // A-03: rekap tersimpan PER TP. TP sasaran ditentukan dari penilaian sumatif yang tampil (atau filter TP), bukan penilaian pertama mana pun.
-        const tpTerkait  = [...new Set(filtered.filter(a => a.jenis === 'SUMATIF' && a.learning_objective_id).map(a => a.learning_objective_id))];
-        const linkedTpId = _rcTp || (tpTerkait.length === 1 ? tpTerkait[0] : undefined);
-        const kktpForTp  = (isSumatif && linkedTpId) ? (await getKktps(linkedTpId)) : [];
-        // TP yang dipakai sebagai anchor rekap. grade_recap.learning_objective_id NOT NULL,
-        // jadi tanpa TP sama sekali rekap tidak bisa disimpan.
-        // Beberapa TP tampil sekaligus: tidak ada TP sasaran yang sah (menyimpan ke satu TP akan mencampur TP lain) -> guru diminta memilih satu TP.
-        const recapTpId  = linkedTpId || (tpTerkait.length === 0 ? (_tpCache[0]?.id || null) : null);
-        const banyakTp   = !linkedTpId && tpTerkait.length > 1;
-
-        // Kembalikan label predikat (SB/BSH/MB/BB) sesuai rentang KKTP, atau null
-        // bila nilai kosong / KKTP belum ada / nilai di luar semua rentang.
-        function kktpPredikat(nilai) {
-            if (nilai == null || !kktpForTp.length) return null;
-            const rentang = kktpForTp[0]?.rentang;
-            if (!rentang) return null;
-            // Iterasi SB→BB; return pertama di mana nilai >= batas_bawah (eksklusif atas)
-            for (const pred of ['SB', 'BSH', 'MB', 'BB']) {
-                const range = rentang[pred];
-                if (!range) continue;
-                if (nilai >= range[0]) return pred;
-            }
-            return null;
-        }
-
-        // Paginasi: hitung slice halaman aktif; upsert simpan tetap pakai roster penuh
+        // Rekap hanyalah WADAH TAMPILAN hasil pelaksanaan penilaian (semua jenis). Tidak ada rumus, bobot, atau penyimpanan di sini:
+        // nilai rapor dihitung dari penilaian SUMATIF di bagian "Nilai Rapor" dengan rumus persentase yang ditentukan guru (diisi sekali di sana).
+        // Paginasi: hanya siswa di halaman aktif yang digambar
         const totalHal = Math.ceil(roster.length / RC_SISWA_PER_HAL);
         if (_rcPage >= totalHal) _rcPage = Math.max(0, totalHal - 1);
         const rosterHal = roster.slice(_rcPage * RC_SISWA_PER_HAL, (_rcPage + 1) * RC_SISWA_PER_HAL);
@@ -1923,19 +1867,13 @@ async function _renderRecapContent(body) {
             '<table class="rc-table"><thead><tr>' +
             '<th>Nama Siswa</th>' +
             filtered.map(a => '<th>' + esc(a.teknik?.replace(/_/g,'') || '') + ' ' + esc(a.instrumen || '') + '</th>').join('') +
-            (isSumatif ? '<th>Nilai Akhir</th><th>KKTP</th>' : '') +
-            (isSumatif && _rcMetode === 'bobot' ? '<th>Bobot (%)</th>' : '') +
             '</tr></thead><tbody>';
-
-        for (const s of rosterHal) {  // hanya siswa di halaman aktif
-            const h    = hasilSiswa[s.id] || {};
-            const nak  = h.nilai != null ? h.nilai.toFixed(1) : '—';
-            const ktTxt = kktpPredikat(h.nilai) ?? '—';
-            tableHtml += '<tr>' +
-                '<td>' + esc(s.nama) + '</td>' +
-                (h.nilais || filtered.map(() => null)).map(n => '<td>' + (n != null ? n.toFixed(1) : '—') + '</td>').join('') +
-                (isSumatif ? '<td><strong>' + nak + '</strong></td><td>' + ktTxt + '</td>' : '') +
-                (isSumatif && _rcMetode === 'bobot' ? '<td></td>' : '') +
+        for (const s of rosterHal) {
+            tableHtml += '<tr><td>' + esc(s.nama) + '</td>' +
+                filtered.map(a => {
+                    const n = allResults[a.id]?.[s.id]?.nilai;
+                    return '<td>' + (n != null ? Number(n).toFixed(1) : '—') + '</td>';
+                }).join('') +
                 '</tr>';
         }
         tableHtml += '</tbody></table>';
@@ -1947,84 +1885,16 @@ async function _renderRecapContent(body) {
               '<button class="pen-btn pen-btn-sm" data-action="rc-next"' + (_rcPage >= totalHal - 1 ? ' disabled' : '') + '>Next ›</button>' +
               '</div>'
             : '';
+        const catatan = isSumatif
+            ? '<p class="hint" style="margin:6px 0 10px;font-size:12px">Rekap hanya menampilkan hasil penilaian. Nilai rapor dihitung di bagian <strong>Nilai Rapor</strong> dari penilaian sumatif, dengan rumus persentase yang Anda tentukan di sana.</p>'
+            : '';
 
-        // bobot row
-        let bobotHtml = '';
-        if (isSumatif && _rcMetode === 'bobot') {
-            const selisih = Math.round(Math.abs(100 - totalBobotIsi) * 1000) / 1000;
-            const statusBobot = bobotSah
-                ? '<span style="color:var(--color-success)">Total ' + totalBobotIsi + '% ✓</span>'
-                : '<span style="color:var(--color-danger)">Total ' + totalBobotIsi + '% — ' + (totalBobotIsi < 100 ? 'kurang ' : 'lebih ') + selisih + '%; nilai akhir dan Simpan Rekap baru aktif bila total tepat 100%</span>';
-            bobotHtml = '<div style="margin:8px 0;font-size:12px"><strong>Isi bobot tiap sumatif (total harus 100%):</strong> ' + statusBobot + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
-                filtered.map(a => (
-                    '<label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:normal">' +
-                    esc(a.instrumen || a.teknik) +
-                    '<input type="number" class="rc-bobot-input" data-aid="' + esc(a.id) + '" min="0" max="100" value="' + esc(String(_rcBobots[a.id] || 0)) + '">' +
-                    '</label>'
-                )).join('') +
-                '</div></div>';
-        }
-
-        body.innerHTML =
-            _rcFilterBar() + bobotHtml +
-            (isSumatif
-                ? '<div style="display:flex;justify-content:flex-end;margin-bottom:8px">' +
-                  '<button class="pen-btn pen-btn-primary" data-action="rc-simpan">Simpan Rekap</button>' +
-                  '</div>'
-                : '') +
-            '<div style="overflow-x:auto">' + tableHtml + '</div>' +
-            navHtml;
+        body.innerHTML = _rcFilterBar() + catatan + '<div style="overflow-x:auto">' + tableHtml + '</div>' + navHtml;
 
         _wireRcFilters(body);
 
         body.querySelector('[data-action="rc-prev"]')?.addEventListener('click', () => { _rcPage--; _renderRecapContent(body); });
         body.querySelector('[data-action="rc-next"]')?.addEventListener('click', () => { _rcPage++; _renderRecapContent(body); });
-
-        body.querySelectorAll('.rc-bobot-input').forEach(inp => {
-            inp.addEventListener('change', () => { _rcBobots[inp.dataset.aid] = parseFloat(inp.value) || 0; _renderRecapContent(body); });
-        });
-
-        body.querySelector('[data-action="rc-simpan"]')?.addEventListener('click', async () => {
-            if (_nilaiSedangDisimpan) return;
-            _nilaiSedangDisimpan = true;
-            const btn = body.querySelector('[data-action="rc-simpan"]');
-            btn.disabled = true; btn.textContent = 'Menyimpan…';
-            try {
-                if (!bobotSah) {
-                    throw new Error('Total bobot harus tepat 100% (sekarang ' + totalBobotIsi + '%). Perbaiki bobot, lalu simpan.');
-                }
-                if (banyakTp) {
-                    throw new Error('Penilaian sumatif yang tampil terkait beberapa TP. Pilih satu TP pada filter "TP", lalu simpan; rekap tersimpan per TP.');
-                }
-                if (!recapTpId) {
-                    throw new Error('Rekap butuh Tujuan Pembelajaran. Buat TP dulu di section Perencanaan, lalu tautkan ke penilaian Sumatif.');
-                }
-                const rows = [];
-                const tanpaNilai = [];
-                for (const s of roster) {  // iterate semua siswa, bukan hanya halaman aktif
-                    const h = hasilSiswa[s.id] || {};
-                    if (h.nilai == null) { tanpaNilai.push(s.id); continue; }
-                    // Tercapai bila predikat BSH ke atas; MB dan BB = belum tercapai;
-                    // null bila KKTP belum ada sehingga tidak bisa dinilai.
-                    const pred = kktpPredikat(h.nilai);
-                    rows.push({ studentId: s.id, payload: {
-                        nilai_akhir: h.nilai,
-                        kktp_tercapai: pred != null ? (pred === 'BSH' || pred === 'SB') : null,
-                        deskripsi_capaian: null,
-                    } });
-                }
-                await upsertGradeRecapBatch(_schoolId, _kelasId, recapTpId,
-                    Number(_semester), _year, rows);
-                // A-05: siswa yang kini tanpa nilai tidak boleh meninggalkan rekap lama yang basi.
-                await deleteGradeRecapForStudents(_schoolId, _kelasId, recapTpId, Number(_semester), _year, tanpaNilai);
-                toast('Rekap berhasil disimpan');
-            } catch (err) {
-                toast('Gagal simpan: ' + (err.message || 'Terjadi kesalahan'), false);
-            } finally {
-                _nilaiSedangDisimpan = false;
-                btn.disabled = false; btn.textContent = 'Simpan Rekap';
-            }
-        });
     } catch (err) {
         body.innerHTML = _rcFilterBar() + '<p class="pen-placeholder" style="color:var(--color-danger)">Gagal memuat rekap: ' + esc(err.message) + '</p>';
         _wireRcFilters(body);
@@ -2034,8 +1904,6 @@ async function _renderRecapContent(body) {
 function _rcFilterBar() {
     const jenisOpts = JENIS_LIST.map(v =>
         '<option value="' + v + '"' + (_rcJenis === v ? ' selected' : '') + '>' + esc(JENIS_LABEL[v] ?? v) + '</option>').join('');
-    const metodeOpts = [['rata','Rata-rata'],['bobot','Bobot'],['terbaik','Nilai Terbaik']].map(([v, l]) =>
-        '<option value="' + v + '"' + (_rcMetode === v ? ' selected' : '') + '>' + l + '</option>').join('');
     const tpOpts = '<option value="">Semua TP</option>' + _tpCache.map(t =>
         '<option value="' + esc(t.id) + '"' + (_rcTp === t.id ? ' selected' : '') + '>' + esc(t.kode_tp || t.id) + '</option>').join('');
     const teknikOpts = ['', ...TEKNIK_LIST].map(v =>
@@ -2044,10 +1912,8 @@ function _rcFilterBar() {
         '<div class="rc-filter-bar" style="justify-content:space-between">' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
         '<select id="rc-jenis">' + jenisOpts + '</select>' +
-        // Metode hanya relevan untuk SUMATIF — jenis lain tidak dihitung nilai akhirnya
-        (_rcJenis === 'SUMATIF' ? '<select id="rc-metode">' + metodeOpts + '</select>' : '') +
         '<select id="rc-teknik">' + teknikOpts + '</select>' +
-        (_rcJenis === 'SUMATIF' && _tpCache.length ? '<select id="rc-tp" title="Rekap nilai akhir tersimpan per Tujuan Pembelajaran">' + tpOpts + '</select>' : '') +
+        (_rcJenis === 'SUMATIF' && _tpCache.length ? '<select id="rc-tp" title="Saring menurut Tujuan Pembelajaran">' + tpOpts + '</select>' : '') +
         '</div>' +
         '<button class="pen-btn" data-action="asmt-download-excel">⬇ Unduh Excel</button>' +
         '</div>'
@@ -2057,7 +1923,6 @@ function _rcFilterBar() {
 function _wireRcFilters(body) {
     body.querySelector('#rc-jenis')?.addEventListener('change', e => {
         _rcJenis     = e.target.value;
-        _rcMetode    = 'rata';
         _rcTeknik    = '';
         _rcInstrumen = '';
         _rcTp        = '';
@@ -2065,7 +1930,6 @@ function _wireRcFilters(body) {
         _renderRecapContent(body);
     });
     body.querySelector('#rc-tp')?.addEventListener('change', e => { _rcTp = e.target.value; _rcPage = 0; _renderRecapContent(body); });
-    body.querySelector('#rc-metode')?.addEventListener('change', e => { _rcMetode = e.target.value; _rcPage = 0; _renderRecapContent(body); });
     body.querySelector('#rc-teknik')?.addEventListener('change', e => { _rcTeknik = e.target.value; _rcInstrumen = ''; _rcPage = 0; _renderRecapContent(body); });
 }
 
@@ -2202,9 +2066,6 @@ async function downloadPenilaianExcel() {
         // Nilai numerik (SUMATIF / DIAGNOSTIK_K)
         // A-11: dipaginasi agar ekspor banyak asesmen tidak terpotong diam-diam di batas 1000 baris PostgREST.
         const resultsRows = await getResultsForAssessments(asmtIds, _schoolId);
-
-        // Rekap nilai akhir per TP per siswa
-        const gradeRecapRows = await getGradeRecapRows(_schoolId, _kelasId, Number(_semester), _year);
 
         // TP cache (sudah ada di _tpCache, tapi pastikan terisi)
         let tpCache = _tpCache;

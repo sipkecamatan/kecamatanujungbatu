@@ -64,12 +64,19 @@ export async function renderNilaiRapor(body, ctx) {
     const tpById = Object.fromEntries(tps.map((t) => [t.id, t]));
     const simpanSiswa = Object.fromEntries(tersimpan.map((r) => [r.student_id, r]));
 
+    // Rumus yang ditetapkan guru (metode + bobot persen) tersimpan bersama nilai rapor, jadi tidak perlu diisi ulang setiap kali halaman dibuka.
+    // Bobot milik penilaian yang sudah dihapus dibuang.
+    const rumusSimpan = tersimpan.find((r) => r.rumus && typeof r.rumus === 'object')?.rumus ?? null;
+    const idSumatif = new Set(sumatif.map((a) => a.id));
+    const bobotSimpan = Object.fromEntries(Object.entries(rumusSimpan?.bobot ?? {})
+        .filter(([id, v]) => idSumatif.has(id) && v !== null && v !== '' && Number.isFinite(Number(v))).map(([id, v]) => [id, Number(v)]));
     const st = {
-        metode: tersimpan[0]?.metode && METODE_RAPOR[tersimpan[0].metode] ? tersimpan[0].metode : 'RATA',
+        metode: rumusSimpan?.metode && METODE_RAPOR[rumusSimpan.metode] ? rumusSimpan.metode
+            : (tersimpan[0]?.metode && METODE_RAPOR[tersimpan[0].metode] ? tersimpan[0].metode : 'RATA'),
         // Izin tampil di portal: aktif bila SEMUA nilai rapor tersimpan sudah diizinkan (berlaku untuk seluruh kelas ini pada mapel dan semester ini)
         visSiswa: tersimpan.length > 0 && tersimpan.every((r) => r.is_visible_siswa === true),
         visOrtu:  tersimpan.length > 0 && tersimpan.every((r) => r.is_visible_ortu === true),
-        bobot: {},
+        bobot: bobotSimpan,
         rows: {},
     };
     for (const s of roster) {
@@ -140,7 +147,7 @@ export async function renderNilaiRapor(body, ctx) {
         body.innerHTML = infoKosong +
             '<div style="font-size:12px;color:var(--color-text-muted);margin-bottom:10px">' +
             'Nilai rapor adalah <strong>nilai akhir yang Anda tetapkan</strong> (0–100) untuk satu semester, dihitung dari penilaian <strong>sumatif</strong> (formatif tidak digabung). ' +
-            'Kolom Saran hanyalah bantuan hitung. Tanda <strong>T</strong> (TP dicapai optimal) dan <strong>R</strong> (TP perlu peningkatan) dipakai untuk deskripsi capaian di e-Rapor. ' +
+            'Rumus (metode dan persentase bobot) Anda tentukan sendiri dan ikut tersimpan bersama nilai rapor, jadi tidak perlu diisi ulang. Kolom Saran hanyalah bantuan hitung. Tanda <strong>T</strong> (TP dicapai optimal) dan <strong>R</strong> (TP perlu peningkatan) dipakai untuk deskripsi capaian di e-Rapor. ' +
             'Nilai rapor terlihat oleh Anda, wali kelas, Kepala Sekolah, dan Waka Kurikulum. Siswa dan orang tua baru melihatnya di portal bila Anda mengizinkan di bawah ini.</div>' +
             '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:13px">' +
             '<label style="display:flex;align-items:center;gap:6px;font-weight:normal"><input type="checkbox" id="nr-vis-siswa"' + (st.visSiswa ? ' checked' : '') + '> Izinkan <strong>siswa</strong> melihat nilai rapor</label>' +
@@ -227,6 +234,7 @@ export async function renderNilaiRapor(body, ctx) {
             baru.push({
                 studentId: s.id, nilai_rapor: Number(row.nilai),
                 metode: saran !== null && Number(row.nilai) === saran ? st.metode : 'MANUAL',
+                rumus: { metode: st.metode, bobot: Object.fromEntries(sumatif.map((a) => [a.id, Number(st.bobot[a.id]) || 0])) },
                 tp_optimal: [...row.optimal], tp_perlu: [...row.perlu],
                 deskripsi_tertinggi: des.tertinggi, deskripsi_terendah: des.terendah,
                 is_visible_siswa: st.visSiswa === true, is_visible_ortu: st.visOrtu === true,
