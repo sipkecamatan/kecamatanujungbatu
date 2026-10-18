@@ -461,88 +461,16 @@ export async function getWaliKelasUserId(classId) {
 }
 
 /**
- * Resolve penerima otomatis untuk posting ortu berdasarkan anak yang dipilih.
- * Penerima: Wali Kelas + Guru BK + Guru Wali + Guru yang mengajar hari ini.
- * Bug #8 fix: tambah filter school_id eksplisit di semua query.
+ * Kirim izin ketidakhadiran anak (satu-satunya jalan bagi orang tua membuat posting forum; aturan produk Romo 18 Okt 2026).
+ * Penerima DIHITUNG SERVER: wali kelas anak, guru wali anak, guru piket yang bertugas hari ini, dan guru yang mengajar anak hari ini.
+ * alasan: 'SAKIT' | 'IZIN' | 'LAINNYA'. Mengembalikan post_id.
  */
-export async function getParentForumRecipients(studentId, classId, schoolId) {
-    if (!studentId || !classId || !schoolId) return [];
-    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
-
-    // Langkah A: ambil student_id di kelas ini (pre-fetch, sequential)
-    const { data: enrollData, error: enrollErr } = await supabase
-        .from('class_enrollments')
-        .select('student_id')
-        .eq('student_id', studentId)
-        .eq('class_id', classId)
-        .eq('school_id', schoolId)
-        .is('withdrawn_at', null);
-    if (enrollErr) throw enrollErr;
-    const studentIds = (enrollData ?? []).map(r => r.student_id);
-
-    const [waliUserId, bkRes, guruWaliRes, jadwalRes] = await Promise.all([
-        // Wali Kelas — via RPC (tenant diambil dari fn_current_school_id() di server)
-        getWaliKelasUserId(classId),
-
-        // Guru BK yang menangani kelas ini
-        supabase.from('bk_class_assignments')
-            .select('bk_user_id')
-            .eq('class_id', classId)
-            .eq('school_id', schoolId)
-            .eq('is_active', true),
-
-        // Guru Wali hanya untuk anak yang dipilih, bukan seluruh siswa di kelas.
-        studentIds.length > 0
-            ? supabase.from('guru_wali_assignments')
-                .select('guru_user_id')
-                .eq('school_id', schoolId)
-                .eq('is_active', true)
-                .in('student_id', studentIds)
-            : Promise.resolve({ data: [], error: null }),
-
-        // Guru yang mengajar hari ini
-        supabase.from('teaching_schedules')
-            .select('scheduled_teacher_id')
-            .eq('class_id', classId)
-            .eq('school_id', schoolId)
-            .eq('session_date', today),
-    ]);
-
-    const ids = new Set();
-    if (waliUserId) ids.add(waliUserId);
-    (bkRes.data ?? []).forEach(r => ids.add(r.bk_user_id));
-    (guruWaliRes.data ?? []).forEach(r => ids.add(r.guru_user_id));
-    (jadwalRes.data ?? []).forEach(r => {
-        if (r.scheduled_teacher_id) ids.add(r.scheduled_teacher_id);
-    });
-
-    return [...ids];
-}
-
-/**
- * Buat posting Forum Sekolah dari ortu ke guru terkait anak.
- */
-export async function createParentForumPost(title, body, classId, academicYear, schoolId,
-                                            studentId, idempotencyKey = null) {
-    const recipientIds = await getParentForumRecipients(studentId, classId, schoolId);
-
-    if (recipientIds.length === 0) {
-        throw new Error('Tidak ada guru yang dapat ditemukan untuk anak ini hari ini.');
-    }
-
-    const { data, error } = await supabase.rpc('fn_create_forum_post', {
-        p_class_id:            classId,
-        p_academic_year:       academicYear,
-        p_content:             body,
-        p_category_code:       null,
-        p_subject_student_ids: [studentId],
-        p_audience_type:       'ORANG_TERTENTU',
-        p_specific_user_ids:   recipientIds,
-        p_audience_type_2:     null,
-        p_specific_user_ids_2: [],
-        p_scope_type:          'SEKOLAH',
-        p_title:               title,
-        p_idempotency_key:     idempotencyKey,   // FUNC-03
+export async function createIzinOrtu(studentId, alasan, keterangan, idempotencyKey = null) {
+    const { data, error } = await supabase.rpc('fn_create_izin_ortu', {
+        p_student_id:      studentId,
+        p_alasan:          alasan,
+        p_keterangan:      keterangan || null,
+        p_idempotency_key: idempotencyKey,
     });
     if (error) throw error;
     return data;

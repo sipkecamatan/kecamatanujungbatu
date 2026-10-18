@@ -177,7 +177,7 @@
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
                 <button id="forum-tab-masuk" class="btn btn-primary">Masuk</button>
                 <button id="forum-tab-terkirim" class="btn btn-secondary">Terkirim</button>
-                <button id="btn-forum-buat" class="btn btn-primary" style="margin-left:auto">+ Buat Pesan</button>
+                <button id="btn-forum-buat" class="btn btn-primary" style="margin-left:auto">+ Izin Ketidakhadiran</button>
             </div>
 
             <div id="forum-loading" class="hint">Memuat forum…</div>
@@ -192,7 +192,7 @@
             <!-- Modal: buat posting -->
             <div id="modal-forum-buat" class="modal-overlay" style="display:none">
                 <div class="modal-box" style="max-width:480px;width:100%">
-                    <h3 style="margin:0 0 16px">Kirim Pesan ke Guru</h3>
+                    <h3 style="margin:0 0 16px">Izin Ketidakhadiran</h3>
 
                     <!-- Pilih anak -->
                     <div class="field">
@@ -202,23 +202,27 @@
                         </select>
                     </div>
 
-                    <!-- Judul -->
+                    <!-- Alasan -->
                     <div class="field">
-                        <label for="forum-input-title">Judul</label>
-                        <input type="text" id="forum-input-title" class="input"
-                               placeholder="Judul pesan…" maxlength="200">
+                        <label for="forum-izin-alasan">Alasan tidak hadir hari ini</label>
+                        <select id="forum-izin-alasan" class="input">
+                            <option value="">— Pilih alasan —</option>
+                            <option value="SAKIT">Sakit</option>
+                            <option value="IZIN">Izin (keperluan keluarga)</option>
+                            <option value="LAINNYA">Lainnya</option>
+                        </select>
                     </div>
 
-                    <!-- Isi -->
+                    <!-- Keterangan -->
                     <div class="field">
-                        <label for="forum-input-body">Isi pesan</label>
-                        <textarea id="forum-input-body" class="input" rows="4"
-                                  placeholder="Tuliskan pesan untuk guru…"
-                                  maxlength="2000"></textarea>
+                        <label for="forum-izin-keterangan">Keterangan</label>
+                        <textarea id="forum-izin-keterangan" class="input" rows="4"
+                                  placeholder="Tuliskan keterangan singkat…"
+                                  maxlength="1000"></textarea>
                     </div>
 
                     <p class="hint" style="margin-bottom:8px">
-                        Pesan akan dikirim ke: Wali Kelas, Guru BK, Guru Wali,
+                        Izin ini otomatis dikirim ke wali kelas, guru wali, guru piket hari ini,
                         dan guru yang mengajar anak Anda hari ini.
                     </p>
 

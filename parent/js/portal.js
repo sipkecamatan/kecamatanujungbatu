@@ -25,7 +25,7 @@ import {
     getRecentNotifications,
     markNotificationsRead,
     getMyChildren,
-    getForumSekolahPosts, getForumSekolahSentPosts, addForumSekolahAck, createParentForumPost,
+    getForumSekolahPosts, getForumSekolahSentPosts, addForumSekolahAck, createIzinOrtu,
     getForumPostComments, addForumPostComment,
     getChildLateArrivals,
     getChildExits,
@@ -1040,6 +1040,12 @@ async function openForumDetail(post) {
             `${author} · ${time}${edited}${post.is_withdrawn ? ' • Ditarik' : ''}`;
         document.getElementById('forum-author-actions').style.display =
             post.author_user_id === currentUser.user_id ? 'block' : 'none';
+        // Aturan produk: orang tua hanya berkomentar pada izin miliknya; pada pesan guru dan pengumuman, kotak komentar disembunyikan (server juga menolak).
+        const bisaKomentar = post.author_user_id === currentUser.user_id;
+        for (const id of ['forum-comment-input', 'btn-forum-comment-submit']) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = bisaKomentar ? '' : 'none';
+        }
 
         renderForumComments(comments, commentsEl);
         if (!post.attachment_url && !post.attachment_path) {
@@ -1172,8 +1178,8 @@ function newIdemKey() {
 }
 
 function openForumBuat() {
-    document.getElementById('forum-input-title').value = '';
-    document.getElementById('forum-input-body').value  = '';
+    document.getElementById('forum-izin-alasan').value = '';
+    document.getElementById('forum-izin-keterangan').value = '';
     document.getElementById('forum-buat-error').style.display = 'none';
     document.getElementById('modal-forum-buat').style.display = 'flex';
     _forumIdemKey = newIdemKey();                     // FUNC-03
@@ -1187,18 +1193,18 @@ function closeForumBuat() {
 async function submitForumBuat() {
     const errEl   = document.getElementById('forum-buat-error');
     const btnEl   = document.getElementById('btn-forum-buat-kirim');
-    const title   = document.getElementById('forum-input-title').value.trim();
-    const body    = document.getElementById('forum-input-body').value.trim();
+    const alasan     = document.getElementById('forum-izin-alasan').value;
+    const keterangan = document.getElementById('forum-izin-keterangan').value.trim();
     const childIdx = parseInt(document.getElementById('forum-child-select').value, 10);
 
     errEl.style.display = 'none';
 
-    if (!title) {
-        errEl.textContent = 'Judul wajib diisi.';
+    if (!alasan) {
+        errEl.textContent = 'Pilih alasan tidak hadir.';
         errEl.style.display = 'block'; return;
     }
-    if (!body) {
-        errEl.textContent = 'Isi pesan wajib diisi.';
+    if (alasan === 'LAINNYA' && !keterangan) {
+        errEl.textContent = 'Isi keterangan bila alasannya lainnya.';
         errEl.style.display = 'block'; return;
     }
     if (isNaN(childIdx) || !_forumChildren[childIdx]) {
@@ -1213,14 +1219,8 @@ async function submitForumBuat() {
 
     try {
         // FUNC-03: kunci idempotensi ikut dikirim ke RPC.
-        await createParentForumPost(
-            title, body,
-            child.class_id,
-            child.academic_year,
-            currentUser.school_id,
-            child.student_id,
-            _forumIdemKey
-        );
+        // Penerima dihitung server (wali kelas, guru wali, guru piket hari ini, guru pengajar hari ini).
+        await createIzinOrtu(child.student_id, alasan, keterangan, _forumIdemKey);
         closeForumBuat();
         _forumMode = 'terkirim';
         document.getElementById('forum-tab-masuk').className    = 'btn btn-secondary';
