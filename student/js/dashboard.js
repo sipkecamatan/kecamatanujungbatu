@@ -974,6 +974,9 @@ function renderForumCard(post) {
     return card;
 }
 
+// Audit Forum A-01: tautan lampiran lama hanya dipasang bila skemanya http/https (bukan javascript:, data:, dst.).
+function urlAman(u) { const t = String(u ?? '').trim().toLowerCase(); return (t.startsWith('http://') || t.startsWith('https://')) ? String(u).trim() : null; }
+
 async function openForumDetail(post) {
     const request = ++forumDetailRequest;
     const modal = document.getElementById('modal-forum-detail');
@@ -996,7 +999,7 @@ async function openForumDetail(post) {
         { postId: post.post_id, userId: currentUser.user_id, schoolId: currentUser.school_id },
         `forum_ack:${post.post_id}:${currentUser.user_id}`);
     if (post.attachment_url || post.attachment_path) {
-        let attachmentHref = post.attachment_url ?? null;
+        let attachmentHref = urlAman(post.attachment_url);
         if (post.attachment_path) {
             // A stored path must be authorized; never fall back to a stale URL.
             attachmentHref = null;

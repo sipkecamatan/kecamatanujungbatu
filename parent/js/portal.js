@@ -998,6 +998,9 @@ function renderForumCard(post) {
     return card;
 }
 
+// Audit Forum A-01: tautan lampiran lama hanya dipasang bila skemanya http/https (bukan javascript:, data:, dst.).
+function urlAman(u) { const t = String(u ?? '').trim().toLowerCase(); return (t.startsWith('http://') || t.startsWith('https://')) ? String(u).trim() : null; }
+
 async function openForumDetail(post) {
     const modal = document.getElementById('modal-forum-detail');
     const token = ++_forumDetailToken;
@@ -1052,10 +1055,12 @@ async function openForumDetail(post) {
                 if (token === _forumDetailToken)
                     attEl.innerHTML = '<p class="hint" style="font-size:13px">Gagal memuat lampiran.</p>';
             }
-        } else {
-            attEl.innerHTML = `<a href="${esc(post.attachment_url)}" target="_blank"
+        } else if (urlAman(post.attachment_url)) {
+            attEl.innerHTML = `<a href="${esc(urlAman(post.attachment_url))}" target="_blank" rel="noopener noreferrer"
                   class="btn btn-secondary" style="font-size:13px">
                   📎 ${esc(post.attachment_name ?? 'Unduh Lampiran')}</a>`;
+        } else {
+            attEl.innerHTML = '<p class="hint" style="font-size:13px">Lampiran tidak dapat dibuka.</p>';
         }
     } catch (err) {
         if (token !== _forumDetailToken) return;

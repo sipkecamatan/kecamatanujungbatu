@@ -6736,6 +6736,9 @@ async function submitForumPost() {
 }
 
 // ─── Modal Detail ─────────────────────────────────────────────
+// Audit Forum A-01: tautan lampiran lama hanya dipasang bila skemanya http/https (bukan javascript:, data:, dst.).
+function urlAman(u) { const t = String(u ?? '').trim().toLowerCase(); return (t.startsWith('http://') || t.startsWith('https://')) ? String(u).trim() : null; }
+
 async function openForumDetail(postId) {
     const modal = document.getElementById('modal-forum-detail');
     modal.dataset.postId = postId;
@@ -6768,7 +6771,7 @@ async function openForumDetail(postId) {
         modal.dataset.withdrawn = String(post.is_withdrawn === true);
 
         if (post.attachment_url || post.attachment_path) {
-            let attachmentHref = post.attachment_url ?? null;
+            let attachmentHref = urlAman(post.attachment_url);
             let attachmentError = null;
             if (post.attachment_path) {
                 const { data: signed, error: signedError } = await supabase.storage
