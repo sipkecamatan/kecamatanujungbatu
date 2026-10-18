@@ -135,7 +135,8 @@ export const CASE_TRACK         = ['SEKOLAH','PKL'] as const;
 export const CASE_AUDIENCE      = ['PRIVATE','RESTRICTED','PUBLIC'] as const;
 
 // Peran yang boleh jadi target eskalasi (internal kasus + WAKA_HUMAS untuk jalur PKL)
-export const INTERNAL_CASE_ROLES = ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_HUMAS','KEPSEK'] as const;
+// Kepsek dikeluarkan dari Pembinaan Siswa (keputusan Romo 18 Okt 2026): bukan tujuan eskalasi.
+export const INTERNAL_CASE_ROLES = ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_HUMAS'] as const;
 
 /**
  * Validasi aturan eskalasi di lapisan edge (pertahanan berlapis).

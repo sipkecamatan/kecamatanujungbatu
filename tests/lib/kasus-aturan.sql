@@ -73,8 +73,9 @@ begin
   -- Tutup lagi lalu Kepsek membuka kembali; event non-status pada kasus tertutup ditolak
   perform pg_temp.jalan(wali, format(ev, cid, sid, 'CLOSED', wali, 'false', '{"new_status":"CLOSED","summary":"selesai lagi"}'));
   insert into hasil_uji(k,v) values ('D1_catatan_pada_kasus_tertutup', pg_temp.jalan(kep, format(ev, cid, sid, 'NOTE_ADDED', kep, 'false', '{"note":"tidak boleh"}')));
-  insert into hasil_uji(k,v) values ('D2_kepsek_buka_kembali', pg_temp.jalan(kep, format(ev, cid, sid, 'STATUS_CHANGED', kep, 'false', '{"new_status":"MONITORING","note":"dibuka kepala sekolah"}')));
-  insert into hasil_uji(k,v) values ('D3_tutup_dua_kali', (select pg_temp.jalan(kep, format(ev, cid, sid, 'CLOSED', kep, 'false', '{"new_status":"CLOSED"}'))||'/'||pg_temp.jalan(kep, format(ev, cid, sid, 'CLOSED', kep, 'false', '{"new_status":"CLOSED"}'))));
+  insert into hasil_uji(k,v) values ('D2_kepsek_tak_dapat_buka_kembali', pg_temp.jalan(kep, format(ev, cid, sid, 'STATUS_CHANGED', kep, 'false', '{"new_status":"MONITORING","note":"dibuka kepala sekolah"}')));
+  insert into hasil_uji(k,v) values ('D2b_waka_buka_kembali', pg_temp.jalan(waka, format(ev, cid, sid, 'STATUS_CHANGED', waka, 'false', '{"new_status":"MONITORING","note":"dibuka waka kesiswaan"}')));
+  insert into hasil_uji(k,v) values ('D3_tutup_dua_kali', (select pg_temp.jalan(creator, format(ev, cid, sid, 'CLOSED', creator, 'false', '{"new_status":"CLOSED"}'))||'/'||pg_temp.jalan(creator, format(ev, cid, sid, 'CLOSED', creator, 'false', '{"new_status":"CLOSED"}'))));
 
   -- student_updates: tidak ada kebijakan baca staf lagi
   insert into hasil_uji(k,v) values ('E1_student_updates_tanpa_kebijakan_baca', (select count(*)::text from pg_policies where tablename='student_updates' and policyname='rls_student_updates_read_staff'));

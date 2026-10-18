@@ -21,7 +21,7 @@ import {
     fetchAllPklStudents, fetchAllDudiPartners,
     createPlacement, finishPlacement, bulkImportPkl,
 
-    getSchoolStats, getKepsekMonitoring,
+    getSchoolStats, getKepsekMonitoring, getKepsekCaseSummary,
     getPendingAttendanceSessions, getPendingSessionsByTeacher, getPendingSessionsDetail,
     getWakaKurStats,
     getAttendanceRecapPerClass, getOpenCases,
@@ -165,7 +165,6 @@ let _waliKasusCtx = null;
 let _bkKasusCtx   = null;
 let _kpKasusCtx   = null;
 let _wkKasusCtx   = null;
-let _ksKasusCtx   = null;
 let _ksDisahkanPage = 0;
 
 let kaprodiAllStudents = [];     // PKL + aktif di prodi Kaprodi, untuk batas pencarian
@@ -520,7 +519,8 @@ async function buildTabs() {
     const tabs = [];
     if (isTeacher) tabs.push({ key: 'guru', label: 'Dashboard Guru' });
     jabatan.forEach(j => tabs.push({ key: j, label: jabatanLabel(j) }));
-    tabs.push({ key: 'kasus', label: 'Pembinaan Siswa' });
+    // Kepala Sekolah dikeluarkan dari Pembinaan Siswa (keputusan Romo 18 Okt 2026): hanya angka agregat di tab Kepala Sekolah.
+    if (!jabatan.includes('kepsek')) tabs.push({ key: 'kasus', label: 'Pembinaan Siswa' });
 
     const onDuty = await isOnDutyToday();
     // Saat status piket gagal dibaca, tampilkan tab agar kegagalan terlihat
@@ -1280,6 +1280,9 @@ async function runFlush() {
         if (synced > 0) console.log(`[offline] ${synced} item tersinkron`);
         if (sessionExpired) { showSessionExpiredBanner(); return remaining; }
         await updateSyncBanner();
+        // Pengiriman otomatis (jaringan pulih) juga harus menyegarkan panel antrean dan daftar kasus; tanpa ini "Menunggu dikirim" bertahan
+        // sampai halaman dimuat ulang walau kasusnya sudah ada di server (temuan uji nyata 18 Okt 2026).
+        if (synced > 0) segarkanKasusSetelahKirim().catch(() => {});
         return remaining;
     } catch (e) { console.warn('[offline] flush gagal:', e); }
 }
@@ -3459,21 +3462,37 @@ async function initKepsekTab() {
 
     }
     await loadKepsekMonitoring('7_hari');
-    await initKepsekKasusSection();
+    await loadKepsekKasusRingkasan();
     await initKsAdminTab();
     await initKsRegionSharing();
 }
 
-async function initKepsekKasusSection() {
-    if (!_ksKasusCtx) {
-        _ksKasusCtx = makeKasusCtx('ks-kasus');
-        document.getElementById('ks-kasus-back-btn')
-            .addEventListener('click', () => showKasusList(_ksKasusCtx));
-        wireKasusDownloadButtons(_ksKasusCtx);
-        document.getElementById('ks-kasus-filter-btn')
-            ?.addEventListener('click', () => loadKasusList(false, _ksKasusCtx));
+/**
+ * Keputusan Romo 18 Okt 2026: Kepala Sekolah dikeluarkan dari Pembinaan Siswa dan hanya melihat angka agregat di dashboard-nya.
+ * Tidak ada daftar, judul, deskripsi, atau nama siswa; server (fn_kepsek_case_summary) hanya mengembalikan hitungan.
+ */
+async function loadKepsekKasusRingkasan() {
+    const el = document.getElementById('ks-pembinaan-ringkasan');
+    if (!el) return;
+    const BARIS = [['OPEN', 'Buka'], ['UNDER_REVIEW', 'Ditinjau'], ['INTERVENTION', 'Intervensi'], ['MONITORING', 'Monitoring'], ['CLOSED', 'Tutup']];
+    try {
+        const d = await getKepsekCaseSummary();
+        const aktif = BARIS.slice(0, 4).reduce((j, [k]) => j + (Number(d?.per_status?.[k]) || 0), 0);
+        const sel = (label, nilai) => `<div style="padding:8px 12px;border:1px solid var(--color-border);border-radius:var(--radius);min-width:120px"><div style="font-size:12px;color:var(--color-text-muted)">${esc(label)}</div><div style="font-size:20px;font-weight:600">${esc(String(nilai ?? '—'))}</div></div>`;
+        const hari = d?.rata_hari_penyelesaian;
+        el.innerHTML = `
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                ${sel('Total kasus', d?.total ?? 0)}${sel('Masih aktif', aktif)}${sel('Tutup', d?.per_status?.CLOSED ?? 0)}
+                ${sel('Dibuka 30 hari terakhir', d?.dibuka_30_hari ?? 0)}${sel('Ditutup 30 hari terakhir', d?.ditutup_30_hari ?? 0)}
+                ${sel('Rata-rata lama penyelesaian', hari == null ? '—' : hari + ' hari')}
+            </div>
+            <table class="rc-table" style="width:100%;max-width:420px"><thead><tr><th>Status</th><th>Jumlah</th></tr></thead><tbody>
+                ${BARIS.map(([k, l]) => `<tr><td>${esc(l)}</td><td>${esc(String(d?.per_status?.[k] ?? 0))}</td></tr>`).join('')}
+            </tbody></table>
+            <p class="hint" style="margin:10px 0 0;font-size:12px">Jalur: Sekolah ${esc(String(d?.per_track?.SEKOLAH ?? 0))} · PKL ${esc(String(d?.per_track?.PKL ?? 0))}</p>`;
+    } catch (err) {
+        el.innerHTML = `<p class="status-err">Gagal memuat ringkasan pembinaan. ${esc(fe(err, 's'))}</p>`;
     }
-    await loadKasusList(false, _ksKasusCtx);
 }
 
 let _ksAdminTabInit = false;
@@ -3856,8 +3875,8 @@ const CASE_TRACK_LABEL = { SEKOLAH: 'Sekolah', PKL: 'PKL' };
 // Eskalasi antar-internal bebas; server hanya mengunci: target wajib peran
 // internal kasus, & DUDI hanya → KAPRODI (mig 20260703250000).
 const ESCALATION_CHAIN = {
-    SEKOLAH: ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','KEPSEK'],
-    PKL:     ['DUDI','KAPRODI','WAKA_KESISWAAN','KEPSEK'],
+    SEKOLAH: ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN'],
+    PKL:     ['DUDI','KAPRODI','WAKA_KESISWAAN'],
 };
 // Satu langkah mundur yang diizinkan (server menegakkan aturan yang sama).
 const STATUS_BACK_ONE = { UNDER_REVIEW: 'OPEN', INTERVENTION: 'UNDER_REVIEW', MONITORING: 'INTERVENTION' };
@@ -4104,6 +4123,13 @@ function showKasusLoadError(err, ctx, retry, append = false) {
  * Kasus yang masih mengantre di perangkat (dibuat saat luring atau server gagal sementara): tampil di atas daftar, dengan tombol
  * "Hapus dari perangkat". Hanya untuk tab Pembinaan Siswa, tempat kasus dibuat.
  */
+/** Memuat ulang daftar kasus (yang juga menggambar ulang panel antrean) setelah ada kiriman dari antrean; aman dipanggil bila tab kasus belum dibuka. */
+async function segarkanKasusSetelahKirim() {
+    const ctx = kasusCtxDefault;
+    if (!kEl(ctx, 'list-content')) return;
+    await loadKasusList(false, ctx);
+}
+
 async function renderKasusAntrean(ctx = kasusCtxDefault) {
     if (ctx !== kasusCtxDefault) return;
     const contentEl = kEl(ctx, 'list-content');
@@ -4144,9 +4170,14 @@ async function renderKasusAntrean(ctx = kasusCtxDefault) {
         e.target.disabled = true;
         const msg = kEl(ctx, 'antrean-msg');
         try {
+            const sebelum = items.length;
             const r = await flushPending();
-            if (msg) msg.textContent = r.sessionExpired ? 'Sesi habis, login ulang.' : (r.synced ? `${r.synced} terkirim.` : 'Belum terkirim (masih luring atau server sibuk).');
-            if (r.synced) await loadKasusList(false, ctx);
+            // Pengiriman otomatis (peristiwa online) bisa sudah mengosongkan antrean sebelum tombol ini ditekan, sehingga r.synced = 0:
+            // bandingkan sisa antrean, bukan hanya r.synced.
+            const sisa = (await listQueuedCases().catch(() => items)).length;
+            const terkirim = r.synced > 0 || sisa < sebelum;
+            if (msg) msg.textContent = r.sessionExpired ? 'Sesi habis, login ulang.' : (terkirim ? 'Terkirim.' : 'Belum terkirim (masih luring atau server sibuk).');
+            if (terkirim) await loadKasusList(false, ctx);
         } catch (err) { if (msg) msg.textContent = fe(err, 's'); }
         e.target.disabled = false;
     });
@@ -4192,7 +4223,7 @@ function renderKasusList(ctx = kasusCtxDefault) {
     }
 
     // Badge "Pembaca": kasus yang terlihat hanya karena Anda ditandai (bukan pembuat, penangan, Kepsek, atau Waka Kesiswaan).
-    const pengawas = currentUser.role_type === 'KEPSEK' || currentUser.is_kepsek === true || currentUser.role_type === 'WAKA_KESISWAAN';
+    const pengawas = currentUser.role_type === 'WAKA_KESISWAAN';   // Kepala Sekolah dikeluarkan dari Pembinaan Siswa (18 Okt 2026)
     const sebagaiPembaca = r => !pengawas && r.created_by_user_id !== currentUser.user_id && r.current_handler_user_id !== currentUser.user_id;
 
     contentEl.innerHTML = ctx.allCases.map(r => `
@@ -4334,7 +4365,7 @@ const VIEWER_ROLE_LABEL = { WALI_KELAS: 'Wali Kelas', BK: 'Guru BK', GURU: 'Guru
     WAKA_KESISWAAN: 'Waka Kesiswaan', WAKA_KURIKULUM: 'Waka Kurikulum', WAKA_HUMAS: 'Waka Humas', KEPSEK: 'Kepala Sekolah' };
 
 /**
- * Panel "Pembaca Kasus": siapa yang boleh membaca kasus ini selain pembuat, penangan, Waka Kesiswaan, dan Kepala Sekolah.
+ * Panel "Pembaca Kasus": siapa yang boleh membaca kasus ini selain pembuat, penangan, dan Waka Kesiswaan.
  * Pembuat/penangan saat ini boleh menandai; hanya pembuat boleh mencabut. Server (RLS + fungsi) tetap penentu akhir.
  */
 async function renderKasusViewers(kasus, ctx, seq) {
@@ -4342,7 +4373,7 @@ async function renderKasusViewers(kasus, ctx, seq) {
     const me        = currentUser.user_id;
     const isCreator = kasus.created_by_user_id === me;
     const isHandler = kasus.current_handler_user_id === me;
-    const isOversight = (currentUser.role_type === 'KEPSEK' || currentUser.is_kepsek === true || currentUser.role_type === 'WAKA_KESISWAAN') && !isCreator && !isHandler;
+    const isOversight = currentUser.role_type === 'WAKA_KESISWAAN' && !isCreator && !isHandler;
     const isReaderOnly = !isCreator && !isHandler && !isOversight;
     const header = kEl(ctx, 'detail-header');
     let box = kEl(ctx, 'viewers-block');
@@ -4394,9 +4425,9 @@ async function renderKasusViewers(kasus, ctx, seq) {
 
     box.innerHTML = `
         <h4 style="margin:0 0 6px">Pembaca Kasus</h4>
-        ${isOversight ? `<p class="hint" style="margin:0;font-size:12px">Anda membaca kasus ini sebagai ${currentUser.role_type === 'WAKA_KESISWAAN' ? 'Waka Kesiswaan' : 'Kepala Sekolah'}.
+        ${isOversight ? `<p class="hint" style="margin:0;font-size:12px">Anda membaca kasus ini sebagai Waka Kesiswaan.
             Pembukaan ini dicatat dan dapat dilihat oleh pembuat dan penangan kasus.</p>` : `
-        <p class="hint" style="margin:0 0 8px;font-size:12px">Selain pembuat, penangan, Waka Kesiswaan, dan Kepala Sekolah, kasus ini hanya dapat dibaca oleh orang yang Anda tandai.
+        <p class="hint" style="margin:0 0 8px;font-size:12px">Selain pembuat, penangan, dan Waka Kesiswaan, kasus ini hanya dapat dibaca oleh orang yang Anda tandai.
             Orang yang ditandai hanya membaca. Orang tua dan siswa hanya melihat status kasus, nama penangan, dan komentar yang ditandai terlihat; judul dan deskripsi kasus tidak.</p>`}
         ${bisaTandai ? `${viewers.length ? `<ul style="list-style:none;margin:0 0 8px;padding:0;font-size:13px">${baris}</ul>` : '<p class="hint" style="margin:0 0 8px">Belum ada yang ditandai.</p>'}` : ''}
         ${bisaTandai ? `
@@ -4457,7 +4488,7 @@ async function renderKasusViewers(kasus, ctx, seq) {
 }
 
 // Selaras dengan fn_validate_escalation; DUDI bukan penerima eskalasi internal.
-const INTERNAL_CASE_ROLES = ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_KURIKULUM','WAKA_HUMAS','KEPSEK'];
+const INTERNAL_CASE_ROLES = ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_KURIKULUM','WAKA_HUMAS'];   // Kepsek dikeluarkan (18 Okt 2026)
 
 async function renderKasusActions(kasus, ctx = kasusCtxDefault, seq = ctx.detailSeq) {
     const isCurrent = () => ctx.currentId === kasus.case_id && ctx.detailSeq === seq;
@@ -4471,15 +4502,14 @@ async function renderKasusActions(kasus, ctx = kasusCtxDefault, seq = ctx.detail
     const statusSel     = kEl(ctx, 'new-status');
 
     const isHandler = kasus.current_handler_user_id === currentUser.user_id;
-    const isKepsek = currentUser.role_type === 'KEPSEK' || currentUser.is_kepsek === true;
-    // Kasus CLOSED hanya dapat dibuka kembali oleh Waka Kesiswaan atau Kepala Sekolah (ke Pemantauan, bercatatan).
-    const bisaBukaKembali = kasus.status === 'CLOSED' && (isKepsek || currentUser.role_type === 'WAKA_KESISWAAN');
+    // Kasus CLOSED hanya dapat dibuka kembali oleh Waka Kesiswaan (ke Pemantauan, bercatatan); Kepala Sekolah dikeluarkan dari Pembinaan Siswa.
+    const bisaBukaKembali = kasus.status === 'CLOSED' && currentUser.role_type === 'WAKA_KESISWAAN';
     const commentBlock = kEl(ctx, 'comment-block');
     if (kasus.status === 'CLOSED' && !bisaBukaKembali) {
         actionsEl.style.display = 'none';
         return;
     }
-    if (!isHandler && !isKepsek && !bisaBukaKembali) {
+    if (!isHandler && !bisaBukaKembali) {
         actionsEl.style.display = 'none';
         return;
     }
@@ -4522,7 +4552,7 @@ async function renderKasusActions(kasus, ctx = kasusCtxDefault, seq = ctx.detail
         ? [`<option value="MONITORING" data-wajib-catatan="1">Buka kembali (ke ${esc(CASE_STATUS_LABEL.MONITORING)}) — catatan wajib</option>`]
         : [...nextStatuses.map(s => `<option value="${s}">${esc(CASE_STATUS_LABEL[s])}</option>`),
            ...(mundurKe ? [`<option value="${mundurKe}" data-wajib-catatan="1">↩ Mundur ke ${esc(CASE_STATUS_LABEL[mundurKe])} — catatan wajib</option>`] : [])];
-    if ((isHandler || isKepsek || bisaBukaKembali) && opsiStatus.length) {
+    if ((isHandler || bisaBukaKembali) && opsiStatus.length) {
         statusSel.innerHTML = opsiStatus.join('');
         statusControls.style.display = 'block';
     } else {
@@ -4530,8 +4560,8 @@ async function renderKasusActions(kasus, ctx = kasusCtxDefault, seq = ctx.detail
     }
     if (statusControls !== statusBlock) statusBlock.style.display = 'block';
 
-    // Close: Kepsek/BK/handler
-    const canClose = !bisaBukaKembali && (currentUser.role_type === 'KEPSEK' || isHandler);
+    // Close: hanya penangan
+    const canClose = !bisaBukaKembali && isHandler;
     closeBtn.style.display = canClose ? 'inline-flex' : 'none';
 
     // ── Bagikan Kasus (hanya internal) ──

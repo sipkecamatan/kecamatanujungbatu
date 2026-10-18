@@ -675,6 +675,13 @@ export async function getSchoolStats(academicYear, semester) {
     };
 }
 
+/** Ringkasan agregat pembinaan siswa untuk dashboard Kepala Sekolah (hanya angka; migrasi 20261018180000). */
+export async function getKepsekCaseSummary() {
+    const { data, error } = await supabase.rpc('fn_kepsek_case_summary');
+    if (error) throw error;
+    return data;
+}
+
 export async function getKepsekMonitoring(period = 'hari_ini', academicYear = null, dateStart = null, dateEnd = null) {
     const { data, error } = await supabase.rpc('fn_kepsek_monitoring', {
         p_period:        period,
@@ -1205,7 +1212,7 @@ export async function removeCaseAudienceMember({ caseId, userId }) {
 }
 
 export async function searchInternalUsers(query) {
-    const INTERNAL_ROLES = ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_HUMAS','KEPSEK'];
+    const INTERNAL_ROLES = ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_HUMAS'];   // Kepsek dikeluarkan dari Pembinaan Siswa (18 Okt 2026)
     const { data, error } = await supabase
         .from('v_users_staff_directory')
         .select('user_id, full_name, role_type')

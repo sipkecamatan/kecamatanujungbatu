@@ -224,7 +224,7 @@ async function testUI() {
             assert.equal(await page.locator('#kasus-comment-text').inputValue(), '');
             assert.equal(await page.locator('#kasus-comment-visible').isChecked(), false);
         });
-        for (const role of ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_KURIKULUM','WAKA_HUMAS','KEPSEK']) {
+        for (const role of ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_KURIKULUM','WAKA_HUMAS']) {   // Kepsek dikeluarkan dari Pembinaan Siswa (18 Okt 2026)
             await test(`${role} handler sees escalation/share; DUDI excluded`, async () => {
                 await page.evaluate(role => currentUser.role_type=role, role);
                 await open('role-' + role);

@@ -27,10 +27,9 @@ test('monitoring menolak respons lama dan membersihkan data gagal', () => {
     assert.match(js, /countExits\)\s+countExits\.textContent = '—'/);
 });
 
-test('Kepsek non-handler dapat memakai kontrol kasus yang memang diizinkan', () => {
-    assert.match(js, /const isKepsek = currentUser\.role_type === 'KEPSEK'/);
-    assert.match(js, /if \(!isHandler && !isKepsek\)/);
-    assert.match(sql, /OR fn_is_kepsek\(\)/);
+test('Kepsek dikeluarkan dari Pembinaan Siswa (18 Okt 2026): tidak ada kontrol kasus bagi Kepsek non-handler', () => {
+    assert.doesNotMatch(js, /const isKepsek = currentUser\.role_type === 'KEPSEK'/);
+    assert.match(js, /if \(!isHandler && !bisaBukaKembali\)/);
 });
 
 test('akses monitoring dan helper Kepsek mensyaratkan akun aktif', () => {

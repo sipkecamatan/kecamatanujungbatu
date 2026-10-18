@@ -29,10 +29,11 @@ function jalankan(sql) {
 
 const terapkan = process.env.UJI_TERAPKAN_MIGRASI === '1';
 if (!terapkan) {
-  const ada = jalankan("select exists(select 1 from pg_trigger where tgname = 'trg_cce_rules')::text as ada;");
-  if (ada[0]?.ada !== 'true') { console.log('SKIP: migrasi 20261017100000_kasus_aturan_lanjutan belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
+  const ada = jalankan("select (exists(select 1 from pg_trigger where tgname = 'trg_cce_rules') and to_regprocedure('public.fn_kepsek_case_summary()') is not null)::text as ada;");
+  if (ada[0]?.ada !== 'true') { console.log('SKIP: migrasi 20261017100000_kasus_aturan_lanjutan dan 20261018180000_kasus_kepsek_hanya_agregat belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
 }
-const migrasi = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261017100000_kasus_aturan_lanjutan.sql'), 'utf8') + '\n' : '';
+// Migrasi 20261017100000 sudah terpasang (tidak idempoten); mode terapkan hanya memuat migrasi baru 20261018180000 (Kepsek hanya agregat) di dalam transaksi uji.
+const migrasi = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261018180000_kasus_kepsek_hanya_agregat.sql'), 'utf8') + '\n' : '';
 
 const awal = jalankan("select count(*)::int as kasus from coaching_cases;")[0] ?? { kasus: 0 };
 const baris = jalankan('begin;\n' + migrasi + badan + '\nrollback;\n');
@@ -53,7 +54,7 @@ ditolak('B3_bekas_penangan_tak_bisa_ubah_status', '42501');
 ok('C1_tutup_oleh_penangan'); sama('C1b_status_tertutup', 'CLOSED');
 ditolak('C2_buka_kembali_oleh_penangan', '42501'); ditolak('C3_waka_tanpa_catatan', 'P0001'); ditolak('C3b_waka_ke_status_selain_monitoring', 'P0001');
 ok('C4_waka_bercatatan'); sama('C4b_status_dan_penutupan_setelah_buka', 'MONITORING/closed_at=null'); ok('C5_kasus_dibuka_kembali_menerima_catatan');
-ditolak('D1_catatan_pada_kasus_tertutup', 'P0001'); ok('D2_kepsek_buka_kembali'); sama('D3_tutup_dua_kali', 'ok/GALAT:P0001');
+ditolak('D1_catatan_pada_kasus_tertutup', 'P0001'); ditolak('D2_kepsek_tak_dapat_buka_kembali', '42501'); ok('D2b_waka_buka_kembali');   // Kepsek dikeluarkan dari Pembinaan Siswa (20261018180000); hanya Waka Kesiswaan membuka kembali sama('D3_tutup_dua_kali', 'ok/GALAT:P0001');
 sama('E1_student_updates_tanpa_kebijakan_baca', '0');
 
 const sisa = jalankan('select count(*)::int as kasus from coaching_cases;')[0];

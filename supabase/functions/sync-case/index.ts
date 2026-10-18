@@ -22,7 +22,8 @@ import { validatePayload,
 import { getAdminClient }              from '../_shared/db.ts';
 
 // peran internal + DUDI boleh buat kasus; WAKA_KURIKULUM & TU dikecualikan
-const ALLOWED_ROLES = ['GURU','WALI_KELAS','BK','KAPRODI','KEPSEK','WAKA_KESISWAAN','WAKA_HUMAS','DUDI'];
+// Kepsek dikeluarkan dari Pembinaan Siswa (keputusan Romo 18 Okt 2026): tidak membuat kasus.
+const ALLOWED_ROLES = ['GURU','WALI_KELAS','BK','KAPRODI','WAKA_KESISWAAN','WAKA_HUMAS','DUDI'];
 
 Deno.serve(async (req: Request): Promise<Response> => {
     if (req.method === 'OPTIONS') return handleCors();

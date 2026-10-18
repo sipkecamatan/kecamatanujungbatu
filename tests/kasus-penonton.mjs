@@ -31,12 +31,12 @@ function jalankan(sql) {
 const terapkan = process.env.UJI_TERAPKAN_MIGRASI === '1';
 // Pastikan migrasi terpasang; bila belum, uji tidak bermakna (kecuali diterapkan di dalam transaksi uji).
 if (!terapkan) {
-  const ada = jalankan("select (to_regprocedure('public.fn_case_add_viewer(uuid,uuid)') is not null and to_regprocedure('public.fn_portal_cases(uuid)') is not null)::text as ada;");
-  if (ada[0]?.ada !== 'true') { console.log('SKIP: migrasi 20261017040000_kasus_penonton dan 20261018160000_kasus_portal_tanpa_judul_dan_deskripsi belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
+  const ada = jalankan("select (to_regprocedure('public.fn_case_add_viewer(uuid,uuid)') is not null and to_regprocedure('public.fn_kepsek_case_summary()') is not null)::text as ada;");
+  if (ada[0]?.ada !== 'true') { console.log('SKIP: migrasi 20261017040000_kasus_penonton dan 20261018180000_kasus_kepsek_hanya_agregat belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
 }
-// Migrasi 20261017040000 sudah terpasang di produksi (tidak idempoten); mode terapkan hanya memuat migrasi baru (20261018160000) di dalam transaksi uji.
+// Migrasi sebelumnya sudah terpasang di produksi (tidak idempoten); mode terapkan hanya memuat migrasi baru (20261018180000, Kepsek hanya agregat) di dalam transaksi uji.
 const migrasi = terapkan
-  ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261018160000_kasus_portal_tanpa_judul_dan_deskripsi.sql'), 'utf8') + '\n'
+  ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261018180000_kasus_kepsek_hanya_agregat.sql'), 'utf8') + '\n'
   : '';
 
 // Keadaan awal sekolah uji (kasus uji manual bisa tertinggal): pemeriksaan jumlah dibuat RELATIF terhadap keadaan awal ini.
@@ -51,7 +51,8 @@ const mulai = (k, awalan) => cek(k, (nilai.get(k) ?? '').startsWith(awalan), `${
 const ditolak = (k, kode) => cek(k, nilai.get(k) === 'GALAT:' + kode, `${nilai.get(k)}  (harap GALAT:${kode})`);
 
 mulai('persona', 'creator=true wali=true guruwali=true bk=true lain=true admin=true kepsek=true waka=true ortu=true ortu_lain=true siswa=true');
-sama('S1_awal_lihat_kasus', 'pembuat=1 wali=0 guruwali=0 bk=0 lain=0 admin=0 kepsek=1 waka=1 ortu=0 siswa=0');
+// Keputusan Romo 18 Okt 2026 (migrasi 20261018180000): Kepala Sekolah dikeluarkan dari Pembinaan Siswa (hanya agregat); pengawas kasus tinggal Waka Kesiswaan.
+sama('S1_awal_lihat_kasus', 'pembuat=1 wali=0 guruwali=0 bk=0 lain=0 admin=0 kepsek=0 waka=1 ortu=0 siswa=0');
 mulai('S2_kandidat', 'Wali Kelas:1, Guru Wali:1, Guru BK:1, Kaprodi:1, Orang tua:1, Siswa:1, Staf lain:');
 sama('S2b_kandidat_tanpa_pembuat', 'true');
 ditolak('S2c_kandidat_ditolak_bagi_lain', '42501');
@@ -69,8 +70,8 @@ sama('S8_setelah_eskalasi', 'pembuat=1 penangan_sebelumnya_wali=1 penangan_baru_
 sama('S8b_penangan_baru_boleh_menandai', '{"ok": true, "ditambahkan": true}');
 ditolak('S8c_penangan_baru_tak_boleh_mencabut', '42501');
 sama('S8d_pembuat_masih_boleh_mencabut', '{"ok": true, "dicabut": 1}');
-sama('S9_log_pengawas', 'kepsek_pertama=true kepsek_kedua=false waka=true pembuat=false penonton=false');
-sama('S9b_log_dibaca_pembuat', '2');
+sama('S9_log_pengawas', 'kepsek_pertama=false kepsek_kedua=false waka=true pembuat=false penonton=false');
+sama('S9b_log_dibaca_pembuat', '1');
 ditolak('S9c_log_ditolak_bagi_guru_lain', '42501');
 cek('S10_admin', String(nilai.get('S10_admin') ?? '').replace(/aktivitas_baris=\d+/, 'aktivitas_baris=N') === `hitungan={"open": ${awal.kasus + 1}, "total": ${awal.kasus + 1}} aktivitas_baris=N baca_langsung_kasus=0 baca_langsung_event=0 guru_memanggil_fungsi_admin=GALAT:42501`);
 sama('S10b_aktivitas_admin_tanpa_judul', 'true');
