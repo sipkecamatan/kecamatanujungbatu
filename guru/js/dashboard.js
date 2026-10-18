@@ -36,7 +36,7 @@ import {
     listCaseViewers, getCaseTagCandidates, addCaseViewer, removeCaseViewer, logCaseOversightView, listCaseAccessLog,
     getUnreadNotifCount, getRecentNotifications, markNotificationsRead,
     registerLoginDevice,
-    getForumRecipientCandidates, getForumSekolahPosts, getForumSekolahSentPosts,
+    getForumRecipientCandidates, getForumSekolahPosts, getForumSekolahSentPosts, setForumPostWithdrawn,
     getForumSekolahPostById, getForumSekolahSentPostById,
     getForumSekolahComments, createForumSekolahPost, updateForumSekolahPost,
     deleteForumSekolahPost,
@@ -5293,6 +5293,22 @@ async function initForumTab() {
         closeForumDetail();
         openForumModal(postId, post);
     });
+    document.getElementById('btn-forum-withdraw').addEventListener('click', async (e) => {
+        const modal  = document.getElementById('modal-forum-detail');
+        const postId = modal.dataset.postId;
+        const tarik  = modal.dataset.withdrawn !== 'true';   // belum ditarik -> tarik; sudah ditarik -> pulihkan
+        if (!confirm(tarik
+            ? 'Tarik posting ini?\n\nPenerima tidak akan melihatnya lagi dan tidak dapat membalasnya. Anda masih melihatnya dan dapat memulihkannya kapan saja.'
+            : 'Pulihkan posting ini?\n\nPenerima akan melihatnya lagi.')) return;
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try {
+            await setForumPostWithdrawn(postId, tarik);
+            await openForumDetail(postId);   // muat ulang detail (label tombol dan penanda "Ditarik")
+            loadForumPosts();                // muat ulang daftar
+        } catch (err) { alert(fe(err)); }
+        finally { btn.disabled = false; }
+    });
     document.getElementById('btn-forum-delete').addEventListener('click', async () => {
         const postId = document.getElementById('modal-forum-detail').dataset.postId;
         if (!confirm('Hapus posting ini secara PERMANEN?\n\n' +
@@ -6852,6 +6868,10 @@ async function openForumDetail(postId) {
         if (isAuthor || isModerator) {
             document.getElementById('forum-author-actions').style.display = 'block';
             document.getElementById('btn-forum-edit').style.display = isAuthor ? '' : 'none';
+            // Tarik/pulihkan: penulis, atau moderator yang menerima posting (server menegakkan; moderator yang tak dapat membaca posting tidak sampai ke sini).
+            const btnTarik = document.getElementById('btn-forum-withdraw');
+            btnTarik.style.display = '';
+            btnTarik.textContent   = post.is_withdrawn ? 'Pulihkan Posting' : 'Tarik Posting';
             // FORUM-DEL-01: moderator kini boleh menghapus posting siapa pun,
             // sejalan dengan otorisasi di dalam fn_delete_forum_post.
             document.getElementById('btn-forum-delete').style.display =

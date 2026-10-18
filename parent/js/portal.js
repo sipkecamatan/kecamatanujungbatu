@@ -25,7 +25,7 @@ import {
     getRecentNotifications,
     markNotificationsRead,
     getMyChildren,
-    getForumSekolahPosts, getForumSekolahSentPosts, addForumSekolahAck, createIzinOrtu,
+    getForumSekolahPosts, getForumSekolahSentPosts, addForumSekolahAck, createIzinOrtu, setForumPostWithdrawn,
     getForumPostComments, addForumPostComment,
     getChildLateArrivals,
     getChildExits,
@@ -906,9 +906,11 @@ function initForumListeners() {
         detailBox.insertAdjacentHTML('beforeend', `
             <div id="forum-author-actions" style="display:none;margin-top:12px;
                  border-top:1px solid var(--color-border);padding-top:12px">
+                <button id="btn-forum-withdraw" class="btn btn-secondary" style="margin-right:8px">Tarik Izin</button>
                 <button id="btn-forum-delete" class="btn btn-danger">Hapus Posting</button>
             </div>`);
         document.getElementById('btn-forum-delete').addEventListener('click', deleteParentForumPost);
+        document.getElementById('btn-forum-withdraw').addEventListener('click', withdrawParentForumPost);
     }
 
     // Load more
@@ -1040,6 +1042,8 @@ async function openForumDetail(post) {
             `${author} · ${time}${edited}${post.is_withdrawn ? ' • Ditarik' : ''}`;
         document.getElementById('forum-author-actions').style.display =
             post.author_user_id === currentUser.user_id ? 'block' : 'none';
+        const btnTarik = document.getElementById('btn-forum-withdraw');
+        if (btnTarik) btnTarik.textContent = post.is_withdrawn ? 'Pulihkan Izin' : 'Tarik Izin';
         // Aturan produk: orang tua hanya berkomentar pada izin miliknya; pada pesan guru dan pengumuman, kotak komentar disembunyikan (server juga menolak).
         const bisaKomentar = post.author_user_id === currentUser.user_id;
         for (const id of ['forum-comment-input', 'btn-forum-comment-submit']) {
@@ -1130,6 +1134,26 @@ async function submitForumComment() {
 
 // FORUM-DEL-01: menggantikan withdrawParentForumPost. Penghapusan bersifat
 // permanen; otorisasi dan pembersihan turunan ditangani di dalam RPC.
+async function withdrawParentForumPost(e) {
+    const modal  = document.getElementById('modal-forum-detail');
+    const postId = modal.dataset.postId;
+    const btn    = e.currentTarget;
+    const tarik  = btn.textContent.trim() !== 'Pulihkan Izin';
+    if (!confirm(tarik
+        ? 'Tarik izin ini?' + String.fromCharCode(10) + String.fromCharCode(10) + 'Guru penerima tidak akan melihatnya lagi. Anda masih melihatnya dan dapat memulihkannya.'
+        : 'Pulihkan izin ini?' + String.fromCharCode(10) + String.fromCharCode(10) + 'Guru penerima akan melihatnya lagi.')) return;
+    btn.disabled = true;
+    try {
+        await setForumPostWithdrawn(postId, tarik);
+        btn.textContent = tarik ? 'Pulihkan Izin' : 'Tarik Izin';
+        await loadForumPosts();
+    } catch (err) {
+        alert(fe(err));
+    } finally {
+        btn.disabled = false;
+    }
+}
+
 async function deleteParentForumPost(e) {
     if (!confirm('Hapus posting ini secara PERMANEN?\n\n' +
         'Komentar, daftar penerima, tanda sudah dibaca, notifikasi, dan ' +

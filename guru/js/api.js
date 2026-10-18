@@ -1541,6 +1541,16 @@ export async function updateForumSekolahPost(postId, newTitle, newBody) {
     if (error) throw error;
 }
 
+/**
+ * Tarik atau pulihkan posting (keputusan Romo 18 Okt 2026: fitur tarik posting perlu ada). Posting yang ditarik hilang dari semua penerima tetapi tetap terlihat penulis
+ * (bertanda "Ditarik"). Hanya penulis, atau moderator yang menjadi penerima posting, yang dapat menarik/memulihkan (server menegakkan). Mengembalikan status is_withdrawn baru.
+ */
+export async function setForumPostWithdrawn(postId, withdrawn) {
+    const { data, error } = await supabase.rpc('fn_toggle_forum_post_withdrawn', { p_post_id: postId, p_withdrawn: withdrawn });
+    if (error) throw error;
+    return data?.[0]?.is_withdrawn ?? withdrawn;
+}
+
 // FORUM-DEL-01: toggleForumPostWithdrawn dihapus. Fitur "tarik posting"
 // digantikan hard delete permanen lewat deleteForumSekolahPost().
 
