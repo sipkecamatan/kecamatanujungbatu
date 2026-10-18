@@ -12,7 +12,7 @@ end $f$;
 do $$
 declare
   sid uuid; yr text; kelas uuid;
-  nama text[] := array['wali_kelas','guru_biasa','bk','kaprodi','waka_kurikulum','waka_kesiswaan','waka_humas','kepsek','tu','admin'];
+  nama text[] := array['wali_kelas','guru_biasa','bk','kaprodi','waka_kurikulum','waka_kesiswaan','waka_humas','kepsek','tu'];  -- admin sekolah keluar dari Forum (migrasi 20261018190000)
   ids uuid[]; i int; j int; r text; n_antar_ok int := 0; n_antar_gagal int := 0; n_diri_ditolak int := 0; n_diri_lain int := 0; contoh_gagal text := ''; p uuid; n int;
 begin
   select school_id into sid from schools where slug = 'smkuji1';
@@ -27,8 +27,7 @@ begin
     (select user_id from users where school_id=sid and role_type='WAKA_KESISWAAN' and is_active limit 1),
     (select user_id from users where school_id=sid and role_type='WAKA_HUMAS' and is_active limit 1),
     (select user_id from users where school_id=sid and (role_type='KEPSEK' or is_kepsek) and is_active limit 1),
-    (select user_id from users where school_id=sid and role_type='TU' and is_active limit 1),
-    (select user_id from users where school_id=sid and role_type='ADMINISTRATIVE' and is_active limit 1)];
+    (select user_id from users where school_id=sid and role_type='TU' and is_active limit 1)];
   insert into hasil_uji(k,v) values ('persona', (select string_agg(nama[x] || '=' || (ids[x] is not null)::text, ' ') from generate_subscripts(nama,1) x));
 
   for i in 1..array_length(nama,1) loop

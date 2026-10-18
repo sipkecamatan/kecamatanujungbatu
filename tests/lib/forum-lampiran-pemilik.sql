@@ -28,6 +28,6 @@ begin
   insert into hasil_uji(k,v) values ('L2_guru_lain_tidak_melihat_berkas_itu', pg_temp.jalan(g2, format('select count(*)::text from storage.objects where bucket_id=%L and name=%L', 'forum-attachments', p1)));
   insert into hasil_uji(k,v) values ('L3_pemilik_lain_melihat_berkasnya_sendiri', pg_temp.jalan(g2, format('select count(*)::text from storage.objects where bucket_id=%L and name=%L', 'forum-attachments', p2)));
   insert into hasil_uji(k,v) values ('L4_guru_tidak_melihat_berkas_guru_lain', pg_temp.jalan(g, format('select count(*)::text from storage.objects where bucket_id=%L and name=%L', 'forum-attachments', p2)));
-  insert into hasil_uji(k,v) values ('L5_moderator_tetap_melihat_semua', pg_temp.jalan(kep, format('select count(*)::text from storage.objects where bucket_id=%L and name in (%L,%L)', 'forum-attachments', p1, p2)));
+  insert into hasil_uji(k,v) values ('L5_moderator_tidak_lagi_melihat_berkas_orang_lain', pg_temp.jalan(kep, format('select count(*)::text from storage.objects where bucket_id=%L and name in (%L,%L)', 'forum-attachments', p1, p2)));
 end $$;
 select k, v from hasil_uji order by no;

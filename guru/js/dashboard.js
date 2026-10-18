@@ -5549,7 +5549,7 @@ const GROUP_LABELS = {
     SEMUA_ORTU:          'Semua Ortu dipilih',
     ORTU_KELAS:          'Ortu Semua Kelas dipilih',
     ORTU_JURUSAN:        'Ortu Semua Jurusan dipilih',
-    SEMUA_TU:            'Semua TU/Admin dipilih',
+    SEMUA_TU:            'Semua TU dipilih',
     KEPSEK:              'Kepsek dipilih',
 };
 
@@ -5589,7 +5589,7 @@ function buildRecipientGroupButtons() {
             { label: 'Semua Ortu',    group: 'SEMUA_ORTU',       hasIndividual: false, labelSemua: 'Semua Ortu'  },
             { label: 'Siswa tertentu', group: 'SISWA_DRILL', isDrillDown: true, labelSemua: 'Siswa tertentu' },
             { label: 'Ortu tertentu',  group: 'ORTU_DRILL',  isDrillDown: true, labelSemua: 'Ortu tertentu'  },
-            { label: 'TU / Admin',    group: 'SEMUA_TU',         hasIndividual: true  },
+            { label: 'TU',    group: 'SEMUA_TU',         hasIndividual: true  },
             ...(isKepsek ? [] : [{ label: 'Kepsek', group: 'KEPSEK', hasIndividual: false, labelSemua: 'Kepsek' }]),
         ];
     } else if (isKaprodi) {
@@ -5606,7 +5606,7 @@ function buildRecipientGroupButtons() {
             { label: 'Waka',             group: 'SEMUA_WAKA',          hasIndividual: true, needsJabatan: true },
             { label: 'Siswa tertentu', group: 'SISWA_DRILL', isDrillDown: true, labelSemua: 'Siswa tertentu' },
             { label: 'Ortu tertentu',  group: 'ORTU_DRILL',  isDrillDown: true, labelSemua: 'Ortu tertentu'  },
-            { label: 'TU / Admin',       group: 'SEMUA_TU',            hasIndividual: true  },
+            { label: 'TU',       group: 'SEMUA_TU',            hasIndividual: true  },
         ];
     } else {
         // Bug #5: tambah Semua Siswa
@@ -5624,7 +5624,7 @@ function buildRecipientGroupButtons() {
             { label: 'Semua Ortu',    group: 'SEMUA_ORTU',       hasIndividual: false, labelSemua: 'Semua Ortu'  },
             { label: 'Siswa tertentu', group: 'SISWA_DRILL', isDrillDown: true, labelSemua: 'Siswa tertentu' },
             { label: 'Ortu tertentu',  group: 'ORTU_DRILL',  isDrillDown: true, labelSemua: 'Ortu tertentu'  },
-            { label: 'TU / Admin',    group: 'SEMUA_TU',         hasIndividual: true  },
+            { label: 'TU',    group: 'SEMUA_TU',         hasIndividual: true  },
         ];
     }
 

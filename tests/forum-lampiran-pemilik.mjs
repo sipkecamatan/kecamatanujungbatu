@@ -1,5 +1,5 @@
-// Uji LIVE lampiran forum (migrasi 20261018030000_forum_lampiran_pemilik_dapat_hapus.sql): pemilik berkas dapat melihat dan menghapus berkas lampirannya sendiri
-// walau tidak ada posting yang merujuknya lagi (posting dihapus/lampiran diganti); orang lain tidak dapat melihat/menghapusnya; moderator tetap bisa.
+// Uji LIVE lampiran forum (migrasi 20261018190000_forum_admin_keluar_lampiran_tertutup.sql): pemilik berkas dapat melihat dan menghapus berkas lampirannya sendiri
+// walau tidak ada posting yang merujuknya lagi (posting dihapus/lampiran diganti); orang lain (termasuk moderator) tidak dapat melihat/menghapusnya.
 // Seluruh skenario berjalan di dalam transaksi yang SELALU dibatalkan pada sekolah uji smkuji1 (objek storage uji hanya baris di dalam transaksi).
 // Pakai:  node tests/forum-lampiran-pemilik.mjs      (UJI_TERAPKAN_MIGRASI=1 menerapkan berkas migrasi di dalam transaksi uji, tanpa db push)
 import { spawnSync } from 'node:child_process';
@@ -28,10 +28,10 @@ function jalankan(sql) {
 
 const terapkan = process.env.UJI_TERAPKAN_MIGRASI === '1';
 if (!terapkan) {
-  const sudah = jalankan("select exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='forum_attachments_download' and qual ilike '%owner_id%')::text as sudah;");
-  if (sudah[0]?.sudah !== 'true') { console.log('SKIP: migrasi 20261018030000_forum_lampiran_pemilik_dapat_hapus belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
+  const sudah = jalankan("select (pg_get_functiondef('public.fn_forum_attachment_moderator()'::regprocedure) not like '%ADMINISTRATIVE%')::text as sudah;");
+  if (sudah[0]?.sudah !== 'true') { console.log('SKIP: migrasi 20261018190000_forum_admin_keluar_lampiran_tertutup belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
 }
-const migrasi = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261018030000_forum_lampiran_pemilik_dapat_hapus.sql'), 'utf8') + '\n' : '';
+const migrasi = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261018190000_forum_admin_keluar_lampiran_tertutup.sql'), 'utf8') + '\n' : '';
 
 const hitung = "select (select count(*) from storage.objects where bucket_id = 'forum-attachments')::int as berkas;";
 const awal = jalankan(hitung)[0];
@@ -43,7 +43,7 @@ const sama = (k, harap) => cek(k, nilai.get(k) === harap, `${nilai.get(k)}  (har
 
 sama('persona', 'guru=t guru2=t kepsek=t');
 sama('L1_pemilik_melihat_berkas_yatim_sendiri', '1'); sama('L2_guru_lain_tidak_melihat_berkas_itu', '0');
-sama('L3_pemilik_lain_melihat_berkasnya_sendiri', '1'); sama('L4_guru_tidak_melihat_berkas_guru_lain', '0'); sama('L5_moderator_tetap_melihat_semua', '2');
+sama('L3_pemilik_lain_melihat_berkasnya_sendiri', '1'); sama('L4_guru_tidak_melihat_berkas_guru_lain', '0'); sama('L5_moderator_tidak_lagi_melihat_berkas_orang_lain', '0');  // diubah 18 Okt 2026 (migrasi 190000): lampiran hanya dibaca penulis dan penerima posting
 const sisa = jalankan(hitung)[0];
 cek('SISA: jumlah berkas di bucket tidak berubah (transaksi dibatalkan)', JSON.stringify(sisa) === JSON.stringify(awal), JSON.stringify({ awal, sisa }));
 console.log(`\nFORUM_LAMPIRAN_PEMILIK: ${lulus} lulus, ${gagal} gagal`);

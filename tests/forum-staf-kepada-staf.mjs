@@ -1,4 +1,4 @@
-// Uji LIVE staf-kepada-staf (migrasi 20261018080000_forum_staf_kepada_staf.sql; aturan produk Romo 18 Okt 2026): semua staf dapat membuat posting kepada staf mana pun yang
+// Uji LIVE staf-kepada-staf (migrasi 20261018190000_forum_admin_keluar_lampiran_tertutup.sql; aturan produk Romo 18 Okt 2026): semua staf dapat membuat posting kepada staf mana pun yang
 // dituju KECUALI dirinya sendiri (mis. wali kelas kepada wali kelas lain). Matriks 10 peran (wali kelas, guru, BK, Kaprodi, Waka Kurikulum/Kesiswaan/Humas, Kepsek, TU, admin)
 // x 10 peran: 90 pasangan antarperan diterima, 10 pengiriman ke diri sendiri ditolak (22023); pengirim tidak lagi otomatis menjadi penerima postingnya sendiri (A-15) dan
 // dikeluarkan bila ikut terpilih lewat kelompok; daftar kandidat tidak memuat pengirim. Transaksi SELALU dibatalkan pada sekolah uji smkuji1.
@@ -29,10 +29,10 @@ function jalankan(sql) {
 
 const terapkan = process.env.UJI_TERAPKAN_MIGRASI === '1';
 if (!terapkan) {
-  const sudah = jalankan("select (to_regprocedure('public.fn_get_forum_recipient_candidates_semua(text,uuid,uuid,smallint,text)') is not null)::text as sudah;");
-  if (sudah[0]?.sudah !== 'true') { console.log('SKIP: migrasi 20261018080000_forum_staf_kepada_staf belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
+  const sudah = jalankan("select (pg_get_functiondef('public.fn_forum_attachment_moderator()'::regprocedure) not like '%ADMINISTRATIVE%')::text as sudah;");
+  if (sudah[0]?.sudah !== 'true') { console.log('SKIP: migrasi 20261018190000_forum_admin_keluar_lampiran_tertutup belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
 }
-const migrasi = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261018080000_forum_staf_kepada_staf.sql'), 'utf8') + '\n' : '';
+const migrasi = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261018190000_forum_admin_keluar_lampiran_tertutup.sql'), 'utf8') + '\n' : '';
 
 const hitung = 'select (select count(*) from forum_posts)::int as posting, (select count(*) from forum_post_audience)::int as penerima, (select count(*) from notifications)::int as notifikasi;';
 const awal = jalankan(hitung)[0];
@@ -42,11 +42,11 @@ let lulus = 0, gagal = 0;
 const cek = (k, ok, tampil) => { if (ok) { lulus++; console.log('  LULUS  ' + k); } else { gagal++; console.log(`  GAGAL  ${k}\n         didapat: ${tampil ?? nilai.get(k)}`); } };
 const sama = (k, harap) => cek(k, nilai.get(k) === harap, `${nilai.get(k)}  (harap: ${harap})`);
 
-sama('persona', 'wali_kelas=true guru_biasa=true bk=true kaprodi=true waka_kurikulum=true waka_kesiswaan=true waka_humas=true kepsek=true tu=true admin=true');
-cek('M1_antar_peran_diterima', /^90 ok, 0 gagal\s*$/.test(nilai.get('M1_antar_peran_diterima') ?? ''));
-sama('M2_ke_diri_sendiri_ditolak_22023', '10 ditolak, 0 lainnya');
+sama('persona', 'wali_kelas=true guru_biasa=true bk=true kaprodi=true waka_kurikulum=true waka_kesiswaan=true waka_humas=true kepsek=true tu=true');
+cek('M1_antar_peran_diterima', /^72 ok, 0 gagal\s*$/.test(nilai.get('M1_antar_peran_diterima') ?? ''));
+sama('M2_ke_diri_sendiri_ditolak_22023', '9 ditolak, 0 lainnya');
 sama('M3_pengirim_tidak_ada_di_audiens_sendiri', '0');
-sama('M4_posting_tercipta_hanya_antar_peran', '90');
+sama('M4_posting_tercipta_hanya_antar_peran', '72');
 sama('G1_kelompok_memuat_diri_diri_dikeluarkan', 'false/2');
 sama('G2_penerima_lain_menerima_notifikasi', '2');
 sama('G3_penerima_membaca_pengirim_membaca', 'penerima=1 pengirim=1');

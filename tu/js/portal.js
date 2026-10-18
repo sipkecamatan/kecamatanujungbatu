@@ -693,7 +693,7 @@ const GROUP_LABELS = {
     SEMUA_ORTU:          'Semua Ortu dipilih',
     ORTU_KELAS:          'Ortu Semua Kelas dipilih',
     ORTU_JURUSAN:        'Ortu Semua Jurusan dipilih',
-    SEMUA_TU:            'Semua TU/Admin dipilih',
+    SEMUA_TU:            'Semua TU dipilih',
     KEPSEK:              'Kepsek dipilih',
 };
 
@@ -703,8 +703,8 @@ function buildRecipientGroupButtons() {
     container.innerHTML = '';
     container.style.cssText = 'display:flex;flex-wrap:wrap;align-items:flex-start;';
 
-    // Bug #6: TU tidak boleh broadcast ke sesama TU — hapus "Semua TU/Admin",
-    //          hanya "TU/Admin tertentu" (hasIndividual: true, labelSemua kosong trick: tidak ada btnAll)
+    // Bug #6: TU tidak boleh broadcast ke sesama TU — hapus "Semua TU",
+    //          hanya "TU tertentu" (hasIndividual: true, labelSemua kosong trick: tidak ada btnAll)
     // Bug #7: tambah Guru Wali
     const groups = [
         { label: 'Kepsek',        group: 'KEPSEK',           hasIndividual: false, labelSemua: 'Kepsek' },
@@ -719,7 +719,7 @@ function buildRecipientGroupButtons() {
         { label: 'Semua Ortu',    group: 'SEMUA_ORTU',       hasIndividual: false, labelSemua: 'Semua Ortu'  },
         { label: 'Siswa tertentu', group: 'SISWA_DRILL', isDrillDown: true, labelSemua: 'Siswa tertentu' },
         { label: 'Ortu tertentu',  group: 'ORTU_DRILL',  isDrillDown: true, labelSemua: 'Ortu tertentu'  },
-        { label: 'TU / Admin',    group: 'SEMUA_TU',         hasIndividual: true, skipSemua: true },
+        { label: 'TU',    group: 'SEMUA_TU',         hasIndividual: true, skipSemua: true },
     ];
 
     const rendered = new Set();
