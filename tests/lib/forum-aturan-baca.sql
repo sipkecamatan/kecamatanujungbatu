@@ -11,7 +11,7 @@ begin
 end $f$;
 do $$
 declare
-  sid uuid; yr text; penulis uuid; penerima uuid; kelas uuid; p_kelas uuid; p_sek uuid; p_tarik uuid; p_mod uuid;
+  sid uuid; yr text; penulis uuid; penerima uuid; kelas uuid; p_kelas uuid; p_sek uuid; p_tarik uuid; p_mod uuid; siswa_id uuid; p_s1 uuid; p_s2 uuid;
   guru_kelas uuid; wali uuid; kaprodi uuid; kepsek uuid; waka_kes uuid; tu uuid; admin uuid; ortu uuid; siswa_u uuid; peran text; u uuid;
 begin
   select school_id into sid from schools where slug = 'smkuji1';
@@ -27,7 +27,7 @@ begin
   select user_id into tu       from users where school_id = sid and role_type = 'TU' and is_active limit 1;
   select user_id into admin    from users where school_id = sid and role_type = 'ADMINISTRATIVE' and is_active limit 1;
   select sp.parent_user_id into ortu from student_parents sp join class_enrollments ce on ce.student_id = sp.student_id and ce.class_id = kelas and ce.withdrawn_at is null limit 1;
-  select st.user_id into siswa_u from students st join class_enrollments ce on ce.student_id = st.student_id and ce.class_id = kelas and ce.withdrawn_at is null where st.user_id is not null limit 1;
+  select st.user_id, st.student_id into siswa_u, siswa_id from students st join class_enrollments ce on ce.student_id = st.student_id and ce.class_id = kelas and ce.withdrawn_at is null where st.user_id is not null limit 1;
   insert into hasil_uji(k,v) values ('persona', format('guru_kelas=%s wali=%s kaprodi=%s kepsek=%s waka_kes=%s tu=%s admin=%s ortu=%s siswa=%s', guru_kelas is not null, wali is not null, kaprodi is not null, kepsek is not null, waka_kes is not null, tu is not null, admin is not null, ortu is not null, siswa_u is not null));
 
   -- posting KELAS (visibility PARENT_VISIBLE: dulu dibaca semua orang tua kelas) dan posting SEKOLAH, keduanya hanya untuk Aisyah
@@ -61,5 +61,15 @@ begin
   insert into hasil_uji(k,v) values ('hapus_kepsek_posting_untuknya', pg_temp.jalan(kepsek, format('select count(*)::text from fn_delete_forum_post(%L)', p_mod)));
   insert into hasil_uji(k,v) values ('hapus_penulis_miliknya', pg_temp.jalan(penulis, format('select count(*)::text from fn_delete_forum_post(%L)', p_sek)));
   insert into hasil_uji(k,v) values ('hapus_guru_lain_ditolak', pg_temp.jalan(guru_kelas, format('select count(*)::text from fn_delete_forum_post(%L)', p_kelas)));
+
+  -- siswa sebagai PENERIMA: aktif dan terdaftar membaca; enrollment ditarik tidak membaca posting kelas; status KELUAR tidak membaca apa pun (regresi pasca db push 050000)
+  insert into forum_posts(school_id,author_user_id,academic_year,title,body,scope_type,class_id,visibility,audience_type) values (sid,penulis,yr,'UJI siswa kelas','isi','KELAS',kelas,'INTERNAL','ORANG_TERTENTU') returning post_id into p_s1;
+  insert into forum_posts(school_id,author_user_id,academic_year,title,body,scope_type) values (sid,penulis,yr,'UJI siswa sekolah','isi','SEKOLAH') returning post_id into p_s2;
+  insert into forum_post_audience(post_id,school_id,user_id) values (p_s1,sid,siswa_u),(p_s2,sid,siswa_u);
+  insert into hasil_uji(k,v) values ('siswa_penerima_aktif', format('KELAS=%s SEKOLAH=%s', pg_temp.jalan(siswa_u, format('select count(*)::text from forum_posts where post_id=%L', p_s1)), pg_temp.jalan(siswa_u, format('select count(*)::text from forum_posts where post_id=%L', p_s2))));
+  update class_enrollments set withdrawn_at = now() where student_id = siswa_id and class_id = kelas;
+  insert into hasil_uji(k,v) values ('siswa_enrollment_ditarik', format('KELAS=%s SEKOLAH=%s', pg_temp.jalan(siswa_u, format('select count(*)::text from forum_posts where post_id=%L', p_s1)), pg_temp.jalan(siswa_u, format('select count(*)::text from forum_posts where post_id=%L', p_s2))));
+  update students set student_status = 'KELUAR' where student_id = siswa_id;
+  insert into hasil_uji(k,v) values ('siswa_status_keluar', format('KELAS=%s SEKOLAH=%s', pg_temp.jalan(siswa_u, format('select count(*)::text from forum_posts where post_id=%L', p_s1)), pg_temp.jalan(siswa_u, format('select count(*)::text from forum_posts where post_id=%L', p_s2))));
 end $$;
 select k, v from hasil_uji order by no;

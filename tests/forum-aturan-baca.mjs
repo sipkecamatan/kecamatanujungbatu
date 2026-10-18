@@ -1,6 +1,7 @@
 // Uji LIVE aturan baca forum (migrasi 20261018050000_forum_baca_penerima_saja.sql; aturan produk Romo 18 Okt 2026): posting forum hanya dibaca penulis dan penerimanya,
 // untuk lingkup SEKOLAH maupun KELAS; guru lain, wali kelas, Kaprodi, Kepsek, Waka Kesiswaan, TU, admin, orang tua, dan siswa yang BUKAN penerima membaca 0; TU tidak lagi
 // membaca semua (posting, komentar, daftar penerima); posting ditarik hanya terlihat penulis; moderator hanya dapat menghapus posting yang ditujukan kepadanya.
+// Siswa penerima: aktif membaca; enrollment ditarik tidak membaca posting kelas; status KELUAR tidak membaca apa pun (migrasi 20261018070000).
 // Seluruh skenario berjalan di dalam transaksi yang SELALU dibatalkan pada sekolah uji smkuji1.
 // Pakai:  node tests/forum-aturan-baca.mjs      (UJI_TERAPKAN_MIGRASI=1 menerapkan berkas migrasi di dalam transaksi uji, tanpa db push)
 import { spawnSync } from 'node:child_process';
@@ -32,7 +33,7 @@ if (!terapkan) {
   const sudah = jalankan("select (not exists (select 1 from pg_policies where schemaname='public' and policyname='rls_forum_posts_read_tu'))::text as sudah;");
   if (sudah[0]?.sudah !== 'true') { console.log('SKIP: migrasi 20261018050000_forum_baca_penerima_saja belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
 }
-const migrasi = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261018050000_forum_baca_penerima_saja.sql'), 'utf8') + '\n' : '';
+const migrasi = terapkan ? ['20261018050000_forum_baca_penerima_saja.sql', '20261018070000_forum_baca_siswa_aktif.sql'].map((n) => readFileSync(join(ROOT, 'supabase', 'migrations', n), 'utf8') + '\n').join('') : '';
 
 const hitung = 'select (select count(*) from forum_posts)::int as posting, (select count(*) from forum_post_audience)::int as penerima, (select count(*) from forum_post_comments)::int as komentar;';
 const awal = jalankan(hitung)[0];
@@ -47,6 +48,7 @@ sama('persona', 'guru_kelas=t wali=t kaprodi=t kepsek=t waka_kes=t tu=t admin=t 
 for (const p of ['penulis', 'penerima']) sama('baca_' + p, 'KELAS=1 SEKOLAH=1');
 for (const p of ['guru_kelas_lain', 'wali_kelas', 'kaprodi', 'kepsek', 'waka_kesiswaan', 'tu', 'admin', 'ortu', 'siswa']) sama('baca_' + p, 'KELAS=0 SEKOLAH=0');
 sama('komentar_dan_penerima_dibaca_tu', 'komentar=0 penerima=0');
+sama('siswa_penerima_aktif', 'KELAS=1 SEKOLAH=1'); sama('siswa_enrollment_ditarik', 'KELAS=0 SEKOLAH=1'); sama('siswa_status_keluar', 'KELAS=0 SEKOLAH=0');
 sama('ditarik', 'penulis=1 penerima=0');
 sama('hapus_kepsek_posting_bukan_untuknya', DITOLAK); sama('hapus_kepsek_posting_untuknya', '1'); sama('hapus_penulis_miliknya', '1'); sama('hapus_guru_lain_ditolak', DITOLAK);
 

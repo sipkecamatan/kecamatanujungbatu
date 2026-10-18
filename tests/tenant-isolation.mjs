@@ -1652,8 +1652,9 @@ async function main() {
     //
     // Skenario:
     // F4 : Guru penulis bisa baca posting di kelasnya sendiri      → cnt 1
-    // F5 : Guru mapel lain di kelas yang SAMA bisa baca            → cnt 1
+    // F5 : Guru mapel lain di kelas yang SAMA, BUKAN penerima, TIDAK bisa baca → cnt 0   (aturan produk Romo 18 Okt 2026: hanya penulis dan penerima)
     // F6 : Guru yang TIDAK terhubung ke kelas itu tidak bisa baca  → cnt 0
+    // F6b: Guru luar kelas yang dijadikan PENERIMA bisa baca       → cnt 1
     // F7 : Ortu siswa kelas itu tidak bisa baca posting INTERNAL   → cnt 0
     // F9 : Siswa withdrawn tidak bisa baca walau ada di audience   → cnt 0
     // F10: INSERT posting oleh guru luar kelas ditolak RLS         → 42501
@@ -1819,6 +1820,11 @@ async function main() {
                     probe('F4', d.author_auth) +
                     (d.same_auth ? probe('F5', d.same_auth) : ``) +
                     (d.out_auth  ? probe('F6', d.out_auth)  : ``) +
+                    // F6b: jadikan guru luar kelas sebagai PENERIMA (insert sebagai postgres), lalu ukur lagi — penerima membaca tanpa syarat peran/kelas
+                    (d.out_auth
+                        ? ` reset role; insert into forum_post_audience (post_id, user_id, school_id) values ('${POST}', '${d.out_uid}', '${d.school_id}'); set local role authenticated;` +
+                          probe('F6b', d.out_auth)
+                        : ``) +
                     (d.ortu_auth ? probe('F7', d.ortu_auth) : ``) +
                     (d.wd_auth   ? probe('F9', d.wd_auth)   : ``) +
 
@@ -1862,10 +1868,14 @@ async function main() {
                     'guru penulis bisa baca posting kelasnya sendiri',
                     'guru penulis TIDAK bisa baca posting sendiri',
                     'penulis tidak tersedia');
-                expect('F5', '1',
-                    'guru mapel di kelas yang sama bisa baca posting',
-                    'guru mapel kelas sama TIDAK bisa baca',
+                expect('F5', '0',
+                    'guru mapel di kelas yang sama tapi BUKAN penerima tidak bisa baca posting',
+                    'guru mapel kelas sama BISA baca padahal bukan penerima — melanggar aturan baca forum',
                     'tidak ada guru kedua di kelas ini');
+                expect('F6b', '1',
+                    'guru luar kelas yang menjadi PENERIMA bisa baca (penerima membaca tanpa syarat kelas)',
+                    'penerima TIDAK bisa baca postingnya',
+                    'tidak ada guru luar kelas');
                 expect('F6', '0',
                     'guru di luar kelas ini tidak bisa baca posting (isolasi per-kelas)',
                     'guru luar kelas BISA baca posting — ISOLATION BREACH',
