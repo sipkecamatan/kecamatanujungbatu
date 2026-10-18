@@ -312,6 +312,13 @@ function fe(err, ctx = 'muat') {
          : ctx === 'h' ? 'Gagal menghapus. Silakan coba lagi.'
          : 'Gagal memuat data. Silakan coba lagi.';
 }
+// B-06 (keputusan Romo 18 Okt 2026): forum hanya dapat dipakai saat tersambung ke internet; saat luring pesan galat harus jelas dan meyakinkan bahwa isian tidak hilang.
+function galatJaringanForum(err) {
+    const m = String(err?.message ?? '').toLowerCase();
+    const luring = (typeof navigator !== 'undefined' && navigator.onLine === false) || m.includes('failed to fetch') || m.includes('network') || m.includes('load failed');
+    return luring ? 'Tidak ada koneksi internet. Tulisan Anda tidak hilang; coba kirim lagi setelah tersambung.' : null;
+}
+
 function fmt(d) {
     if (!d) return '—';
     return new Date(d).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
@@ -5380,7 +5387,7 @@ function renderForumPostCard(post) {
         <div style="display:flex;gap:12px;font-size:12px;color:var(--color-muted)">
             ${hasFile ? '<span>\uD83D\uDCCE Lampiran</span>' : ''}
             <span>\uD83D\uDCAC ${cmtCnt} komentar</span>
-            <span>\u2713 ${ackCnt} dibaca</span>
+            ${_forumMode === 'terkirim' ? `<span>\u2713 ${ackCnt} dibaca</span>` : ''}
         </div>
     </div>`;
 }
@@ -6758,7 +6765,7 @@ async function submitForumPost() {
                   'Buka posting lalu edit untuk melampirkan ulang.');
             loadForumPosts();
         } else {
-            errEl.textContent = fe(err);
+            errEl.textContent = galatJaringanForum(err) ?? fe(err);
             errEl.style.display = 'block';
         }
     } finally {
@@ -6934,7 +6941,7 @@ async function submitForumComment() {
         input.value = '';
         await loadForumComments(postId);
     } catch (err) {
-        errEl.textContent = fe(err);
+        errEl.textContent = galatJaringanForum(err) ?? fe(err);
         errEl.style.display = 'block';
     } finally {
         _forumCommentBusy = false;

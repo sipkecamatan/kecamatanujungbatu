@@ -970,7 +970,7 @@ function renderForumCard(post) {
             esc(post.body).substring(0, 160)}${post.body.length > 160 ? '…' : ''}</p>
         <div style="display:flex;gap:12px;font-size:12px;color:var(--color-muted)">
             ${hasFile ? '<span>📎 Lampiran</span>' : ''}
-            <span>✓ ${ackCnt} dibaca</span>
+            
         </div>`;
 
     card.addEventListener('click', () => openForumDetail(post));

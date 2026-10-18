@@ -652,6 +652,13 @@ function fe(err) {
     return 'Gagal memuat data. Silakan coba lagi.';
 }
 
+// B-06 (keputusan Romo 18 Okt 2026): forum hanya dapat dipakai saat tersambung ke internet; saat luring pesan galat harus jelas dan meyakinkan bahwa isian tidak hilang.
+function galatJaringanForum(err) {
+    const m = String(err?.message ?? '').toLowerCase();
+    const luring = (typeof navigator !== 'undefined' && navigator.onLine === false) || m.includes('failed to fetch') || m.includes('network') || m.includes('load failed');
+    return luring ? 'Tidak ada koneksi internet. Tulisan Anda tidak hilang; coba kirim lagi setelah tersambung.' : null;
+}
+
 function localDateStr(d = new Date()) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
@@ -994,7 +1001,7 @@ function renderForumCard(post) {
             esc(bodyText).substring(0, 160)}${bodyText.length > 160 ? '…' : ''}</p>
         <div style="display:flex;gap:12px;font-size:12px;color:var(--color-muted)">
             ${hasFile ? '<span>📎 Lampiran</span>' : ''}
-            <span>✓ ${ackCnt} dibaca</span>
+            ${_forumMode === 'terkirim' ? `<span>✓ ${ackCnt} dibaca</span>` : ''}
         </div>`;
 
     card.addEventListener('click', () => openForumDetail(post));
@@ -1121,7 +1128,7 @@ async function submitForumComment() {
         if (postId === document.getElementById('modal-forum-detail').dataset.postId)
             renderForumComments(comments, document.getElementById('detail-forum-comments-list'));
     } catch (err) {
-        errorEl.textContent = fe(err);
+        errorEl.textContent = galatJaringanForum(err) ?? fe(err);
         errorEl.style.display = 'block';
     } finally {
         btn.disabled = false;
@@ -1233,7 +1240,7 @@ async function submitForumBuat() {
             alert('Pesan terkirim, tetapi daftar gagal dimuat ulang. Muat ulang halaman untuk melihatnya.');
         }
     } catch (err) {
-        errEl.textContent = err.message ?? 'Gagal mengirim pesan.';
+        errEl.textContent = galatJaringanForum(err) ?? err.message ?? 'Gagal mengirim izin.';
         errEl.style.display = 'block';
     } finally {
         btnEl.disabled = false;
