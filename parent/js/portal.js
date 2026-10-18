@@ -113,6 +113,8 @@ const STATUS_BADGE = {
     EKSKUL:      'badge-hadir',   // idem
 };
 
+// Label sentimen yang sama dengan pilihan guru dan portal siswa.
+const SENTIMENT_LABELS = { POSITIF: 'Positif', NETRAL: 'Netral', NEGATIF: 'Perlu Perhatian' };
 const DIMENSION_LABELS = {
     AKADEMIK:    'Akademik',
     KEHADIRAN:   'Kehadiran',
@@ -475,7 +477,7 @@ function renderObsRows(rows) {
     obsListEl.innerHTML = rows.map(r => `
         <div class="obs-card obs-${r.sentiment.toLowerCase()}">
             <div class="obs-meta">
-                ${esc(r.author)} &middot; ${DIMENSION_LABELS[r.dimension] || r.dimension} &middot; ${formatDate(r.date)}
+                ${esc(r.author)} &middot; ${DIMENSION_LABELS[r.dimension] || r.dimension} &middot; ${esc(SENTIMENT_LABELS[r.sentiment] ?? '')} &middot; ${formatDate(r.date)}
             </div>
             <p class="obs-content">${esc(r.content)}</p>
         </div>

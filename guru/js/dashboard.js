@@ -1577,17 +1577,48 @@ function renderObsHistory(rows, listEl) {
     if (!listEl._voidTerpasang) {
         listEl._voidTerpasang = true;
         listEl.addEventListener('click', async (e) => {
+            // Alasan diisi di dalam halaman (bukan window.prompt yang memblokir tab dan sering ditutup peramban ponsel).
             const btn = e.target.closest('[data-void-obs]');
-            if (!btn) return;
-            const alasan = window.prompt('Alasan membatalkan catatan ini (minimal 5 karakter). Catatan akan disembunyikan dari siswa dan orang tua.');
-            if (alasan === null) return;
-            btn.disabled = true;
+            if (btn) {
+                const kartu = btn.closest('[data-obs-id]');
+                if (!kartu || kartu.querySelector('.obs-void-form')) return;
+                const f = document.createElement('div');
+                f.className = 'obs-void-form';
+                f.style.cssText = 'margin-top:8px';
+                f.innerHTML = `<label style="font-size:12px;display:block;margin-bottom:4px">Alasan membatalkan (minimal 5 karakter). Catatan akan disembunyikan dari siswa dan orang tua.</label>
+                    <input type="text" class="input obs-void-reason" maxlength="500" style="width:100%;max-width:420px">
+                    <div style="margin-top:6px;display:flex;gap:6px"><button type="button" class="btn btn-sm btn-danger" data-void-confirm="${esc(btn.dataset.voidObs)}">Batalkan Catatan</button><button type="button" class="btn btn-sm btn-secondary" data-void-close>Tutup</button></div>
+                    <div class="obs-void-msg" style="font-size:12px;margin-top:4px"></div>`;
+                btn.after(f);
+                btn.style.display = 'none';
+                f.querySelector('input').focus();
+                return;
+            }
+            const tutup = e.target.closest('[data-void-close]');
+            if (tutup) {
+                const kartu = tutup.closest('[data-obs-id]');
+                kartu?.querySelector('.obs-void-form')?.remove();
+                const awal = kartu?.querySelector('[data-void-obs]'); if (awal) awal.style.display = '';
+                return;
+            }
+            const ok = e.target.closest('[data-void-confirm]');
+            if (!ok) return;
+            const form  = ok.closest('.obs-void-form');
+            const msgEl = form.querySelector('.obs-void-msg');
+            const alasan = form.querySelector('.obs-void-reason').value.trim();
+            if (alasan.length < 5) { msgEl.style.color = 'var(--color-danger)'; msgEl.textContent = 'Alasan minimal 5 karakter.'; return; }
+            ok.disabled = true; msgEl.style.color = 'var(--color-text-muted)'; msgEl.textContent = 'Membatalkan…';
             try {
-                await voidObservation(btn.dataset.voidObs, alasan);
+                // Batas waktu: permintaan yang macet tidak boleh mengunci tombol selamanya.
+                await Promise.race([
+                    voidObservation(ok.dataset.voidConfirm, alasan),
+                    new Promise((_, tolak) => setTimeout(() => tolak(new Error('Permintaan terlalu lama. Periksa koneksi, lalu coba lagi.')), 20000)),
+                ]);
                 await loadObsHistory();
             } catch (err) {
-                btn.disabled = false;
-                setObsHistoryNotice(listEl, `Gagal membatalkan catatan. ${fe(err, 's')}`, 'status-err');
+                ok.disabled = false;
+                msgEl.style.color = 'var(--color-danger)';
+                msgEl.textContent = `Gagal membatalkan catatan. ${fe(err, 's')}`;
             }
         });
     }

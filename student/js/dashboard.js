@@ -507,7 +507,7 @@ function renderObservations(rows, hintEl, listEl) {
         listEl.innerHTML     = '';
         return;
     }
-    const SENTIMENT_LABELS = { POSITIF: 'Positif', NEGATIF: 'Negatif', NETRAL: 'Netral' };
+    const SENTIMENT_LABELS = { POSITIF: 'Positif', NEGATIF: 'Perlu Perhatian', NETRAL: 'Netral' };   // sama dengan pilihan guru; "Negatif" terlalu keras bagi siswa
     hintEl.style.display = 'none';
     listEl.innerHTML = rows.map(r => `
         <div class="obs-card obs-${(r.sentiment ?? '').toLowerCase()}">
