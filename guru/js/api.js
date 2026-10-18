@@ -1565,10 +1565,13 @@ export async function deleteForumSekolahPost(postId) {
 /**
  * Tambah komentar ke posting.
  */
-export async function addForumSekolahComment(postId, body, schoolId) {
+// author_user_id WAJIB dikirim: kolomnya NOT NULL tanpa nilai bawaan dan kebijakan RLS menuntut author_user_id = pengguna login.
+// Sebelumnya tidak dikirim, sehingga setiap komentar dari portal guru ditolak ("Tidak memiliki izin").
+export async function addForumSekolahComment(postId, body, schoolId, authorUserId) {
+    if (!authorUserId) throw new Error('author_user_id wajib diisi.');
     const { error } = await supabase
         .from('forum_post_comments')
-        .insert({ post_id: postId, body, school_id: schoolId });
+        .insert({ post_id: postId, body, school_id: schoolId, author_user_id: authorUserId });
     if (error) throw error;
 }
 

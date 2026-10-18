@@ -5143,6 +5143,9 @@ let _forumHasMore     = false;
 let _forumTabInit     = false;
 let _forumScope       = null;      // dari fn_get_user_forum_scope
 let _forumEditPostId  = null;      // null = buat baru, uuid = edit
+let _forumDetailSeq  = 0;         // audit Forum A-12: nomor permintaan detail; respons usang diabaikan
+let _forumDetailPost = null;      // posting yang sedang tampil di detail (dipakai tombol Edit, A-08)
+let _forumCommentBusy = false;    // audit Forum A-09: kunci kirim komentar
 // FUNC-03: kunci idempotensi per DRAFT (bukan per klik). Dibuat saat modal
 // dibuka, dipertahankan selama modal masih terbuka — jadi double-click dan
 // retry setelah error jaringan memakai kunci yang sama dan server
@@ -5281,8 +5284,14 @@ async function initForumTab() {
     document.getElementById('btn-forum-comment-submit').addEventListener('click', submitForumComment);
     document.getElementById('btn-forum-edit').addEventListener('click', () => {
         const postId = document.getElementById('modal-forum-detail').dataset.postId;
+        const post   = _forumDetailPost;
+        // A-08: formulir edit diisi dari posting yang sedang dibuka; tanpa datanya, jangan buka formulir kosong yang bisa menimpa isi lama.
+        if (!post || String(post.post_id) !== String(postId)) {
+            alert('Data posting belum selesai dimuat. Tunggu sebentar lalu coba lagi.');
+            return;
+        }
         closeForumDetail();
-        openForumModal(postId);
+        openForumModal(postId, post);
     });
     document.getElementById('btn-forum-delete').addEventListener('click', async () => {
         const postId = document.getElementById('modal-forum-detail').dataset.postId;
@@ -5382,7 +5391,7 @@ function wireForumCards() {
 }
 
 // ─── Modal Buat/Edit ─────────────────────────────────────────
-function openForumModal(postId = null) {
+function openForumModal(postId = null, post = null) {
     _forumEditPostId = postId;
     _forumIdemKey    = postId ? null : newIdemKey();   // FUNC-03
     _forumRecipients.clear();
@@ -5403,6 +5412,25 @@ function openForumModal(postId = null) {
     document.getElementById('forum-filter-kelas-wrap').style.display   = 'none';
     document.getElementById('forum-filter-hari-wrap').style.display    = 'none';
     buildRecipientGroupButtons();
+
+    // A-08: mode edit memuat judul/isi/lampiran posting; penerima tidak dapat diubah, jadi bagiannya disembunyikan.
+    const recipientField = document.getElementById('forum-recipient-field');
+    const editNote       = document.getElementById('forum-edit-note');
+    const btnSimpan      = document.getElementById('btn-forum-modal-simpan');
+    if (postId && post) {
+        document.getElementById('forum-input-title').value = post.title ?? '';
+        document.getElementById('forum-input-body').value  = post.body ?? '';
+        recipientField.style.display = 'none';
+        editNote.style.display       = 'block';
+        document.getElementById('forum-file-name').textContent = (post.attachment_name || post.attachment_path)
+            ? 'Lampiran saat ini: ' + (post.attachment_name ?? 'berkas') + '. Pilih berkas baru hanya jika ingin menggantinya.' : '';
+        btnSimpan.textContent = 'Simpan';
+    } else {
+        recipientField.style.display = '';
+        editNote.style.display       = 'none';
+        btnSimpan.textContent        = 'Kirim';
+    }
+
     sipPrepareOpen(modal);
     modal.style.display = 'flex';
 }
@@ -6602,6 +6630,7 @@ async function submitForumPost() {
     const fileEl  = document.getElementById('forum-input-file');
 
     errEl.style.display = 'none';
+    const wasEdit = !!_forumEditPostId;   // closeForumModal() mengosongkan _forumEditPostId sebelum blok finally
     if (!title) { errEl.textContent = 'Judul wajib diisi.'; errEl.style.display = 'block'; return; }
     if (!body)  { errEl.textContent = 'Isi posting wajib diisi.'; errEl.style.display = 'block'; return; }
     if (_forumRecipients.size === 0 && !_forumEditPostId) {
@@ -6731,7 +6760,7 @@ async function submitForumPost() {
         }
     } finally {
         btnEl.disabled = false;
-        btnEl.textContent = 'Kirim';
+        btnEl.textContent = wasEdit ? 'Simpan' : 'Kirim';
     }
 }
 
@@ -6740,6 +6769,9 @@ async function submitForumPost() {
 function urlAman(u) { const t = String(u ?? '').trim().toLowerCase(); return (t.startsWith('http://') || t.startsWith('https://')) ? String(u).trim() : null; }
 
 async function openForumDetail(postId) {
+    const seq  = ++_forumDetailSeq;   // A-12: respons yang datang sesudah detail lain dibuka/ditutup diabaikan
+    const mode = _forumMode;          // A-11: tab asal dikunci saat dibuka
+    _forumDetailPost = null;
     const modal = document.getElementById('modal-forum-detail');
     modal.dataset.postId = postId;
     sipPrepareOpen(modal);
@@ -6756,9 +6788,11 @@ async function openForumDetail(postId) {
     document.getElementById('forum-comment-input').value = '';
 
     try {
-        const post = _forumMode === 'masuk'
+        const post = mode === 'masuk'
             ? await getForumSekolahPostById(postId, currentUser.school_id, currentUser.user_id)
             : await getForumSekolahSentPostById(postId, currentUser.school_id, currentUser.user_id);
+        if (seq !== _forumDetailSeq) return;
+        _forumDetailPost = post;
 
         document.getElementById('detail-forum-title').textContent = post.title;
         document.getElementById('detail-forum-body').textContent  = post.body;
@@ -6780,6 +6814,7 @@ async function openForumDetail(postId) {
                 attachmentError = signedError;
                 if (signed?.signedUrl) attachmentHref = signed.signedUrl;
             }
+            if (seq !== _forumDetailSeq) return;
             const attachmentEl = document.getElementById('detail-forum-attachment');
             if (attachmentHref) {
                 attachmentEl.innerHTML =
@@ -6800,10 +6835,14 @@ async function openForumDetail(postId) {
         }
 
         // NOTIF-01: ack "posting sudah dibaca" ikut antrean retry.
-        await ackWithRetry(
-            'forum_ack',
-            { postId, userId: currentUser.user_id, schoolId: currentUser.school_id },
-            `forum_ack:${postId}:${currentUser.user_id}`);
+        // A-11: hanya dari tab Masuk (penerima). Membuka posting sendiri di tab Terkirim bukan "dibaca oleh penerima".
+        if (mode === 'masuk') {
+            await ackWithRetry(
+                'forum_ack',
+                { postId, userId: currentUser.user_id, schoolId: currentUser.school_id },
+                `forum_ack:${postId}:${currentUser.user_id}`);
+            if (seq !== _forumDetailSeq) return;
+        }
 
         const isAuthor = post.author_user_id === currentUser.user_id;
         const isModerator = isForumModerator();
@@ -6819,12 +6858,14 @@ async function openForumDetail(postId) {
         await loadForumComments(postId);
 
     } catch (err) {
+        if (seq !== _forumDetailSeq) return;
         document.getElementById('detail-forum-title').textContent = 'Gagal memuat posting.';
         document.getElementById('detail-forum-comments-loading').textContent = fe(err);
     }
 }
 
 function closeForumDetail() {
+    _forumDetailSeq++;   // A-12: respons yang masih berjalan tidak boleh mengisi modal yang sudah ditutup
     sipCloseOverlay(document.getElementById('modal-forum-detail'));
 }
 
@@ -6833,6 +6874,7 @@ async function loadForumComments(postId) {
     const listEl = document.getElementById('detail-forum-comments-list');
     try {
         const comments = await getForumSekolahComments(postId);
+        if (String(document.getElementById('modal-forum-detail').dataset.postId) !== String(postId)) return;   // A-12
         loadEl.style.display = 'none';
         if (!comments.length) {
             listEl.innerHTML = '<p class="hint">Belum ada komentar.</p>';
@@ -6879,14 +6921,21 @@ async function submitForumComment() {
 
     errEl.style.display = 'none';
     if (!body) return;
+    if (_forumCommentBusy) return;   // A-09: klik ganda/ketukan beruntun tidak boleh membuat komentar ganda
+    _forumCommentBusy = true;
+    const btn = document.getElementById('btn-forum-comment-submit');
+    btn.disabled = true;
 
     try {
-        await addForumSekolahComment(postId, body, currentUser.school_id);
+        await addForumSekolahComment(postId, body, currentUser.school_id, currentUser.user_id);
         input.value = '';
         await loadForumComments(postId);
     } catch (err) {
         errEl.textContent = fe(err);
         errEl.style.display = 'block';
+    } finally {
+        _forumCommentBusy = false;
+        btn.disabled = false;
     }
 }
 
