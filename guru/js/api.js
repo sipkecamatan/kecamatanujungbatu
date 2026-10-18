@@ -2385,3 +2385,26 @@ export async function setRegionSharingLevel(level, share) {
     if (error) throw error;
     return data;
 }
+
+// ─── Kunci nilai semester (B-07; migrasi 20261018120000) ───
+
+/** Status kunci satu kelas pada satu periode (Kepala Sekolah / Waka Kurikulum). */
+export async function getGradePeriodStatus(classId, year, semester) {
+    const { data, error } = await supabase.rpc('fn_get_grade_period_status', { p_class: classId, p_year: year, p_semester: Number(semester) });
+    if (error) throw error;
+    return data;
+}
+
+/** Membuka kunci nilai satu kelas dengan alasan tertulis (minimal 10 karakter; tercatat di server). */
+export async function unlockGradePeriod(classId, year, semester, reason) {
+    const { data, error } = await supabase.rpc('fn_unlock_grade_period', { p_class: classId, p_year: year, p_semester: Number(semester), p_reason: reason });
+    if (error) throw error;
+    return data;
+}
+
+/** Mengunci kembali kelas yang tadinya dibuka. */
+export async function relockGradePeriod(classId, year, semester) {
+    const { data, error } = await supabase.rpc('fn_relock_grade_period', { p_class: classId, p_year: year, p_semester: Number(semester) });
+    if (error) throw error;
+    return data;
+}
