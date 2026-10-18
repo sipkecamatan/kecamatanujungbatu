@@ -248,6 +248,14 @@ function injectStyles() {
 
 // ── Modal scaffold ────────────────────────────────────────────────────────────
 
+// Mengubah galat mentah database menjadi kalimat yang dapat dipahami guru.
+function pesanGalatRamah(err) {
+    const m = String(err?.message || '');
+    if (/assessment_results_nilai_range/.test(m)) return 'Nilai harus antara 0 dan 100.';
+    if (/violates check constraint|violates foreign key|violates unique|duplicate key/i.test(m)) return 'Data tidak dapat disimpan karena tidak memenuhi aturan. Periksa isian lalu coba lagi.';
+    return m || 'Terjadi kesalahan.';
+}
+
 function openModal({ title, bodyHtml, onSave, wide }) {
     const overlay = document.createElement('div');
     overlay.className = 'pen-overlay';
@@ -277,7 +285,7 @@ function openModal({ title, bodyHtml, onSave, wide }) {
             if (!errEl) { errEl = document.createElement('p'); errEl.className = 'pen-modal-err'; overlay.querySelector('.pen-modal-footer').prepend(errEl); }
             errEl.textContent = '';
             Promise.resolve().then(() => onSave(overlay, closeModal)).catch(err => {
-                errEl.textContent = err.message || 'Terjadi kesalahan.';
+                errEl.textContent = pesanGalatRamah(err);
                 saveBtn.disabled = false; saveBtn.textContent = 'Simpan';
             }).finally(() => {
                 _nilaiSedangDisimpan = false;
@@ -359,6 +367,22 @@ function kktpRentangFormHtml(rentang) {
     )).join('');
 }
 
+// Rentang KKTP harus berada pada 0-100, awal tidak boleh melebihi akhir, dan antar predikat tidak boleh tumpang tindih.
+function validasiRentangKktp(rentang) {
+    const daftar = PREDIKAT_RUBRIK.map(p => ({ nama: p.val, lo: rentang[p.val][0], hi: rentang[p.val][1] }));
+    for (const r of daftar) {
+        if (r.lo < 0 || r.hi > 100) return 'Rentang ' + r.nama + ' harus berada di antara 0 dan 100.';
+        if (r.lo > r.hi) return 'Rentang ' + r.nama + ': angka awal tidak boleh lebih besar dari angka akhir.';
+    }
+    for (let i = 0; i < daftar.length; i++) {
+        for (let j = i + 1; j < daftar.length; j++) {
+            const a = daftar[i], b = daftar[j];
+            if (a.lo <= b.hi && b.lo <= a.hi) return 'Rentang ' + a.nama + ' (' + a.lo + '–' + a.hi + ') tumpang tindih dengan ' + b.nama + ' (' + b.lo + '–' + b.hi + '). Atur agar tidak saling beririsan.';
+        }
+    }
+    return null;
+}
+
 function openKktpModal(tpId, kktp) {
     const existing = kktp;
     openModal({
@@ -376,6 +400,8 @@ function openKktpModal(tpId, kktp) {
                 const hi = parseInt(_overlay.querySelector('.pen-rentang-hi[data-predikat="' + p.val + '"]').value, 10);
                 rentang[p.val] = [isNaN(lo) ? 0 : lo, isNaN(hi) ? 100 : hi];
             });
+            const galatRentang = validasiRentangKktp(rentang);
+            if (galatRentang) throw new Error(galatRentang);
             await ensureUser();
             if (existing) {
                 await updateKktp(existing.id, { keterangan: label, rentang });
@@ -1260,7 +1286,7 @@ function renderSumInput() {
         inputEl.querySelector('#sum-nilai-inp')?.addEventListener('input', function () {
             const n = this.value === '' ? null : parseFloat(this.value);
             const kEl = inputEl.querySelector('#sum-kktp-txt');
-            if (kEl) kEl.textContent = kktpStatText(n, rent);
+            if (kEl) kEl.textContent = (n != null && (n < 0 || n > 100)) ? 'Nilai harus 0–100' : kktpStatText(n, rent);
         });
     } else {
         // Wire predikat chips
@@ -1473,6 +1499,12 @@ async function openAsmtModal(editAsmt) {
             if (jenis === 'SUMATIF') {
                 flushSumActive();
                 for (const [sid, data] of Object.entries(_sumNilai)) {
+                    if (data.nilai != null && (data.nilai < 0 || data.nilai > 100)) {
+                        const nama = _sumSiswaList.find(r => r.id === sid)?.nama ?? 'siswa';
+                        throw new Error('Nilai ' + nama + ' (' + data.nilai + ') harus antara 0 dan 100.');
+                    }
+                }
+                for (const [sid, data] of Object.entries(_sumNilai)) {
                     if (data.nilai != null || data.predikat) {
                         await upsertAssessmentResult(_schoolId, _kelasId, asmtId, sid, {
                             nilai: data.nilai ?? null,
@@ -1494,6 +1526,7 @@ async function openAsmtModal(editAsmt) {
 
             close();
             await renderPelaksanaan();
+            await segarkanBagianTerbuka();
         }
     });
 
@@ -1590,6 +1623,13 @@ function asmtRowHtml(a) {
         (a.tujuan ? '<div class="pen-asmt-meta">' + esc(a.tujuan) + '</div>' : '') +
         '</div>'
     );
+}
+
+// Rekap dan Nilai Rapor yang sedang terbuka harus ikut digambar ulang setelah penilaian berubah (kalau tidak, tampil data basi).
+async function segarkanBagianTerbuka() {
+    const terbuka = id => { const el = document.getElementById(id); return el && el.style.display !== 'none'; };
+    if (terbuka('pen-rekap-body')) await renderRecap();
+    if (terbuka('pen-rapor-body')) await renderRapor();
 }
 
 async function renderPelaksanaan() {

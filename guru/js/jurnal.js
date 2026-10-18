@@ -145,7 +145,11 @@ async function initJurnalTab() {
         const content = contentEl.value.trim();
         const date    = dateEl.value;
 
-        if (!content) return;
+        if (!content) {
+            msgEl.textContent = 'Tulis catatan terlebih dahulu.';
+            msgEl.style.display = 'block';
+            return;
+        }
         if (!date || date < dateEl.min || date > dateEl.max) return;
 
         btn.disabled = true;
