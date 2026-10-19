@@ -226,6 +226,16 @@ await uji('isian bobot tidak digambar ulang saat diubah (fokus Tab tidak hilang)
   assert.match(sumber, /if \(st\.metode === 'BOBOT' && st2\) st2\.innerHTML = statusBobotHtml\(\); else b\.innerHTML = bobotHtml\(\);/);
 });
 
+await uji('usulan T/R siswa baru: satu T dan satu R dari KKTP; tanpa KKTP diberi penanda dasar nilai', async () => {
+  globalThis.__api.data = dasar();   // Budi: tp1 80, tp2 60; batas KKTP 70 -> T: TP-1 (tercapai), R: TP-2 (belum tercapai)
+  let b = badan(); await M.renderNilaiRapor(b, ctx);
+  assert.match(b.innerHTML, /T: TP-1 · R: TP-2/);
+  assert.ok(!/dasar nilai, KKTP belum ada/.test(b.innerHTML));
+  globalThis.__api.data = dasar(); globalThis.__api.data.kktp = { tp1: [], tp2: [] };
+  b = badan(); await M.renderNilaiRapor(b, ctx);
+  assert.match(b.innerHTML, /T: TP-1 · R: TP-2 <span[^>]*>\(dasar nilai, KKTP belum ada\)/);
+});
+
 fs.rmSync(dirTmp, { recursive: true, force: true });
 console.log(`\nNILAI_RAPOR_UI: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);

@@ -72,12 +72,34 @@ uji('rata-rata per TP: gabungan beberapa penilaian satu TP; penilaian tanpa TP a
   const r = M.nilaiPerTp(asesmen, { a1: 80, a2: 70, a3: 60, a4: 99, a5: null });
   assert.deepEqual(r, { t1: 75, t2: 60 });
 });
-uji('saran T/R: T = nilai TP tertinggi, R = terendah; satu TP atau semua sama = hanya T', () => {
-  assert.deepEqual(M.sarankanTR({ t1: 75, t2: 60, t3: 90 }), { optimal: ['t3'], perlu: ['t2'] });
-  assert.deepEqual(M.sarankanTR({ t1: 80, t2: 80 }), { optimal: ['t1', 't2'], perlu: [] });
-  assert.deepEqual(M.sarankanTR({ t1: 80 }), { optimal: ['t1'], perlu: [] });
-  assert.deepEqual(M.sarankanTR({}), { optimal: [], perlu: [] });
-  assert.deepEqual(M.sarankanTR({ a: 90, b: 90, c: 50, d: 50 }), { optimal: ['a', 'b'], perlu: ['c', 'd'] });
+uji('usulan T/R: satu T (tertinggi di antara TP tercapai) dan satu R (terendah di antara TP belum tercapai); jumlah tidak dipaksa', () => {
+  const urutanTp = ['t1', 't2', 't3'];
+  const S = (perTp, batasTp) => M.sarankanTR(perTp, { batasTp, urutanTp });
+  const batas70 = { t1: 70, t2: 70, t3: 70 };
+  // campuran: t3 tertinggi dan tercapai, t2 terendah dan belum tercapai
+  assert.deepEqual(S({ t1: 75, t2: 60, t3: 90 }, batas70), { optimal: ['t3'], perlu: ['t2'], dasarNilai: false });
+  // semua tercapai: tidak ada R (tidak memaksa satu TP "perlu peningkatan")
+  assert.deepEqual(S({ t1: 75, t2: 80, t3: 90 }, batas70), { optimal: ['t3'], perlu: [], dasarNilai: false });
+  // semua belum tercapai: tidak ada T; R = yang terendah
+  assert.deepEqual(S({ t1: 50, t2: 40, t3: 60 }, batas70), { optimal: [], perlu: ['t2'], dasarNilai: false });
+  // T tidak boleh jatuh pada TP yang belum tercapai walau nilainya tertinggi di antara yang ada
+  assert.deepEqual(S({ t1: 65, t2: 60 }, batas70), { optimal: [], perlu: ['t2'], dasarNilai: false });
+});
+uji('usulan T/R: nilai sama tinggi -> T = TP urutan paling akhir; nilai sama rendah -> R = TP urutan paling awal', () => {
+  const urutanTp = ['t1', 't2', 't3', 't4'];
+  const batasTp = { t1: 70, t2: 70, t3: 70, t4: 70 };
+  assert.deepEqual(M.sarankanTR({ t1: 90, t2: 90, t3: 50, t4: 50 }, { batasTp, urutanTp }), { optimal: ['t2'], perlu: ['t3'], dasarNilai: false });
+});
+uji('usulan T/R: TP tanpa KKTP dinilai dari nilainya dan diberi penanda dasarNilai; R hanya bila lebih rendah dari T', () => {
+  const urutanTp = ['t1', 't2', 't3'];
+  assert.deepEqual(M.sarankanTR({ t1: 75, t2: 60, t3: 90 }, { urutanTp }), { optimal: ['t3'], perlu: ['t2'], dasarNilai: true });
+  assert.deepEqual(M.sarankanTR({ t1: 80, t2: 80 }, { urutanTp }), { optimal: ['t2'], perlu: [], dasarNilai: true }, 'nilai sama: hanya T');
+  assert.deepEqual(M.sarankanTR({ t1: 80 }, { urutanTp }), { optimal: ['t1'], perlu: [], dasarNilai: true });
+  assert.deepEqual(M.sarankanTR({}, { urutanTp }), { optimal: [], perlu: [], dasarNilai: false });
+  assert.deepEqual(M.sarankanTR({ t1: 75 }), { optimal: ['t1'], perlu: [], dasarNilai: true }, 'tanpa opsi sama sekali tetap jalan');
+});
+uji('usulan T/R: satu TP tercapai dan satu tanpa KKTP -> R tidak diusulkan dari TP tanpa KKTP', () => {
+  assert.deepEqual(M.sarankanTR({ t1: 90, t2: 50 }, { batasTp: { t1: 70 }, urutanTp: ['t1', 't2'] }), { optimal: ['t1'], perlu: [], dasarNilai: false });
 });
 uji('deskripsi: kalimat positif untuk capaian tertinggi dan "perlu peningkatan" untuk terendah; kosong bila tidak ada tanda', () => {
   const tpById = { t1: { kode_tp: 'TP-1', deskripsi_tp: 'menyelesaikan persamaan linear.' }, t2: { kode_tp: 'TP-2', deskripsi_tp: '' } };

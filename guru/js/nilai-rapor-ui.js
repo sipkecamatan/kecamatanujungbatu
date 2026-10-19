@@ -89,7 +89,7 @@ export async function renderNilaiRapor(body, ctx) {
         for (const tp of Object.keys(perTp)) if (batasTp[tp] !== null && batasTp[tp] !== undefined) tercapaiPerTp[tp] = perTp[tp] >= batasTp[tp];
         let hitung = null;
         try { hitung = hitungNilaiRapor({ metode: st.metode, asesmen, nilai, bobot: st.bobot, tercapaiPerTp, urutanTp: tps.map((t) => t.id) }); } catch { hitung = null; }
-        return { hitung, perTp, tr: sarankanTR(perTp) };
+        return { hitung, perTp, tr: sarankanTR(perTp, { batasTp, urutanTp: tps.map((t) => t.id) }) };
     };
     // Keadaan awal tiap siswa. Rumus guru menghitung nilai rapor OTOMATIS: baris yang tidak ditimpa guru (bukan MANUAL) mengikuti hasil rumus;
     // baris MANUAL (angka ditetapkan sendiri oleh guru) dibiarkan. Siswa yang belum punya nilai tersimpan juga diisi tanda T/R dan deskripsinya.
@@ -145,12 +145,12 @@ export async function renderNilaiRapor(body, ctx) {
             nilai: r ? String(Number(r.nilai_rapor)) : '', manual: r?.metode === 'MANUAL',
             optimal: new Set(r?.tp_optimal ?? []), perlu: new Set(r?.tp_perlu ?? []),
             desT: r?.deskripsi_tertinggi ?? '', desR: r?.deskripsi_terendah ?? '',
-            sunting: !!(r?.deskripsi_tertinggi || r?.deskripsi_terendah), ada: !!r, terbuka: false,
+            sunting: !!(r?.deskripsi_tertinggi || r?.deskripsi_terendah), ada: !!r, terbuka: false, dasarNilai: false,
         };
         const { hitung, tr } = hitungSiswa(s.id);
         if (!row.manual && hitung !== null) row.nilai = String(hitung);
         if (!r && (tr.optimal.length || tr.perlu.length)) {
-            row.optimal = new Set(tr.optimal); row.perlu = new Set(tr.perlu);
+            row.optimal = new Set(tr.optimal); row.perlu = new Set(tr.perlu); row.dasarNilai = tr.dasarNilai;
             const d = susunDeskripsi({ optimal: tr.optimal, perlu: tr.perlu, tpById }); row.desT = d.tertinggi; row.desR = d.terendah;
         }
         st.rows[s.id] = row;
@@ -158,7 +158,8 @@ export async function renderNilaiRapor(body, ctx) {
     const ringkasTR = (row) => {
         const kode = (id) => esc(tpById[id]?.kode_tp || '?');
         const t = [...row.optimal].map(kode).join(', '), r = [...row.perlu].map(kode).join(', ');
-        return (t ? 'T: ' + t : '') + (t && r ? ' · ' : '') + (r ? 'R: ' + r : '') || '—';
+        const dasar = row.dasarNilai && (t || r) ? ' <span title="Usulan hanya berdasar nilai; KKTP belum ada" style="opacity:.7">(dasar nilai, KKTP belum ada)</span>' : '';
+        return ((t ? 'T: ' + t : '') + (t && r ? ' · ' : '') + (r ? 'R: ' + r : '') || '—') + dasar;
     };
 
     // ── HTML ──
@@ -272,7 +273,7 @@ export async function renderNilaiRapor(body, ctx) {
             return;
         }
         if (t.classList.contains('nr-tp')) {
-            const tp = t.dataset.tp; row.optimal.delete(tp); row.perlu.delete(tp);
+            const tp = t.dataset.tp; row.dasarNilai = false; row.optimal.delete(tp); row.perlu.delete(tp);
             if (t.value === 'T') row.optimal.add(tp); else if (t.value === 'R') row.perlu.add(tp);
             const sel = body.querySelector('tr[data-sid="' + CSS.escape(sid) + '"] .nr-tr'); if (sel) sel.innerHTML = ringkasTR(row);
             return;

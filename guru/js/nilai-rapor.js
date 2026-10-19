@@ -91,17 +91,34 @@ export function hitungNilaiRapor({ metode, asesmen, nilai, bobot = {}, tercapaiP
 }
 
 /**
- * Saran tanda TP untuk e-Rapor: T = TP dicapai paling optimal (nilai tertinggi), R = TP yang perlu peningkatan (nilai terendah).
- * Satu TP saja: hanya T. Semua TP bernilai sama: hanya T (tidak ada yang "paling perlu").
+ * Saran tanda TP untuk e-Rapor (usulan; guru memverifikasi dan boleh mengubah, jumlahnya tidak dipaksa).
+ *  - T (dicapai optimal): satu TP dengan nilai tertinggi di antara TP yang TERCAPAI (di atas batas KKTP). TP tanpa KKTP ikut dinilai dari nilainya.
+ *    Bila nilai sama tinggi, dipilih TP dengan urutan paling akhir. Bila semua TP belum tercapai, tidak ada T.
+ *  - R (perlu peningkatan): satu TP BELUM tercapai dengan nilai terendah (seri: urutan paling awal). Bila semua TP tercapai, tidak ada R.
+ *    Bila tidak satu pun TP punya KKTP, R = TP bernilai terendah asal lebih rendah dari T (dasar: nilai saja).
+ * @param {Object<string, number>} perTp   rata-rata nilai siswa per TP
+ * @param {{batasTp?: Object<string, number|null>, urutanTp?: string[]}} [opsi]  batas ketercapaian (KKTP) per TP dan id TP menurut urutan TP
+ * @returns {{optimal: string[], perlu: string[], dasarNilai: boolean}} dasarNilai = ada usulan yang hanya berdasar nilai (KKTP belum ada)
  */
-export function sarankanTR(perTp) {
-    const tp = Object.entries(perTp ?? {});
-    if (!tp.length) return { optimal: [], perlu: [] };
-    const maks = Math.max(...tp.map(([, n]) => n));
-    const min = Math.min(...tp.map(([, n]) => n));
-    const optimal = tp.filter(([, n]) => n === maks).map(([id]) => id);
-    const perlu = maks === min ? [] : tp.filter(([, n]) => n === min).map(([id]) => id);
-    return { optimal, perlu };
+export function sarankanTR(perTp, { batasTp = {}, urutanTp = [] } = {}) {
+    const entri = Object.entries(perTp ?? {}).map(([id, nilai]) => ({ id, nilai }));
+    const kosong = { optimal: [], perlu: [], dasarNilai: false };
+    if (!entri.length) return kosong;
+    const pos = (id) => { const i = urutanTp.indexOf(id); return i < 0 ? urutanTp.length : i; };
+    const status = (e) => { const b = angka(batasTp?.[e.id]); return b === null ? null : e.nilai >= b; };   // true = tercapai, false = belum, null = tanpa KKTP
+    const adaKktp = entri.some((e) => status(e) !== null);
+
+    const calonT = entri.filter((e) => status(e) !== false);
+    const t = calonT.length ? calonT.reduce((a, e) => (e.nilai > a.nilai || (e.nilai === a.nilai && pos(e.id) > pos(a.id)) ? e : a)) : null;
+
+    const belum = entri.filter((e) => status(e) === false);
+    let r = belum.length ? belum.reduce((a, e) => (e.nilai < a.nilai || (e.nilai === a.nilai && pos(e.id) < pos(a.id)) ? e : a)) : null;
+    let rDariNilai = false;
+    if (!r && !adaKktp) {
+        const sisa = entri.filter((e) => e.id !== t?.id && (!t || e.nilai < t.nilai));
+        if (sisa.length) { r = sisa.reduce((a, e) => (e.nilai < a.nilai || (e.nilai === a.nilai && pos(e.id) < pos(a.id)) ? e : a)); rDariNilai = true; }
+    }
+    return { optimal: t ? [t.id] : [], perlu: r ? [r.id] : [], dasarNilai: (!!t && status(t) === null) || rDariNilai };
 }
 
 const teksTp = (t) => String(t?.deskripsi_tp || t?.kode_tp || '').trim().replace(/[.\s]+$/, '');
