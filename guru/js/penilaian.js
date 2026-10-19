@@ -1183,6 +1183,41 @@ function nilaiTengah(pred, rent) {
     return Math.round((r[0] + r[1]) / 2);
 }
 
+// Arti predikat yang sama untuk SEMUA teknik/instrumen (tes tertulis, praktik, proyek, portofolio, dst.): guru perlu paham bahwa angka punya predikat dan predikat punya rentang nilai.
+const PREDIKAT_ARTI = {
+    SB:  'Capaian melampaui harapan; tujuan pembelajaran dikuasai dengan sangat baik dan mandiri.',
+    BSH: 'Capaian sesuai harapan; tujuan pembelajaran dikuasai dengan baik.',
+    MB:  'Capaian mulai tampak tetapi belum sesuai harapan; masih perlu latihan dan bimbingan.',
+    BB:  'Capaian belum tampak sesuai harapan; perlu bimbingan dan pengulangan.',
+};
+const namaPredikat = (p) => PREDIKAT_RUBRIK.find((x) => x.val === p)?.lbl ?? p;
+/** "BSH · Berkembang Sesuai Harapan" (teks yang dibaca guru di samping angka/predikat). Kosong bila predikat tidak ada. */
+const teksPredikat = (p) => (p ? p + ' · ' + namaPredikat(p) : '');
+
+/** Kotak "Cara membaca nilai": rentang tiap predikat dari KKTP TP yang dipilih (atau bawaan) + artinya + cara mengisi tes vs non-tes. */
+function panduanPredikatHtml(rent) {
+    const batas = rent?.BSH?.[0];
+    const baris = ['SB', 'BSH', 'MB', 'BB'].map((p) => {
+        const r = rent?.[p];
+        return '<div style="display:grid;grid-template-columns:44px 64px 1fr;gap:6px;padding:2px 0">' +
+            '<strong>' + p + '</strong><span>' + (r ? esc(r[0] + '–' + r[1]) : '—') + '</span>' +
+            '<span><em>' + esc(namaPredikat(p)) + '.</em> ' + esc(PREDIKAT_ARTI[p]) + '</span></div>';
+    }).join('');
+    return '<details open style="border:1px solid var(--color-border);border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:12px">' +
+        '<summary style="cursor:pointer;font-weight:600">Cara membaca nilai</summary>' +
+        '<div style="margin:4px 0;color:var(--color-text-muted)">Setiap angka punya predikat, dan setiap predikat punya rentang nilai (dari KKTP TP yang dipilih; tanpa TP/KKTP dipakai rentang bawaan).</div>' +
+        baris +
+        '<div style="margin-top:4px;color:var(--color-text-muted)"><strong>Tes:</strong> ketik angka 0–100, predikat mengikuti rentang. ' +
+        '<strong>Non-tes</strong> (penugasan, proyek, portofolio, unjuk kerja): pilih predikat, angka dihitung otomatis dari titik tengah rentangnya. ' +
+        (typeof batas === 'number' ? 'Tercapai bila nilai ≥ ' + esc(String(batas)) + ' (awal rentang BSH).' : '') + '</div>' +
+        '</details>';
+}
+
+function renderPanduanPredikat(container) {
+    const el = container?.querySelector('#sum-panduan');
+    if (el) el.innerHTML = panduanPredikatHtml(_sumCurrentRentang());
+}
+
 function kktpStatText(nilai, rent) {
     if (nilai == null || !rent) return '';
     // Iterasi SB→BB; return pertama di mana nilai >= batas_bawah (eksklusif atas)
@@ -1251,7 +1286,7 @@ function renderSumInput() {
             '<input type="number" id="sum-nilai-inp" min="0" max="100" step="0.5" placeholder="Nilai 0–100" ' +
             'value="' + (vals.nilai != null ? String(vals.nilai) : '') + '" ' +
             'style="width:100px;padding:6px 8px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-bg);color:var(--color-text);font-size:13px">' +
-            '<span id="sum-kktp-txt" style="font-size:12px;color:var(--color-text-muted)">' + esc(kktpStr) + '</span>' +
+            '<span id="sum-kktp-txt" style="font-size:12px;color:var(--color-text-muted)">' + esc(teksPredikat(kktpStr)) + '</span>' +
             '</div>';
     } else {
         const selPred = vals.predikat ?? null;
@@ -1262,14 +1297,14 @@ function renderSumInput() {
             '<div style="font-size:11px;color:var(--color-text-muted);margin-bottom:4px">Predikat:</div>' +
             '<div id="sum-pred-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">' +
             PREDIKAT_ORDER.map(p => (
-                '<button type="button" class="sum-pred-chip' + (selPred === p ? ' sum-chip-active' : '') + '" data-val="' + p + '" ' +
+                '<button type="button" class="sum-pred-chip' + (selPred === p ? ' sum-chip-active' : '') + '" data-val="' + p + '" title="' + esc(namaPredikat(p) + ': ' + PREDIKAT_ARTI[p]) + '" ' +
                 'style="' + chipBtnCss(p, selPred === p) + '">' + esc(p) + '</button>'
             )).join('') +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:6px;font-size:12px">' +
             '<span style="color:var(--color-text-muted)">Nilai:</span>' +
             '<strong id="sum-pred-nilai">' + (autoN != null ? autoN : '—') + '</strong>' +
-            '<span id="sum-kktp-txt" style="color:var(--color-text-muted)">' + esc(kktpStr) + '</span>' +
+            '<span id="sum-kktp-txt" style="color:var(--color-text-muted)">' + esc(teksPredikat(kktpStr)) + '</span>' +
             '</div></div>';
     }
 
@@ -1292,7 +1327,7 @@ function renderSumInput() {
         inputEl.querySelector('#sum-nilai-inp')?.addEventListener('input', function () {
             const n = this.value === '' ? null : parseFloat(this.value);
             const kEl = inputEl.querySelector('#sum-kktp-txt');
-            if (kEl) kEl.textContent = (n != null && (n < 0 || n > 100)) ? 'Nilai harus 0–100' : kktpStatText(n, rent);
+            if (kEl) kEl.textContent = (n != null && (n < 0 || n > 100)) ? 'Nilai harus 0–100' : teksPredikat(kktpStatText(n, rent));
         });
     } else {
         // Wire predikat chips
@@ -1311,7 +1346,7 @@ function renderSumInput() {
                     const nilaiEl = inputEl.querySelector('#sum-pred-nilai');
                     const kEl     = inputEl.querySelector('#sum-kktp-txt');
                     if (nilaiEl) nilaiEl.textContent = autoN2 != null ? String(autoN2) : '—';
-                    if (kEl) kEl.textContent = autoN2 != null ? kktpStatText(autoN2, rent) : '';
+                    if (kEl) kEl.textContent = autoN2 != null ? teksPredikat(kktpStatText(autoN2, rent)) : '';
                 }
             });
         });
@@ -1337,6 +1372,7 @@ function renderSumInput() {
 const SUM_PAGE_SIZE = 8;
 
 function renderSumPage(container) {
+    renderPanduanPredikat(container);
     const names  = container.querySelector('#sum-names-wrap');
     const nav    = container.querySelector('#sum-nav');
     const dots   = container.querySelector('#sum-dots');
@@ -1425,6 +1461,7 @@ async function openAsmtModal(editAsmt) {
     const instrOpts  = (INSTRUMEN_MAP[initTeknik] || []).map(i => '<option value="' + i + '"' + (initInstrumen === i ? ' selected' : '') + '>' + i + '</option>').join('');
 
     const SUM_HTML =
+        '<div id="sum-panduan"></div>' +
         '<div id="sum-names-wrap" class="sum-names-wrap"></div>' +
         '<div id="sum-nav" class="sum-nav" style="display:none">' +
         '<button type="button" id="sum-prev" class="pen-btn pen-btn-sm">‹ Prev</button>' +
@@ -1597,7 +1634,7 @@ async function openAsmtModal(editAsmt) {
     }
 
     // Mengganti TP mengubah rentang predikat: panel siswa yang sedang terbuka digambar ulang agar angka/status yang tampil ikut berubah.
-    modal.querySelectorAll('.pai-tp-cb').forEach(cb => cb.addEventListener('change', () => { flushSumActive(); renderSumInput(); }));
+    modal.querySelectorAll('.pai-tp-cb').forEach(cb => cb.addEventListener('change', () => { flushSumActive(); renderPanduanPredikat(_sumSiswaContainer); renderSumInput(); }));
     teknikSel.addEventListener('change', () => {
         const instrs = INSTRUMEN_MAP[teknikSel.value] || [];
         instrSel.innerHTML = instrs.map(i => '<option value="' + i + '">' + i + '</option>').join('');
