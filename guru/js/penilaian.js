@@ -1196,7 +1196,6 @@ const teksPredikat = (p) => (p ? p + ' · ' + namaPredikat(p) : '');
 
 /** Kotak "Cara membaca nilai": rentang tiap predikat dari KKTP TP yang dipilih (atau bawaan) + artinya + cara mengisi tes vs non-tes. */
 function panduanPredikatHtml(rent) {
-    const batas = rent?.BSH?.[0];
     const baris = ['SB', 'BSH', 'MB', 'BB'].map((p) => {
         const r = rent?.[p];
         return '<div style="display:grid;grid-template-columns:44px 64px 1fr;gap:6px;padding:2px 0">' +
@@ -1205,11 +1204,7 @@ function panduanPredikatHtml(rent) {
     }).join('');
     return '<details open style="border:1px solid var(--color-border);border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:12px">' +
         '<summary style="cursor:pointer;font-weight:600">Cara membaca nilai</summary>' +
-        '<div style="margin:4px 0;color:var(--color-text-muted)">Setiap angka punya predikat, dan setiap predikat punya rentang nilai (dari KKTP TP yang dipilih; tanpa TP/KKTP dipakai rentang bawaan).</div>' +
         baris +
-        '<div style="margin-top:4px;color:var(--color-text-muted)"><strong>Tes:</strong> ketik angka 0–100, predikat mengikuti rentang. ' +
-        '<strong>Non-tes</strong> (penugasan, proyek, portofolio, unjuk kerja): pilih predikat, angka dihitung otomatis dari titik tengah rentangnya. ' +
-        (typeof batas === 'number' ? 'Tercapai bila nilai ≥ ' + esc(String(batas)) + ' (awal rentang BSH).' : '') + '</div>' +
         '</details>';
 }
 

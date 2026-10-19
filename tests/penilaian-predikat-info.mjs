@@ -14,14 +14,13 @@ uji('arti generik untuk keempat predikat (tidak menyebut teknik tertentu)', () =
   for (const p of ['SB', 'BSH', 'MB', 'BB']) assert.match(blok, new RegExp(p + ":\\s+'[^']{20,}'"), 'arti ' + p + ' hilang');
   assert.ok(!/tes tertulis|proyek|portofolio|praktik/i.test(blok), 'arti predikat tidak boleh spesifik teknik');
 });
-uji('kotak "Cara membaca nilai" memuat rentang tiap predikat, arti, cara mengisi tes vs non-tes, dan batas tercapai', () => {
+uji('kotak "Cara membaca nilai" memuat rentang dan arti tiap predikat, tanpa kalimat penjelas tambahan', () => {
   const fn = pen.slice(pen.indexOf('function panduanPredikatHtml'), pen.indexOf('function renderPanduanPredikat'));
   assert.match(fn, /Cara membaca nilai/);
   assert.match(fn, /\['SB', 'BSH', 'MB', 'BB'\]\.map/);
   assert.match(fn, /r\[0\] \+ '–' \+ r\[1\]/);
-  assert.match(fn, /<strong>Tes:<\/strong> ketik angka/);
-  assert.match(fn, /<strong>Non-tes<\/strong>/);
-  assert.match(fn, /Tercapai bila nilai/);
+  assert.ok(!/Setiap angka punya predikat/.test(pen), 'kalimat pembuka dihapus atas permintaan Romo');
+  assert.ok(!/ketik angka 0–100, predikat mengikuti rentang/.test(pen) && !/Tercapai bila nilai/.test(pen), 'kalimat cara mengisi dan batas tercapai dihapus atas permintaan Romo');
 });
 uji('panduan memakai rentang TP terpilih, digambar saat panel sumatif dibuka dan saat TP diganti', () => {
   assert.match(pen, /el\.innerHTML = panduanPredikatHtml\(_sumCurrentRentang\(\)\)/);
