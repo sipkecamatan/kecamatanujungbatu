@@ -35,7 +35,7 @@ const ctx = { schoolId: 'S', teacherId: 'G', classId: 'C', subjectId: 'M', year:
 globalThis.window = { confirm: () => true };
 const badan = () => ({ innerHTML: '', onclick: null, onchange: null, querySelector: () => null, querySelectorAll: () => [] });
 const klik = (b, aksi) => b.onclick({ target: { closest: (sel) => (sel === '[data-nr]' ? { dataset: { nr: aksi }, closest: () => null, disabled: false, textContent: '' } : null) } });
-const ubah = (b, sid, kelas, nilai) => b.onchange({ target: { id: '', value: nilai, dataset: {}, classList: { contains: (c) => c === kelas }, closest: () => ({ dataset: { sid } }) } });
+const ubah = (b, sid, kelas, nilai) => b.onchange({ target: { id: '', value: nilai, dataset: {}, classList: { contains: (c) => c === kelas }, closest: () => ({ dataset: { sid }, querySelector: () => null }) } });
 
 const dasar = () => ({
   roster: [{ id: 's1', nama: 'Budi <img src=x onerror=alert(1)>', nis: '1001' }, { id: 's2', nama: 'Citra', nis: '1002' }],
@@ -53,21 +53,22 @@ const uji = async (nama, fn) => {
   try { await fn(); lulus++; console.log('  LULUS  ' + nama); } catch (e) { gagal++; console.log('  GAGAL  ' + nama + '\n         ' + String(e.stack ?? e.message).split('\n').slice(0, 2).join(' | ')); }
 };
 
-await uji('render: nama di-escape (tanpa XSS), saran dihitung dari sumatif saja (formatif diabaikan), tombol tersedia', async () => {
+await uji('render: nama di-escape (tanpa XSS), nilai otomatis dihitung dari sumatif saja (formatif diabaikan), tidak ada kolom Saran, tombol tersedia', async () => {
   const b = badan(); await M.renderNilaiRapor(b, ctx);
   assert.ok(!b.innerHTML.includes('<img src=x'), 'nama siswa tidak di-escape');
   assert.ok(b.innerHTML.includes('&lt;img'), 'nama siswa seharusnya tampil sebagai teks');
-  assert.match(b.innerHTML, /nr-saran" style="text-align:center">70</);   // Budi: rata-rata (80 + 60) / 2 = 70; formatif 5 diabaikan
-  assert.match(b.innerHTML, /nr-saran" style="text-align:center">90</);   // Citra
-  for (const aksi of ['isi-saran', 'simpan', 'unduh']) assert.ok(b.innerHTML.includes(`data-nr="${aksi}"`), 'tombol ' + aksi);
+  assert.ok(!/Saran|nr-saran/.test(b.innerHTML), 'kolom Saran seharusnya tidak ada');
+  assert.match(b.innerHTML, /class="nr-nilai"[^>]*value="70"/);   // Budi: rata-rata (80 + 60) / 2 = 70; formatif 5 diabaikan
+  assert.match(b.innerHTML, /class="nr-nilai"[^>]*value="90"/);   // Citra
+  for (const aksi of ['hitung-semua', 'simpan', 'unduh']) assert.ok(b.innerHTML.includes(`data-nr="${aksi}"`), 'tombol ' + aksi);
 });
 await uji('tanpa siswa atau tanpa penilaian sumatif: pesan yang jelas, tidak galat', async () => {
   globalThis.__api.data.roster = []; let b = badan(); await M.renderNilaiRapor(b, ctx); assert.match(b.innerHTML, /Belum ada siswa terdaftar/);
   globalThis.__api.data = dasar(); globalThis.__api.data.asesmen = []; b = badan(); await M.renderNilaiRapor(b, ctx); assert.match(b.innerHTML, /Belum ada penilaian sumatif/); assert.ok(b.innerHTML.includes('data-nr="simpan"'), 'tabel tetap tampil agar nilai dapat diisi manual');
 });
-await uji('isi dari saran lalu Simpan: payload berisi nilai, metode RATA, T/R dan deskripsi', async () => {
+await uji('Simpan tanpa mengisi apa pun: payload berisi nilai otomatis, metode RATA, T/R dan deskripsi', async () => {
   const b = badan(); await M.renderNilaiRapor(b, ctx);
-  await klik(b, 'isi-saran'); await klik(b, 'simpan');
+  await klik(b, 'simpan');
   const up = globalThis.__api.panggilan.find((p) => p[0] === 'upsert');
   assert.ok(up, 'upsert tidak dipanggil');
   const [sch, cls, subj, guru, thn, sem, rows] = up[1];
@@ -103,7 +104,7 @@ await uji('nilai rapor tersimpan yang dikosongkan guru dihapus di server; siswa 
 });
 await uji('server menolak: guru diberi tahu galat dan tombol Simpan aktif kembali (bukan terkunci)', async () => {
   const b = badan(); await M.renderNilaiRapor(b, ctx);
-  await klik(b, 'isi-saran'); globalThis.__api.gagal = true; await klik(b, 'simpan');
+  globalThis.__api.gagal = true; await klik(b, 'simpan');
   assert.ok(toasts.some(([m, ok]) => !ok && /Gagal simpan/.test(m)));
   globalThis.__api.gagal = false; globalThis.__api.panggilan = []; await klik(b, 'simpan');   // dapat disimpan ulang
   assert.ok(globalThis.__api.panggilan.some((p) => p[0] === 'upsert'));
@@ -114,7 +115,7 @@ await uji('izin tampil: bawaan mati; centang siswa saja / ortu saja / keduanya t
   let b = badan(); await M.renderNilaiRapor(b, ctx);
   assert.ok(b.innerHTML.includes('id="nr-vis-siswa"') && b.innerHTML.includes('id="nr-vis-ortu"'), 'centang izin tidak tampil');
   assert.ok(!/id="nr-vis-siswa" checked/.test(b.innerHTML) && !/id="nr-vis-ortu" checked/.test(b.innerHTML), 'bawaan harus tidak terlihat');
-  await klik(b, 'isi-saran'); await klik(b, 'simpan');
+  await klik(b, 'simpan');
   let rows = globalThis.__api.panggilan.find((p) => p[0] === 'upsert')[1][6];
   assert.ok(rows.every((r) => r.is_visible_siswa === false && r.is_visible_ortu === false), 'bawaan terkirim tidak false');
   for (const [s, o] of [[true, false], [false, true], [true, true]]) {
@@ -127,6 +128,15 @@ await uji('izin tampil: bawaan mati; centang siswa saja / ortu saja / keduanya t
                                      { student_id: 's2', nilai_rapor: '90', metode: 'RATA', tp_optimal: [], tp_perlu: [], is_visible_siswa: true, is_visible_ortu: false }];
   b = badan(); await M.renderNilaiRapor(b, ctx);
   assert.match(b.innerHTML, /id="nr-vis-siswa" checked/); assert.ok(!/id="nr-vis-ortu" checked/.test(b.innerHTML));
+});
+
+await uji('nilai otomatis: baris tersimpan yang tertinggal mengikuti rumus dan ditandai belum disimpan; baris manual dibiarkan dan bertombol otomatis', async () => {
+  globalThis.__api.data.tersimpan = [{ student_id: 's1', nilai_rapor: '50', metode: 'RATA', tp_optimal: [], tp_perlu: [] }, { student_id: 's2', nilai_rapor: '77', metode: 'MANUAL', tp_optimal: [], tp_perlu: [] }];
+  const b = badan(); await M.renderNilaiRapor(b, ctx);
+  assert.match(b.innerHTML, /data-sid="s1"[\s\S]*?value="70"[\s\S]*?belum disimpan/, 's1 harus mengikuti rumus (70) dan ditandai belum disimpan');
+  assert.match(b.innerHTML, /data-sid="s2"[\s\S]*?value="77"/, 's2 manual harus tetap 77');
+  assert.ok(b.innerHTML.includes('data-nr="otomatis"'), 'baris manual harus punya tombol otomatis');
+  assert.ok(!/data-sid="s2"[\s\S]*?value="90"/.test(b.innerHTML.split('data-sid="s2"')[1]?.split('</tr>')[0] ? 'data-sid="s2"' + b.innerHTML.split('data-sid="s2"')[1].split('</tr>')[0] : ''), 's2 tidak boleh berubah jadi 90');
 });
 
 fs.rmSync(dirTmp, { recursive: true, force: true });

@@ -24,22 +24,3 @@ export function urutkanPenilaian(daftar) {
         return tx < ty ? -1 : tx > ty ? 1 : cx < cy ? -1 : cx > cy ? 1 : 0;
     });
 }
-
-/**
- * Status nilai rapor satu siswa terhadap hasil hitung terbaru.
- *  BARU    : belum ada nilai tersimpan
- *  MANUAL  : guru sengaja menetapkan angka di luar saran saat menyimpan (bukan tertinggal)
- *  SINKRON : saran terbaru sama dengan saran saat disimpan
- *  BASI    : penilaian berubah sesudah disimpan; saran terbaru berbeda dari saat disimpan
- *  TAK_DIKETAHUI : data lama tanpa catatan saran
- */
-export function statusNilaiRapor({ nilaiTersimpan, saranSaatSimpan, saranSekarang }) {
-    const ada = nilaiTersimpan !== null && nilaiTersimpan !== undefined && nilaiTersimpan !== '';
-    if (!ada) return 'BARU';
-    const lama = saranSaatSimpan === null || saranSaatSimpan === undefined ? null : Number(saranSaatSimpan);
-    if (lama === null) return 'TAK_DIKETAHUI';
-    const kini = saranSekarang === null || saranSekarang === undefined ? null : Number(saranSekarang);
-    if (kini === null) return 'TAK_DIKETAHUI';
-    if (Math.round(kini) !== Math.round(lama)) return 'BASI';
-    return Math.round(Number(nilaiTersimpan)) === Math.round(lama) ? 'SINKRON' : 'MANUAL';
-}

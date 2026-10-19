@@ -2232,8 +2232,6 @@ export async function upsertGradeFinalBatch(schoolId, classId, subjectId, teache
                 is_visible_siswa: r.is_visible_siswa === true, is_visible_ortu: r.is_visible_ortu === true,
                 // Rumus yang ditetapkan guru (metode + bobot persen), disimpan sekali agar tidak diisi ulang (migrasi 20261018200000)
                 rumus: r.rumus ?? null,
-                // Saran hitung saat disimpan: dasar penanda "nilai tertinggal dari penilaian terbaru" (migrasi 20261018210000)
-                saran_saat_simpan: r.saran_saat_simpan ?? null,
                 updated_at: now,
             })),
             { onConflict: 'class_id,subject_id,student_id,academic_year,semester,teacher_id' }
