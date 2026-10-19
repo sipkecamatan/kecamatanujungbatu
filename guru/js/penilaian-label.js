@@ -7,12 +7,15 @@
 const tglPendek = (t) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(t ?? '')); return m ? `${m[3]}/${m[2]}` : ''; };
 const rapi = (s) => String(s ?? '').replace(/_/g, ' ').trim();
 
+/** Nama teknik yang dibaca guru. Kode tersimpan (mis. TES) tidak berubah; hanya tampilan. */
+export function namaTeknik(kode) { return kode === 'TES' ? 'TES TERTULIS' : rapi(kode); }
+
 /** Label yang dibaca guru: judul bila ada; selain itu kode TP + tanggal + teknik/instrumen (bedakan dua penilaian yang mirip). */
 export function labelPenilaian(a, tpById = {}) {
     const judul = String(a?.judul ?? '').trim();
     if (judul) return judul;
     const tp = a?.learning_objective_id ? tpById[a.learning_objective_id] : null;
-    const bagian = [tp?.kode_tp || (a?.learning_objective_id ? 'TP' : 'Tanpa TP'), tglPendek(a?.tanggal), [rapi(a?.teknik), rapi(a?.instrumen)].filter(Boolean).join(' ')];
+    const bagian = [tp?.kode_tp || (a?.learning_objective_id ? 'TP' : 'Tanpa TP'), tglPendek(a?.tanggal), [namaTeknik(a?.teknik), rapi(a?.instrumen)].filter(Boolean).join(' ')];
     return bagian.filter(Boolean).join(' · ');
 }
 

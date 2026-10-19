@@ -13,7 +13,7 @@ import {
 } from './api.js';
 import { renderNilaiRapor } from './nilai-rapor-ui.js';
 import { susunLembarERapor } from './nilai-rapor.js';
-import { labelPenilaian, opsiTpPenilaian } from './penilaian-label.js';
+import { labelPenilaian, opsiTpPenilaian, namaTeknik } from './penilaian-label.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -1417,7 +1417,7 @@ async function openAsmtModal(editAsmt) {
     )).join('');
 
     const jenisOpts  = JENIS_LIST.map(j => '<option value="' + j + '"' + (initJenis === j ? ' selected' : '') + '>' + (JENIS_LABEL[j] ?? j) + '</option>').join('');
-    const teknikOpts = TEKNIK_LIST.map(t => '<option value="' + t + '"' + (initTeknik === t ? ' selected' : '') + '>' + t.replace(/_/g, ' ') + '</option>').join('');
+    const teknikOpts = TEKNIK_LIST.map(t => '<option value="' + t + '"' + (initTeknik === t ? ' selected' : '') + '>' + namaTeknik(t) + '</option>').join('');
     const instrOpts  = (INSTRUMEN_MAP[initTeknik] || []).map(i => '<option value="' + i + '"' + (initInstrumen === i ? ' selected' : '') + '>' + i + '</option>').join('');
 
     const SUM_HTML =
@@ -1824,7 +1824,7 @@ async function _renderRecapContent(body) {
         if (!filtered.length) {
             body.innerHTML =
                 _rcFilterBar() +
-                '<p class="pen-placeholder">Tidak ada penilaian ' + esc(JENIS_LABEL[_rcJenis] ?? _rcJenis) + (_rcTeknik ? ' (' + esc(_rcTeknik) + ')' : '') + ' untuk ditampilkan.</p>';
+                '<p class="pen-placeholder">Tidak ada penilaian ' + esc(JENIS_LABEL[_rcJenis] ?? _rcJenis) + (_rcTeknik ? ' (' + esc(namaTeknik(_rcTeknik)) + ')' : '') + ' untuk ditampilkan.</p>';
             _wireRcFilters(body);
             return;
         }
@@ -1921,7 +1921,7 @@ function _rcFilterBar() {
     const tpOpts = '<option value="">Semua TP</option>' + _tpCache.map(t =>
         '<option value="' + esc(t.id) + '"' + (_rcTp === t.id ? ' selected' : '') + '>' + esc(t.kode_tp || t.id) + '</option>').join('');
     const teknikOpts = ['', ...TEKNIK_LIST].map(v =>
-        '<option value="' + v + '"' + (_rcTeknik === v ? ' selected' : '') + '>' + (v || 'Semua Teknik') + '</option>').join('');
+        '<option value="' + v + '"' + (_rcTeknik === v ? ' selected' : '') + '>' + (v ? namaTeknik(v) : 'Semua Teknik') + '</option>').join('');
     return (
         '<div class="rc-filter-bar" style="justify-content:space-between">' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
@@ -2111,6 +2111,7 @@ async function downloadPenilaianExcel() {
             const tglStr   = asmt.tanggal || '';
             const jenis    = jenisLabel[asmt.jenis] || asmt.jenis;
             const teknik   = asmt.teknik  || '';
+            const teknikTampil = namaTeknik(teknik);
             const instrumen = asmt.instrumen || '';
             const tp       = tpById[asmt.learning_objective_id];
             const tpStr    = tp ? (tp.kode_tp + ' – ' + tp.deskripsi_tp) : '';
@@ -2126,7 +2127,7 @@ async function downloadPenilaianExcel() {
                 for (const siswa of roster) {
                     const r = resultsByAsmt[asmt.id]?.[siswa.id];
                     s1Rows.push([
-                        tglStr, jenis, teknik, instrumen, tpStr, tujuan,
+                        tglStr, jenis, teknikTampil, instrumen, tpStr, tujuan,
                         '', '',
                         siswa.nama || siswa.full_name || '',
                         siswa.nis || '',
@@ -2156,7 +2157,7 @@ async function downloadPenilaianExcel() {
                             const siswa = rosterIdx[sid];
                             if (!siswa) continue;
                             s1Rows.push([
-                                tglStr, jenis, teknik, instrumen, tpStr, tujuan,
+                                tglStr, jenis, teknikTampil, instrumen, tpStr, tujuan,
                                 aspekNama, indikator,
                                 siswa.nama || siswa.full_name || '',
                                 siswa.nis || '',
@@ -2179,7 +2180,7 @@ async function downloadPenilaianExcel() {
                             const siswa = rosterIdx[sid];
                             if (!siswa) continue;
                             s1Rows.push([
-                                tglStr, jenis, teknik, instrumen, tpStr, tujuan,
+                                tglStr, jenis, teknikTampil, instrumen, tpStr, tujuan,
                                 aspekNama, indikator,
                                 siswa.nama || siswa.full_name || '',
                                 siswa.nis || '',
@@ -2193,7 +2194,7 @@ async function downloadPenilaianExcel() {
                 // Assessment ada tapi belum ada data → satu baris kosong per siswa
                 for (const siswa of roster) {
                     s1Rows.push([
-                        tglStr, jenis, teknik, instrumen, tpStr, tujuan,
+                        tglStr, jenis, teknikTampil, instrumen, tpStr, tujuan,
                         '', '',
                         siswa.nama || siswa.full_name || '',
                         siswa.nis || '',

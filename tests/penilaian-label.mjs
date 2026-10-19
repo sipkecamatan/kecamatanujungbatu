@@ -15,7 +15,7 @@ const p2 = { id: 2, learning_objective_id: 'b', tanggal: '2026-10-19', teknik: '
 
 uji('dua penilaian yang dulu sama-sama "TES Pilihan Ganda" kini punya label berbeda', () => {
   assert.notEqual(labelPenilaian(p1, tp), labelPenilaian(p2, tp));
-  assert.equal(labelPenilaian(p1, tp), 'TP1 · 19/10 · TES Pilihan Ganda');
+  assert.equal(labelPenilaian(p1, tp), 'TP1 · 19/10 · TES TERTULIS Pilihan Ganda');
 });
 uji('judul guru menang atas label turunan; tanpa TP dan tanpa tanggal tetap terbaca', () => {
   assert.equal(labelPenilaian({ ...p1, judul: '  UH 1  ' }, tp), 'UH 1');
