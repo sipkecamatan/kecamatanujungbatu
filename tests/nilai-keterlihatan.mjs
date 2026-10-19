@@ -32,7 +32,7 @@ if (!terapkan) {
   const ada = jalankan("select (to_regprocedure('public.fn_nilai_per_tp(character varying,integer)') is not null)::text as ada;");
   if (ada[0]?.ada !== 'true') { console.log('SKIP: migrasi 20261017150000_nilai_keterlihatan_dan_pimpinan belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
 }
-const migrasi = terapkan ? ['20261017150000_nilai_keterlihatan_dan_pimpinan.sql', '20261017160000_nilai_baca_hanya_pimpinan_akademik.sql']
+const migrasi = terapkan ? ['20261017150000_nilai_keterlihatan_dan_pimpinan.sql', '20261017160000_nilai_baca_hanya_pimpinan_akademik.sql', '20261020120000_penilaian_banyak_tp.sql']
   .map((n) => readFileSync(join(ROOT, 'supabase', 'migrations', n), 'utf8') + '\n').join('') : '';
 
 const hitung = "select (select count(*) from learning_objectives)::int as tp, (select count(*) from assessments)::int as asesmen, (select count(*) from grade_final)::int as rapor, (select count(*) from users where is_waka_kurikulum)::int as waka, (select count(*) from users where role_type = 'WAKA_KURIKULUM')::int as role_waka;";
@@ -47,6 +47,9 @@ sama('persona', 'guru=t kelas=t siswa=t siswa2=t ortu=t siswa_akun=t kepsek=t wa
 sama('M1_pengajar_non_guru_membuat_tp', 'ok'); sama('M2_pengajar_non_guru_membaca_penilaian_sendiri', '1'); sama('M3_guru_lain_tidak_membaca_milik_bk', '0');
 sama('P1_kepsek', '70.0/1/1/2/true'); sama('P2_waka_kurikulum', '70.0/1/1/2/true');
 sama('P3_peran_lain_ditolak', 'wakes=GALAT:42501 bk=GALAT:42501 guru=GALAT:42501 guru_penyimpan=GALAT:42501 admin=GALAT:42501 ortu=GALAT:42501 siswa=GALAT:42501');
+sama('B1_guru_menautkan_tp_kedua', 'ok'); sama('B2_nilai_berlaku_di_tp_kedua', '70.0/1/1/2/true'); sama('B3_guru_lain_tak_menautkan', 'GALAT:42501');
+sama('B4_tp_kelas_lain_ditolak', 'GALAT:P0001'); sama('B5_guru_dan_kepsek_membaca_tautan', 'guru=2 kepsek=2 lain=0'); sama('B6_guru_melepas_tautan', '1');
+sama('B7_hapus_tp_tautan_hilang_penilaian_tetap', 'tautan=1 penilaian=1');
 sama('P4_rincian_per_siswa', '60.0:false,80.0:true'); sama('P5_rincian_ditolak_bagi_guru', 'GALAT:42501'); sama('P6_tp_tidak_ada', '0');
 sama('P7_guru_dengan_tanda_waka_kurikulum', '70.0/1/1/2/true');
 sama('R1_pimpinan_akademik_membaca', 'kepsek=1/2 waka_kurikulum=1/2');

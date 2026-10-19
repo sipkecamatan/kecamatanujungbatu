@@ -10,8 +10,8 @@ let lulus = 0, gagal = 0;
 const uji = (n, f) => { try { f(); lulus++; console.log('  LULUS  ' + n); } catch (e) { gagal++; console.log('  GAGAL  ' + n + '\n         ' + e.message); } };
 
 const tp = { a: { kode_tp: 'TP1' }, b: { kode_tp: 'TP2' } };
-const p1 = { id: 1, learning_objective_id: 'a', tanggal: '2026-10-19', teknik: 'TES', instrumen: 'Pilihan Ganda', created_at: '2026-10-19T02:00:00Z' };
-const p2 = { id: 2, learning_objective_id: 'b', tanggal: '2026-10-19', teknik: 'TES', instrumen: 'Pilihan Ganda', created_at: '2026-10-19T03:00:00Z' };
+const p1 = { id: 1, tpIds: ['a'], tanggal: '2026-10-19', teknik: 'TES', instrumen: 'Pilihan Ganda', created_at: '2026-10-19T02:00:00Z' };
+const p2 = { id: 2, tpIds: ['b'], tanggal: '2026-10-19', teknik: 'TES', instrumen: 'Pilihan Ganda', created_at: '2026-10-19T03:00:00Z' };
 
 uji('dua penilaian yang dulu sama-sama "TES Pilihan Ganda" kini punya label berbeda', () => {
   assert.notEqual(labelPenilaian(p1, tp), labelPenilaian(p2, tp));
@@ -49,8 +49,15 @@ uji('formulir edit tidak menghapus tautan TP: TP tertaut selalu ada dalam opsi d
   assert.deepEqual(dipilih(opsiTpPenilaian(daftar, 'b')), ['b']);
   assert.deepEqual(dipilih(opsiTpPenilaian([], 'b')), ['b'], 'daftar kosong: TP tertaut harus tetap terpilih');
   assert.deepEqual(dipilih(opsiTpPenilaian([{ id: 'x', kode_tp: 'TP-lain' }], 'b')), ['b'], 'daftar kelas lain: TP tertaut harus tetap terpilih');
-  assert.deepEqual(dipilih(opsiTpPenilaian(daftar, null)), [''], 'tanpa tautan: opsi kosong terpilih');
+  assert.deepEqual(dipilih(opsiTpPenilaian(daftar, null)), [], 'tanpa tautan: tidak ada yang terpilih');
+  assert.deepEqual(dipilih(opsiTpPenilaian(daftar, ['a', 'b'])), ['a', 'b'], 'beberapa TP tertaut: semuanya terpilih');
+  assert.deepEqual(dipilih(opsiTpPenilaian(daftar, ['a', 'z'])), ['a', 'z'], 'salah satu TP tertaut di luar daftar tetap terpilih');
   assert.equal(opsiTpPenilaian(daftar, 'a').filter((o) => o.id === 'a').length, 1, 'tidak boleh ganda');
+});
+uji('satu penilaian untuk beberapa TP: label memuat semua kode TP', () => {
+  const p = { id: 3, tpIds: ['a', 'b'], tanggal: '2026-10-19', teknik: 'TES', instrumen: 'Pilihan Ganda' };
+  assert.equal(labelPenilaian(p, tp), 'TP1, TP2 · 19/10 · TES TERTULIS Pilihan Ganda');
+  assert.equal(labelPenilaian({ ...p, tpIds: [] }, tp), 'Tanpa TP · 19/10 · TES TERTULIS Pilihan Ganda');
 });
 uji('cache TP tidak ditimpa muatan kelas lain: setiap penulisan memeriksa konteks yang sama', () => {
   const pen = src('guru/js/penilaian.js');

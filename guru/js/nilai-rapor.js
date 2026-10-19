@@ -25,13 +25,13 @@ export function totalBobot(asesmen, bobot = {}) {
     return { total: Math.round(total * 1000) / 1000, sah: Math.abs(total - 100) < 0.001 };
 }
 
-/** Rata-rata nilai per TP (hanya penilaian sumatif yang terkait TP dan sudah bernilai). Hasil: { [tpId]: rata-rata }. */
+/** Rata-rata nilai per TP (hanya penilaian sumatif yang terkait TP dan sudah bernilai; penilaian yang menaut beberapa TP dihitung di tiap TP itu). Hasil: { [tpId]: rata-rata }. */
 export function nilaiPerTp(asesmen, nilai) {
     const jumlah = {};
     for (const a of asesmen ?? []) {
         const n = angka(nilai?.[a.id]);
-        if (!a.tpId || n === null) continue;
-        (jumlah[a.tpId] ??= []).push(n);
+        if (n === null) continue;
+        for (const tp of new Set(a.tpIds ?? [])) (jumlah[tp] ??= []).push(n);   // satu penilaian dapat menaut banyak TP: nilainya berlaku untuk tiap TP
     }
     return Object.fromEntries(Object.entries(jumlah).map(([tp, arr]) => [tp, arr.reduce((x, y) => x + y, 0) / arr.length]));
 }
@@ -40,7 +40,7 @@ export function nilaiPerTp(asesmen, nilai) {
  * Saran nilai rapor satu siswa.
  * @param {object} p
  * @param {'RATA'|'BOBOT'|'PERSEN'} p.metode
- * @param {{id:string, tpId?:string|null}[]} p.asesmen   penilaian SUMATIF mata pelajaran itu (semua, tanpa filter TP)
+ * @param {{id:string, tpIds?:string[]}[]} p.asesmen   penilaian SUMATIF mata pelajaran itu (semua, tanpa filter TP)
  * @param {Object<string, number|null>} p.nilai          nilai siswa itu per id penilaian
  * @param {Object<string, number>} [p.bobot]             bobot per id penilaian (untuk BOBOT; yang kosong/0 diabaikan)
  * @param {Object<string, boolean|null>} [p.tercapaiPerTp] ketercapaian per TP (untuk PERSEN; yang tak diketahui diabaikan)

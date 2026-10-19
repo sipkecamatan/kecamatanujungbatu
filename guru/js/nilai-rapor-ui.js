@@ -9,7 +9,7 @@ import {
     getAssessments, getStudentsForClass, getResultsForAssessments, getTps, getKktps,
     getGradeFinal, upsertGradeFinalBatch, deleteGradeFinalForStudents,
 } from './api.js';
-import { labelPenilaian } from './penilaian-label.js';
+import { labelPenilaian, tpIdsPenilaian } from './penilaian-label.js';
 import { METODE_RAPOR, totalBobot, hitungNilaiRapor, nilaiPerTp, sarankanTR, susunDeskripsi, susunLembarERapor } from './nilai-rapor.js';
 
 let _seq = 0;            // nomor muat: hasil muat lama yang selesai terlambat dibuang
@@ -58,11 +58,12 @@ export async function renderNilaiRapor(body, ctx) {
     const infoKosong = sumatif.length ? '' : '<p class="pen-placeholder" style="margin:0 0 10px">Belum ada penilaian sumatif untuk mata pelajaran ini, sehingga tidak ada hitungan otomatis. Anda tetap dapat mengisi nilai rapor secara manual.</p>';
 
     // ── Data turunan ──
-    const asesmen = sumatif.map((a) => ({ id: a.id, tpId: a.learning_objective_id || null }));
+    const asesmen = sumatif.map((a) => ({ id: a.id, tpIds: tpIdsPenilaian(a) }));
     const nilaiSiswa = {};
     for (const h of hasil) (nilaiSiswa[h.student_id] ??= {})[h.assessment_id] = h.nilai === null || h.nilai === undefined ? null : Number(h.nilai);
     const batasTp = Object.fromEntries(tps.map((t, i) => [t.id, batasTercapai(data.kktps[i])]));
     const tpById = Object.fromEntries(tps.map((t) => [t.id, t]));
+    const adaBatas = (id) => batasTp[id] !== null && batasTp[id] !== undefined;
     const simpanSiswa = Object.fromEntries(tersimpan.map((r) => [r.student_id, r]));
 
     // Rumus yang ditetapkan guru (metode + bobot persen) tersimpan bersama nilai rapor, jadi tidak perlu diisi ulang setiap kali halaman dibuka.
@@ -103,17 +104,17 @@ export async function renderNilaiRapor(body, ctx) {
             return sah ? '' : 'Total bobot ' + total + '% (harus tepat 100%)';
         }
         if (st.metode === 'PERSEN') {
-            const tertaut = sumatif.filter((a) => a.learning_objective_id);
+            const tertaut = sumatif.filter((a) => tpIdsPenilaian(a).length);
             if (!tertaut.length) return 'Belum ada penilaian sumatif yang ditautkan ke TP (pilih TP pada formulir penilaian)';
-            if (!tertaut.some((a) => batasTp[a.learning_objective_id] !== null && batasTp[a.learning_objective_id] !== undefined)) return 'TP yang ditautkan belum punya KKTP (batas ketercapaian)';
+            if (!tertaut.some((a) => tpIdsPenilaian(a).some(adaBatas))) return 'TP yang ditautkan belum punya KKTP (batas ketercapaian)';
         }
         return '';
     };
     // Sebagian data tidak ikut dihitung oleh Persentase TP: bukan galat, tetapi guru perlu tahu.
     const catatanSebagian = () => {
         if (st.metode !== 'PERSEN' || rumusBelumLengkap()) return '';
-        const tanpaTp = sumatif.filter((a) => !a.learning_objective_id).length;
-        const tpTanpaKktp = new Set(sumatif.filter((a) => a.learning_objective_id && (batasTp[a.learning_objective_id] === null || batasTp[a.learning_objective_id] === undefined)).map((a) => a.learning_objective_id)).size;
+        const tanpaTp = sumatif.filter((a) => !tpIdsPenilaian(a).length).length;
+        const tpTanpaKktp = new Set(sumatif.flatMap(tpIdsPenilaian).filter((id) => !adaBatas(id))).size;
         const bagian = [];
         if (tanpaTp) bagian.push(tanpaTp + ' penilaian sumatif belum ditautkan ke TP');
         if (tpTanpaKktp) bagian.push(tpTanpaKktp + ' TP belum punya KKTP');

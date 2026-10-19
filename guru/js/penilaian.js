@@ -13,7 +13,7 @@ import {
 } from './api.js';
 import { renderNilaiRapor } from './nilai-rapor-ui.js';
 import { susunLembarERapor } from './nilai-rapor.js';
-import { labelPenilaian, opsiTpPenilaian, namaTeknik } from './penilaian-label.js';
+import { labelPenilaian, opsiTpPenilaian, namaTeknik, tpIdsPenilaian } from './penilaian-label.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -1412,9 +1412,10 @@ async function openAsmtModal(editAsmt) {
         try { const k = await getKktps(tp.id); _allKktp.push(...k); } catch {}
     }
 
-    const tpOpts = opsiTpPenilaian(_tpCache, editAsmt?.learning_objective_id).map(o => (
-        '<option value="' + esc(o.id) + '"' + (o.terpilih ? ' selected' : '') + '>' + esc(o.label) + '</option>'
-    )).join('');
+    const tpOpts = opsiTpPenilaian(_tpCache, tpIdsPenilaian(editAsmt)).map(o => (
+        '<label style="display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;width:auto;margin:0;padding:4px 2px;cursor:pointer;font-weight:normal;text-align:left">' +
+        '<input type="checkbox" class="pai-tp-cb" style="width:auto;flex:none;margin:0;padding:0" value="' + esc(o.id) + '"' + (o.terpilih ? ' checked' : '') + '> ' + esc(o.label) + '</label>'
+    )).join('') || '<span style="font-size:12px;opacity:.7">Belum ada TP pada kelas, mata pelajaran, tahun ajaran, dan semester ini.</span>';
 
     const jenisOpts  = JENIS_LIST.map(j => '<option value="' + j + '"' + (initJenis === j ? ' selected' : '') + '>' + (JENIS_LABEL[j] ?? j) + '</option>').join('');
     const teknikOpts = TEKNIK_LIST.map(t => '<option value="' + t + '"' + (initTeknik === t ? ' selected' : '') + '>' + namaTeknik(t) + '</option>').join('');
@@ -1437,8 +1438,8 @@ async function openAsmtModal(editAsmt) {
         '<input type="date" id="pai-tanggal" class="input" required value="' + esc(editAsmt?.tanggal ?? today) + '" style="width:100%;margin-bottom:12px;">' +
         '<label>Judul penilaian (opsional)</label>' +
         '<input type="text" id="pai-judul" class="input" maxlength="120" placeholder="Mis. Ulangan Harian 1 — Jurnal Umum" value="' + esc(editAsmt?.judul ?? '') + '" style="width:100%;margin-bottom:12px;">' +
-        '<label>Tujuan Pembelajaran (opsional)</label>' +
-        '<select id="pai-tp-sel">' + tpOpts + '</select>' +
+        '<label>Tujuan Pembelajaran (opsional; boleh pilih lebih dari satu)</label>' +
+        '<div id="pai-tp-list" style="max-height:140px;overflow-y:auto;border:1px solid var(--color-border);border-radius:6px;padding:6px 10px;margin-bottom:12px">' + tpOpts + '</div>' +
         '<label>Jenis <span style="color:var(--color-danger)">*</span></label>' +
         '<select id="pai-jenis-sel">' + jenisOpts + '</select>' +
         '<label>Teknik <span style="color:var(--color-danger)">*</span></label>' +
@@ -1467,7 +1468,7 @@ async function openAsmtModal(editAsmt) {
             const jenis     = _ov.querySelector('#pai-jenis-sel').value;
             const teknik    = _ov.querySelector('#pai-teknik-sel').value;
             const instrumen = _ov.querySelector('#pai-instrumen-sel').value;
-            const tpId      = _ov.querySelector('#pai-tp-sel').value || null;
+            const tpIds     = [..._ov.querySelectorAll('.pai-tp-cb:checked')].map(c => c.value);
             const tujuan    = _ov.querySelector('#pai-tujuan').value.trim();
             const judul     = _ov.querySelector('#pai-judul').value.trim();
             const refleksi  = _ov.querySelector('#pai-refleksi').value.trim();
@@ -1485,16 +1486,16 @@ async function openAsmtModal(editAsmt) {
                 jenis, teknik, instrumen, tujuan: tujuan || null, judul: judul || null,
                 konten, refleksi_guru: refleksi || null,
                 is_visible_siswa: visS, is_visible_ortu: visO,
-                learning_objective_id: tpId,
+                tpIds,
                 tanggal,
             };
 
             let asmtId;
             if (editAsmt) {
-                await updateAssessment(editAsmt.id, payload);
+                await updateAssessment(editAsmt.id, payload, _schoolId);
                 asmtId = editAsmt.id;
             } else if (createdAsmtId) {
-                await updateAssessment(createdAsmtId, payload);
+                await updateAssessment(createdAsmtId, payload, _schoolId);
                 asmtId = createdAsmtId;
             } else {
                 const created = await createAssessment(
@@ -1688,8 +1689,8 @@ function confirmDeleteAsmt(asmtId, origBtn) {
             const dihapus = _asmtCache.find(a => a.id === asmtId);
             await deleteAssessment(asmtId);
             // Rekap kini hanya tampilan (tidak menyimpan lagi). Sisa rekap lama (data sebelum 18 Okt 2026) untuk TP itu tetap dibersihkan agar tidak menyisakan angka basi.
-            if (dihapus?.jenis === 'SUMATIF' && dihapus.learning_objective_id) {
-                await deleteGradeRecapForTp(_schoolId, _kelasId, dihapus.learning_objective_id, Number(_semester), _year);
+            if (dihapus?.jenis === 'SUMATIF') {
+                for (const tpId of tpIdsPenilaian(dihapus)) await deleteGradeRecapForTp(_schoolId, _kelasId, tpId, Number(_semester), _year);
             }
             await renderPelaksanaan();
         }
@@ -1819,7 +1820,7 @@ async function _renderRecapContent(body) {
         const filtered = _asmtCache.filter(a => a.jenis === _rcJenis
             && (!_rcTeknik   || a.teknik    === _rcTeknik)
             && (!_rcInstrumen || a.instrumen === _rcInstrumen)
-            && (!_rcTp       || a.learning_objective_id === _rcTp));
+            && (!_rcTp       || tpIdsPenilaian(a).includes(_rcTp)));
 
         if (!filtered.length) {
             body.innerHTML =
@@ -2113,8 +2114,7 @@ async function downloadPenilaianExcel() {
             const teknik   = asmt.teknik  || '';
             const teknikTampil = namaTeknik(teknik);
             const instrumen = asmt.instrumen || '';
-            const tp       = tpById[asmt.learning_objective_id];
-            const tpStr    = tp ? (tp.kode_tp + ' – ' + tp.deskripsi_tp) : '';
+            const tpStr    = tpIdsPenilaian(asmt).map(id => tpById[id]).filter(Boolean).map(tp => tp.kode_tp + ' – ' + tp.deskripsi_tp).join('; ');
             const tujuan   = asmt.tujuan  || '';
             const konten   = asmt.konten;
 

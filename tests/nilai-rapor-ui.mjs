@@ -42,7 +42,7 @@ const dasar = () => ({
   roster: [{ id: 's1', nama: 'Budi <img src=x onerror=alert(1)>', nis: '1001' }, { id: 's2', nama: 'Citra', nis: '1002' }],
   tps: [{ id: 'tp1', kode_tp: 'TP-1', deskripsi_tp: 'menyelesaikan persamaan linear' }, { id: 'tp2', kode_tp: 'TP-2', deskripsi_tp: 'menghitung luas bangun datar' }],
   kktp: { tp1: [{ rentang: { SB: [90, 100], BSH: [70, 89], MB: [56, 69], BB: [0, 55] } }], tp2: [{ rentang: { SB: [90, 100], BSH: [70, 89], MB: [56, 69], BB: [0, 55] } }] },
-  asesmen: [{ id: 'a1', jenis: 'SUMATIF', learning_objective_id: 'tp1', instrumen: 'UH 1' }, { id: 'a2', jenis: 'SUMATIF', learning_objective_id: 'tp2', instrumen: 'UH 2' }, { id: 'a3', jenis: 'FORMATIF', learning_objective_id: 'tp1', instrumen: 'Kuis' }],
+  asesmen: [{ id: 'a1', jenis: 'SUMATIF', tpIds: ['tp1'], instrumen: 'UH 1' }, { id: 'a2', jenis: 'SUMATIF', tpIds: ['tp2'], instrumen: 'UH 2' }, { id: 'a3', jenis: 'FORMATIF', tpIds: ['tp1'], instrumen: 'Kuis' }],
   hasil: [{ assessment_id: 'a1', student_id: 's1', nilai: 80 }, { assessment_id: 'a2', student_id: 's1', nilai: 60 }, { assessment_id: 'a1', student_id: 's2', nilai: 90 }, { assessment_id: 'a2', student_id: 's2', nilai: 90 },
             { assessment_id: 'a3', student_id: 's1', nilai: 5 }],   // nilai formatif tidak boleh ikut
   tersimpan: [],
@@ -197,13 +197,13 @@ await uji('tombol otomatis per baris: nilai manual kembali mengikuti rumus tanpa
 
 await uji('Persentase TP yang tidak bisa dihitung (penilaian tanpa TP, atau TP tanpa KKTP) menjelaskan alasannya dan tidak mengubah nilai; sebagian data diberi catatan', async () => {
   const ubahMetode = (b, v) => b.onchange({ target: { id: 'nr-metode', value: v, dataset: {}, classList: { contains: () => false }, closest: () => null } });
-  globalThis.__api.data.asesmen = globalThis.__api.data.asesmen.map((a) => ({ ...a, learning_objective_id: null }));
+  globalThis.__api.data.asesmen = globalThis.__api.data.asesmen.map((a) => ({ ...a, tpIds: [] }));
   let b = badan(); await M.renderNilaiRapor(b, ctx); ubahMetode(b, 'PERSEN');
   assert.match(b.el['#nr-rumus'].innerHTML, /Rumus belum lengkap: Belum ada penilaian sumatif yang ditautkan ke TP/);
   globalThis.__api.data = dasar(); globalThis.__api.data.kktp = { tp1: [], tp2: [] };
   b = badan(); await M.renderNilaiRapor(b, ctx); ubahMetode(b, 'PERSEN');
   assert.match(b.el['#nr-rumus'].innerHTML, /Rumus belum lengkap: TP yang ditautkan belum punya KKTP/);
-  globalThis.__api.data = dasar(); globalThis.__api.data.asesmen[1].learning_objective_id = null;
+  globalThis.__api.data = dasar(); globalThis.__api.data.asesmen[1].tpIds = [];
   b = badan(); await M.renderNilaiRapor(b, ctx); ubahMetode(b, 'PERSEN');
   assert.match(b.el['#nr-rumus'].innerHTML, /1 penilaian sumatif belum ditautkan ke TP/);
   assert.ok(!/Rumus belum lengkap/.test(b.el['#nr-rumus'].innerHTML), 'sebagian data bukan galat');

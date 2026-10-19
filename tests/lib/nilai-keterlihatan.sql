@@ -18,7 +18,7 @@ end $f$;
 do $$
 declare
   sid uuid; yr text; sm semester; guru uuid; cls uuid; subj uuid; stu uuid; stu2 uuid; ortu uuid; siswa_u uuid; kep uuid; wakur uuid; wakes uuid; bk uuid; adm uuid; guru_flag uuid;
-  lo1 uuid; asmt uuid; q text; ringkas text; kaprodi uuid; wakhum uuid; qa text;
+  lo1 uuid; lo2 uuid; lo_lain uuid; kelas_lain uuid; asmt uuid; q text; ringkas text; kaprodi uuid; wakhum uuid; qa text;
 begin
   select school_id into sid from schools where slug = 'smkuji1';
   select current_academic_year, current_semester into yr, sm from school_config where school_id = sid;
@@ -54,8 +54,9 @@ begin
     values (sid, guru, cls, subj, yr, sm::text::int, 'UJI-TP1', 'TP uji nilai per TP') returning id into lo1;
   insert into assessment_criteria (learning_objective_id, school_id, urutan, rentang)
     values (lo1, sid, 1, '{"SB":[90,100],"BSH":[70,89],"MB":[56,69],"BB":[0,55]}'::jsonb);
-  insert into assessments (school_id, teacher_id, class_id, subject_id, academic_year, semester, jenis, learning_objective_id)
-    values (sid, guru, cls, subj, yr, sm::text::int, 'SUMATIF', lo1) returning id into asmt;
+  insert into assessments (school_id, teacher_id, class_id, subject_id, academic_year, semester, jenis)
+    values (sid, guru, cls, subj, yr, sm::text::int, 'SUMATIF') returning id into asmt;
+  insert into assessment_tps (assessment_id, learning_objective_id, school_id) values (asmt, lo1, sid);
   insert into assessment_results (school_id, class_id, assessment_id, student_id, nilai) values (sid, cls, asmt, stu, 80), (sid, cls, asmt, stu2, 60);
 
   -- 2. Waka Kurikulum dan Kepala Sekolah melihat nilai setiap TP otomatis; peran lain ditolak
@@ -67,6 +68,26 @@ begin
   insert into hasil_uji(k,v) values ('P4_rincian_per_siswa', pg_temp.jalan(wakur, format('select string_agg(nilai::text||'':''||tercapai::text, '','' order by nilai) from fn_nilai_per_tp_siswa(%L)', lo1)));
   insert into hasil_uji(k,v) values ('P5_rincian_ditolak_bagi_guru', pg_temp.jalan(guru, format('select count(*)::text from fn_nilai_per_tp_siswa(%L)', lo1)));
   insert into hasil_uji(k,v) values ('P6_tp_tidak_ada', pg_temp.jalan(kep, 'select count(*)::text from fn_nilai_per_tp_siswa(gen_random_uuid())'));
+  -- Satu penilaian untuk beberapa TP (20 Okt 2026): nilai berlaku di tiap TP yang ditautkan
+  insert into learning_objectives (school_id, teacher_id, class_id, subject_id, academic_year, semester, kode_tp, deskripsi_tp)
+    values (sid, guru, cls, subj, yr, sm::text::int, 'UJI-TP2', 'TP uji kedua') returning id into lo2;
+  insert into assessment_criteria (learning_objective_id, school_id, urutan, rentang)
+    values (lo2, sid, 1, '{"SB":[90,100],"BSH":[70,89],"MB":[56,69],"BB":[0,55]}'::jsonb);
+  select class_id into kelas_lain from classes where school_id = sid and class_id <> cls limit 1;
+  insert into learning_objectives (school_id, teacher_id, class_id, subject_id, academic_year, semester, kode_tp, deskripsi_tp)
+    values (sid, guru, coalesce(kelas_lain, cls), subj, yr, sm::text::int, 'UJI-TP-LAIN', 'TP kelas lain') returning id into lo_lain;
+  insert into hasil_uji(k,v) values ('B1_guru_menautkan_tp_kedua', pg_temp.jalan(guru, format('insert into assessment_tps (assessment_id, learning_objective_id, school_id) values (%L,%L,%L) returning ''ok''', asmt, lo2, sid)));
+  q := format('select rata_rata::text||''/''||tercapai||''/''||belum_tercapai||''/''||jumlah_siswa||''/''||ada_kktp from fn_nilai_per_tp(%L, %s) where tp_id = %L', yr, sm::text, lo2);
+  insert into hasil_uji(k,v) values ('B2_nilai_berlaku_di_tp_kedua', pg_temp.jalan(wakur, q));
+  insert into hasil_uji(k,v) values ('B3_guru_lain_tak_menautkan', pg_temp.jalan(guru_flag, format('insert into assessment_tps (assessment_id, learning_objective_id, school_id) values (%L,%L,%L) returning ''ok''', asmt, lo2, sid)));
+  insert into hasil_uji(k,v) values ('B4_tp_kelas_lain_ditolak', case when kelas_lain is null then 'GALAT:P0001' else pg_temp.jalan(guru, format('insert into assessment_tps (assessment_id, learning_objective_id, school_id) values (%L,%L,%L) returning ''ok''', asmt, lo_lain, sid)) end);
+  insert into hasil_uji(k,v) values ('B5_guru_dan_kepsek_membaca_tautan', format('guru=%s kepsek=%s lain=%s', pg_temp.jalan(guru, format('select count(*)::text from assessment_tps where assessment_id = %L', asmt)),
+    pg_temp.jalan(kep, format('select count(*)::text from assessment_tps where assessment_id = %L', asmt)), pg_temp.jalan(guru_flag, format('select count(*)::text from assessment_tps where assessment_id = %L', asmt))));
+  insert into hasil_uji(k,v) values ('B6_guru_melepas_tautan', pg_temp.jalan(guru, format('with d as (delete from assessment_tps where assessment_id = %L and learning_objective_id = %L returning 1) select count(*)::text from d', asmt, lo2)));
+  insert into assessment_tps (assessment_id, learning_objective_id, school_id) values (asmt, lo2, sid);   -- pasang lagi lalu hapus TP-nya
+  delete from learning_objectives where id = lo2;
+  q := format('select rata_rata::text||''/''||tercapai||''/''||belum_tercapai||''/''||jumlah_siswa||''/''||ada_kktp from fn_nilai_per_tp(%L, %s) where tp_id = %L', yr, sm::text, lo1);
+  insert into hasil_uji(k,v) values ('B7_hapus_tp_tautan_hilang_penilaian_tetap', format('tautan=%s penilaian=%s', (select count(*) from assessment_tps where assessment_id = asmt), (select count(*) from assessments where id = asmt)));
   -- dikenali lewat TANDA peran tambahan (akun GURU yang juga Waka Kurikulum), bukan hanya peran tunggal
   perform set_config('app.bypass_users_guard', 'on', true);
   update users set role_type = 'GURU', is_waka_kurikulum = true where user_id = wakur;   -- Waka Kurikulum yang tercatat sebagai GURU + tanda peran tambahan

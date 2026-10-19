@@ -1993,7 +1993,7 @@ export async function getStudentsForClass(classId, academicYear = null, semester
 export async function getAssessments(schoolId, classId, subjectId, year, semester) {
     const { data, error } = await supabase
         .from('assessments')
-        .select('*')
+        .select('*, assessment_tps(learning_objective_id)')
         .eq('school_id', schoolId)
         .eq('class_id', classId)
         .eq('subject_id', subjectId)
@@ -2003,26 +2003,58 @@ export async function getAssessments(schoolId, classId, subjectId, year, semeste
         .order('tanggal', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true });
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []).map(normalisasiPenilaian);
+}
+
+/** Satu pintu bentuk penilaian di klien: tautan TP (banyak) menjadi `tpIds`. Pembaca lain memakai tpIdsPenilaian (penilaian-label.js), bukan kolom mentah. */
+function normalisasiPenilaian(row) {
+    const { assessment_tps: taut, ...sisa } = row;
+    return { ...sisa, tpIds: (taut ?? []).map((t) => t.learning_objective_id) };
+}
+
+/** Samakan tautan TP sebuah penilaian dengan daftar `tpIds` (hapus yang dilepas, tambah yang baru). */
+export async function setAssessmentTps(schoolId, assessmentId, tpIds) {
+    const target = [...new Set((tpIds ?? []).filter(Boolean))];
+    const { data, error } = await supabase.from('assessment_tps').select('learning_objective_id').eq('assessment_id', assessmentId);
+    if (error) throw error;
+    const ada = new Set((data ?? []).map((r) => r.learning_objective_id));
+    const hapus = [...ada].filter((id) => !target.includes(id));
+    const tambah = target.filter((id) => !ada.has(id));
+    if (hapus.length) {
+        const { error: e1 } = await supabase.from('assessment_tps').delete().eq('assessment_id', assessmentId).in('learning_objective_id', hapus);
+        if (e1) throw e1;
+    }
+    if (tambah.length) {
+        const { error: e2 } = await supabase.from('assessment_tps')
+            .insert(tambah.map((id) => ({ assessment_id: assessmentId, learning_objective_id: id, school_id: schoolId })));
+        if (e2) throw e2;
+    }
 }
 
 export async function createAssessment(schoolId, classId, subjectId, year, semester, teacherId, payload) {
+    const { tpIds, ...kolom } = payload ?? {};
     const { data, error } = await supabase
         .from('assessments')
         .insert({ school_id: schoolId, class_id: classId, subject_id: subjectId,
-                  academic_year: year, semester, teacher_id: teacherId, ...payload })
+                  academic_year: year, semester, teacher_id: teacherId, ...kolom })
         .select()
         .single();
     if (error) throw error;
-    return data;
+    if (tpIds) {
+        try { await setAssessmentTps(schoolId, data.id, tpIds); }
+        catch (e) { await supabase.from('assessments').delete().eq('id', data.id); throw e; }   // jangan tinggalkan penilaian tanpa tautan TP yang diminta
+    }
+    return { ...data, tpIds: tpIds ?? [] };
 }
 
-export async function updateAssessment(id, payload) {
+export async function updateAssessment(id, payload, schoolId) {
+    const { tpIds, ...kolom } = payload ?? {};
     const { error } = await supabase
         .from('assessments')
-        .update({ ...payload, updated_at: new Date().toISOString() })
+        .update({ ...kolom, updated_at: new Date().toISOString() })
         .eq('id', id);
     if (error) throw error;
+    if (tpIds) await setAssessmentTps(schoolId, id, tpIds);
 }
 
 export async function deleteAssessment(id) {
