@@ -139,6 +139,34 @@ await uji('nilai otomatis: baris tersimpan yang tertinggal mengikuti rumus dan d
   assert.ok(!/data-sid="s2"[\s\S]*?value="90"/.test(b.innerHTML.split('data-sid="s2"')[1]?.split('</tr>')[0] ? 'data-sid="s2"' + b.innerHTML.split('data-sid="s2"')[1].split('</tr>')[0] : ''), 's2 tidak boleh berubah jadi 90');
 });
 
+await uji('rumus tersimpan tidak berubah diam-diam: dimuat BOBOT (walau ada baris MANUAL, baris tanpa rumus, atau bobot milik penilaian lain), disimpan tetap BOBOT', async () => {
+  const bobot = { a1: 60, a2: 40, a_hilang: 10 };
+  const kasus = [
+    [{ student_id: 's1', nilai_rapor: '70', metode: 'MANUAL', rumus: { metode: 'BOBOT', bobot }, tp_optimal: [], tp_perlu: [] }, { student_id: 's2', nilai_rapor: '90', metode: 'BOBOT', rumus: { metode: 'BOBOT', bobot }, tp_optimal: [], tp_perlu: [] }],
+    [{ student_id: 's1', nilai_rapor: '70', metode: 'BOBOT', rumus: null, tp_optimal: [], tp_perlu: [] }, { student_id: 's2', nilai_rapor: '90', metode: 'MANUAL', rumus: { metode: 'BOBOT', bobot }, tp_optimal: [], tp_perlu: [] }],
+  ];
+  for (const tersimpan of kasus) {
+    globalThis.__api.panggilan = []; globalThis.__api.data.tersimpan = tersimpan;
+    const b = badan(); await M.renderNilaiRapor(b, ctx);
+    assert.match(b.innerHTML, /<option value="BOBOT" selected>/, 'metode BOBOT harus terpilih saat dimuat');
+    await klik(b, 'simpan');
+    const rows = globalThis.__api.panggilan.find((p) => p[0] === 'upsert')[1][6];
+    assert.ok(rows.every((r) => r.rumus.metode === 'BOBOT'), 'rumus tersimpan berubah dari BOBOT');
+    assert.ok(!('a_hilang' in rows[0].rumus.bobot), 'bobot penilaian yang sudah tiada harus dibuang');
+  }
+});
+
+await uji('perubahan rumus tampak jelas sebelum disimpan (dari mana ke mana, semua siswa ikut berubah) dan hilang setelah disimpan', async () => {
+  globalThis.__api.data.tersimpan = [{ student_id: 's1', nilai_rapor: '70', metode: 'BOBOT', rumus: { metode: 'BOBOT', bobot: { a1: 60, a2: 40 } }, tp_optimal: [], tp_perlu: [] }];
+  const b = badan(); await M.renderNilaiRapor(b, ctx);
+  assert.ok(!b.innerHTML.includes('Rumus diubah'), 'tanpa perubahan tidak boleh ada peringatan');
+  b.onchange({ target: { id: 'nr-metode', value: 'RATA', dataset: {}, classList: { contains: () => false }, closest: () => null } });
+  await klik(b, 'hitung-semua');   // menggambar ulang layar
+  assert.match(b.innerHTML, /Rumus diubah dari <strong>Pembobotan[^<]*<\/strong> menjadi <strong>Rata-rata[^<]*<\/strong>[\s\S]*belum disimpan/);
+  await klik(b, 'simpan'); await klik(b, 'hitung-semua');
+  assert.ok(!b.innerHTML.includes('Rumus diubah'), 'setelah disimpan peringatan harus hilang');
+});
+
 fs.rmSync(dirTmp, { recursive: true, force: true });
 console.log(`\nNILAI_RAPOR_UI: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);
