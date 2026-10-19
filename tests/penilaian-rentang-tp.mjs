@@ -22,7 +22,7 @@ uji('nilai non-TES dihitung ulang dari predikat saat Simpan dengan rentang TP te
   assert.match(pen, /if \(teknik !== 'TES'\) \{\s*const rentSimpan = _sumCurrentRentang\(\);\s*for \(const d of Object\.values\(_sumNilai\)\) if \(d\.predikat\) d\.nilai = nilaiTengah\(d\.predikat, rentSimpan\);/);
 });
 uji('mengganti TP menggambar ulang panel siswa yang terbuka', () => {
-  assert.match(pen, /querySelectorAll\('\.pai-tp-cb'\)\.forEach\(cb => cb\.addEventListener\('change', \(\) => \{ flushSumActive\(\); renderSumInput\(\); \}\)\)/);
+  assert.match(pen, /querySelectorAll\('\.pai-tp-cb'\)\.forEach\(cb => cb\.addEventListener\('change', \(\) => \{ flushSumActive\(\); renderPanduanPredikat\(_sumSiswaContainer\); renderSumInput\(\); \}\)\)/);
 });
 console.log(`\nPENILAIAN_RENTANG_TP: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);
