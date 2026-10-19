@@ -236,7 +236,14 @@ export async function renderNilaiRapor(body, ctx) {
     const segarkanHitungan = () => {
         body.querySelectorAll('tr[data-sid]').forEach((tr) => {
             const sid = tr.dataset.sid; const row = st.rows[sid];
-            if (!row.manual) { const { hitung } = hitungSiswa(sid); if (hitung !== null) { row.nilai = String(hitung); const inp = tr.querySelector('.nr-nilai'); if (inp) inp.value = row.nilai; } }
+            if (!row.manual) {
+                const { hitung } = hitungSiswa(sid);
+                const inp = tr.querySelector('.nr-nilai');
+                if (hitung !== null) { row.nilai = String(hitung); if (inp) inp.value = row.nilai; }
+                // Rumus LENGKAP tetapi siswa ini tidak punya data untuknya (mis. belum bernilai di TP terakhir): nilai sisa metode sebelumnya tidak boleh bertahan tanpa dasar.
+                // Rumus yang BELUM lengkap dibiarkan (nilai yang ada tidak diubah; lihat peringatan rumus).
+                else if (!rumusBelumLengkap() && row.nilai !== '') { row.nilai = ''; if (inp) inp.value = ''; }
+            }
             const pn = tr.querySelector('.nr-penanda'); if (pn) pn.innerHTML = penandaBelumSimpan(sid);
         });
         // Isian bobot TIDAK digambar ulang saat guru mengetik/Tab (fokus akan hilang); hanya teks total yang diperbarui. Digambar ulang hanya bila metode berganti.

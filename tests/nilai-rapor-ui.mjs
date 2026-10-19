@@ -236,6 +236,19 @@ await uji('usulan T/R siswa baru: satu T dan satu R dari KKTP; tanpa KKTP diberi
   assert.match(b.innerHTML, /T: TP-1 · R: TP-2 <span[^>]*>\(dasar nilai, KKTP belum ada\)/);
 });
 
+await uji('rumus LENGKAP tetapi siswa tak punya datanya (mis. belum bernilai di TP terakhir): nilai sisa metode sebelumnya dikosongkan; rumus belum lengkap tidak mengosongkan', async () => {
+  globalThis.__api.data = dasar();
+  globalThis.__api.data.hasil = globalThis.__api.data.hasil.filter((h) => !(h.student_id === 's2' && h.assessment_id === 'a2'));   // s2 tanpa nilai di TP-2 (TP terakhir)
+  const inputs = { s1: { value: '' }, s2: { value: '' } };
+  const tr = (sid) => ({ dataset: { sid }, querySelector: (q) => (q === '.nr-nilai' ? inputs[sid] : { innerHTML: '', outerHTML: '' }) });
+  const b = badan(); b.querySelectorAll = (q) => (q === 'tr[data-sid]' ? [tr('s1'), tr('s2')] : []);
+  await M.renderNilaiRapor(b, ctx);
+  const ubah = (v) => b.onchange({ target: { id: 'nr-metode', value: v, dataset: {}, classList: { contains: () => false }, closest: () => null } });
+  ubah('RATA'); assert.equal(inputs.s2.value, '90', 'rata-rata s2 = nilai a1 saja');
+  ubah('TERAKHIR'); assert.equal(inputs.s1.value, '60'); assert.equal(inputs.s2.value, '', 'nilai RATA s2 tidak boleh bertahan di metode TP terakhir');
+  ubah('BOBOT'); assert.equal(inputs.s1.value, '60', 'rumus belum lengkap (bobot 0%): nilai yang ada tidak diubah dan tidak dikosongkan diam-diam');
+});
+
 fs.rmSync(dirTmp, { recursive: true, force: true });
 console.log(`\nNILAI_RAPOR_UI: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);
