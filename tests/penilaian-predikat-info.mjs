@@ -32,5 +32,13 @@ uji('nama predikat tampil di samping angka/predikat (tes, pilihan predikat, keti
   assert.equal((pen.match(/teksPredikat\(/g) ?? []).length >= 4, true, 'teksPredikat belum dipakai di semua tempat');
   assert.match(pen, /title="' \+ esc\(namaPredikat\(p\) \+ ': ' \+ PREDIKAT_ARTI\[p\]\)/);
 });
+uji('konfirmasi hapus TP menyebut akibat yang benar (KKTP terhapus, penilaian jadi tanpa TP, tanda T/R dibuang), bukan "rekap nilai"', () => {
+  const fn = pen.slice(pen.indexOf('async function confirmDeleteTp'), pen.indexOf('async function refreshCpElemenList'));
+  assert.match(fn, /KKTP TP ini ikut terhapus permanen/);
+  assert.match(fn, /menjadi tanpa TP/);
+  assert.match(fn, /tanda T\/R TP ini pada nilai rapor tersimpan dibuang/);
+  assert.ok(!/rekap nilai siswa/.test(fn), 'masih menyebut rekap nilai siswa');
+  assert.match(fn, /await segarkanBagianTerbuka\(\)/);
+});
 console.log(`\nPENILAIAN_PREDIKAT_INFO: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);

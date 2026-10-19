@@ -8,7 +8,7 @@ import {
     getAssessmentResults, upsertAssessmentResult, deleteAssessmentResult, getResultsForAssessments,
     deleteGradeRecapForTp, getGradeFinal,
     getStudentGroups, upsertStudentGroup,
-    hitungRekapTp, hapusRekapTp,
+    hapusRekapTp,
     getCp, upsertCp, createCpElemen, updateCpElemen, deleteCpElemen,
 } from './api.js';
 import { renderNilaiRapor } from './nilai-rapor-ui.js';
@@ -508,24 +508,14 @@ async function confirmDeleteTp(tp, origBtn) {
     const row = origBtn.closest('.pen-tp-row');
     const bar = document.createElement('div');
     bar.className = 'pen-del-bar';
-    bar.innerHTML = '<span style="flex:1;font-size:12px">Menghitung rekap nilai…</span>' +
-        '<button class="pen-btn pen-btn-sm pen-btn-danger pen-del-yes" disabled>Ya, Hapus</button>' +
+    bar.innerHTML = '<span style="flex:1;font-size:12px">Hapus "' + esc(tp.kode_tp) + '"? KKTP TP ini ikut terhapus permanen. Penilaian yang tertaut ke TP ini tetap ada tetapi menjadi tanpa TP, ' +
+        'dan tanda T/R TP ini pada nilai rapor tersimpan dibuang.</span>' +
+        '<button class="pen-btn pen-btn-sm pen-btn-danger pen-del-yes">Ya, Hapus</button>' +
         '<button class="pen-btn pen-btn-sm pen-del-no">Tidak</button>';
     row.appendChild(bar);
-    let rekapCount = 0;
-    try {
-        rekapCount = await hitungRekapTp(tp.id);
-    } catch (_) { /* tampilkan konfirmasi tanpa count jika gagal */ }
-    const msgSpan = bar.querySelector('span');
-    if (msgSpan) {
-        msgSpan.textContent = 'Hapus "' + tp.kode_tp + '"? Semua KKTP dan ' +
-            (rekapCount > 0 ? rekapCount + ' rekap nilai siswa' : 'rekap nilai siswa') +
-            ' untuk TP ini ikut terhapus permanen.';
-    }
-    bar.querySelector('.pen-del-yes').disabled = false;
     bar.querySelector('.pen-del-yes').addEventListener('click', async function () {
         this.disabled = true; this.textContent = 'Menghapus…';
-        try { await deleteTp(tp.id); await renderPerencanaan(); }
+        try { await deleteTp(tp.id); await renderPerencanaan(); await segarkanBagianTerbuka(); }
         catch (err) { bar.remove(); origBtn.style.display = ''; alert('Gagal hapus: ' + err.message); }
     });
     bar.querySelector('.pen-del-no').addEventListener('click', () => { bar.remove(); origBtn.style.display = ''; });
