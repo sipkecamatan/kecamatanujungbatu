@@ -9,6 +9,7 @@ import {
     getAssessments, getStudentsForClass, getResultsForAssessments, getTps, getKktps,
     getGradeFinal, upsertGradeFinalBatch, deleteGradeFinalForStudents,
 } from './api.js';
+import { labelPenilaian, statusNilaiRapor } from './penilaian-label.js';
 import { METODE_RAPOR, totalBobot, hitungNilaiRapor, nilaiPerTp, sarankanTR, susunDeskripsi, susunLembarERapor } from './nilai-rapor.js';
 
 let _seq = 0;            // nomor muat: hasil muat lama yang selesai terlambat dibuang
@@ -112,16 +113,24 @@ export async function renderNilaiRapor(body, ctx) {
             : '<span style="color:var(--color-danger)">Total ' + total + '% — ' + (total < 100 ? 'kurang ' : 'lebih ') + Math.round(Math.abs(100 - total) * 1000) / 1000 + '%; saran nilai baru muncul bila total tepat 100%</span>';
         return '<div style="margin:8px 0;font-size:12px"><strong>Bobot tiap penilaian sumatif</strong> (isi sendiri; total harus 100%): ' + status +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
-            sumatif.map((a) => '<label style="display:flex;align-items:center;gap:4px;font-weight:normal">' + esc(a.instrumen || a.teknik || 'Sumatif') +
+            sumatif.map((a) => '<label style="display:flex;align-items:center;gap:4px;font-weight:normal">' + esc(labelPenilaian(a, tpById)) +
                 '<input type="number" class="nr-bobot" data-aid="' + esc(a.id) + '" min="0" max="100" value="' + esc(String(st.bobot[a.id] ?? 0)) + '" style="width:64px"></label>').join('') +
             '</div></div>';
+    };
+    // Penanda nilai rapor yang tertinggal dari penilaian terbaru: SATU fungsi (statusNilaiRapor) menentukan, layar hanya menampilkan.
+    const penandaBasi = (sid) => {
+        const { saran } = hitungSiswa(sid); const r = simpanSiswa[sid];
+        const status = statusNilaiRapor({ nilaiTersimpan: r ? r.nilai_rapor : null, saranSaatSimpan: r?.saran_saat_simpan, saranSekarang: saran });
+        return status === 'BASI'
+            ? '<span class="nr-basi" title="Penilaian berubah sesudah nilai rapor ini disimpan" style="display:block;font-size:11px;color:var(--color-warning, #d97706)">⚠ saran kini ' + saran + ' (saat disimpan ' + Math.round(Number(r.saran_saat_simpan)) + ')</span>'
+            : '<span class="nr-basi"></span>';
     };
     const barisHtml = (s) => {
         const row = st.rows[s.id]; const { saran } = hitungSiswa(s.id);
         const detail = row.terbuka ? detailHtml(s) : '';
         return '<tr data-sid="' + esc(s.id) + '"><td>' + esc(s.nama) + (s.nis ? ' <span style="color:var(--color-text-muted);font-size:11px">' + esc(s.nis) + '</span>' : '') + '</td>' +
             '<td class="nr-saran" style="text-align:center">' + (saran === null ? '—' : saran) + '</td>' +
-            '<td><input type="number" class="nr-nilai" min="0" max="100" step="0.01" value="' + esc(row.nilai) + '" style="width:76px"></td>' +
+            '<td><input type="number" class="nr-nilai" min="0" max="100" step="0.01" value="' + esc(row.nilai) + '" style="width:76px">' + penandaBasi(s.id) + '</td>' +
             '<td class="nr-tr" style="font-size:12px">' + ringkasTR(row) + '</td>' +
             '<td><button type="button" class="pen-btn pen-btn-sm" data-nr="detail">' + (row.terbuka ? 'Tutup' : 'TP dan deskripsi') + '</button></td></tr>' +
             (row.terbuka ? '<tr class="nr-detail" data-sid-detail="' + esc(s.id) + '"><td colspan="5">' + detail + '</td></tr>' : '');
@@ -167,7 +176,7 @@ export async function renderNilaiRapor(body, ctx) {
     gambar();
 
     const segarkanSaran = () => {
-        body.querySelectorAll('tr[data-sid]').forEach((tr) => { const sid = tr.dataset.sid; const c = tr.querySelector('.nr-saran'); const { saran } = hitungSiswa(sid); if (c) c.textContent = saran === null ? '—' : String(saran); });
+        body.querySelectorAll('tr[data-sid]').forEach((tr) => { const sid = tr.dataset.sid; const c = tr.querySelector('.nr-saran'); const { saran } = hitungSiswa(sid); if (c) c.textContent = saran === null ? '—' : String(saran); const nb = tr.querySelector('.nr-basi'); if (nb) nb.outerHTML = penandaBasi(sid); });
         const b = body.querySelector('#nr-bobot'); if (b) b.innerHTML = bobotHtml();
     };
     const gambarUlangBaris = (sid) => {
@@ -234,6 +243,7 @@ export async function renderNilaiRapor(body, ctx) {
             baru.push({
                 studentId: s.id, nilai_rapor: Number(row.nilai),
                 metode: saran !== null && Number(row.nilai) === saran ? st.metode : 'MANUAL',
+                saran_saat_simpan: saran,
                 rumus: { metode: st.metode, bobot: Object.fromEntries(sumatif.map((a) => [a.id, Number(st.bobot[a.id]) || 0])) },
                 tp_optimal: [...row.optimal], tp_perlu: [...row.perlu],
                 deskripsi_tertinggi: des.tertinggi, deskripsi_terendah: des.terendah,
@@ -244,8 +254,10 @@ export async function renderNilaiRapor(body, ctx) {
         try {
             await upsertGradeFinalBatch(ctx.schoolId, ctx.classId, ctx.subjectId, ctx.teacherId, ctx.year, ctx.semester, baru);
             await deleteGradeFinalForStudents(ctx.schoolId, ctx.classId, ctx.subjectId, ctx.teacherId, ctx.year, ctx.semester, hapus);
-            for (const b of baru) { const row = st.rows[b.studentId]; row.ada = true; row.desT = b.deskripsi_tertinggi || ''; row.desR = b.deskripsi_terendah || ''; }
+            for (const b of baru) { simpanSiswa[b.studentId] = { ...(simpanSiswa[b.studentId] ?? {}), nilai_rapor: b.nilai_rapor, saran_saat_simpan: b.saran_saat_simpan }; const row = st.rows[b.studentId]; row.ada = true; row.desT = b.deskripsi_tertinggi || ''; row.desR = b.deskripsi_terendah || ''; }
             for (const id of hapus) st.rows[id].ada = false;
+            for (const id of hapus) delete simpanSiswa[id];
+            segarkanSaran();
             toast('Nilai rapor tersimpan (' + baru.length + ' siswa' + (hapus.length ? ', ' + hapus.length + ' dihapus' : '') + ')');
             pesan('Tersimpan: ' + baru.length + ' siswa.');
         } catch (err) {

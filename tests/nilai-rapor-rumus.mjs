@@ -25,10 +25,10 @@ function jalankan(sql) {
 }
 const terapkan = process.env.UJI_TERAPKAN_MIGRASI === '1';
 if (!terapkan) {
-  const ada = jalankan("select exists (select 1 from information_schema.columns where table_schema='public' and table_name='grade_final' and column_name='rumus')::text as ada;");
+  const ada = jalankan("select exists (select 1 from information_schema.columns where table_schema='public' and table_name='assessments' and column_name='judul')::text as ada;");
   if (ada[0]?.ada !== 'true') { console.log('SKIP: migrasi 20261018200000_nilai_rapor_rumus_tersimpan belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
 }
-const migrasi = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261018200000_nilai_rapor_rumus_tersimpan.sql'), 'utf8') + '\n' : '';
+const migrasi = terapkan ? ['20261018200000_nilai_rapor_rumus_tersimpan.sql', '20261018210000_penilaian_judul_dan_saran_tersimpan.sql'].map((f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8') + '\n').join('') : '';
 const hitung = "select count(*)::int as baris from grade_final;";
 const awal = jalankan(hitung)[0];
 const baris = jalankan('begin;\n' + migrasi + badan + '\nrollback;\n');
@@ -39,7 +39,9 @@ const sama = (k, harap) => cek(k, nilai.get(k) === harap, `${nilai.get(k)}  (har
 sama('persona', 'guru=t kelas=t siswa=t wali=t waka_kes=t');
 sama('R1_guru_menyimpan_rumus', 'BOBOT/60'); sama('R2_rumus_terbaca_ulang_oleh_guru', 'BOBOT/40');
 sama('R3_wali_kelas_membaca_baris', '1'); sama('R4_Waka_Kesiswaan_tidak_membaca', '0');
-sama('R5_rumus_bukan_objek_ditolak_23514', 'GALAT:23514'); sama('R6_rumus_boleh_kosong', 'ok');
+sama('R5_rumus_bukan_objek_ditolak_23514', 'GALAT:23514');
+sama('S1_saran_saat_simpan_tersimpan', '65.40'); sama('S2_saran_di_luar_0_100_ditolak', 'GALAT:23514');
+sama('J1_judul_penilaian_tersimpan', 'UH 1 Jurnal Umum'); sama('J2_judul_121_karakter_ditolak', 'GALAT:23514'); sama('J3_judul_kosong_ditolak', 'GALAT:23514'); sama('R6_rumus_boleh_kosong', 'ok');
 const sisa = jalankan(hitung)[0];
 cek('SISA: tidak ada baris nilai rapor uji tertinggal', JSON.stringify(sisa) === JSON.stringify(awal), JSON.stringify({ awal, sisa }));
 console.log(`\nNILAI_RAPOR_RUMUS: ${lulus} lulus, ${gagal} gagal`);

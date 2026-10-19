@@ -13,6 +13,7 @@ import {
 } from './api.js';
 import { renderNilaiRapor } from './nilai-rapor-ui.js';
 import { susunLembarERapor } from './nilai-rapor.js';
+import { labelPenilaian } from './penilaian-label.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -1429,6 +1430,8 @@ async function openAsmtModal(editAsmt) {
     const bodyHtml =
         '<label class="field-label">Tanggal *</label>' +
         '<input type="date" id="pai-tanggal" class="input" required value="' + esc(editAsmt?.tanggal ?? today) + '" style="width:100%;margin-bottom:12px;">' +
+        '<label>Judul penilaian (opsional)</label>' +
+        '<input type="text" id="pai-judul" class="input" maxlength="120" placeholder="Mis. Ulangan Harian 1 — Jurnal Umum" value="' + esc(editAsmt?.judul ?? '') + '" style="width:100%;margin-bottom:12px;">' +
         '<label>Tujuan Pembelajaran (opsional)</label>' +
         '<select id="pai-tp-sel">' + tpOpts + '</select>' +
         '<label>Jenis <span style="color:var(--color-danger)">*</span></label>' +
@@ -1461,6 +1464,7 @@ async function openAsmtModal(editAsmt) {
             const instrumen = _ov.querySelector('#pai-instrumen-sel').value;
             const tpId      = _ov.querySelector('#pai-tp-sel').value || null;
             const tujuan    = _ov.querySelector('#pai-tujuan').value.trim();
+            const judul     = _ov.querySelector('#pai-judul').value.trim();
             const refleksi  = _ov.querySelector('#pai-refleksi').value.trim();
             const visS = _ov.querySelector('#pai-vis-siswa').checked;
             const visO = _ov.querySelector('#pai-vis-ortu').checked;
@@ -1473,7 +1477,7 @@ async function openAsmtModal(editAsmt) {
                 : collectBodyInstrumen(instrBody, teknik, instrumen);
 
             const payload = {
-                jenis, teknik, instrumen, tujuan: tujuan || null,
+                jenis, teknik, instrumen, tujuan: tujuan || null, judul: judul || null,
                 konten, refleksi_guru: refleksi || null,
                 is_visible_siswa: visS, is_visible_ortu: visO,
                 learning_objective_id: tpId,
@@ -1613,7 +1617,7 @@ function asmtRowHtml(a) {
         '<div class="pen-asmt-row" data-asmt-id="' + esc(a.id) + '">' +
         '<div class="pen-asmt-head">' +
         '<span class="' + badgeCls + '">' + esc(a.jenis) + '</span>' +
-        '<span style="flex:1">' + esc(a.teknik?.replace(/_/g, ' ') || '') + ' — ' + esc(a.instrumen || '') + '</span>' +
+        '<span style="flex:1">' + esc(labelPenilaian(a, Object.fromEntries(_tpCache.map(t => [t.id, t])))) + '</span>' +
         '<div class="pen-item-actions">' +
         '<button class="pen-btn pen-btn-sm" data-action="asmt-edit" data-id="' + esc(a.id) + '">Edit</button>' +
         '<button class="pen-btn pen-btn-sm pen-btn-danger" data-action="asmt-delete" data-id="' + esc(a.id) + '">Hapus</button>' +
@@ -1642,13 +1646,15 @@ async function renderPelaksanaan() {
 
     try {
         await ensureUser();  // populates _schoolId before any query
-        const [asmts, roster, sGroups] = await Promise.all([
+        const [asmts, roster, sGroups, tpRows] = await Promise.all([
             getAssessments(_schoolId, _kelasId, _subjectId, _year, Number(_semester)),
             getStudentsForClass(_kelasId, _year, _semester),
             getStudentGroups(_schoolId, _kelasId),
+            getTps(_kelasId, _subjectId, _year, Number(_semester)).catch(() => _tpCache),   // label penilaian memuat kode TP
         ]);
         _asmtCache   = asmts;
         _rosterCache = roster;
+        _tpCache     = tpRows;
         _sGroupsCache = Object.fromEntries(sGroups.map(g => [g.student_id, g.grup]));
 
         body.innerHTML =
@@ -1801,6 +1807,7 @@ async function _renderRecapContent(body) {
         // Rekap sebagai proyektor: tampilkan penilaian sesuai jenis yang dipilih.
         // Nilai akhir + KKTP hanya berlaku untuk SUMATIF.
         const isSumatif = _rcJenis === 'SUMATIF';
+        const tpPeta = Object.fromEntries(_tpCache.map(t => [t.id, t]));
         const filtered = _asmtCache.filter(a => a.jenis === _rcJenis
             && (!_rcTeknik   || a.teknik    === _rcTeknik)
             && (!_rcInstrumen || a.instrumen === _rcInstrumen)
@@ -1827,8 +1834,7 @@ async function _renderRecapContent(body) {
                 '<table class="rc-table"><thead><tr>' +
                 '<th>Nama Siswa</th>' +
                 filtered.map(a =>
-                    '<th>' + esc(a.teknik?.replace(/_/g, ' ') || '') +
-                    ' — ' + esc(a.instrumen || '') + '</th>'
+                    '<th>' + esc(labelPenilaian(a, tpPeta)) + '</th>'
                 ).join('') +
                 '</tr></thead><tbody>';
 
@@ -1866,7 +1872,7 @@ async function _renderRecapContent(body) {
         let tableHtml =
             '<table class="rc-table"><thead><tr>' +
             '<th>Nama Siswa</th>' +
-            filtered.map(a => '<th>' + esc(a.teknik?.replace(/_/g,'') || '') + ' ' + esc(a.instrumen || '') + '</th>').join('') +
+            filtered.map(a => '<th>' + esc(labelPenilaian(a, tpPeta)) + '</th>').join('') +
             '</tr></thead><tbody>';
         for (const s of rosterHal) {
             tableHtml += '<tr><td>' + esc(s.nama) + '</td>' +

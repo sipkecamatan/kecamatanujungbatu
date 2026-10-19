@@ -25,6 +25,7 @@ export const upsertGradeFinalBatch = async (...a) => { A.panggilan.push(['upsert
 export const deleteGradeFinalForStudents = async (...a) => { A.panggilan.push(['hapus', a]); };
 `);
 fs.copyFileSync(path.join(ROOT, 'guru', 'js', 'nilai-rapor.js'), path.join(dirTmp, 'nilai-rapor.js'));
+fs.copyFileSync(path.join(ROOT, 'guru', 'js', 'penilaian-label.js'), path.join(dirTmp, 'penilaian-label.js'));
 fs.copyFileSync(path.join(ROOT, 'guru', 'js', 'nilai-rapor-ui.js'), path.join(dirTmp, 'nilai-rapor-ui.js'));
 const M = await import(pathToFileURL(path.join(dirTmp, 'nilai-rapor-ui.js')).href);
 
