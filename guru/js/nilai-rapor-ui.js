@@ -95,15 +95,23 @@ export async function renderNilaiRapor(body, ctx) {
     // Rumus yang sedang tersimpan di server (pembanding). Mengubah metode atau bobot memengaruhi SEMUA siswa, jadi perubahannya harus tampak jelas sebelum disimpan.
     const salinBobot = () => Object.fromEntries(sumatif.map((a) => [a.id, Number(st.bobot[a.id]) || 0]));
     let rumusTersimpan = rumusSimpan ? { metode: st.metode, bobot: salinBobot() } : null;
+    // Rumus belum lengkap (mis. Pembobotan dengan total bobot bukan 100%) TIDAK boleh dibaca sebagai "guru mengosongkan nilai": nilai yang ada dibiarkan, dan guru diberi tahu.
+    const rumusBelumLengkap = () => {
+        if (st.metode !== 'BOBOT' || !sumatif.length) return '';
+        const { total, sah } = totalBobot(sumatif, st.bobot);
+        return sah ? '' : 'Total bobot ' + total + '% (harus tepat 100%)';
+    };
     const infoRumus = () => {
-        if (!rumusTersimpan) return '';
+        const kurang = rumusBelumLengkap();
+        const peringatanLengkap = kurang ? '<div class="nr-rumus-info" style="margin:6px 0;padding:6px 10px;border:1px solid var(--color-danger);border-radius:6px;font-size:12px;color:var(--color-danger)">Rumus belum lengkap: ' + esc(kurang) + '. Nilai belum dihitung ulang dan nilai yang ada tidak diubah. Perbaiki bobot, lalu nilai terhitung otomatis.</div>' : '';
+        if (!rumusTersimpan) return peringatanLengkap;
         const sama = rumusTersimpan.metode === st.metode && (st.metode !== 'BOBOT' || sumatif.every((a) => (rumusTersimpan.bobot[a.id] ?? 0) === (Number(st.bobot[a.id]) || 0)));
-        if (sama) return '';
+        if (sama) return peringatanLengkap;
         const dari = METODE_RAPOR[rumusTersimpan.metode] ?? rumusTersimpan.metode;
         const ke = METODE_RAPOR[st.metode] ?? st.metode;
         const teks = rumusTersimpan.metode !== st.metode ? 'Rumus diubah dari <strong>' + esc(dari) + '</strong> menjadi <strong>' + esc(ke) + '</strong>' : 'Bobot rumus diubah';
         return '<div class="nr-rumus-info" style="margin:6px 0;padding:6px 10px;border:1px solid var(--color-warning, #d97706);border-radius:6px;font-size:12px">⚠ ' + teks +
-            ' (belum disimpan). Nilai otomatis <strong>semua siswa</strong> ikut berubah; nilai manual tidak.</div>';
+            ' (belum disimpan). Nilai otomatis <strong>semua siswa</strong> ikut berubah; nilai manual tidak.</div>' + peringatanLengkap;
     };
     for (const s of roster) {
         const r = simpanSiswa[s.id];
@@ -199,7 +207,7 @@ export async function renderNilaiRapor(body, ctx) {
     const segarkanHitungan = () => {
         body.querySelectorAll('tr[data-sid]').forEach((tr) => {
             const sid = tr.dataset.sid; const row = st.rows[sid];
-            if (!row.manual) { const { hitung } = hitungSiswa(sid); row.nilai = hitung === null ? '' : String(hitung); const inp = tr.querySelector('.nr-nilai'); if (inp) inp.value = row.nilai; }
+            if (!row.manual) { const { hitung } = hitungSiswa(sid); if (hitung !== null) { row.nilai = String(hitung); const inp = tr.querySelector('.nr-nilai'); if (inp) inp.value = row.nilai; } }
             const pn = tr.querySelector('.nr-penanda'); if (pn) pn.innerHTML = penandaBelumSimpan(sid);
         });
         const b = body.querySelector('#nr-bobot'); if (b) b.innerHTML = bobotHtml();
@@ -250,13 +258,20 @@ export async function renderNilaiRapor(body, ctx) {
         }
         if (aksi === 'otomatis' && sid) {
             const row = st.rows[sid]; const { hitung } = hitungSiswa(sid);
-            row.manual = false; row.nilai = hitung === null ? '' : String(hitung); gambarUlangBaris(sid); return;
+            if (hitung === null) { pesan(rumusBelumLengkap() ? 'Rumus belum lengkap: ' + rumusBelumLengkap() + '.' : 'Belum ada nilai penilaian untuk dihitung.', false); return; }
+            row.manual = false; row.nilai = String(hitung); gambarUlangBaris(sid); return;
         }
         if (aksi === 'hitung-semua') {
+            // Berfungsi kapan pun: hasilnya langsung tampak di layar (tanpa menunggu Simpan) dan selalu ada penjelasan.
+            const kurang = rumusBelumLengkap();
+            if (kurang) { pesan('Tidak dapat menghitung: ' + kurang + '. Perbaiki bobot lebih dulu.', false); return; }
             const manual = roster.filter((s) => st.rows[s.id].manual).length;
             if (manual && !window.confirm('Ada ' + manual + ' nilai yang Anda tetapkan manual. Ganti semuanya dengan hasil rumus (metode: ' + METODE_RAPOR[st.metode] + ')? Perubahan baru tersimpan setelah Anda menekan Simpan.')) return;
-            for (const s of roster) { const row = st.rows[s.id]; const { hitung } = hitungSiswa(s.id); row.manual = false; if (hitung !== null) row.nilai = String(hitung); }
-            gambar(); pesan('Semua nilai dihitung ulang dari rumus. Periksa, lalu Simpan Nilai Rapor.'); return;
+            let dihitung = 0, tanpaData = 0;
+            for (const s of roster) { const row = st.rows[s.id]; const { hitung } = hitungSiswa(s.id); if (hitung === null) { tanpaData++; continue; } row.manual = false; row.nilai = String(hitung); dihitung++; }
+            gambar();
+            pesan(dihitung + ' nilai dihitung ulang' + (manual ? ' (termasuk ' + manual + ' nilai manual)' : '') + (tanpaData ? '; ' + tanpaData + ' siswa belum punya nilai penilaian' : '') + '. Tekan Simpan Nilai Rapor agar terbaca wali kelas dan pimpinan.');
+            return;
         }
         if (aksi === 'unduh') { unduh(); return; }
         if (aksi === 'simpan') await simpan(btn);

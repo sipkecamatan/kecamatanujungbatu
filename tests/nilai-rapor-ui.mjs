@@ -167,6 +167,30 @@ await uji('perubahan rumus tampak jelas sebelum disimpan (dari mana ke mana, sem
   assert.ok(!b.innerHTML.includes('Rumus diubah'), 'setelah disimpan peringatan harus hilang');
 });
 
+await uji('rumus belum lengkap (Pembobotan tanpa total 100%) tidak mengosongkan nilai dan tidak menghapus nilai tersimpan; ada peringatan', async () => {
+  globalThis.__api.data.tersimpan = [{ student_id: 's1', nilai_rapor: '70', metode: 'RATA', rumus: { metode: 'RATA', bobot: {} }, tp_optimal: [], tp_perlu: [] },
+                                     { student_id: 's2', nilai_rapor: '90', metode: 'RATA', rumus: { metode: 'RATA', bobot: {} }, tp_optimal: [], tp_perlu: [] }];
+  const inputs = { s1: { value: '70' }, s2: { value: '90' } };
+  const tr = (sid) => ({ dataset: { sid }, querySelector: (q) => (q === '.nr-nilai' ? inputs[sid] : { innerHTML: '', outerHTML: '' }) });
+  const b = badan(); b.querySelectorAll = (q) => (q === 'tr[data-sid]' ? [tr('s1'), tr('s2')] : []);
+  await M.renderNilaiRapor(b, ctx);
+  b.onchange({ target: { id: 'nr-metode', value: 'BOBOT', dataset: {}, classList: { contains: () => false }, closest: () => null } });
+  assert.equal(inputs.s1.value, '70', 'nilai s1 dikosongkan oleh rumus yang belum lengkap'); assert.equal(inputs.s2.value, '90');
+  await klik(b, 'hitung-semua');   // ditolak dengan penjelasan: tidak mengubah apa pun
+  await klik(b, 'simpan');
+  assert.ok(!globalThis.__api.panggilan.some((p) => p[0] === 'hapus' && p[1][6].length), 'nilai tersimpan terhapus karena rumus belum lengkap');
+  const up = globalThis.__api.panggilan.find((p) => p[0] === 'upsert'); assert.ok(up, 'tidak tersimpan');
+  assert.deepEqual(up[1][6].map((r) => r.nilai_rapor).sort(), [70, 90]);
+});
+await uji('Hitung ulang semua: berfungsi kapan pun (tanpa Simpan), mengganti nilai manual setelah konfirmasi, dan menggambar ulang layar', async () => {
+  globalThis.__api.data.tersimpan = [{ student_id: 's1', nilai_rapor: '55', metode: 'MANUAL', rumus: { metode: 'RATA', bobot: {} }, tp_optimal: [], tp_perlu: [] }];
+  const b = badan(); await M.renderNilaiRapor(b, ctx);
+  assert.match(b.innerHTML, /class="nr-nilai"[^>]*value="55"/);
+  b.innerHTML = ''; await klik(b, 'hitung-semua');
+  assert.match(b.innerHTML, /class="nr-nilai"[^>]*value="70"/, 'nilai manual 55 harus diganti hasil rumus 70');
+  assert.ok(globalThis.__api.panggilan.every((p) => p[0] !== 'upsert'), 'Hitung ulang tidak boleh menyimpan sendiri');
+});
+
 fs.rmSync(dirTmp, { recursive: true, force: true });
 console.log(`\nNILAI_RAPOR_UI: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);
