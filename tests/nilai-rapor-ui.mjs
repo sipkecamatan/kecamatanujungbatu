@@ -99,8 +99,13 @@ await uji('nilai rapor tersimpan yang dikosongkan guru dihapus di server; siswa 
   const b = badan(); await M.renderNilaiRapor(b, ctx);
   assert.match(b.innerHTML, /value="70"/, 'nilai tersimpan tidak dimuat');
   ubah(b, 's1', 'nr-nilai', ''); await klik(b, 'simpan');
+  // Klik pertama hanya memperingatkan (menyebut siapa yang akan dihapus); tidak ada yang dikirim ke server.
+  assert.equal(globalThis.__api.panggilan.length, 0, 'penghapusan terjadi tanpa konfirmasi');
+  assert.match(b.el['#nr-pesan'].textContent, /akan DIHAPUS.*Budi/);
+  await klik(b, 'simpan');   // klik kedua = konfirmasi
   const hapus = globalThis.__api.panggilan.find((p) => p[0] === 'hapus');
   assert.ok(hapus && hapus[1][6].includes('s1'), 'baris s1 tidak dihapus');
+  assert.match(b.el['#nr-pesan'].textContent, /nilai rapor 1 siswa dihapus/);
   assert.ok(!globalThis.__api.panggilan.some((p) => p[0] === 'upsert' && p[1][6].some((r) => r.studentId === 's1')));
   assert.ok(!hapus[1][6].includes('s2'), 's2 tidak punya baris tersimpan sehingga tidak perlu dihapus');
 });
@@ -247,6 +252,23 @@ await uji('rumus LENGKAP tetapi siswa tak punya datanya (mis. belum bernilai di 
   ubah('RATA'); assert.equal(inputs.s2.value, '90', 'rata-rata s2 = nilai a1 saja');
   ubah('TERAKHIR'); assert.equal(inputs.s1.value, '60'); assert.equal(inputs.s2.value, '', 'nilai RATA s2 tidak boleh bertahan di metode TP terakhir');
   ubah('BOBOT'); assert.equal(inputs.s1.value, '60', 'rumus belum lengkap (bobot 0%): nilai yang ada tidak diubah dan tidak dikosongkan diam-diam');
+});
+
+await uji('perubahan apa pun membatalkan konfirmasi hapus yang menunggu; siswa baru sebagian bernilai diberi penanda; TP tanpa penilaian sumatif disebut; id TP terhapus tidak tampil', async () => {
+  globalThis.__api.data = dasar();
+  globalThis.__api.data.tps.push({ id: 'tp3', kode_tp: 'TP-3', deskripsi_tp: 'belum dinilai' }); globalThis.__api.data.kktp.tp3 = [];
+  globalThis.__api.data.hasil = globalThis.__api.data.hasil.filter((h) => !(h.student_id === 's2' && h.assessment_id === 'a2'));   // s2 baru 1 dari 2 penilaian sumatif
+  globalThis.__api.data.tersimpan = [{ student_id: 's1', nilai_rapor: '70', metode: 'RATA', tp_optimal: ['tp1', 'tp-dihapus'], tp_perlu: ['tp-dihapus-2'], deskripsi_tertinggi: '', deskripsi_terendah: '' }];
+  let b = badan(); await M.renderNilaiRapor(b, ctx);
+  assert.match(b.innerHTML, /baru 1 dari 2 penilaian sumatif bernilai/, 'penanda data tidak lengkap');
+  assert.ok(!/belum ada nilai penilaian sumatif/.test(b.innerHTML.split('Budi')[1]?.split('</tr>')[0] ?? ''), 's1 lengkap tidak diberi penanda');
+  assert.match(b.innerHTML, /1 dari 3 TP belum punya penilaian sumatif \(TP-3\)/);
+  assert.ok(!/(T|R): [^<]*\?/.test(b.innerHTML), 'id TP yang sudah dihapus tampil sebagai ?');
+  assert.match(b.innerHTML, /T: TP-1/);
+  ubah(b, 's1', 'nr-nilai', ''); await klik(b, 'simpan');
+  assert.match(b.el['#nr-pesan'].textContent, /akan DIHAPUS/);
+  ubah(b, 's2', 'nr-nilai', '55'); await klik(b, 'simpan');   // guru mengubah sesuatu: peringatan dibatalkan, Simpan kembali meminta konfirmasi
+  assert.equal(globalThis.__api.panggilan.length, 0, 'penghapusan terjadi tanpa konfirmasi ulang setelah perubahan');
 });
 
 fs.rmSync(dirTmp, { recursive: true, force: true });

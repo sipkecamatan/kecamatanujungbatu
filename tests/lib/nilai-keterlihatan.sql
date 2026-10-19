@@ -18,7 +18,7 @@ end $f$;
 do $$
 declare
   sid uuid; yr text; sm semester; guru uuid; cls uuid; subj uuid; stu uuid; stu2 uuid; ortu uuid; siswa_u uuid; kep uuid; wakur uuid; wakes uuid; bk uuid; adm uuid; guru_flag uuid;
-  lo1 uuid; lo2 uuid; lo_lain uuid; kelas_lain uuid; asmt uuid; q text; ringkas text; kaprodi uuid; wakhum uuid; qa text;
+  lo1 uuid; lo2 uuid; lo3 uuid; asmt2 uuid; lo_lain uuid; kelas_lain uuid; asmt uuid; q text; ringkas text; kaprodi uuid; wakhum uuid; qa text;
 begin
   select school_id into sid from schools where slug = 'smkuji1';
   select current_academic_year, current_semester into yr, sm from school_config where school_id = sid;
@@ -88,6 +88,26 @@ begin
   delete from learning_objectives where id = lo2;
   q := format('select rata_rata::text||''/''||tercapai||''/''||belum_tercapai||''/''||jumlah_siswa||''/''||ada_kktp from fn_nilai_per_tp(%L, %s) where tp_id = %L', yr, sm::text, lo1);
   insert into hasil_uji(k,v) values ('B7_hapus_tp_tautan_hilang_penilaian_tetap', format('tautan=%s penilaian=%s', (select count(*) from assessment_tps where assessment_id = asmt), (select count(*) from assessments where id = asmt)));
+  -- (1) Nilai non-TES mengikuti predikat + KKTP: mengubah/menghapus KKTP menyelaraskan nilai yang sudah tersimpan; TES tidak disentuh
+  insert into learning_objectives (school_id, teacher_id, class_id, subject_id, academic_year, semester, kode_tp, deskripsi_tp)
+    values (sid, guru, cls, subj, yr, sm::text::int, 'UJI-TP3', 'TP uji ketiga') returning id into lo3;
+  insert into assessment_criteria (learning_objective_id, school_id, urutan, rentang)
+    values (lo3, sid, 1, '{"SB":[85,100],"BSH":[70,84],"MB":[55,69],"BB":[0,54]}'::jsonb);
+  insert into assessments (school_id, teacher_id, class_id, subject_id, academic_year, semester, jenis, teknik)
+    values (sid, guru, cls, subj, yr, sm::text::int, 'SUMATIF', 'PROYEK') returning id into asmt2;
+  insert into assessment_tps (assessment_id, learning_objective_id, school_id) values (asmt2, lo3, sid);
+  insert into assessment_results (school_id, class_id, assessment_id, student_id, nilai, status) values (sid, cls, asmt2, stu, 77, 'BSH'), (sid, cls, asmt2, stu2, 62, 'MB');
+  update assessment_criteria set rentang = '{"SB":[90,100],"BSH":[80,89],"MB":[60,79],"BB":[0,59]}'::jsonb where learning_objective_id = lo3;
+  insert into hasil_uji(k,v) values ('N1_ubah_kktp_nilai_non_tes_ikut', (select string_agg(nilai::int::text, '/' order by student_id = stu desc) from assessment_results where assessment_id = asmt2));
+  insert into hasil_uji(k,v) values ('N2_nilai_tes_tidak_disentuh', (select string_agg(nilai::int::text, '/' order by nilai) from assessment_results where assessment_id = asmt));
+  delete from assessment_criteria where learning_objective_id = lo3;
+  insert into hasil_uji(k,v) values ('N3_hapus_kktp_kembali_ke_bawaan', (select string_agg(nilai::int::text, '/' order by student_id = stu desc) from assessment_results where assessment_id = asmt2));
+  -- (2) Menghapus TP membuang id-nya dari tanda T/R nilai rapor tersimpan
+  insert into grade_final (school_id, class_id, subject_id, student_id, teacher_id, academic_year, semester, nilai_rapor, metode, tp_optimal, tp_perlu)
+    values (sid, cls, subj, stu, guru, yr, sm::text::int, 80, 'MANUAL', array[lo3], array[lo1]);
+  delete from learning_objectives where id = lo3;
+  insert into hasil_uji(k,v) values ('N4_hapus_tp_tanda_bersih', (select coalesce(cardinality(tp_optimal),0)::text || '/' || coalesce(cardinality(tp_perlu),0)::text from grade_final where student_id = stu and class_id = cls and subject_id = subj));
+  delete from grade_final where student_id = stu and class_id = cls and subject_id = subj;
   -- dikenali lewat TANDA peran tambahan (akun GURU yang juga Waka Kurikulum), bukan hanya peran tunggal
   perform set_config('app.bypass_users_guard', 'on', true);
   update users set role_type = 'GURU', is_waka_kurikulum = true where user_id = wakur;   -- Waka Kurikulum yang tercatat sebagai GURU + tanda peran tambahan

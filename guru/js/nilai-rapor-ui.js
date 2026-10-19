@@ -112,6 +112,13 @@ export async function renderNilaiRapor(body, ctx) {
         return '';
     };
     // Sebagian data tidak ikut dihitung oleh Persentase TP: bukan galat, tetapi guru perlu tahu.
+    const catatanTpBelumDinilai = () => {
+        if (!sumatif.length) return '';
+        const belum = tps.filter((t) => !sumatif.some((a) => tpIdsPenilaian(a).includes(t.id)));
+        if (!belum.length) return '';
+        return '<div class="nr-rumus-info" style="margin:6px 0;padding:6px 10px;border:1px solid var(--color-warning, #d97706);border-radius:6px;font-size:12px">ℹ ' + belum.length + ' dari ' + tps.length + ' TP belum punya penilaian sumatif (' +
+            esc(belum.map((t) => t.kode_tp || '?').join(', ')) + '), sehingga tidak ikut dihitung pada Persentase TP, Nilai TP terakhir, dan usulan T/R.</div>';
+    };
     const catatanTerakhir = () => {
         if (st.metode !== 'TERAKHIR' || rumusBelumLengkap()) return '';
         const id = tpTerakhir(asesmen, tps.map((t) => t.id));
@@ -129,7 +136,7 @@ export async function renderNilaiRapor(body, ctx) {
     const infoRumus = () => {
         const kurang = rumusBelumLengkap();
         const peringatanLengkap = kurang ? '<div class="nr-rumus-info" style="margin:6px 0;padding:6px 10px;border:1px solid var(--color-danger);border-radius:6px;font-size:12px;color:var(--color-danger)">Rumus belum lengkap: ' + esc(kurang) + '. Nilai belum dihitung ulang dan nilai yang ada tidak diubah. Lengkapi dulu, lalu nilai terhitung otomatis.</div>' : '';
-        const sebagian = catatanSebagian() + catatanTerakhir();
+        const sebagian = catatanSebagian() + catatanTerakhir() + catatanTpBelumDinilai();
         if (!rumusTersimpan) return peringatanLengkap + sebagian;
         const sama = rumusTersimpan.metode === st.metode && (st.metode !== 'BOBOT' || sumatif.every((a) => (rumusTersimpan.bobot[a.id] ?? 0) === (Number(st.bobot[a.id]) || 0)));
         if (sama) return peringatanLengkap + sebagian;
@@ -143,7 +150,7 @@ export async function renderNilaiRapor(body, ctx) {
         const r = simpanSiswa[s.id];
         const row = {
             nilai: r ? String(Number(r.nilai_rapor)) : '', manual: r?.metode === 'MANUAL',
-            optimal: new Set(r?.tp_optimal ?? []), perlu: new Set(r?.tp_perlu ?? []),
+            optimal: new Set((r?.tp_optimal ?? []).filter((id) => tpById[id])), perlu: new Set((r?.tp_perlu ?? []).filter((id) => tpById[id])),   // TP yang sudah dihapus tidak ditampilkan/diteruskan
             desT: r?.deskripsi_tertinggi ?? '', desR: r?.deskripsi_terendah ?? '',
             sunting: !!(r?.deskripsi_tertinggi || r?.deskripsi_terendah), ada: !!r, terbuka: false, dasarNilai: false,
         };
@@ -183,10 +190,17 @@ export async function renderNilaiRapor(body, ctx) {
         return '<span class="nr-belum" style="display:block;font-size:11px;color:var(--color-warning, #d97706)">' + (beda ? '• belum disimpan' : '') + '</span>' +
             (row.manual ? '<button type="button" class="pen-btn pen-btn-sm" data-nr="otomatis" title="Kembali mengikuti hitungan rumus" style="font-size:11px">manual · ↺ otomatis</button>' : '');
     };
+    // Siswa yang baru punya sebagian nilai penilaian sumatif diberi penanda, supaya hasilnya tidak tampak sama lengkapnya dengan siswa lain.
+    const kelengkapanHtml = (sid) => {
+        if (!sumatif.length) return '';
+        const ada = sumatif.filter((a) => { const n = nilaiSiswa[sid]?.[a.id]; return n !== null && n !== undefined && Number.isFinite(Number(n)); }).length;
+        if (ada >= sumatif.length) return '';
+        return '<br><span class="nr-lengkap" style="font-size:11px;color:var(--color-warning, #d97706)">' + (ada ? 'baru ' + ada + ' dari ' + sumatif.length + ' penilaian sumatif bernilai' : 'belum ada nilai penilaian sumatif') + '</span>';
+    };
     const barisHtml = (s) => {
         const row = st.rows[s.id];
         const detail = row.terbuka ? detailHtml(s) : '';
-        return '<tr data-sid="' + esc(s.id) + '"><td>' + esc(s.nama) + (s.nis ? ' <span style="color:var(--color-text-muted);font-size:11px">' + esc(s.nis) + '</span>' : '') + '</td>' +
+        return '<tr data-sid="' + esc(s.id) + '"><td>' + esc(s.nama) + (s.nis ? ' <span style="color:var(--color-text-muted);font-size:11px">' + esc(s.nis) + '</span>' : '') + kelengkapanHtml(s.id) + '</td>' +
             '<td><input type="number" class="nr-nilai" min="0" max="100" step="0.01" value="' + esc(row.nilai) + '" style="width:76px">' + '<span class="nr-penanda">' + penandaBelumSimpan(s.id) + '</span>' + '</td>' +
             '<td class="nr-tr" style="font-size:12px">' + ringkasTR(row) + '</td>' +
             '<td><button type="button" class="pen-btn pen-btn-sm" data-nr="detail">' + (row.terbuka ? 'Tutup' : 'TP dan deskripsi') + '</button></td></tr>' +
@@ -266,6 +280,7 @@ export async function renderNilaiRapor(body, ctx) {
     // ── Peristiwa (delegasi pada body; dipasang sekali per muat) ──
     body.onchange = (e) => {
         const t = e.target;
+        st.konfirmasiHapus = null;   // perubahan apa pun membatalkan konfirmasi penghapusan yang menunggu
         if (t.id === 'nr-metode') { st.metode = t.value; segarkanHitungan(); return; }
         if (t.id === 'nr-vis-siswa') { st.visSiswa = !!t.checked; return; }
         if (t.id === 'nr-vis-ortu')  { st.visOrtu  = !!t.checked; return; }
@@ -323,6 +338,14 @@ export async function renderNilaiRapor(body, ctx) {
                 is_visible_siswa: st.visSiswa === true, is_visible_ortu: st.visOrtu === true,
             });
         }
+        // Nilai yang dikosongkan = nilai rapor tersimpan DIHAPUS. Itu tidak boleh terjadi tanpa guru tahu: minta Simpan sekali lagi setelah menyebut siapa saja.
+        const kunciHapus = hapus.join(',');
+        if (hapus.length && st.konfirmasiHapus !== kunciHapus) {
+            st.konfirmasiHapus = kunciHapus;
+            const nama = hapus.map((id) => roster.find((x) => x.id === id)?.nama ?? '?').join(', ');
+            pesan('⚠ Nilai rapor tersimpan ' + hapus.length + ' siswa akan DIHAPUS karena kolom nilainya kosong: ' + nama + '. Tekan Simpan Nilai Rapor sekali lagi untuk melanjutkan, atau isi nilainya dulu.', false);
+            return;
+        }
         _menyimpan = true; btn.disabled = true; btn.textContent = 'Menyimpan…';
         try {
             await upsertGradeFinalBatch(ctx.schoolId, ctx.classId, ctx.subjectId, ctx.teacherId, ctx.year, ctx.semester, baru);
@@ -333,7 +356,8 @@ export async function renderNilaiRapor(body, ctx) {
             if (baru.length) rumusTersimpan = { metode: st.metode, bobot: salinBobot() };
             segarkanHitungan();
             toast('Nilai rapor tersimpan (' + baru.length + ' siswa' + (hapus.length ? ', ' + hapus.length + ' dihapus' : '') + ')');
-            pesan('Tersimpan: ' + baru.length + ' siswa.');
+            st.konfirmasiHapus = null;
+            pesan('Tersimpan: ' + baru.length + ' siswa' + (hapus.length ? '; nilai rapor ' + hapus.length + ' siswa dihapus karena nilainya kosong.' : '.'));
         } catch (err) {
             toast('Gagal simpan: ' + (err.message || 'Terjadi kesalahan'), false);
             pesan('Gagal menyimpan: ' + (err.message || 'Terjadi kesalahan'), false);

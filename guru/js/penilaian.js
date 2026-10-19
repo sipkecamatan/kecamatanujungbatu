@@ -419,6 +419,7 @@ function openKktpModal(tpId, kktp) {
             }
             close();
             await loadAndRenderKktps(tpId);
+            await segarkanBagianTerbuka();   // nilai non-TES di server ikut diselaraskan dengan KKTP baru; Rekap/Nilai Rapor yang terbuka dimuat ulang
         },
     });
 }
@@ -434,7 +435,7 @@ function confirmDeleteKktp(tpId, kktpId, origBtn) {
     row.after(bar);
     bar.querySelector('.pen-del-yes').addEventListener('click', async function () {
         this.disabled = true; this.textContent = 'Menghapus…';
-        try { await deleteKktp(kktpId); await loadAndRenderKktps(tpId); }
+        try { await deleteKktp(kktpId); await loadAndRenderKktps(tpId); await segarkanBagianTerbuka(); }
         catch (err) { bar.remove(); origBtn.style.display = ''; alert('Gagal hapus: ' + err.message); }
     });
     bar.querySelector('.pen-del-no').addEventListener('click', () => { bar.remove(); origBtn.style.display = ''; });
