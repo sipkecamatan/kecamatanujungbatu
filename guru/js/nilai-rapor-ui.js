@@ -192,7 +192,7 @@ export async function renderNilaiRapor(body, ctx) {
             '<span style="color:var(--color-text-muted);font-size:12px">Berlaku untuk semua siswa kelas ini; tersimpan saat Anda menekan Simpan Nilai Rapor.</span></div>' +
             '<div class="rc-filter-bar" style="justify-content:space-between"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
             '<select id="nr-metode">' + Object.entries(METODE_RAPOR).map(([k, v]) => '<option value="' + k + '"' + (st.metode === k ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select>' +
-            '<button type="button" class="pen-btn" data-nr="hitung-semua">Hitung ulang semua</button></div>' +
+            '</div>' +
             '<div style="display:flex;gap:8px"><button type="button" class="pen-btn" data-nr="unduh">⬇ Unduh Excel e-Rapor</button>' +
             '<button type="button" class="pen-btn pen-btn-primary" data-nr="simpan">Simpan Nilai Rapor</button></div></div>' +
             '<div id="nr-bobot">' + bobotHtml() + '</div><div id="nr-rumus">' + infoRumus() + '</div>' +
@@ -260,18 +260,6 @@ export async function renderNilaiRapor(body, ctx) {
             const row = st.rows[sid]; const { hitung } = hitungSiswa(sid);
             if (hitung === null) { pesan(rumusBelumLengkap() ? 'Rumus belum lengkap: ' + rumusBelumLengkap() + '.' : 'Belum ada nilai penilaian untuk dihitung.', false); return; }
             row.manual = false; row.nilai = String(hitung); gambarUlangBaris(sid); return;
-        }
-        if (aksi === 'hitung-semua') {
-            // Berfungsi kapan pun: hasilnya langsung tampak di layar (tanpa menunggu Simpan) dan selalu ada penjelasan.
-            const kurang = rumusBelumLengkap();
-            if (kurang) { pesan('Tidak dapat menghitung: ' + kurang + '. Perbaiki bobot lebih dulu.', false); return; }
-            const manual = roster.filter((s) => st.rows[s.id].manual).length;
-            if (manual && !window.confirm('Ada ' + manual + ' nilai yang Anda tetapkan manual. Ganti semuanya dengan hasil rumus (metode: ' + METODE_RAPOR[st.metode] + ')? Perubahan baru tersimpan setelah Anda menekan Simpan.')) return;
-            let dihitung = 0, tanpaData = 0;
-            for (const s of roster) { const row = st.rows[s.id]; const { hitung } = hitungSiswa(s.id); if (hitung === null) { tanpaData++; continue; } row.manual = false; row.nilai = String(hitung); dihitung++; }
-            gambar();
-            pesan(dihitung + ' nilai dihitung ulang' + (manual ? ' (termasuk ' + manual + ' nilai manual)' : '') + (tanpaData ? '; ' + tanpaData + ' siswa belum punya nilai penilaian' : '') + '. Tekan Simpan Nilai Rapor agar terbaca wali kelas dan pimpinan.');
-            return;
         }
         if (aksi === 'unduh') { unduh(); return; }
         if (aksi === 'simpan') await simpan(btn);

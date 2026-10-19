@@ -33,7 +33,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const toasts = [];
 const ctx = { schoolId: 'S', teacherId: 'G', classId: 'C', subjectId: 'M', year: '2026/2027', semester: '1', esc, toast: (m, ok = true) => toasts.push([m, ok]) };
 globalThis.window = { confirm: () => true };
-const badan = () => ({ innerHTML: '', onclick: null, onchange: null, querySelector: () => null, querySelectorAll: () => [] });
+globalThis.CSS = { escape: (x) => x };
+const badan = () => { const el = {}; return { innerHTML: '', onclick: null, onchange: null, el, querySelector: (q) => (q.startsWith('tr[') ? null : (el[q] ??= { innerHTML: '', style: {}, textContent: '' })), querySelectorAll: () => [] }; };
 const klik = (b, aksi) => b.onclick({ target: { closest: (sel) => (sel === '[data-nr]' ? { dataset: { nr: aksi }, closest: () => null, disabled: false, textContent: '' } : null) } });
 const ubah = (b, sid, kelas, nilai) => b.onchange({ target: { id: '', value: nilai, dataset: {}, classList: { contains: (c) => c === kelas }, closest: () => ({ dataset: { sid }, querySelector: () => null }) } });
 
@@ -60,7 +61,8 @@ await uji('render: nama di-escape (tanpa XSS), nilai otomatis dihitung dari suma
   assert.ok(!/Saran|nr-saran/.test(b.innerHTML), 'kolom Saran seharusnya tidak ada');
   assert.match(b.innerHTML, /class="nr-nilai"[^>]*value="70"/);   // Budi: rata-rata (80 + 60) / 2 = 70; formatif 5 diabaikan
   assert.match(b.innerHTML, /class="nr-nilai"[^>]*value="90"/);   // Citra
-  for (const aksi of ['hitung-semua', 'simpan', 'unduh']) assert.ok(b.innerHTML.includes(`data-nr="${aksi}"`), 'tombol ' + aksi);
+  assert.ok(!b.innerHTML.includes('hitung-semua') && !b.innerHTML.includes('Hitung ulang semua'), 'tombol Hitung ulang semua sudah dihapus (nilai tampil otomatis)');
+  for (const aksi of ['simpan', 'unduh']) assert.ok(b.innerHTML.includes(`data-nr="${aksi}"`), 'tombol ' + aksi);
 });
 await uji('tanpa siswa atau tanpa penilaian sumatif: pesan yang jelas, tidak galat', async () => {
   globalThis.__api.data.roster = []; let b = badan(); await M.renderNilaiRapor(b, ctx); assert.match(b.innerHTML, /Belum ada siswa terdaftar/);
@@ -161,10 +163,9 @@ await uji('perubahan rumus tampak jelas sebelum disimpan (dari mana ke mana, sem
   const b = badan(); await M.renderNilaiRapor(b, ctx);
   assert.ok(!b.innerHTML.includes('Rumus diubah'), 'tanpa perubahan tidak boleh ada peringatan');
   b.onchange({ target: { id: 'nr-metode', value: 'RATA', dataset: {}, classList: { contains: () => false }, closest: () => null } });
-  await klik(b, 'hitung-semua');   // menggambar ulang layar
-  assert.match(b.innerHTML, /Rumus diubah dari <strong>Pembobotan[^<]*<\/strong> menjadi <strong>Rata-rata[^<]*<\/strong>[\s\S]*belum disimpan/);
-  await klik(b, 'simpan'); await klik(b, 'hitung-semua');
-  assert.ok(!b.innerHTML.includes('Rumus diubah'), 'setelah disimpan peringatan harus hilang');
+  assert.match(b.el['#nr-rumus'].innerHTML, /Rumus diubah dari <strong>Pembobotan[^<]*<\/strong> menjadi <strong>Rata-rata[^<]*<\/strong>[\s\S]*belum disimpan/);
+  await klik(b, 'simpan');
+  assert.ok(!b.el['#nr-rumus'].innerHTML.includes('Rumus diubah'), 'setelah disimpan peringatan harus hilang');
 });
 
 await uji('rumus belum lengkap (Pembobotan tanpa total 100%) tidak mengosongkan nilai dan tidak menghapus nilai tersimpan; ada peringatan', async () => {
@@ -176,19 +177,22 @@ await uji('rumus belum lengkap (Pembobotan tanpa total 100%) tidak mengosongkan 
   await M.renderNilaiRapor(b, ctx);
   b.onchange({ target: { id: 'nr-metode', value: 'BOBOT', dataset: {}, classList: { contains: () => false }, closest: () => null } });
   assert.equal(inputs.s1.value, '70', 'nilai s1 dikosongkan oleh rumus yang belum lengkap'); assert.equal(inputs.s2.value, '90');
-  await klik(b, 'hitung-semua');   // ditolak dengan penjelasan: tidak mengubah apa pun
+  assert.match(b.el['#nr-rumus'].innerHTML, /Rumus belum lengkap: Total bobot 0%/, 'peringatan rumus belum lengkap tidak tampil');
   await klik(b, 'simpan');
   assert.ok(!globalThis.__api.panggilan.some((p) => p[0] === 'hapus' && p[1][6].length), 'nilai tersimpan terhapus karena rumus belum lengkap');
   const up = globalThis.__api.panggilan.find((p) => p[0] === 'upsert'); assert.ok(up, 'tidak tersimpan');
   assert.deepEqual(up[1][6].map((r) => r.nilai_rapor).sort(), [70, 90]);
 });
-await uji('Hitung ulang semua: berfungsi kapan pun (tanpa Simpan), mengganti nilai manual setelah konfirmasi, dan menggambar ulang layar', async () => {
+await uji('tombol otomatis per baris: nilai manual kembali mengikuti rumus tanpa menyimpan sendiri', async () => {
   globalThis.__api.data.tersimpan = [{ student_id: 's1', nilai_rapor: '55', metode: 'MANUAL', rumus: { metode: 'RATA', bobot: {} }, tp_optimal: [], tp_perlu: [] }];
   const b = badan(); await M.renderNilaiRapor(b, ctx);
-  assert.match(b.innerHTML, /class="nr-nilai"[^>]*value="55"/);
-  b.innerHTML = ''; await klik(b, 'hitung-semua');
-  assert.match(b.innerHTML, /class="nr-nilai"[^>]*value="70"/, 'nilai manual 55 harus diganti hasil rumus 70');
-  assert.ok(globalThis.__api.panggilan.every((p) => p[0] !== 'upsert'), 'Hitung ulang tidak boleh menyimpan sendiri');
+  assert.match(b.innerHTML, /class="nr-nilai"[^>]*value="55"/); assert.ok(b.innerHTML.includes('data-nr="otomatis"'));
+  const tombol = { dataset: { nr: 'otomatis' }, closest: () => ({ dataset: { sid: 's1' } }) };
+  await b.onclick({ target: { closest: (sel) => (sel === '[data-nr]' ? tombol : null) } });
+  assert.ok(globalThis.__api.panggilan.every((p) => p[0] !== 'upsert'), 'otomatis tidak boleh menyimpan sendiri');
+  await klik(b, 'simpan');
+  const row = globalThis.__api.panggilan.find((p) => p[0] === 'upsert')[1][6].find((r) => r.studentId === 's1');
+  assert.equal(row.nilai_rapor, 70); assert.equal(row.metode, 'RATA');
 });
 
 fs.rmSync(dirTmp, { recursive: true, force: true });
