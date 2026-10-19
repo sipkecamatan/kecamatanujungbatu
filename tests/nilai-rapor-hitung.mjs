@@ -106,5 +106,26 @@ uji('satu penilaian menaut beberapa TP: nilainya berlaku untuk tiap TP (rata-rat
   assert.deepEqual(M.nilaiPerTp([{ id: 'a1', tpIds: ['t1', 't1'] }], { a1: 90 }), { t1: 90 }, 'TP ganda pada satu penilaian tidak dihitung dua kali');
 });
 
+uji('empat rumus: contoh Romo (TP1-4 = 60, 70, 80, 90) menghasilkan 75, 80, 75, 90', () => {
+  const asesmen = ['t1', 't2', 't3', 't4'].map((tp) => ({ id: 'a-' + tp, tpIds: [tp] }));
+  const nilai = { 'a-t1': 60, 'a-t2': 70, 'a-t3': 80, 'a-t4': 90 };
+  const urutanTp = ['t1', 't2', 't3', 't4'];
+  const h = (metode, extra = {}) => M.hitungNilaiRapor({ metode, asesmen, nilai, urutanTp, ...extra });
+  assert.equal(h('RATA'), 75);
+  assert.equal(h('BOBOT', { bobot: { 'a-t1': 10, 'a-t2': 20, 'a-t3': 30, 'a-t4': 40 } }), 80);
+  assert.equal(h('PERSEN', { tercapaiPerTp: { t1: false, t2: true, t3: true, t4: true } }), 75);
+  assert.equal(h('TERAKHIR'), 90);
+  assert.ok(M.METODE_RAPOR.TERAKHIR);
+});
+uji('TP terakhir: mengikuti urutan TP (bukan urutan penilaian), hanya TP yang punya penilaian sumatif; siswa tanpa nilai di TP itu = null', () => {
+  const asesmen = [{ id: 'a1', tpIds: ['t3'] }, { id: 'a2', tpIds: ['t1'] }, { id: 'a3', tpIds: [] }];   // t4 ada di daftar TP tetapi belum punya penilaian
+  const urutanTp = ['t1', 't2', 't3', 't4'];
+  assert.equal(M.tpTerakhir(asesmen, urutanTp), 't3');
+  assert.equal(M.hitungNilaiRapor({ metode: 'TERAKHIR', asesmen, nilai: { a1: 82, a2: 40, a3: 10 }, urutanTp }), 82);
+  assert.equal(M.hitungNilaiRapor({ metode: 'TERAKHIR', asesmen, nilai: { a2: 40 }, urutanTp }), null, 'tidak diganti nilai TP lain');
+  assert.equal(M.hitungNilaiRapor({ metode: 'TERAKHIR', asesmen: [{ id: 'x', tpIds: [] }], nilai: { x: 70 }, urutanTp }), null, 'tanpa TP tertaut');
+  assert.equal(M.hitungNilaiRapor({ metode: 'TERAKHIR', asesmen: [{ id: 'a1', tpIds: ['t1', 't2'] }, { id: 'a2', tpIds: ['t2'] }], nilai: { a1: 80, a2: 60 }, urutanTp }), 70, 'penilaian multi-TP ikut: rata-rata di TP terakhir');
+});
+
 console.log(`\nNILAI_RAPOR_HITUNG: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);

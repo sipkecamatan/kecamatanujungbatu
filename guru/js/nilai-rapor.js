@@ -14,6 +14,7 @@ export const METODE_RAPOR = {
     RATA:   'Rata-rata semua penilaian sumatif',
     BOBOT:  'Pembobotan per penilaian sumatif',
     PERSEN: 'Persentase TP yang tercapai',
+    TERAKHIR: 'Nilai TP terakhir',
 };
 
 const angka = (v) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
@@ -36,6 +37,13 @@ export function nilaiPerTp(asesmen, nilai) {
     return Object.fromEntries(Object.entries(jumlah).map(([tp, arr]) => [tp, arr.reduce((x, y) => x + y, 0) / arr.length]));
 }
 
+/** TP terakhir = TP dengan urutan terbesar di antara TP yang punya penilaian sumatif tertaut. Null bila tidak ada. */
+export function tpTerakhir(asesmen, urutanTp = []) {
+    const dipakai = new Set((asesmen ?? []).flatMap((a) => a.tpIds ?? []));
+    const urut = (urutanTp ?? []).filter((id) => dipakai.has(id));
+    return urut.length ? urut[urut.length - 1] : null;
+}
+
 /**
  * Saran nilai rapor satu siswa.
  * @param {object} p
@@ -44,9 +52,10 @@ export function nilaiPerTp(asesmen, nilai) {
  * @param {Object<string, number|null>} p.nilai          nilai siswa itu per id penilaian
  * @param {Object<string, number>} [p.bobot]             bobot per id penilaian (untuk BOBOT; yang kosong/0 diabaikan)
  * @param {Object<string, boolean|null>} [p.tercapaiPerTp] ketercapaian per TP (untuk PERSEN; yang tak diketahui diabaikan)
+ * @param {string[]} [p.urutanTp]                       id TP menurut urutan TP (untuk TERAKHIR)
  * @returns {number|null} bilangan bulat 0-100, atau null bila tidak ada data untuk dihitung
  */
-export function hitungNilaiRapor({ metode, asesmen, nilai, bobot = {}, tercapaiPerTp = {} }) {
+export function hitungNilaiRapor({ metode, asesmen, nilai, bobot = {}, tercapaiPerTp = {}, urutanTp = [] }) {
     const daftar = asesmen ?? [];
     if (metode === 'RATA') {
         const arr = daftar.map((a) => angka(nilai?.[a.id])).filter((n) => n !== null);
@@ -71,6 +80,12 @@ export function hitungNilaiRapor({ metode, asesmen, nilai, bobot = {}, tercapaiP
         const dinilai = Object.keys(perTp).filter((tp) => typeof tercapaiPerTp?.[tp] === 'boolean');
         if (!dinilai.length) return null;
         return bulat((dinilai.filter((tp) => tercapaiPerTp[tp]).length / dinilai.length) * 100);
+    }
+    if (metode === 'TERAKHIR') {
+        const terakhir = tpTerakhir(daftar, urutanTp);
+        if (!terakhir) return null;
+        const n = angka(nilaiPerTp(daftar, nilai)[terakhir]);   // siswa tanpa nilai di TP terakhir: tidak dihitung (guru mengisi manual), bukan diganti TP lain
+        return n === null ? null : bulat(n);
     }
     throw new Error('metode tidak dikenal: ' + metode);
 }

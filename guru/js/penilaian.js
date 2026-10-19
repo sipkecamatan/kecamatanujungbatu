@@ -13,7 +13,7 @@ import {
 } from './api.js';
 import { renderNilaiRapor } from './nilai-rapor-ui.js';
 import { susunLembarERapor } from './nilai-rapor.js';
-import { labelPenilaian, opsiTpPenilaian, namaTeknik, tpIdsPenilaian } from './penilaian-label.js';
+import { labelPenilaian, opsiTpPenilaian, namaTeknik, tpIdsPenilaian, ringkasTp } from './penilaian-label.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -1628,6 +1628,7 @@ function asmtRowHtml(a) {
         '<button class="pen-btn pen-btn-sm" data-action="asmt-edit" data-id="' + esc(a.id) + '">Edit</button>' +
         '<button class="pen-btn pen-btn-sm pen-btn-danger" data-action="asmt-delete" data-id="' + esc(a.id) + '">Hapus</button>' +
         '</div></div>' +
+        '<div class="pen-asmt-meta pen-asmt-tp">' + esc(ringkasTp(a, Object.fromEntries(_tpCache.map(t => [t.id, t])))) + '</div>' +
         (a.tujuan ? '<div class="pen-asmt-meta">' + esc(a.tujuan) + '</div>' : '') +
         '</div>'
     );
@@ -1843,7 +1844,7 @@ async function _renderRecapContent(body) {
                 '<table class="rc-table"><thead><tr>' +
                 '<th>Nama Siswa</th>' +
                 filtered.map(a =>
-                    '<th>' + esc(labelPenilaian(a, tpPeta)) + '</th>'
+                    '<th>' + esc(labelPenilaian(a, tpPeta)) + '<br><small style="font-weight:normal">' + esc(ringkasTp(a, tpPeta)) + '</small></th>'
                 ).join('') +
                 '</tr></thead><tbody>';
 
@@ -1881,7 +1882,7 @@ async function _renderRecapContent(body) {
         let tableHtml =
             '<table class="rc-table"><thead><tr>' +
             '<th>Nama Siswa</th>' +
-            filtered.map(a => '<th>' + esc(labelPenilaian(a, tpPeta)) + '</th>').join('') +
+            filtered.map(a => '<th>' + esc(labelPenilaian(a, tpPeta)) + '<br><small style="font-weight:normal">' + esc(ringkasTp(a, tpPeta)) + '</small></th>').join('') +
             '</tr></thead><tbody>';
         for (const s of rosterHal) {
             tableHtml += '<tr><td>' + esc(s.nama) + '</td>' +

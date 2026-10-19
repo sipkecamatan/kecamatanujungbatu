@@ -13,11 +13,25 @@ export function namaTeknik(kode) { return kode === 'TES' ? 'TES TERTULIS' : rapi
 /** Satu pintu: daftar id TP yang ditautkan pada sebuah penilaian (bisa kosong, satu, atau banyak). */
 export function tpIdsPenilaian(a) { return Array.isArray(a?.tpIds) ? a.tpIds : []; }
 
+/** TP tertaut diurutkan mengikuti urutan daftar TP (bukan urutan baris di database), supaya tampilan konsisten. */
+function tpUrut(a, tpById = {}) {
+    const urut = Object.keys(tpById);
+    const pos = (id) => { const i = urut.indexOf(id); return i < 0 ? urut.length : i; };
+    return [...tpIdsPenilaian(a)].sort((x, y) => pos(x) - pos(y));
+}
+
+/** Ringkasan TP tertaut untuk ditampilkan di daftar (selalu terlihat, juga bila penilaian berjudul): "TP: ALUR-TP1, ALUR-TP3" atau "Tanpa TP". */
+export function ringkasTp(a, tpById = {}) {
+    const ids = tpUrut(a, tpById);
+    if (!ids.length) return 'Tanpa TP';
+    return 'TP: ' + ids.map((id) => tpById[id]?.kode_tp || 'TP terkait').join(', ');
+}
+
 /** Label yang dibaca guru: judul bila ada; selain itu kode TP + tanggal + teknik/instrumen (bedakan dua penilaian yang mirip). */
 export function labelPenilaian(a, tpById = {}) {
     const judul = String(a?.judul ?? '').trim();
     if (judul) return judul;
-    const ids = tpIdsPenilaian(a);
+    const ids = tpUrut(a, tpById);
     const kode = ids.map((id) => tpById[id]?.kode_tp).filter(Boolean).join(', ');
     const bagian = [kode || (ids.length ? 'TP' : 'Tanpa TP'), tglPendek(a?.tanggal), [namaTeknik(a?.teknik), rapi(a?.instrumen)].filter(Boolean).join(' ')];
     return bagian.filter(Boolean).join(' · ');

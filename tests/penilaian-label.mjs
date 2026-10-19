@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-import { labelPenilaian, urutkanPenilaian, opsiTpPenilaian } from '../guru/js/penilaian-label.js';
+import { labelPenilaian, urutkanPenilaian, opsiTpPenilaian, ringkasTp } from '../guru/js/penilaian-label.js';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = (p) => readFileSync(join(ROOT, p), 'utf8');
 let lulus = 0, gagal = 0;
@@ -58,6 +58,13 @@ uji('satu penilaian untuk beberapa TP: label memuat semua kode TP', () => {
   const p = { id: 3, tpIds: ['a', 'b'], tanggal: '2026-10-19', teknik: 'TES', instrumen: 'Pilihan Ganda' };
   assert.equal(labelPenilaian(p, tp), 'TP1, TP2 · 19/10 · TES TERTULIS Pilihan Ganda');
   assert.equal(labelPenilaian({ ...p, tpIds: [] }, tp), 'Tanpa TP · 19/10 · TES TERTULIS Pilihan Ganda');
+});
+uji('ringkasan TP selalu terlihat, juga bila penilaian berjudul', () => {
+  assert.equal(ringkasTp({ judul: 'UH 1', tpIds: ['a'] }, tp), 'TP: TP1');
+  assert.equal(ringkasTp({ judul: 'UH 2', tpIds: ['a', 'b'] }, tp), 'TP: TP1, TP2');
+  assert.equal(ringkasTp({ tpIds: ['b', 'a'] }, tp), 'TP: TP1, TP2', 'urutan mengikuti daftar TP, bukan urutan tautan');
+  assert.equal(ringkasTp({ judul: 'UH 3', tpIds: [] }, tp), 'Tanpa TP');
+  assert.equal(ringkasTp({ tpIds: ['zzz'] }, tp), 'TP: TP terkait');
 });
 uji('cache TP tidak ditimpa muatan kelas lain: setiap penulisan memeriksa konteks yang sama', () => {
   const pen = src('guru/js/penilaian.js');

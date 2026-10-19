@@ -10,7 +10,7 @@ import {
     getGradeFinal, upsertGradeFinalBatch, deleteGradeFinalForStudents,
 } from './api.js';
 import { labelPenilaian, tpIdsPenilaian } from './penilaian-label.js';
-import { METODE_RAPOR, totalBobot, hitungNilaiRapor, nilaiPerTp, sarankanTR, susunDeskripsi, susunLembarERapor } from './nilai-rapor.js';
+import { METODE_RAPOR, totalBobot, hitungNilaiRapor, nilaiPerTp, tpTerakhir, sarankanTR, susunDeskripsi, susunLembarERapor } from './nilai-rapor.js';
 
 let _seq = 0;            // nomor muat: hasil muat lama yang selesai terlambat dibuang
 let _menyimpan = false;  // cegah simpan ganda
@@ -88,7 +88,7 @@ export async function renderNilaiRapor(body, ctx) {
         const tercapaiPerTp = {};
         for (const tp of Object.keys(perTp)) if (batasTp[tp] !== null && batasTp[tp] !== undefined) tercapaiPerTp[tp] = perTp[tp] >= batasTp[tp];
         let hitung = null;
-        try { hitung = hitungNilaiRapor({ metode: st.metode, asesmen, nilai, bobot: st.bobot, tercapaiPerTp }); } catch { hitung = null; }
+        try { hitung = hitungNilaiRapor({ metode: st.metode, asesmen, nilai, bobot: st.bobot, tercapaiPerTp, urutanTp: tps.map((t) => t.id) }); } catch { hitung = null; }
         return { hitung, perTp, tr: sarankanTR(perTp) };
     };
     // Keadaan awal tiap siswa. Rumus guru menghitung nilai rapor OTOMATIS: baris yang tidak ditimpa guru (bukan MANUAL) mengikuti hasil rumus;
@@ -103,6 +103,7 @@ export async function renderNilaiRapor(body, ctx) {
             const { total, sah } = totalBobot(sumatif, st.bobot);
             return sah ? '' : 'Total bobot ' + total + '% (harus tepat 100%)';
         }
+        if (st.metode === 'TERAKHIR' && !tpTerakhir(asesmen, tps.map((t) => t.id))) return 'Belum ada penilaian sumatif yang ditautkan ke TP (pilih TP pada formulir penilaian)';
         if (st.metode === 'PERSEN') {
             const tertaut = sumatif.filter((a) => tpIdsPenilaian(a).length);
             if (!tertaut.length) return 'Belum ada penilaian sumatif yang ditautkan ke TP (pilih TP pada formulir penilaian)';
@@ -111,6 +112,11 @@ export async function renderNilaiRapor(body, ctx) {
         return '';
     };
     // Sebagian data tidak ikut dihitung oleh Persentase TP: bukan galat, tetapi guru perlu tahu.
+    const catatanTerakhir = () => {
+        if (st.metode !== 'TERAKHIR' || rumusBelumLengkap()) return '';
+        const id = tpTerakhir(asesmen, tps.map((t) => t.id));
+        return '<div class="nr-rumus-info" style="margin:6px 0;padding:6px 10px;border:1px solid var(--color-border);border-radius:6px;font-size:12px">ℹ Nilai rapor memakai <strong>' + esc(tpById[id]?.kode_tp || 'TP terakhir') + '</strong> (TP terakhir yang punya penilaian sumatif). Siswa yang belum bernilai di TP itu dikosongkan; isi manual bila perlu.</div>';
+    };
     const catatanSebagian = () => {
         if (st.metode !== 'PERSEN' || rumusBelumLengkap()) return '';
         const tanpaTp = sumatif.filter((a) => !tpIdsPenilaian(a).length).length;
@@ -123,7 +129,7 @@ export async function renderNilaiRapor(body, ctx) {
     const infoRumus = () => {
         const kurang = rumusBelumLengkap();
         const peringatanLengkap = kurang ? '<div class="nr-rumus-info" style="margin:6px 0;padding:6px 10px;border:1px solid var(--color-danger);border-radius:6px;font-size:12px;color:var(--color-danger)">Rumus belum lengkap: ' + esc(kurang) + '. Nilai belum dihitung ulang dan nilai yang ada tidak diubah. Lengkapi dulu, lalu nilai terhitung otomatis.</div>' : '';
-        const sebagian = catatanSebagian();
+        const sebagian = catatanSebagian() + catatanTerakhir();
         if (!rumusTersimpan) return peringatanLengkap + sebagian;
         const sama = rumusTersimpan.metode === st.metode && (st.metode !== 'BOBOT' || sumatif.every((a) => (rumusTersimpan.bobot[a.id] ?? 0) === (Number(st.bobot[a.id]) || 0)));
         if (sama) return peringatanLengkap + sebagian;
@@ -156,12 +162,14 @@ export async function renderNilaiRapor(body, ctx) {
     };
 
     // ── HTML ──
+    const statusBobotHtml = () => {
+        const { total, sah } = totalBobot(sumatif, st.bobot);
+        return sah ? '<span style="color:var(--color-success)">Total ' + total + '% ✓</span>'
+            : '<span style="color:var(--color-danger)">Total ' + total + '% — ' + (total < 100 ? 'kurang ' : 'lebih ') + Math.round(Math.abs(100 - total) * 1000) / 1000 + '%; nilai otomatis baru muncul bila total tepat 100%</span>';
+    };
     const bobotHtml = () => {
         if (st.metode !== 'BOBOT') return '';
-        const { total, sah } = totalBobot(sumatif, st.bobot);
-        const status = sah ? '<span style="color:var(--color-success)">Total ' + total + '% ✓</span>'
-            : '<span style="color:var(--color-danger)">Total ' + total + '% — ' + (total < 100 ? 'kurang ' : 'lebih ') + Math.round(Math.abs(100 - total) * 1000) / 1000 + '%; nilai otomatis baru muncul bila total tepat 100%</span>';
-        return '<div style="margin:8px 0;font-size:12px"><strong>Bobot tiap penilaian sumatif</strong> (isi sendiri; total harus 100%): ' + status +
+        return '<div style="margin:8px 0;font-size:12px"><strong>Bobot tiap penilaian sumatif</strong> (isi sendiri; total harus 100%): <span id="nr-bobot-status">' + statusBobotHtml() + '</span>' +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
             sumatif.map((a) => '<label style="display:flex;align-items:center;gap:4px;font-weight:normal">' + esc(labelPenilaian(a, tpById)) +
                 '<input type="number" class="nr-bobot" data-aid="' + esc(a.id) + '" min="0" max="100" value="' + esc(String(st.bobot[a.id] ?? 0)) + '" style="width:64px"></label>').join('') +
@@ -230,7 +238,12 @@ export async function renderNilaiRapor(body, ctx) {
             if (!row.manual) { const { hitung } = hitungSiswa(sid); if (hitung !== null) { row.nilai = String(hitung); const inp = tr.querySelector('.nr-nilai'); if (inp) inp.value = row.nilai; } }
             const pn = tr.querySelector('.nr-penanda'); if (pn) pn.innerHTML = penandaBelumSimpan(sid);
         });
-        const b = body.querySelector('#nr-bobot'); if (b) b.innerHTML = bobotHtml();
+        // Isian bobot TIDAK digambar ulang saat guru mengetik/Tab (fokus akan hilang); hanya teks total yang diperbarui. Digambar ulang hanya bila metode berganti.
+        const b = body.querySelector('#nr-bobot');
+        if (b) {
+            const st2 = body.querySelector('#nr-bobot-status');
+            if (st.metode === 'BOBOT' && st2) st2.innerHTML = statusBobotHtml(); else b.innerHTML = bobotHtml();
+        }
         const ri = body.querySelector('#nr-rumus'); if (ri) ri.innerHTML = infoRumus();
     };
     const gambarUlangBaris = (sid) => {

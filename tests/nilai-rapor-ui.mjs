@@ -209,6 +209,23 @@ await uji('Persentase TP yang tidak bisa dihitung (penilaian tanpa TP, atau TP t
   assert.ok(!/Rumus belum lengkap/.test(b.el['#nr-rumus'].innerHTML), 'sebagian data bukan galat');
 });
 
+await uji('metode Nilai TP terakhir: memakai TP terakhir yang punya penilaian, menyebut TP itu di layar, dan menjelaskan bila belum ada TP tertaut', async () => {
+  const ubahMetode = (b, v) => b.onchange({ target: { id: 'nr-metode', value: v, dataset: {}, classList: { contains: () => false }, closest: () => null } });
+  globalThis.__api.data = dasar();
+  let b = badan(); await M.renderNilaiRapor(b, ctx); ubahMetode(b, 'TERAKHIR');
+  assert.match(b.el['#nr-rumus'].innerHTML, /TP-2<\/strong> \(TP terakhir yang punya penilaian sumatif\)/);
+  assert.ok(!/Rumus belum lengkap/.test(b.el['#nr-rumus'].innerHTML));
+  globalThis.__api.data = dasar(); globalThis.__api.data.asesmen = globalThis.__api.data.asesmen.map((a) => ({ ...a, tpIds: [] }));
+  b = badan(); await M.renderNilaiRapor(b, ctx); ubahMetode(b, 'TERAKHIR');
+  assert.match(b.el['#nr-rumus'].innerHTML, /Rumus belum lengkap: Belum ada penilaian sumatif yang ditautkan ke TP/);
+});
+
+await uji('isian bobot tidak digambar ulang saat diubah (fokus Tab tidak hilang): hanya teks total yang diperbarui', async () => {
+  const sumber = fs.readFileSync(new URL('../guru/js/nilai-rapor-ui.js', import.meta.url), 'utf8');
+  assert.match(sumber, /id="nr-bobot-status"/);
+  assert.match(sumber, /if \(st\.metode === 'BOBOT' && st2\) st2\.innerHTML = statusBobotHtml\(\); else b\.innerHTML = bobotHtml\(\);/);
+});
+
 fs.rmSync(dirTmp, { recursive: true, force: true });
 console.log(`\nNILAI_RAPOR_UI: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);
