@@ -24,3 +24,14 @@ export function urutkanPenilaian(daftar) {
         return tx < ty ? -1 : tx > ty ? 1 : cx < cy ? -1 : cx > cy ? 1 : 0;
     });
 }
+
+/**
+ * Opsi TP pada formulir penilaian. TP yang SUDAH tertaut pada penilaian yang sedang disunting selalu ada dalam opsi (dan terpilih), walau daftar TP
+ * belum/tidak memuatnya. Tanpa ini, menyimpan formulir mengubah tautan menjadi "tanpa TP" diam-diam padahal guru tidak menyentuh isian itu.
+ */
+export function opsiTpPenilaian(daftarTp, tpTertaut) {
+    const opsi = [{ id: '', label: '— TP (Opsional) —' }, ...(daftarTp ?? []).map((t) => ({ id: t.id, label: t.kode_tp || t.id }))];
+    if (tpTertaut && !opsi.some((o) => o.id === tpTertaut)) opsi.push({ id: tpTertaut, label: 'TP terkait (daftar belum termuat)' });
+    return opsi.map((o) => ({ ...o, terpilih: o.id === (tpTertaut ?? '') }));
+}
+

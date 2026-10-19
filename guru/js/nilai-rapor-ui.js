@@ -97,21 +97,40 @@ export async function renderNilaiRapor(body, ctx) {
     let rumusTersimpan = rumusSimpan ? { metode: st.metode, bobot: salinBobot() } : null;
     // Rumus belum lengkap (mis. Pembobotan dengan total bobot bukan 100%) TIDAK boleh dibaca sebagai "guru mengosongkan nilai": nilai yang ada dibiarkan, dan guru diberi tahu.
     const rumusBelumLengkap = () => {
-        if (st.metode !== 'BOBOT' || !sumatif.length) return '';
-        const { total, sah } = totalBobot(sumatif, st.bobot);
-        return sah ? '' : 'Total bobot ' + total + '% (harus tepat 100%)';
+        if (!sumatif.length) return '';
+        if (st.metode === 'BOBOT') {
+            const { total, sah } = totalBobot(sumatif, st.bobot);
+            return sah ? '' : 'Total bobot ' + total + '% (harus tepat 100%)';
+        }
+        if (st.metode === 'PERSEN') {
+            const tertaut = sumatif.filter((a) => a.learning_objective_id);
+            if (!tertaut.length) return 'Belum ada penilaian sumatif yang ditautkan ke TP (pilih TP pada formulir penilaian)';
+            if (!tertaut.some((a) => batasTp[a.learning_objective_id] !== null && batasTp[a.learning_objective_id] !== undefined)) return 'TP yang ditautkan belum punya KKTP (batas ketercapaian)';
+        }
+        return '';
+    };
+    // Sebagian data tidak ikut dihitung oleh Persentase TP: bukan galat, tetapi guru perlu tahu.
+    const catatanSebagian = () => {
+        if (st.metode !== 'PERSEN' || rumusBelumLengkap()) return '';
+        const tanpaTp = sumatif.filter((a) => !a.learning_objective_id).length;
+        const tpTanpaKktp = new Set(sumatif.filter((a) => a.learning_objective_id && (batasTp[a.learning_objective_id] === null || batasTp[a.learning_objective_id] === undefined)).map((a) => a.learning_objective_id)).size;
+        const bagian = [];
+        if (tanpaTp) bagian.push(tanpaTp + ' penilaian sumatif belum ditautkan ke TP');
+        if (tpTanpaKktp) bagian.push(tpTanpaKktp + ' TP belum punya KKTP');
+        return bagian.length ? '<div class="nr-rumus-info" style="margin:6px 0;padding:6px 10px;border:1px solid var(--color-warning, #d97706);border-radius:6px;font-size:12px">ℹ ' + esc(bagian.join('; ')) + ', sehingga tidak ikut dihitung pada Persentase TP.</div>' : '';
     };
     const infoRumus = () => {
         const kurang = rumusBelumLengkap();
-        const peringatanLengkap = kurang ? '<div class="nr-rumus-info" style="margin:6px 0;padding:6px 10px;border:1px solid var(--color-danger);border-radius:6px;font-size:12px;color:var(--color-danger)">Rumus belum lengkap: ' + esc(kurang) + '. Nilai belum dihitung ulang dan nilai yang ada tidak diubah. Perbaiki bobot, lalu nilai terhitung otomatis.</div>' : '';
-        if (!rumusTersimpan) return peringatanLengkap;
+        const peringatanLengkap = kurang ? '<div class="nr-rumus-info" style="margin:6px 0;padding:6px 10px;border:1px solid var(--color-danger);border-radius:6px;font-size:12px;color:var(--color-danger)">Rumus belum lengkap: ' + esc(kurang) + '. Nilai belum dihitung ulang dan nilai yang ada tidak diubah. Lengkapi dulu, lalu nilai terhitung otomatis.</div>' : '';
+        const sebagian = catatanSebagian();
+        if (!rumusTersimpan) return peringatanLengkap + sebagian;
         const sama = rumusTersimpan.metode === st.metode && (st.metode !== 'BOBOT' || sumatif.every((a) => (rumusTersimpan.bobot[a.id] ?? 0) === (Number(st.bobot[a.id]) || 0)));
-        if (sama) return peringatanLengkap;
+        if (sama) return peringatanLengkap + sebagian;
         const dari = METODE_RAPOR[rumusTersimpan.metode] ?? rumusTersimpan.metode;
         const ke = METODE_RAPOR[st.metode] ?? st.metode;
         const teks = rumusTersimpan.metode !== st.metode ? 'Rumus diubah dari <strong>' + esc(dari) + '</strong> menjadi <strong>' + esc(ke) + '</strong>' : 'Bobot rumus diubah';
         return '<div class="nr-rumus-info" style="margin:6px 0;padding:6px 10px;border:1px solid var(--color-warning, #d97706);border-radius:6px;font-size:12px">⚠ ' + teks +
-            ' (belum disimpan). Nilai otomatis <strong>semua siswa</strong> ikut berubah; nilai manual tidak.</div>' + peringatanLengkap;
+            ' (belum disimpan). Nilai otomatis <strong>semua siswa</strong> ikut berubah; nilai manual tidak.</div>' + peringatanLengkap + sebagian;
     };
     for (const s of roster) {
         const r = simpanSiswa[s.id];

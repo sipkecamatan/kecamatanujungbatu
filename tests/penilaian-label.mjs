@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-import { labelPenilaian, urutkanPenilaian } from '../guru/js/penilaian-label.js';
+import { labelPenilaian, urutkanPenilaian, opsiTpPenilaian } from '../guru/js/penilaian-label.js';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = (p) => readFileSync(join(ROOT, p), 'utf8');
 let lulus = 0, gagal = 0;
@@ -42,6 +42,20 @@ uji('formulir penilaian punya judul dan migrasi 210000 menambah kolomnya', () =>
   const pen = src('guru/js/penilaian.js'), m = src('supabase/migrations/20261018210000_penilaian_judul_dan_saran_tersimpan.sql');
   assert.ok(pen.includes('id="pai-judul"') && /judul: judul \|\| null/.test(pen));
   assert.ok(/ADD COLUMN IF NOT EXISTS judul text/.test(m) && /ADD COLUMN IF NOT EXISTS saran_saat_simpan numeric/.test(m));
+});
+uji('formulir edit tidak menghapus tautan TP: TP tertaut selalu ada dalam opsi dan terpilih, walau daftar TP kosong atau milik kelas lain', () => {
+  const daftar = [{ id: 'a', kode_tp: 'TP1' }, { id: 'b', kode_tp: 'TP2' }];
+  const dipilih = (o) => o.filter((x) => x.terpilih).map((x) => x.id);
+  assert.deepEqual(dipilih(opsiTpPenilaian(daftar, 'b')), ['b']);
+  assert.deepEqual(dipilih(opsiTpPenilaian([], 'b')), ['b'], 'daftar kosong: TP tertaut harus tetap terpilih');
+  assert.deepEqual(dipilih(opsiTpPenilaian([{ id: 'x', kode_tp: 'TP-lain' }], 'b')), ['b'], 'daftar kelas lain: TP tertaut harus tetap terpilih');
+  assert.deepEqual(dipilih(opsiTpPenilaian(daftar, null)), [''], 'tanpa tautan: opsi kosong terpilih');
+  assert.equal(opsiTpPenilaian(daftar, 'a').filter((o) => o.id === 'a').length, 1, 'tidak boleh ganda');
+});
+uji('cache TP tidak ditimpa muatan kelas lain: setiap penulisan memeriksa konteks yang sama', () => {
+  const pen = src('guru/js/penilaian.js');
+  assert.ok(!/_tpCache = await getTps/.test(pen), 'masih ada penulisan cache langsung setelah await');
+  assert.equal((pen.match(/kunciMuat === konteksKunci\(\)|kunciTp === konteksKunci\(\)/g) ?? []).length >= 4, true);
 });
 console.log(`\nPENILAIAN_LABEL: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);

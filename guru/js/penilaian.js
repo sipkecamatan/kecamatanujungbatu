@@ -13,7 +13,7 @@ import {
 } from './api.js';
 import { renderNilaiRapor } from './nilai-rapor-ui.js';
 import { susunLembarERapor } from './nilai-rapor.js';
-import { labelPenilaian } from './penilaian-label.js';
+import { labelPenilaian, opsiTpPenilaian } from './penilaian-label.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -27,6 +27,9 @@ let _programCode = null;
 let _gradeLevel = null;
 
 let _tpCache    = [];       // learning_objectives rows
+// Kunci konteks (kelas|mapel|tahun|semester). Hasil muatan TP hanya boleh menulis cache bila konteksnya MASIH sama saat muatan selesai
+// (muatan lambat dari kelas lain tidak boleh menimpa cache kelas yang sedang dipakai).
+const konteksKunci = () => [_kelasId, _subjectId, _year, _semester].join('|');
 let _asmtCache  = [];       // assessments rows
 let _rosterCache = [];      // [{id, nama}]
 let _sGroupsCache = {};     // { student_id: grup }
@@ -678,6 +681,7 @@ async function renderPerencanaan() {
 
     // Load CP dan TP secara paralel
     await ensureUser();
+    const kunciMuat = konteksKunci();
     const [cpResult, tps] = await Promise.allSettled([
         getCp(_kelasId, _subjectId, _year),
         getTps(_kelasId, _subjectId, _year, Number(_semester)),
@@ -700,7 +704,7 @@ async function renderPerencanaan() {
         return;
     }
     const tpData = tps.value;
-    _tpCache = tpData;
+    if (kunciMuat === konteksKunci()) _tpCache = tpData;
     const tpLabel = document.getElementById('pen-tp-label');
     if (tpLabel) tpLabel.textContent = 'Tujuan Pembelajaran (' + tpData.length + ')';
     const tpBody = document.getElementById('pen-tp-body');
@@ -1399,7 +1403,8 @@ async function openAsmtModal(editAsmt) {
     const initInstrumen = editAsmt?.instrumen || (INSTRUMEN_MAP.OBSERVASI[0]);
 
     if (!_tpCache.length && ctxOk()) {
-        try { _tpCache = await getTps(_kelasId, _subjectId, _year, Number(_semester)); } catch {}
+        const kunciMuat = konteksKunci();
+        try { const baris = await getTps(_kelasId, _subjectId, _year, Number(_semester)); if (kunciMuat === konteksKunci()) _tpCache = baris; } catch {}
     }
 
     _allKktp = [];
@@ -1407,8 +1412,8 @@ async function openAsmtModal(editAsmt) {
         try { const k = await getKktps(tp.id); _allKktp.push(...k); } catch {}
     }
 
-    const tpOpts = [{ id: '', kode_tp: '— TP (Opsional) —' }, ..._tpCache].map(t => (
-        '<option value="' + esc(t.id) + '"' + (editAsmt?.learning_objective_id === t.id ? ' selected' : '') + '>' + esc(t.kode_tp) + '</option>'
+    const tpOpts = opsiTpPenilaian(_tpCache, editAsmt?.learning_objective_id).map(o => (
+        '<option value="' + esc(o.id) + '"' + (o.terpilih ? ' selected' : '') + '>' + esc(o.label) + '</option>'
     )).join('');
 
     const jenisOpts  = JENIS_LIST.map(j => '<option value="' + j + '"' + (initJenis === j ? ' selected' : '') + '>' + (JENIS_LABEL[j] ?? j) + '</option>').join('');
@@ -1646,6 +1651,7 @@ async function renderPelaksanaan() {
 
     try {
         await ensureUser();  // populates _schoolId before any query
+        const kunciMuat = konteksKunci();
         const [asmts, roster, sGroups, tpRows] = await Promise.all([
             getAssessments(_schoolId, _kelasId, _subjectId, _year, Number(_semester)),
             getStudentsForClass(_kelasId, _year, _semester),
@@ -1654,7 +1660,7 @@ async function renderPelaksanaan() {
         ]);
         _asmtCache   = asmts;
         _rosterCache = roster;
-        _tpCache     = tpRows;
+        if (kunciMuat === konteksKunci()) _tpCache = tpRows;
         _sGroupsCache = Object.fromEntries(sGroups.map(g => [g.student_id, g.grup]));
 
         body.innerHTML =
@@ -1802,7 +1808,9 @@ async function _renderRecapContent(body) {
         // Rekap bisa dibuka tanpa lewat Perencanaan, jadi _tpCache mungkin masih kosong.
         // Tanpa ini filter TP pada Rekap tidak berisi daftar TP.
         if (!_tpCache.length) {
-            _tpCache = await getTps(_kelasId, _subjectId, _year, Number(_semester));
+            const kunciTp = konteksKunci();
+            const baris = await getTps(_kelasId, _subjectId, _year, Number(_semester));
+            if (kunciTp === konteksKunci()) _tpCache = baris;
         }
         // Rekap sebagai proyektor: tampilkan penilaian sesuai jenis yang dipilih.
         // Nilai akhir + KKTP hanya berlaku untuk SUMATIF.

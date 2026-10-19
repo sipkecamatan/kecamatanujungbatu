@@ -195,6 +195,20 @@ await uji('tombol otomatis per baris: nilai manual kembali mengikuti rumus tanpa
   assert.equal(row.nilai_rapor, 70); assert.equal(row.metode, 'RATA');
 });
 
+await uji('Persentase TP yang tidak bisa dihitung (penilaian tanpa TP, atau TP tanpa KKTP) menjelaskan alasannya dan tidak mengubah nilai; sebagian data diberi catatan', async () => {
+  const ubahMetode = (b, v) => b.onchange({ target: { id: 'nr-metode', value: v, dataset: {}, classList: { contains: () => false }, closest: () => null } });
+  globalThis.__api.data.asesmen = globalThis.__api.data.asesmen.map((a) => ({ ...a, learning_objective_id: null }));
+  let b = badan(); await M.renderNilaiRapor(b, ctx); ubahMetode(b, 'PERSEN');
+  assert.match(b.el['#nr-rumus'].innerHTML, /Rumus belum lengkap: Belum ada penilaian sumatif yang ditautkan ke TP/);
+  globalThis.__api.data = dasar(); globalThis.__api.data.kktp = { tp1: [], tp2: [] };
+  b = badan(); await M.renderNilaiRapor(b, ctx); ubahMetode(b, 'PERSEN');
+  assert.match(b.el['#nr-rumus'].innerHTML, /Rumus belum lengkap: TP yang ditautkan belum punya KKTP/);
+  globalThis.__api.data = dasar(); globalThis.__api.data.asesmen[1].learning_objective_id = null;
+  b = badan(); await M.renderNilaiRapor(b, ctx); ubahMetode(b, 'PERSEN');
+  assert.match(b.el['#nr-rumus'].innerHTML, /1 penilaian sumatif belum ditautkan ke TP/);
+  assert.ok(!/Rumus belum lengkap/.test(b.el['#nr-rumus'].innerHTML), 'sebagian data bukan galat');
+});
+
 fs.rmSync(dirTmp, { recursive: true, force: true });
 console.log(`\nNILAI_RAPOR_UI: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);
