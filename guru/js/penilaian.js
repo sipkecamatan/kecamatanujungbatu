@@ -1216,12 +1216,14 @@ function _chipVal(el) {
     return el?.querySelector('.sum-chip-active')?.dataset.val || null;
 }
 
+// Rentang predikat untuk penilaian ini = rentang KKTP dari TP yang DIPILIH pada penilaian (bukan KKTP TP lain). TP pertama (menurut urutan TP) bila lebih dari satu dipilih.
+// Tanpa TP terpilih, atau TP itu belum punya KKTP: rentang bawaan.
 function _sumCurrentRentang() {
-    const kktpItems = _allKktp || [];
-    return kktpItems[0]?.rentang || DEFAULT_RENTANG;
+    const terpilih = document.querySelector('.pai-tp-cb:checked');
+    return _kktpByTp[terpilih?.value]?.[0]?.rentang || DEFAULT_RENTANG;
 }
 
-let _allKktp = [];  // set by openAsmtModal
+let _kktpByTp = {};  // { idTp: [KKTP...] }, diisi openAsmtModal
 
 function renderSumInput() {
     const c = _sumSiswaContainer;
@@ -1407,9 +1409,9 @@ async function openAsmtModal(editAsmt) {
         try { const baris = await getTps(_kelasId, _subjectId, _year, Number(_semester)); if (kunciMuat === konteksKunci()) _tpCache = baris; } catch {}
     }
 
-    _allKktp = [];
+    _kktpByTp = {};
     for (const tp of _tpCache) {
-        try { const k = await getKktps(tp.id); _allKktp.push(...k); } catch {}
+        try { _kktpByTp[tp.id] = await getKktps(tp.id); } catch {}
     }
 
     const tpOpts = opsiTpPenilaian(_tpCache, tpIdsPenilaian(editAsmt)).map(o => (
@@ -1506,6 +1508,12 @@ async function openAsmtModal(editAsmt) {
 
             if (jenis === 'SUMATIF') {
                 flushSumActive();
+                // Nilai angka penilaian non-TES berasal dari predikat; dihitung ULANG di sini dengan rentang TP yang terpilih SAAT INI
+                // (guru mungkin mengganti TP setelah memilih predikat), supaya yang tersimpan selalu sesuai KKTP TP-nya.
+                if (teknik !== 'TES') {
+                    const rentSimpan = _sumCurrentRentang();
+                    for (const d of Object.values(_sumNilai)) if (d.predikat) d.nilai = nilaiTengah(d.predikat, rentSimpan);
+                }
                 for (const [sid, data] of Object.entries(_sumNilai)) {
                     if (data.nilai != null && (data.nilai < 0 || data.nilai > 100)) {
                         const nama = _sumSiswaList.find(r => r.id === sid)?.nama ?? 'siswa';
@@ -1587,6 +1595,8 @@ async function openAsmtModal(editAsmt) {
         });
     }
 
+    // Mengganti TP mengubah rentang predikat: panel siswa yang sedang terbuka digambar ulang agar angka/status yang tampil ikut berubah.
+    modal.querySelectorAll('.pai-tp-cb').forEach(cb => cb.addEventListener('change', () => { flushSumActive(); renderSumInput(); }));
     teknikSel.addEventListener('change', () => {
         const instrs = INSTRUMEN_MAP[teknikSel.value] || [];
         instrSel.innerHTML = instrs.map(i => '<option value="' + i + '">' + i + '</option>').join('');
