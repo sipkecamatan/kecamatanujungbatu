@@ -14,7 +14,7 @@ export function namaTeknik(kode) { return kode === 'TES' ? 'TES TERTULIS' : rapi
 export function tpIdsPenilaian(a) { return Array.isArray(a?.tpIds) ? a.tpIds : []; }
 
 /** TP tertaut diurutkan mengikuti urutan daftar TP (bukan urutan baris di database), supaya tampilan konsisten. */
-function tpUrut(a, tpById = {}) {
+export function tpIdsUrut(a, tpById = {}) {
     const urut = Object.keys(tpById);
     const pos = (id) => { const i = urut.indexOf(id); return i < 0 ? urut.length : i; };
     return [...tpIdsPenilaian(a)].sort((x, y) => pos(x) - pos(y));
@@ -22,7 +22,7 @@ function tpUrut(a, tpById = {}) {
 
 /** Ringkasan TP tertaut untuk ditampilkan di daftar (selalu terlihat, juga bila penilaian berjudul): "TP: ALUR-TP1, ALUR-TP3" atau "Tanpa TP". */
 export function ringkasTp(a, tpById = {}) {
-    const ids = tpUrut(a, tpById);
+    const ids = tpIdsUrut(a, tpById);
     if (!ids.length) return 'Tanpa TP';
     return 'TP: ' + ids.map((id) => tpById[id]?.kode_tp || 'TP terkait').join(', ');
 }
@@ -31,7 +31,7 @@ export function ringkasTp(a, tpById = {}) {
 export function labelPenilaian(a, tpById = {}) {
     const judul = String(a?.judul ?? '').trim();
     if (judul) return judul;
-    const ids = tpUrut(a, tpById);
+    const ids = tpIdsUrut(a, tpById);
     const kode = ids.map((id) => tpById[id]?.kode_tp).filter(Boolean).join(', ');
     const bagian = [kode || (ids.length ? 'TP' : 'Tanpa TP'), tglPendek(a?.tanggal), [namaTeknik(a?.teknik), rapi(a?.instrumen)].filter(Boolean).join(' ')];
     return bagian.filter(Boolean).join(' · ');
@@ -55,4 +55,16 @@ export function opsiTpPenilaian(daftarTp, tpTertaut) {
     const opsi = (daftarTp ?? []).map((t) => ({ id: t.id, label: t.kode_tp || t.id }));
     for (const id of terpilih) if (!opsi.some((o) => o.id === id)) opsi.push({ id, label: 'TP terkait (daftar belum termuat)' });
     return opsi.map((o) => ({ ...o, terpilih: terpilih.has(o.id) }));
+}
+
+/**
+ * SATU pintu filter Rekap: tampilan layar dan ekspor Excel memakai fungsi yang sama, sehingga Excel selalu berisi persis penilaian yang sedang tampil.
+ * @param {object[]} daftar  penilaian (hasil getAssessments)
+ * @param {{jenis?:string, teknik?:string, instrumen?:string, tp?:string}} f  filter kosong = tidak menyaring bagian itu
+ */
+export function saringPenilaian(daftar, { jenis = '', teknik = '', instrumen = '', tp = '' } = {}) {
+    return (daftar ?? []).filter((a) => (!jenis || a.jenis === jenis)
+        && (!teknik || a.teknik === teknik)
+        && (!instrumen || a.instrumen === instrumen)
+        && (!tp || tpIdsPenilaian(a).includes(tp)));
 }

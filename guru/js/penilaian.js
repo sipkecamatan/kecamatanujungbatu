@@ -12,9 +12,11 @@ import {
     getCp, upsertCp, createCpElemen, updateCpElemen, deleteCpElemen,
 } from './api.js';
 import { renderNilaiRapor } from './nilai-rapor-ui.js';
-import { susunLembarERapor, METODE_RAPOR, totalBobot } from './nilai-rapor.js';
+import { METODE_RAPOR, totalBobot } from './nilai-rapor.js';
+import { HEADER_REKAP, susunLembarRekap, susunCatatanRekap, namaBerkasRekap } from './rekap-excel.js';
 import { kunciKonteks, siapkanRumus, getRumus, getKunci, setMetode, setBobot, adaPerubahan, langgan } from './rumus-rapor-state.js';
-import { labelPenilaian, opsiTpPenilaian, namaTeknik, tpIdsPenilaian, ringkasTp } from './penilaian-label.js';
+import { labelPenilaian, opsiTpPenilaian, namaTeknik, tpIdsPenilaian, ringkasTp, saringPenilaian } from './penilaian-label.js';
+import { extractLabelSiswa } from './konten-penilaian.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -1759,74 +1761,6 @@ async function renderRecap() {
     await _renderRecapContent(body);
 }
 
-function extractLabelSiswa(konten, teknik, instrumen) {
-    // Membaca konten JSONB assessment non-SUMATIF (instrumen-centric:
-    // tiap kategori memuat array student_id) dan membaliknya jadi
-    // peta { student_id: label } — kategori tertinggi yang dicapai siswa.
-    const map = {};
-    if (!konten) return map;
-
-    const PRIO_PRED = ['SB', 'BSH', 'MB', 'BB'];
-    function setByPredikat(sid, val) {
-        if (!map[sid] || PRIO_PRED.indexOf(val) < PRIO_PRED.indexOf(map[sid])) map[sid] = val;
-    }
-    function setFirstWins(sid, label) {
-        // dipakai untuk daftar yang sudah urut prioritas tinggi → rendah
-        if (!map[sid]) map[sid] = label;
-    }
-
-    if (teknik === 'OBSERVASI') {
-        if (instrumen === 'Lembar Observasi') {
-            const PRIO  = ['terlihat_jelas', 'terlihat', 'belum_terlihat'];
-            const LABEL = {
-                terlihat_jelas: 'Terlihat Jelas',
-                terlihat:       'Terlihat',
-                belum_terlihat: 'Belum Terlihat',
-            };
-            (konten.aspeks || []).forEach(aspek => {
-                PRIO.forEach(key => {
-                    (aspek[key] || []).forEach(sid => {
-                        if (!map[sid] || PRIO.indexOf(key) < PRIO.indexOf(map[sid])) map[sid] = key;
-                    });
-                });
-            });
-            Object.keys(map).forEach(sid => { map[sid] = LABEL[map[sid]] || map[sid]; });
-        } else if (instrumen === 'Catatan Anekdot') {
-            // mode per_siswa: catatan[].siswa = string; per_kejadian: array
-            (konten.catatan || []).forEach(c => {
-                const sids = Array.isArray(c.siswa) ? c.siswa : [c.siswa];
-                sids.filter(Boolean).forEach(sid => { map[sid] = 'Tercatat'; });
-            });
-        } else if (instrumen === 'Checklist') {
-            (konten.items || []).forEach(item => {
-                (item.siswa || []).forEach(sid => { map[sid] = 'Tercapai'; });
-            });
-        }
-    } else if (teknik === 'TES' || (teknik === 'TES_LISAN' && instrumen === 'Wawancara')) {
-        // deskriptor[] sudah urut: 0 = tertinggi, 2 = terendah
-        (konten.deskriptor || []).forEach((d, i) => {
-            (d.siswa || []).forEach(sid => setFirstWins(sid, d.label || ('Deskriptor ' + (i + 1))));
-        });
-    } else if (teknik === 'TES_LISAN') {
-        (konten.predikat || []).forEach(p => {
-            (p.siswa || []).forEach(sid => setByPredikat(sid, p.val));
-        });
-    } else if (['PENUGASAN', 'PROYEK', 'PORTOFOLIO', 'UNJUK_KERJA'].includes(teknik)) {
-        if (instrumen === 'Rubrik') {
-            (konten.aspeks || []).forEach(aspek => {
-                (aspek.predikat || []).forEach(p => {
-                    (p.siswa || []).forEach(sid => setByPredikat(sid, p.val));
-                });
-            });
-        } else if (instrumen === 'Checklist') {
-            (konten.items || []).forEach(item => {
-                (item.siswa || []).forEach(sid => { map[sid] = 'Tercapai'; });
-            });
-        }
-    }
-    return map;
-}
-
 async function _renderRecapContent(body) {
     try {
         await ensureUser();
@@ -1852,10 +1786,8 @@ async function _renderRecapContent(body) {
         // Nilai akhir + KKTP hanya berlaku untuk SUMATIF.
         const isSumatif = _rcJenis === 'SUMATIF';
         const tpPeta = Object.fromEntries(_tpCache.map(t => [t.id, t]));
-        const filtered = _asmtCache.filter(a => a.jenis === _rcJenis
-            && (!_rcTeknik   || a.teknik    === _rcTeknik)
-            && (!_rcInstrumen || a.instrumen === _rcInstrumen)
-            && (!_rcTp       || tpIdsPenilaian(a).includes(_rcTp)));
+        // Filter DIPEGANG satu fungsi (saringPenilaian) yang juga dipakai ekspor Excel: Excel berisi persis yang tampil di sini.
+        const filtered = saringPenilaian(_asmtCache, { jenis: _rcJenis, teknik: _rcTeknik, instrumen: _rcInstrumen, tp: _rcTp });
 
         if (!filtered.length) {
             const panelKosong = isSumatif ? await _siapkanPanelRumus(tpPeta) : '';
@@ -2187,167 +2119,42 @@ async function downloadPenilaianExcel() {
     try {
         await ensureUser();
 
-        // ── Fetch data ─────────────────────────────────────────────────────────
-
-        const [asmts, roster] = await Promise.all([
+        // Excel = salinan TAMPILAN Rekap: hanya penilaian yang lolos filter layar (fungsi filter yang sama dengan tampilan); susunan baris ada di rekap-excel.js (diuji).
+        const [semua, roster] = await Promise.all([
             getAssessments(_schoolId, _kelasId, _subjectId, _year, Number(_semester)),
             getStudentsForClass(_kelasId, _year, _semester),
         ]);
+        const asmts = saringPenilaian(semua, { jenis: _rcJenis, teknik: _rcTeknik, instrumen: _rcInstrumen, tp: _rcTp });
+        if (!asmts.length) { alert('Tidak ada penilaian pada tampilan ini untuk diunduh.'); return; }
 
-        const asmtIds = asmts.map(a => a.id);
-
-        // Nilai numerik (SUMATIF / DIAGNOSTIK_K)
         // A-11: dipaginasi agar ekspor banyak asesmen tidak terpotong diam-diam di batas 1000 baris PostgREST.
-        const resultsRows = await getResultsForAssessments(asmtIds, _schoolId);
+        const hasilRows = await getResultsForAssessments(asmts.map(x => x.id), _schoolId);
+        const hasil = {};
+        hasilRows.forEach(x => { (hasil[x.assessment_id] ??= {})[x.student_id] = x; });
 
-        // TP cache (sudah ada di _tpCache, tapi pastikan terisi)
         let tpCache = _tpCache;
         if (!tpCache.length && _kelasId && _subjectId) {
             try { tpCache = await getTps(_kelasId, _subjectId, _year, Number(_semester)); } catch {}
         }
-
-        // Indeks helper: assessment_id → student_id → baris hasil
-        const resultsByAsmt = {};
-        resultsRows.forEach(r => {
-            if (!resultsByAsmt[r.assessment_id]) resultsByAsmt[r.assessment_id] = {};
-            resultsByAsmt[r.assessment_id][r.student_id] = r;
-        });
         const tpById = Object.fromEntries(tpCache.map(t => [t.id, t]));
 
-        // ── Sheet 1: Rekap Penilaian ───────────────────────────────────────────
+        const baris = susunLembarRekap({ asmts, roster, hasil, tpById });
 
-        const s1Header = ['Tanggal', 'Jenis', 'Teknik', 'Instrumen', 'TP', 'Keterangan', 'Aspek', 'Indikator', 'Nama Siswa', 'NIS', 'Nilai / Hasil', 'Status/Predikat', 'Tindak Lanjut', 'Refleksi Guru'];
-        const s1Rows   = [];
-
-        const jenisLabel = {
-            DIAGNOSTIK_NK : 'Diagnostik Non-Kognitif',
-            DIAGNOSTIK_K  : 'Diagnostik Kognitif',
-            FORMATIF      : 'Formatif',
-            SUMATIF       : 'Sumatif',
-        };
-
-        for (const asmt of asmts) {
-            const tglStr   = asmt.tanggal || '';
-            const jenis    = jenisLabel[asmt.jenis] || asmt.jenis;
-            const teknik   = asmt.teknik  || '';
-            const teknikTampil = namaTeknik(teknik);
-            const instrumen = asmt.instrumen || '';
-            const tpStr    = tpIdsPenilaian(asmt).map(id => tpById[id]).filter(Boolean).map(tp => tp.kode_tp + ' – ' + tp.deskripsi_tp).join('; ');
-            const tujuan   = asmt.tujuan  || '';
-            const konten   = asmt.konten;
-
-            // Cek format konten JSONB
-            const hasNilaiAngka = !!(resultsByAsmt[asmt.id] && Object.keys(resultsByAsmt[asmt.id]).length);
-            const hasAspeks     = konten?.aspeks?.length;
-
-            if (hasNilaiAngka) {
-                // Format SUMATIF / DIAGNOSTIK_K: nilai numerik di assessment_results
-                for (const siswa of roster) {
-                    const r = resultsByAsmt[asmt.id]?.[siswa.id];
-                    s1Rows.push([
-                        tglStr, jenis, teknikTampil, instrumen, tpStr, tujuan,
-                        '', '',
-                        siswa.nama || siswa.full_name || '',
-                        siswa.nis || '',
-                        r?.nilai ?? '',
-                        r?.status ?? '',
-                        r?.tindak_lanjut ?? '',
-                        '',
-                    ]);
-                }
-            } else if (hasAspeks) {
-                // Format FORMATIF: konten.aspeks[].predikat[].siswa[]
-                // Format DIAGNOSTIK_NK: konten.aspeks[].terlihat_jelas/terlihat/belum_terlihat[]
-                const firstAspek = konten.aspeks[0];
-                const isObservasi = Array.isArray(firstAspek?.terlihat_jelas) || Array.isArray(firstAspek?.terlihat) || Array.isArray(firstAspek?.belum_terlihat);
-
-                if (isObservasi) {
-                    // DIAGNOSTIK_NK — satu baris per siswa per aspek
-                    const rosterIdx = Object.fromEntries(roster.map(s => [s.id, s]));
-                    konten.aspeks.forEach((aspek, ai) => {
-                        const aspekNama = aspek.nama      || ('Aspek ' + (ai + 1));
-                        const indikator = aspek.indikator || '';
-                        const mapHasil  = {};
-                        (aspek.terlihat_jelas || []).forEach(sid => { mapHasil[sid] = 'Terlihat Jelas'; });
-                        (aspek.terlihat       || []).forEach(sid => { mapHasil[sid] = 'Terlihat'; });
-                        (aspek.belum_terlihat || []).forEach(sid => { mapHasil[sid] = 'Belum Terlihat'; });
-                        for (const [sid, hasil] of Object.entries(mapHasil)) {
-                            const siswa = rosterIdx[sid];
-                            if (!siswa) continue;
-                            s1Rows.push([
-                                tglStr, jenis, teknikTampil, instrumen, tpStr, tujuan,
-                                aspekNama, indikator,
-                                siswa.nama || siswa.full_name || '',
-                                siswa.nis || '',
-                                '', hasil, '',
-                                konten?.refleksi || '',
-                            ]);
-                        }
-                    });
-                } else {
-                    // FORMATIF — satu baris per siswa per aspek
-                    const rosterIdx = Object.fromEntries(roster.map(s => [s.id, s]));
-                    konten.aspeks.forEach((aspek, ai) => {
-                        const aspekNama = aspek.nama      || ('Aspek ' + (ai + 1));
-                        const indikator = aspek.indikator || '';
-                        const mapHasil  = {};
-                        (aspek.predikat || []).forEach(p => {
-                            (p.siswa || []).forEach(sid => { mapHasil[sid] = p.label || p.val; });
-                        });
-                        for (const [sid, hasil] of Object.entries(mapHasil)) {
-                            const siswa = rosterIdx[sid];
-                            if (!siswa) continue;
-                            s1Rows.push([
-                                tglStr, jenis, teknikTampil, instrumen, tpStr, tujuan,
-                                aspekNama, indikator,
-                                siswa.nama || siswa.full_name || '',
-                                siswa.nis || '',
-                                '', hasil, '',
-                                konten?.refleksi || '',
-                            ]);
-                        }
-                    });
-                }
-            } else {
-                // Assessment ada tapi belum ada data → satu baris kosong per siswa
-                for (const siswa of roster) {
-                    s1Rows.push([
-                        tglStr, jenis, teknikTampil, instrumen, tpStr, tujuan,
-                        '', '',
-                        siswa.nama || siswa.full_name || '',
-                        siswa.nis || '',
-                        '', '', '',
-                        '',
-                    ]);
-                }
-            }
-        }
-
-        // ── Sheet 2: e-Rapor ──────────────────────────────────────────────────
-
-        // Nilai rapor per mata pelajaran (tabel grade_final) dari bagian "Nilai Rapor": satu baris per siswa, T/R pada kolom TP.
-        // Susunan kolom mengikuti deskripsi Panduan e-Rapor SMK 2025; belum dicocokkan dengan berkas "Format Nilai Kelas" resmi.
-        const gfRows   = await getGradeFinal(_schoolId, _kelasId, _subjectId, _year, _semester);
-        const raporMap = Object.fromEntries(gfRows.map(r => [r.student_id, r]));
-        const { header: s2Header, rows: s2Rows } = susunLembarERapor({ roster, tps: tpCache, rapor: raporMap });
-
-        // ── Build workbook ────────────────────────────────────────────────────
-
-        const wb = XLSX.utils.book_new();
-
-        const ws1 = XLSX.utils.aoa_to_sheet([s1Header, ...s1Rows]);
-        ws1['!cols'] = s1Header.map((h, i) => ({ wch: i < 6 ? 18 : i < 8 ? 22 : 16 }));
+        const wb  = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.aoa_to_sheet([HEADER_REKAP, ...baris]);
+        ws1['!cols'] = HEADER_REKAP.map((h, i) => ({ wch: i === 2 ? 30 : i < 7 ? 18 : i < 9 ? 22 : 16 }));
         XLSX.utils.book_append_sheet(wb, ws1, 'Rekap Penilaian');
+        const catatan = susunCatatanRekap({
+            jenis: _rcJenis, teknik: _rcTeknik, instrumen: _rcInstrumen, tpKode: tpById[_rcTp]?.kode_tp || '',
+            jumlahPenilaian: asmts.length, jumlahSiswa: roster.length, waktu: new Date().toLocaleString('id-ID'),
+        });
+        const ws2 = XLSX.utils.aoa_to_sheet(catatan);
+        ws2['!cols'] = [{ wch: 22 }, { wch: 60 }];
+        XLSX.utils.book_append_sheet(wb, ws2, 'Catatan');
 
-        const ws2 = XLSX.utils.aoa_to_sheet([s2Header, ...s2Rows]);
-        ws2['!cols'] = [{ wch: 5 }, { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 24 }];
-        XLSX.utils.book_append_sheet(wb, ws2, 'e-Rapor');
-
-        const filename = (namaMapel + '_' + namaKelas + '_Penilaian.xlsx')
-            .replace(/[^a-zA-Z0-9_\-\.]/g, '_');
-
+        const filename = namaBerkasRekap({ mapel: namaMapel, kelas: namaKelas, jenis: _rcJenis, teknik: _rcTeknik, instrumen: _rcInstrumen, tpKode: tpById[_rcTp]?.kode_tp || '' });
         XLSX.writeFile(wb, filename);
-        toast('File Excel berhasil diunduh: ' + filename);
+        toast('File Excel berhasil diunduh: ' + filename + ' (' + asmts.length + ' penilaian sesuai tampilan)');
 
     } catch (err) {
         alert('Gagal mengunduh Excel: ' + err.message);

@@ -148,3 +148,29 @@ export function susunLembarERapor({ roster, tps, rapor }) {
     });
     return { header, rows };
 }
+
+/**
+ * Teks status penyimpanan untuk Excel Nilai Rapor. Angka di berkas = angka di LAYAR saat diunduh; bila ada yang belum disimpan, berkas berbeda dari yang tersimpan di server.
+ * @param {{belumSimpan?: number, rumusBelumSimpan?: boolean}} p  jumlah siswa yang angkanya belum disimpan (termasuk yang akan dihapus) dan apakah rumus diubah di Rekap tetapi belum disimpan
+ * @returns {{aman: boolean, teks: string}}
+ */
+export function statusSimpanRapor({ belumSimpan = 0, rumusBelumSimpan = false } = {}) {
+    if (!belumSimpan && !rumusBelumSimpan) return { aman: true, teks: 'Semua angka pada berkas ini sudah tersimpan.' };
+    const bagian = [];
+    if (belumSimpan) bagian.push(belumSimpan + ' siswa belum disimpan');
+    if (rumusBelumSimpan) bagian.push('rumus diubah di Rekap dan belum disimpan');
+    return { aman: false, teks: 'PERHATIAN: ' + bagian.join('; ') + '. Angka pada berkas ini sama dengan layar saat diunduh, BUKAN yang tersimpan di server. Tekan Simpan Nilai Rapor lalu unduh ulang bila perlu.' };
+}
+
+/** Isi lembar "Catatan" Excel Nilai Rapor. */
+export function susunCatatanRapor({ metode, status, waktu = '' }) {
+    return [
+        ['Catatan'],
+        ['Rumus', METODE_RAPOR[metode] ?? metode ?? '-'],
+        ['Diunduh', waktu],
+        ['Status penyimpanan', status.teks],
+        ['Berkas ini adalah BERKAS KERJA untuk disalin guru ke e-Rapor. Tidak dijamin dapat diimpor langsung.'],
+        ['Susunan kolom mengikuti deskripsi di Panduan e-Rapor SMK 2025: nilai 0–100 dan huruf T (TP dicapai optimal) atau R (TP perlu peningkatan) pada kolom TP.'],
+        ['BELUM dicocokkan dengan berkas "Format Nilai Kelas" resmi hasil unduhan aplikasi e-Rapor. Salin nilai ke berkas format resmi bila susunannya berbeda.'],
+    ];
+}

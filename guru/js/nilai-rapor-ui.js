@@ -10,7 +10,7 @@ import {
     getGradeFinal, upsertGradeFinalBatch, deleteGradeFinalForStudents,
 } from './api.js';
 import { tpIdsPenilaian } from './penilaian-label.js';
-import { METODE_RAPOR, totalBobot, hitungNilaiRapor, nilaiPerTp, tpTerakhir, sarankanTR, susunDeskripsi, susunLembarERapor } from './nilai-rapor.js';
+import { METODE_RAPOR, totalBobot, hitungNilaiRapor, nilaiPerTp, tpTerakhir, sarankanTR, susunDeskripsi, susunLembarERapor, statusSimpanRapor, susunCatatanRapor } from './nilai-rapor.js';
 import { kunciKonteks, siapkanRumus, getRumus, adaPerubahan, catatTersimpan, langgan } from './rumus-rapor-state.js';
 
 let _seq = 0;            // nomor muat: hasil muat lama yang selesai terlambat dibuang
@@ -358,12 +358,16 @@ export async function renderNilaiRapor(body, ctx) {
         const { header, rows } = susunLembarERapor({ roster, tps, rapor });
         const wb = X.utils.book_new();
         X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([header, ...rows]), 'e-Rapor');
-        X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([
-            ['Catatan'],
-            ['Susunan kolom mengikuti deskripsi di Panduan e-Rapor SMK 2025: nilai 0–100 dan huruf T (TP dicapai optimal) atau R (TP perlu peningkatan) pada kolom TP.'],
-            ['BELUM dicocokkan dengan berkas "Format Nilai Kelas" resmi hasil unduhan aplikasi e-Rapor. Salin nilai ke berkas format resmi bila susunannya berbeda.'],
-        ]), 'Catatan');
+        // Angka di berkas = angka di LAYAR saat ini. Bila ada yang belum disimpan, berkas berbeda dari yang tersimpan di server: dicatat di berkas dan diperingatkan.
+        const belumSimpan = roster.filter((s) => {
+            const row = st.rows[s.id]; const sv = simpanSiswa[s.id];
+            return row.nilai !== '' ? (!sv || Math.round(Number(row.nilai) * 100) !== Math.round(Number(sv.nilai_rapor) * 100)) : !!row.ada;
+        }).length;
+        const status = statusSimpanRapor({ belumSimpan, rumusBelumSimpan: adaPerubahan(idSumatif) });
+        X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(susunCatatanRapor({ metode: st.metode, status, waktu: new Date().toLocaleString('id-ID') })), 'Catatan');
         const aman = (v) => String(v ?? '').replace(/[^A-Za-z0-9_-]+/g, '-');
         X.writeFile(wb, 'nilai-rapor_' + aman(ctx.year) + '_S' + aman(ctx.semester) + '.xlsx');
+        if (status.aman) pesan('Excel diunduh. ' + status.teks);
+        else { pesan('Excel diunduh. ' + status.teks, false); toast('Excel diunduh, tetapi ada nilai yang belum disimpan', false); }
     }
 }
