@@ -12,7 +12,8 @@ import {
     getCp, upsertCp, createCpElemen, updateCpElemen, deleteCpElemen,
 } from './api.js';
 import { renderNilaiRapor } from './nilai-rapor-ui.js';
-import { susunLembarERapor } from './nilai-rapor.js';
+import { susunLembarERapor, METODE_RAPOR, totalBobot } from './nilai-rapor.js';
+import { kunciKonteks, siapkanRumus, getRumus, getKunci, setMetode, setBobot, adaPerubahan, langgan } from './rumus-rapor-state.js';
 import { labelPenilaian, opsiTpPenilaian, namaTeknik, tpIdsPenilaian, ringkasTp } from './penilaian-label.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -1857,10 +1858,12 @@ async function _renderRecapContent(body) {
             && (!_rcTp       || tpIdsPenilaian(a).includes(_rcTp)));
 
         if (!filtered.length) {
+            const panelKosong = isSumatif ? await _siapkanPanelRumus(tpPeta) : '';
             body.innerHTML =
                 _rcFilterBar() +
-                '<p class="pen-placeholder">Tidak ada penilaian ' + esc(JENIS_LABEL[_rcJenis] ?? _rcJenis) + (_rcTeknik ? ' (' + esc(namaTeknik(_rcTeknik)) + ')' : '') + ' untuk ditampilkan.</p>';
+                '<p class="pen-placeholder">Tidak ada penilaian ' + esc(JENIS_LABEL[_rcJenis] ?? _rcJenis) + (_rcTeknik ? ' (' + esc(namaTeknik(_rcTeknik)) + ')' : '') + ' untuk ditampilkan.</p>' + panelKosong;
             _wireRcFilters(body);
+            if (panelKosong) _wirePanelRumus(body, _asmtCache.filter(a => a.jenis === 'SUMATIF'), tpPeta);
             return;
         }
 
@@ -1891,7 +1894,9 @@ async function _renderRecapContent(body) {
             }
             nsTable += '</tbody></table>';
 
-            body.innerHTML = _rcFilterBar() + '<div style="overflow-x:auto">' + nsTable + '</div>';
+            body.innerHTML = _rcFilterBar() +
+                '<p class="hint" style="margin:6px 0 10px;font-size:12px">Penilaian jenis ini ditampilkan untuk dilihat dan <strong>tidak ikut nilai rapor</strong>. Nilai hanya dapat diubah di bagian <strong>Pelaksanaan</strong>.</p>' +
+                '<div style="overflow-x:auto">' + nsTable + '</div>';
             _wireRcFilters(body);
             return;
         }
@@ -1905,8 +1910,9 @@ async function _renderRecapContent(body) {
 
         const roster = _rosterCache;
 
-        // Rekap hanyalah WADAH TAMPILAN hasil pelaksanaan penilaian (semua jenis). Tidak ada rumus, bobot, atau penyimpanan di sini:
-        // nilai rapor dihitung dari penilaian SUMATIF di bagian "Nilai Rapor" dengan rumus persentase yang ditentukan guru (diisi sekali di sana).
+        // Rekap adalah wadah TAMPILAN hasil pelaksanaan penilaian (semua jenis); nilai TIDAK dapat diubah di sini (hanya di Pelaksanaan).
+        // Satu-satunya yang dipilih di Rekap adalah RUMUS nilai rapor (metode + bobot) pada panel di bawah tabel jenis Sumatif. Nilai rapor sendiri
+        // tampil otomatis dan disimpan di bagian "Nilai Rapor"; keadaan rumus dipegang rumus-rapor-state.js.
         // Paginasi: hanya siswa di halaman aktif yang digambar
         const totalHal = Math.ceil(roster.length / RC_SISWA_PER_HAL);
         if (_rcPage >= totalHal) _rcPage = Math.max(0, totalHal - 1);
@@ -1935,12 +1941,14 @@ async function _renderRecapContent(body) {
               '</div>'
             : '';
         const catatan = isSumatif
-            ? '<p class="hint" style="margin:6px 0 10px;font-size:12px">Rekap hanya menampilkan hasil penilaian. Nilai rapor dihitung di bagian <strong>Nilai Rapor</strong> dari penilaian sumatif, dengan rumus persentase yang Anda tentukan di sana.</p>'
+            ? '<p class="hint" style="margin:6px 0 10px;font-size:12px">Rekap menampilkan hasil penilaian; nilai hanya dapat diubah di bagian <strong>Pelaksanaan</strong>. Rumus nilai rapor dipilih pada panel di bawah tabel; nilai rapor terlihat dan disimpan di bagian <strong>Nilai Rapor</strong>.</p>'
             : '';
+        const panelRumus = isSumatif ? await _siapkanPanelRumus(tpPeta) : '';
 
-        body.innerHTML = _rcFilterBar() + catatan + '<div style="overflow-x:auto">' + tableHtml + '</div>' + navHtml;
+        body.innerHTML = _rcFilterBar() + catatan + '<div style="overflow-x:auto">' + tableHtml + '</div>' + navHtml + panelRumus;
 
         _wireRcFilters(body);
+        if (panelRumus) _wirePanelRumus(body, _asmtCache.filter(a => a.jenis === 'SUMATIF'), tpPeta);
 
         body.querySelector('[data-action="rc-prev"]')?.addEventListener('click', () => { _rcPage--; _renderRecapContent(body); });
         body.querySelector('[data-action="rc-next"]')?.addEventListener('click', () => { _rcPage++; _renderRecapContent(body); });
@@ -1948,6 +1956,82 @@ async function _renderRecapContent(body) {
         body.innerHTML = _rcFilterBar() + '<p class="pen-placeholder" style="color:var(--color-danger)">Gagal memuat rekap: ' + esc(err.message) + '</p>';
         _wireRcFilters(body);
     }
+}
+
+// ── Panel RUMUS nilai rapor di bawah tabel Rekap (jenis Sumatif) ─────────────────────────────────────────────
+// Rumus (metode + bobot) menghitung SEMUA penilaian sumatif, apa pun filter yang aktif. Keadaannya dipegang rumus-rapor-state.js dan dibaca juga
+// oleh bagian Nilai Rapor; rumus baru tersimpan saat guru menekan Simpan Nilai Rapor di sana.
+let _batalRumusRekap = null;
+
+async function _siapkanPanelRumus(tpPeta) {
+    const sumatif = _asmtCache.filter(a => a.jenis === 'SUMATIF');
+    if (!sumatif.length) return '';
+    const kunci = kunciKonteks({ classId: _kelasId, subjectId: _subjectId, year: _year, semester: _semester });
+    const ids = sumatif.map(a => a.id);
+    if (getKunci() !== kunci) {
+        let rumusSimpan = null, metodeAwal = null;
+        try {
+            const tersimpan = await getGradeFinal(_schoolId, _kelasId, _subjectId, _year, _semester);
+            rumusSimpan = tersimpan.find(r => r.rumus && typeof r.rumus === 'object')?.rumus ?? null;
+            metodeAwal = tersimpan[0]?.metode ?? null;
+        } catch { /* tanpa rumus tersimpan: dimulai dari bawaan */ }
+        siapkanRumus({ kunci, rumusSimpan, metodeAwal, sumatifIds: ids });
+    } else {
+        siapkanRumus({ kunci, sumatifIds: ids });
+    }
+    return _rumusPanelHtml(sumatif, tpPeta);
+}
+
+function _statusBobotHtml(total, sah) {
+    return sah ? '<span style="color:var(--color-success)">Total ' + total + '% ✓</span>'
+        : '<span style="color:var(--color-danger)">Total ' + total + '% — ' + (total < 100 ? 'kurang ' : 'lebih ') + Math.round(Math.abs(100 - total) * 1000) / 1000 + '%; nilai rapor baru terhitung bila total tepat 100%</span>';
+}
+
+function _bobotRekapHtml(sumatif, tpPeta, g) {
+    const { total, sah } = totalBobot(sumatif, g.bobot);
+    return '<div style="margin:8px 0;font-size:12px"><strong>Bobot tiap penilaian sumatif</strong> (isi sendiri; total harus 100%): <span id="rc-bobot-status">' + _statusBobotHtml(total, sah) + '</span>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
+        sumatif.map(a => '<label style="display:flex;align-items:center;gap:4px;font-weight:normal">' + esc(labelPenilaian(a, tpPeta)) +
+            '<input type="number" class="rc-bobot" data-aid="' + esc(a.id) + '" min="0" max="100" value="' + esc(String(g.bobot[a.id] ?? 0)) + '" style="width:64px"></label>').join('') +
+        '</div></div>';
+}
+
+function _rumusInfoHtml(sumatifIds) {
+    return adaPerubahan(sumatifIds)
+        ? '<div style="margin:6px 0 0;padding:6px 10px;border:1px solid var(--color-warning, #d97706);border-radius:6px;font-size:12px">⚠ Rumus diubah (belum disimpan). Tekan <strong>Simpan Nilai Rapor</strong> di bagian Nilai Rapor untuk menetapkannya.</div>'
+        : '';
+}
+
+function _rumusPanelHtml(sumatif, tpPeta) {
+    const g = getRumus();
+    const opsi = Object.entries(METODE_RAPOR).map(([k, v]) => '<option value="' + k + '"' + (g.metode === k ? ' selected' : '') + '>' + esc(v) + '</option>').join('');
+    return '<div id="rc-rumus" style="border:1px solid var(--color-border);border-radius:6px;padding:8px 12px;margin-top:12px">' +
+        '<div style="font-weight:600;margin-bottom:6px">Rumus nilai rapor</div>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px"><label for="rc-metode" style="font-weight:normal">Metode:</label><select id="rc-metode">' + opsi + '</select></div>' +
+        '<div id="rc-bobot">' + (g.metode === 'BOBOT' ? _bobotRekapHtml(sumatif, tpPeta, g) : '') + '</div>' +
+        '<p class="hint" style="margin:6px 0 0;font-size:12px">Rumus ini menghitung <strong>semua</strong> nilai penilaian sumatif di Rekap. Nilai rapor terlihat di bagian <strong>Nilai Rapor</strong>.</p>' +
+        '<div id="rc-rumus-info">' + _rumusInfoHtml(sumatif.map(a => a.id)) + '</div></div>';
+}
+
+function _wirePanelRumus(body, sumatif, tpPeta) {
+    const ids = sumatif.map(a => a.id);
+    const segarkanInfo = () => {
+        const g = getRumus();
+        const info = document.getElementById('rc-rumus-info'); if (info) info.innerHTML = _rumusInfoHtml(ids);
+        const st = document.getElementById('rc-bobot-status');
+        if (st && g.metode === 'BOBOT') { const { total, sah } = totalBobot(sumatif, g.bobot); st.innerHTML = _statusBobotHtml(total, sah); }
+    };
+    // Isian bobot TIDAK digambar ulang saat guru mengetik/Tab (fokus akan hilang); hanya teks total dan info yang diperbarui.
+    const pasangBobot = () => body.querySelectorAll('.rc-bobot').forEach(i => i.addEventListener('change', () => { setBobot(i.dataset.aid, i.value); segarkanInfo(); }));
+    body.querySelector('#rc-metode')?.addEventListener('change', e => {
+        setMetode(e.target.value);
+        const kotak = document.getElementById('rc-bobot');
+        if (kotak) kotak.innerHTML = getRumus().metode === 'BOBOT' ? _bobotRekapHtml(sumatif, tpPeta, getRumus()) : '';
+        pasangBobot(); segarkanInfo();
+    });
+    pasangBobot();
+    _batalRumusRekap?.();
+    _batalRumusRekap = langgan(segarkanInfo);   // mis. rumus disimpan dari Nilai Rapor: penanda "belum disimpan" hilang
 }
 
 function _rcFilterBar() {

@@ -31,7 +31,7 @@ uji('tidak ada layar yang merakit label penilaian sendiri lagi', () => {
   assert.ok(!/esc\(a\.teknik\?\.replace/.test(pen), 'penilaian.js masih merakit label dari teknik');
   assert.ok(!/esc\(a\.instrumen \|\| a\.teknik/.test(ui), 'nilai-rapor-ui masih merakit label');
   assert.equal((pen.match(/labelPenilaian\(/g) ?? []).length >= 3, true);
-  assert.ok(ui.includes('labelPenilaian(a, tpById)'));
+  assert.ok(pen.includes('labelPenilaian(a, tpPeta)') && pen.includes('function _bobotRekapHtml'), 'bobot di Rekap harus memakai label satu pintu');
 });
 uji('urutan ditetapkan sekali di getAssessments; kolom saran sudah tiada', () => {
   const api = src('guru/js/api.js'), ui = src('guru/js/nilai-rapor-ui.js');
