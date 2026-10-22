@@ -42,6 +42,7 @@ function petaAspek(aspek) {
  */
 export function susunLembarRekap({ asmts, roster, hasil = {}, tpById = {} }) {
     const baris = [];
+    const rosterUrut = [...(roster ?? [])].sort((a, b) => (a.nama || a.full_name || '').localeCompare(b.nama || b.full_name || '', 'id'));
     for (const a of asmts ?? []) {
         const konten = a.konten;
         const tpStr = tpIdsUrut(a, tpById).map((id) => tpById[id]).filter(Boolean).map((tp) => tp.kode_tp + ' – ' + tp.deskripsi_tp).join('; ');
@@ -52,7 +53,7 @@ export function susunLembarRekap({ asmts, roster, hasil = {}, tpById = {} }) {
 
         if (hasilA && Object.keys(hasilA).length) {
             // Penilaian bernilai angka (assessment_results): sumatif dan diagnostik kognitif. Siswa tanpa hasil tetap satu baris kosong.
-            for (const s of roster ?? []) {
+            for (const s of rosterUrut) {
                 const r = hasilA[s.id];
                 baris.push([...dasar, '', '', ...siswa(s), r?.nilai ?? '', r?.status ?? '', r?.tindak_lanjut ?? '', refleksi]);
             }
@@ -60,12 +61,12 @@ export function susunLembarRekap({ asmts, roster, hasil = {}, tpById = {} }) {
             // Instrumen beraspek (lembar observasi, rubrik): satu baris per siswa per aspek; yang belum dinilai pada aspek itu kosong.
             konten.aspeks.forEach((aspek, i) => {
                 const peta = petaAspek(aspek);
-                for (const s of roster ?? []) baris.push([...dasar, aspek.nama || ('Aspek ' + (i + 1)), aspek.indikator || '', ...siswa(s), '', peta[s.id] ?? '', '', refleksi]);
+                for (const s of rosterUrut) baris.push([...dasar, aspek.nama || ('Aspek ' + (i + 1)), aspek.indikator || '', ...siswa(s), '', peta[s.id] ?? '', '', refleksi]);
             });
         } else {
             // Bentuk lain (catatan anekdot, checklist, tes bergradasi, tes lisan): label per siswa dibaca oleh pembaca yang SAMA dengan layar Rekap.
             const peta = extractLabelSiswa(konten, a.teknik, a.instrumen);
-            for (const s of roster ?? []) baris.push([...dasar, '', '', ...siswa(s), '', peta[s.id] ?? '', '', refleksi]);
+            for (const s of rosterUrut) baris.push([...dasar, '', '', ...siswa(s), '', peta[s.id] ?? '', '', refleksi]);
         }
     }
     return baris;

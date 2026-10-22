@@ -100,6 +100,11 @@ uji('jumlah baris = jumlah siswa untuk tiap penilaian tak-beraspek; tak ada dupl
     assert.deepEqual(nama, ['Adelia', 'Budi', 'Citra'], 'penilaian ' + id);
   }
 });
+uji('baris diurutkan berdasarkan nama siswa (A-Z) terlepas dari urutan roster masuk', () => {
+  const rosterAcak = [{ id: 's3', nama: 'Citra', nis: '0014' }, { id: 's1', nama: 'Adelia', nis: '0012' }, { id: 's2', nama: 'Budi', nis: '0013' }];
+  const b = X.susunLembarRekap({ asmts: [asmts[0]], roster: rosterAcak, hasil, tpById });
+  assert.deepEqual(b.map((r) => r[kolom['Nama Siswa']]), ['Adelia', 'Budi', 'Citra']);
+});
 uji('saringPenilaian: jenis, teknik, instrumen, TP; filter kosong tidak menyaring; sama dengan yang dipakai layar', () => {
   assert.equal(L.saringPenilaian(asmts, { jenis: 'SUMATIF' }).length, 2);
   assert.deepEqual(L.saringPenilaian(asmts, { jenis: 'SUMATIF', teknik: 'PROYEK' }).map((a) => a.id), ['a2']);
