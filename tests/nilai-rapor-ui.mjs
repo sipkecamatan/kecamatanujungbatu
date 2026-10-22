@@ -21,7 +21,7 @@ export const getTps = async () => A.data.tps;
 export const getKktps = async (tpId) => A.data.kktp[tpId] ?? [];
 export const getResultsForAssessments = async () => A.data.hasil;
 export const getGradeFinal = async () => A.data.tersimpan;
-export const upsertGradeFinalBatch = async (...a) => { A.panggilan.push(['upsert', a]); if (A.gagal) throw new Error('server menolak'); };
+export const upsertGradeFinalBatch = async (...a) => { A.panggilan.push(['upsert', a]); if (A.gagal) throw new Error('server menolak'); return A.serverTetapkan ? a[6].map((r) => ({ student_id: r.studentId, nilai_rapor: A.serverTetapkan(r), metode: r.metode })) : undefined; };
 export const deleteGradeFinalForStudents = async (...a) => { A.panggilan.push(['hapus', a]); };
 `);
 fs.copyFileSync(path.join(ROOT, 'guru', 'js', 'nilai-rapor.js'), path.join(dirTmp, 'nilai-rapor.js'));
@@ -54,7 +54,7 @@ const dasar = () => ({
 
 let lulus = 0, gagal = 0;
 const uji = async (nama, fn) => {
-  R.setelUlang(); globalThis.__api.panggilan = []; globalThis.__api.gagal = false; toasts.length = 0; globalThis.__api.data = dasar();
+  R.setelUlang(); globalThis.__api.serverTetapkan = null; globalThis.__api.panggilan = []; globalThis.__api.gagal = false; toasts.length = 0; globalThis.__api.data = dasar();
   try { await fn(); lulus++; console.log('  LULUS  ' + nama); } catch (e) { gagal++; console.log('  GAGAL  ' + nama + '\n         ' + String(e.stack ?? e.message).split('\n').slice(0, 2).join(' | ')); }
 };
 
@@ -268,6 +268,26 @@ await uji('perubahan rumus membatalkan konfirmasi hapus yang menunggu: Simpan ke
   await klik(b, 'simpan');
   assert.equal(globalThis.__api.panggilan.length, 0, 'penghapusan terjadi tanpa konfirmasi ulang setelah rumus berubah');
   assert.match(b.el['#nr-pesan'].textContent, /akan DIHAPUS/);
+});
+
+await uji('angka rapor ditetapkan SERVER: bila sama dengan layar tidak ada peringatan; bila berbeda, layar mengikuti angka server dan guru diberi tahu', async () => {
+  let b = badan(); await muat(b);
+  globalThis.__api.serverTetapkan = (r) => r.nilai_rapor;   // server menetapkan angka yang sama
+  await klik(b, 'simpan');
+  assert.match(b.el['#nr-pesan'].textContent, /^Tersimpan: 2 siswa\.$/, 'tanpa selisih tidak boleh ada peringatan');
+  b = badan(); await muat(b);
+  globalThis.__api.serverTetapkan = (r) => (r.studentId === 's1' ? r.nilai_rapor + 3 : r.nilai_rapor);   // server menetapkan angka lain untuk s1
+  await klik(b, 'simpan');
+  assert.match(b.el['#nr-pesan'].textContent, /PERHATIAN: server menetapkan angka yang berbeda dari layar untuk Budi/);
+  assert.equal(b.el['#nr-pesan'].style.color, 'var(--color-danger)', 'peringatan harus berwarna galat');
+});
+await uji('klien tidak mengirim angka manual: setiap baris membawa rumus, dan metode selalu salah satu dari empat rumus', async () => {
+  const b = badan(); await muat(b);
+  await klik(b, 'simpan');
+  const rows = globalThis.__api.panggilan.find((p) => p[0] === 'upsert')[1][6];
+  assert.ok(rows.length >= 2 && rows.every((r) => r.rumus && ['RATA', 'BOBOT', 'PERSEN', 'TERAKHIR'].includes(r.rumus.metode) && r.metode === r.rumus.metode));
+  const api = fs.readFileSync(new URL('../guru/js/api.js', import.meta.url), 'utf8');
+  assert.match(api, /\.select\('student_id, nilai_rapor, metode'\);/, 'api harus membaca balik angka yang tersimpan');
 });
 
 fs.rmSync(dirTmp, { recursive: true, force: true });

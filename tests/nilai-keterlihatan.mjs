@@ -32,7 +32,7 @@ if (!terapkan) {
   const ada = jalankan("select (to_regprocedure('public.fn_nilai_per_tp(character varying,integer)') is not null)::text as ada;");
   if (ada[0]?.ada !== 'true') { console.log('SKIP: migrasi 20261017150000_nilai_keterlihatan_dan_pimpinan belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
 }
-const migrasi = terapkan ? ['20261017150000_nilai_keterlihatan_dan_pimpinan.sql', '20261017160000_nilai_baca_hanya_pimpinan_akademik.sql', '20261020120000_penilaian_banyak_tp.sql', '20261020140000_nilai_non_tes_ikut_kktp_dan_tp_hapus_bersih.sql']
+const migrasi = terapkan ? ['20261017150000_nilai_keterlihatan_dan_pimpinan.sql', '20261017160000_nilai_baca_hanya_pimpinan_akademik.sql', '20261020120000_penilaian_banyak_tp.sql', '20261020140000_nilai_non_tes_ikut_kktp_dan_tp_hapus_bersih.sql', '20261020150000_nilai_rapor_dihitung_server.sql']
   .map((n) => readFileSync(join(ROOT, 'supabase', 'migrations', n), 'utf8') + '\n').join('') : '';
 
 const hitung = "select (select count(*) from learning_objectives)::int as tp, (select count(*) from assessments)::int as asesmen, (select count(*) from grade_final)::int as rapor, (select count(*) from users where is_waka_kurikulum)::int as waka, (select count(*) from users where role_type = 'WAKA_KURIKULUM')::int as role_waka;";

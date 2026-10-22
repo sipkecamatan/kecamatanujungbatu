@@ -2248,10 +2248,14 @@ export async function getGradeFinal(schoolId, classId, subjectId, year, semester
  * Simpan nilai rapor banyak siswa sekaligus (satu permintaan: semua atau tidak sama sekali).
  * rows: [{ studentId, nilai_rapor, metode, rumus, tp_optimal, tp_perlu, deskripsi_tertinggi, deskripsi_terendah }]
  */
+/**
+ * Simpan nilai rapor. Angka yang tersimpan DITETAPKAN DATABASE dari rumus (grade_final.rumus) dan nilai penilaian sumatif (migrasi 20261020150000); angka kiriman diabaikan.
+ * Mengembalikan baris yang benar-benar tersimpan ({student_id, nilai_rapor, metode}) agar layar dapat membandingkannya dengan yang dikirim.
+ */
 export async function upsertGradeFinalBatch(schoolId, classId, subjectId, teacherId, year, semester, rows) {
-    if (!rows?.length) return;
+    if (!rows?.length) return [];
     const now = new Date().toISOString();
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('grade_final')
         .upsert(
             rows.map((r) => ({
@@ -2267,8 +2271,10 @@ export async function upsertGradeFinalBatch(schoolId, classId, subjectId, teache
                 updated_at: now,
             })),
             { onConflict: 'class_id,subject_id,student_id,academic_year,semester,teacher_id' }
-        );
+        )
+        .select('student_id, nilai_rapor, metode');
     if (error) throw error;
+    return data ?? [];
 }
 
 /** Hapus nilai rapor siswa tertentu (nilai dikosongkan guru) pada satu kelas + mapel + periode. */

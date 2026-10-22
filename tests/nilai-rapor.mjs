@@ -32,11 +32,12 @@ if (!terapkan) {
   if (ada[0]?.ada !== 'true') { console.log('SKIP: migrasi 20261017140000_nilai_rapor belum terpasang (db push dulu, atau jalankan dengan UJI_TERAPKAN_MIGRASI=1).'); process.exit(0); }
 }
 const migrasi = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261017140000_nilai_rapor.sql'), 'utf8') + '\n' : '';
+const migrasiHitungServer = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261020150000_nilai_rapor_dihitung_server.sql'), 'utf8') + '\n' : '';   // angka nilai rapor kini dihitung server; uji tetap lulus setelah migrasi itu terpasang
 
 // Sebelum migrasi terpasang, tabel belum ada: hitungan awal dilewati.
 const hitung = "select case when to_regclass('public.grade_final') is null then -1 else (xpath('/row/c/text()', query_to_xml('select count(*) as c from public.grade_final', false, true, '')))[1]::text::int end as baris;";
 const awal = jalankan(hitung)[0];
-const baris = jalankan('begin;\n' + migrasi + badan + '\nrollback;\n');
+const baris = jalankan('begin;\n' + migrasi + migrasiHitungServer + badan + '\nrollback;\n');
 const nilai = new Map(baris.map((r) => [r.k, String(r.v)]));
 let lulus = 0, gagal = 0;
 const cek = (k, ok, tampil) => { if (ok) { lulus++; console.log('  LULUS  ' + k); } else { gagal++; console.log(`  GAGAL  ${k}\n         didapat: ${tampil ?? nilai.get(k)}`); } };

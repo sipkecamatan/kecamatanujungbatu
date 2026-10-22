@@ -9,6 +9,11 @@ begin
   begin execute p_sql into r; reset role; return coalesce(r, 'NULL');
   exception when others then reset role; return 'GALAT:' || sqlstate; end;
 end $f$;
+-- Angka nilai rapor kini DITETAPKAN SERVER (migrasi 20261020150000; diuji khusus di nilai-rapor-server.sql). Uji ini menulis angka sembarang untuk menguji hal lain
+-- (izin, kunci periode, hak peran), jadi pemicu hitung dimatikan DI DALAM transaksi uji ini (transaksi selalu dibatalkan).
+do $$ begin
+  if exists (select 1 from pg_trigger where tgname = 'trg_grade_final_hitung') then execute 'alter table public.grade_final disable trigger trg_grade_final_hitung'; end if;
+end $$;
 do $$
 declare sid uuid; guru uuid; kelas uuid; mapel uuid; siswa uuid; wali uuid; waka_kes uuid; yr text; smt int;
         rumus_ok text := '{"metode":"BOBOT","bobot":{"asm-1":40,"asm-2":60}}';

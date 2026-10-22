@@ -34,17 +34,18 @@ if (!terapkan && process.env.KONTROL_NEGATIF !== '1') {
 }
 const negatif = process.env.KONTROL_NEGATIF === '1';   // kontrol negatif: migrasi diterapkan TANPA trigger penjaga
 let migrasi = (terapkan || negatif) ? readFileSync(join(ROOT, 'supabase', 'migrations', MIGRASI), 'utf8') + '\n' : '';
+const migrasiHitungServer = terapkan ? readFileSync(join(ROOT, 'supabase', 'migrations', '20261020150000_nilai_rapor_dihitung_server.sql'), 'utf8') + '\n' : '';   // angka nilai rapor kini dihitung server; uji tetap lulus setelah migrasi itu terpasang
 if (negatif) migrasi = migrasi.replace(/CREATE TRIGGER trg_guard_period_[^;]*;/g, '');
 
 const hitung = "select (select count(*) from public.academic_periods)::text as p, (select count(*) from public.assessments)::text as a, (select count(*) from public.grade_final)::text as g, case when to_regclass('public.grade_period_unlocks') is null then '-1' else (xpath('/row/c/text()', query_to_xml('select count(*) as c from public.grade_period_unlocks', false, true, '')))[1]::text end as u;";
 if (negatif) {
-  const b = new Map(jalankan('begin;' + String.fromCharCode(10) + migrasi + badan + String.fromCharCode(10) + 'rollback;' + String.fromCharCode(10)).map((r) => [r.k, String(r.v)]));
+  const b = new Map(jalankan('begin;' + String.fromCharCode(10) + migrasi + migrasiHitungServer + badan + String.fromCharCode(10) + 'rollback;' + String.fromCharCode(10)).map((r) => [r.k, String(r.v)]));
   const bocor = ['B1_tutup_ubah_nilai_rapor', 'B2_tutup_hapus_nilai_rapor', 'B3_tutup_ubah_hasil_asesmen', 'B4_tutup_asesmen_baru', 'B5_tutup_hapus_asesmen'].filter((k) => b.get(k) === 'ok');
   console.log(`KONTROL NEGATIF (tanpa trigger penjaga): ${bocor.length} dari 5 penulisan pada periode CLOSED lolos -> ${bocor.length === 5 ? 'celah terbukti, penjaga memang diperlukan' : 'TIDAK terbukti'}`);
   process.exit(bocor.length === 5 ? 0 : 1);
 }
 const awal = jalankan(hitung)[0];
-const baris = jalankan('begin;\n' + migrasi + badan + '\nrollback;\n');
+const baris = jalankan('begin;\n' + migrasi + migrasiHitungServer + badan + '\nrollback;\n');
 const nilai = new Map(baris.map((r) => [r.k, String(r.v)]));
 let lulus = 0, gagal = 0;
 const cek = (k, ok, tampil) => { if (ok) { lulus++; console.log('  LULUS  ' + k); } else { gagal++; console.log(`  GAGAL  ${k}\n         didapat: ${tampil ?? nilai.get(k)}`); } };

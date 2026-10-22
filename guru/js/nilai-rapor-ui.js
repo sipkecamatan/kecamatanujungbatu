@@ -323,8 +323,15 @@ export async function renderNilaiRapor(body, ctx) {
         }
         _menyimpan = true; btn.disabled = true; btn.textContent = 'Menyimpan…';
         try {
-            await upsertGradeFinalBatch(ctx.schoolId, ctx.classId, ctx.subjectId, ctx.teacherId, ctx.year, ctx.semester, baru);
+            const tersimpanServer = await upsertGradeFinalBatch(ctx.schoolId, ctx.classId, ctx.subjectId, ctx.teacherId, ctx.year, ctx.semester, baru);
+            // Angka rapor DITETAPKAN DATABASE (dari rumus dan nilai Pelaksanaan). Normalnya sama dengan yang dihitung layar; bila berbeda, layar mengikuti server dan guru diberi tahu.
+            const beda = [];
+            for (const sv of Array.isArray(tersimpanServer) ? tersimpanServer : []) {
+                const kirim = baru.find((b) => b.studentId === sv.student_id);
+                if (kirim && Number(sv.nilai_rapor) !== Number(kirim.nilai_rapor)) { kirim.nilai_rapor = Number(sv.nilai_rapor); beda.push(sv.student_id); }
+            }
             await deleteGradeFinalForStudents(ctx.schoolId, ctx.classId, ctx.subjectId, ctx.teacherId, ctx.year, ctx.semester, hapus);
+            for (const id of beda) st.rows[id].nilai = String(baru.find((b) => b.studentId === id).nilai_rapor);
             for (const b of baru) { simpanSiswa[b.studentId] = { ...(simpanSiswa[b.studentId] ?? {}), nilai_rapor: b.nilai_rapor }; const row = st.rows[b.studentId]; row.ada = true; row.desT = b.deskripsi_tertinggi || ''; row.desR = b.deskripsi_terendah || ''; }
             for (const id of hapus) st.rows[id].ada = false;
             for (const id of hapus) delete simpanSiswa[id];
@@ -332,7 +339,8 @@ export async function renderNilaiRapor(body, ctx) {
             segarkanHitungan();
             toast('Nilai rapor tersimpan (' + baru.length + ' siswa' + (hapus.length ? ', ' + hapus.length + ' dihapus' : '') + ')');
             st.konfirmasiHapus = null;
-            pesan('Tersimpan: ' + baru.length + ' siswa' + (hapus.length ? '; nilai rapor ' + hapus.length + ' siswa dihapus karena nilainya kosong.' : '.'));
+            const infoBeda = beda.length ? ' PERHATIAN: server menetapkan angka yang berbeda dari layar untuk ' + beda.map((id) => roster.find((x) => x.id === id)?.nama ?? '?').join(', ') + '; angka server yang dipakai. Muat ulang halaman bila perlu.' : '';
+            pesan('Tersimpan: ' + baru.length + ' siswa' + (hapus.length ? '; nilai rapor ' + hapus.length + ' siswa dihapus karena nilainya kosong.' : '.') + infoBeda, !beda.length);
         } catch (err) {
             toast('Gagal simpan: ' + (err.message || 'Terjadi kesalahan'), false);
             pesan('Gagal menyimpan: ' + (err.message || 'Terjadi kesalahan'), false);
