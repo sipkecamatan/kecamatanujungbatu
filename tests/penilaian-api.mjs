@@ -146,5 +146,22 @@ await uji('nilai rapor: simpan, perbarui baris yang sama, baca hanya periode yan
 });
 
 
+await uji('getAssessments dipaginasi: lebih dari 1000 penilaian tidak terpotong, tanpa duplikat, urutan kronologis stabil (tanggal, waktu dibuat, id); hanya kelas+mapel+periode itu', async () => {
+  const n = 2350;
+  db.assessments = Array.from({ length: n }, (_, i) => ({ id: 'a' + String(i).padStart(5, '0'), school_id: 'S', class_id: 'C', subject_id: 'M', academic_year: '2026/2027', semester: 1,
+    jenis: 'SUMATIF', tanggal: '2026-10-' + String(1 + (i % 28)).padStart(2, '0'), created_at: '2026-10-01T00:00:' + String(i % 60).padStart(2, '0') + 'Z', assessment_tps: [{ learning_objective_id: 't' + (i % 5) }] }));
+  db.assessments.push({ id: 'lain1', school_id: 'S', class_id: 'LAIN', subject_id: 'M', academic_year: '2026/2027', semester: 1, tanggal: '2026-10-01', created_at: '2026-10-01T00:00:00Z' },
+                      { id: 'lain2', school_id: 'S', class_id: 'C', subject_id: 'M', academic_year: '2026/2027', semester: 2, tanggal: '2026-10-01', created_at: '2026-10-01T00:00:00Z' });
+  const r = await M.getAssessments('S', 'C', 'M', '2026/2027', 1);
+  assert.equal(r.length, n, 'penilaian terpotong di ' + r.length);
+  assert.equal(new Set(r.map((x) => x.id)).size, n, 'ada duplikat');
+  assert.ok(r.every((x) => x.class_id === 'C' && x.semester === 1), 'penilaian kelas/semester lain ikut');
+  for (let i = 1; i < r.length; i++) {
+    const a = r[i - 1], b = r[i];
+    assert.ok([a.tanggal, a.created_at, a.id].join('|') <= [b.tanggal, b.created_at, b.id].join('|'), 'urutan tidak stabil di ' + i);
+  }
+  assert.deepEqual(r[0].tpIds, ['t0'], 'tautan TP harus ikut dinormalisasi menjadi tpIds');
+  assert.ok(catatan.filter((c) => c.tabel === 'assessments').length >= 3, 'harus beberapa halaman kueri');
+});
 console.log(`\nPENILAIAN_API: ${lulus} lulus, ${gagal} gagal`);
 process.exit(gagal ? 1 : 0);

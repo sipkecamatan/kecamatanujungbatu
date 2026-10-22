@@ -1991,7 +1991,8 @@ export async function getStudentsForClass(classId, academicYear = null, semester
 // ─── Penilaian: Assessments ───────────────────────────────────────────────────
 
 export async function getAssessments(schoolId, classId, subjectId, year, semester) {
-    const { data, error } = await supabase
+    // Dipaginasi: PostgREST memotong respons di 1000 baris tanpa pemberitahuan. `id` sebagai pembeda terakhir membuat urutan UNIK, syarat paginasi yang stabil.
+    const data = await ambilSemuaHalaman(() => supabase
         .from('assessments')
         .select('*, assessment_tps(learning_objective_id)')
         .eq('school_id', schoolId)
@@ -2001,9 +2002,9 @@ export async function getAssessments(schoolId, classId, subjectId, year, semeste
         .eq('semester', semester)
         // Urutan TUNGGAL untuk semua layar: kronologis (tanggal, lalu waktu dibuat); lihat urutkanPenilaian di penilaian-label.js
         .order('tanggal', { ascending: true, nullsFirst: false })
-        .order('created_at', { ascending: true });
-    if (error) throw error;
-    return (data ?? []).map(normalisasiPenilaian);
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true }));
+    return data.map(normalisasiPenilaian);
 }
 
 /** Satu pintu bentuk penilaian di klien: tautan TP (banyak) menjadi `tpIds`. Pembaca lain memakai tpIdsPenilaian (penilaian-label.js), bukan kolom mentah. */

@@ -23,7 +23,7 @@ end $$;
 do $$
 declare
   sid uuid; yr text; sm semester; guru uuid; cls uuid; subj uuid; stu uuid; stu2 uuid; ortu uuid; siswa_u uuid; kep uuid; wakur uuid; wakes uuid; bk uuid; adm uuid; guru_flag uuid;
-  lo1 uuid; lo2 uuid; lo3 uuid; asmt2 uuid; lo_lain uuid; kelas_lain uuid; asmt uuid; q text; ringkas text; kaprodi uuid; wakhum uuid; qa text;
+  lo1 uuid; lo2 uuid; lo3 uuid; stu3d uuid; asmt2 uuid; lo_lain uuid; kelas_lain uuid; asmt uuid; q text; ringkas text; kaprodi uuid; wakhum uuid; qa text;
 begin
   select school_id into sid from schools where slug = 'smkuji1';
   select current_academic_year, current_semester into yr, sm from school_config where school_id = sid;
@@ -107,12 +107,23 @@ begin
   insert into hasil_uji(k,v) values ('N2_nilai_tes_tidak_disentuh', (select string_agg(nilai::int::text, '/' order by nilai) from assessment_results where assessment_id = asmt));
   delete from assessment_criteria where learning_objective_id = lo3;
   insert into hasil_uji(k,v) values ('N3_hapus_kktp_kembali_ke_bawaan', (select string_agg(nilai::int::text, '/' order by student_id = stu desc) from assessment_results where assessment_id = asmt2));
-  -- (2) Menghapus TP membuang id-nya dari tanda T/R nilai rapor tersimpan
-  insert into grade_final (school_id, class_id, subject_id, student_id, teacher_id, academic_year, semester, nilai_rapor, metode, tp_optimal, tp_perlu)
-    values (sid, cls, subj, stu, guru, yr, sm::text::int, 80, 'MANUAL', array[lo3], array[lo1]);
+  -- (2) Menghapus TP membuang id-nya dari tanda T/R nilai rapor tersimpan, dan mengosongkan deskripsi yang DISUSUN OTOMATIS dari TP itu (yang disunting guru tidak disentuh)
+  select ce.student_id into stu3d from class_enrollments ce where ce.class_id = cls and ce.academic_year = yr and ce.semester = sm and ce.withdrawn_at is null and ce.student_id not in (stu, stu2) order by ce.student_id limit 1;
+  insert into grade_final (school_id, class_id, subject_id, student_id, teacher_id, academic_year, semester, nilai_rapor, metode, tp_optimal, tp_perlu, deskripsi_tertinggi, deskripsi_terendah)
+    values (sid, cls, subj, stu, guru, yr, sm::text::int, 80, 'MANUAL', array[lo3], array[lo1], 'Menunjukkan penguasaan yang baik dalam TP uji ketiga.', 'Catatan guru sendiri tentang kelemahan');
+  insert into grade_final (school_id, class_id, subject_id, student_id, teacher_id, academic_year, semester, nilai_rapor, metode, tp_optimal, tp_perlu, deskripsi_tertinggi, deskripsi_terendah)
+    values (sid, cls, subj, stu2, guru, yr, sm::text::int, 70, 'MANUAL', array[lo1], array[lo3], 'Kuat pada TP uji ketiga dan TP lain.', 'Perlu peningkatan dalam TP uji ketiga.');
+  if stu3d is not null then
+    insert into grade_final (school_id, class_id, subject_id, student_id, teacher_id, academic_year, semester, nilai_rapor, metode, tp_optimal, tp_perlu, deskripsi_tertinggi)
+      values (sid, cls, subj, stu3d, guru, yr, sm::text::int, 75, 'MANUAL', array[lo3], '{}', 'Menunjukkan penguasaan yang baik dalam TP uji ketiga dan praktik mandiri.');
+  end if;
   delete from learning_objectives where id = lo3;
   insert into hasil_uji(k,v) values ('N4_hapus_tp_tanda_bersih', (select coalesce(cardinality(tp_optimal),0)::text || '/' || coalesce(cardinality(tp_perlu),0)::text from grade_final where student_id = stu and class_id = cls and subject_id = subj));
-  delete from grade_final where student_id = stu and class_id = cls and subject_id = subj;
+  insert into hasil_uji(k,v) values ('N5_deskripsi_otomatis_tertinggi_kosong_catatan_guru_tetap', (select coalesce(deskripsi_tertinggi, 'NULL') || '|' || coalesce(deskripsi_terendah, 'NULL') from grade_final where student_id = stu and class_id = cls and subject_id = subj));
+  insert into hasil_uji(k,v) values ('N6_deskripsi_otomatis_terendah_kosong_catatan_guru_tetap', (select coalesce(deskripsi_tertinggi, 'NULL') || '|' || coalesce(deskripsi_terendah, 'NULL') from grade_final where student_id = stu2 and class_id = cls and subject_id = subj));
+  insert into hasil_uji(k,v) values ('N7_teks_disunting_yang_menyebut_tp_tetap', case when stu3d is null then 'TIDAK_ADA_SISWA_KETIGA_KASUS_TIDAK_DIUJI' else (select coalesce(deskripsi_tertinggi, 'NULL') from grade_final where student_id = stu3d and class_id = cls and subject_id = subj) end);
+  delete from grade_final where student_id in (stu, stu2) and class_id = cls and subject_id = subj;
+  delete from grade_final where student_id = stu3d and class_id = cls and subject_id = subj;
   -- dikenali lewat TANDA peran tambahan (akun GURU yang juga Waka Kurikulum), bukan hanya peran tunggal
   perform set_config('app.bypass_users_guard', 'on', true);
   update users set role_type = 'GURU', is_waka_kurikulum = true where user_id = wakur;   -- Waka Kurikulum yang tercatat sebagai GURU + tanda peran tambahan
