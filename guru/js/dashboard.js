@@ -44,6 +44,7 @@ import {
     addForumSekolahAcknowledgement, setForumAttachment,
     isOnDutyToday, getTodayLateArrivals, recordLateArrival, deleteLateArrival,
     getLateArrivalsByRange, getLateArrivalsAggregate,
+    getWaliLateArrivals, getWaliExits,
     getTodayExits, recordExit, updateReturnTime, deleteExit,
     getClassProgramContext, getCpForSubject, checkElementDuplicate,
     getRegionSharingStatus, setRegionSharing, setRegionSharingLevel,
@@ -1725,6 +1726,84 @@ async function initWaliTab() {
 
     await loadWaliSummary();
     await initWaliKasusSection();
+
+    // Keterlambatan & izin keluar — default 30 hari terakhir
+    document.getElementById('wali-late-date-start').value = monthAgo;
+    document.getElementById('wali-late-date-end').value   = today;
+    document.getElementById('wali-exit-date-start').value = monthAgo;
+    document.getElementById('wali-exit-date-end').value   = today;
+
+    document.getElementById('wali-late-filter-btn').onclick = loadWaliLate;
+    document.getElementById('wali-exit-filter-btn').onclick = loadWaliExit;
+
+    await Promise.all([loadWaliLate(), loadWaliExit()]);
+}
+
+async function loadWaliLate() {
+    const classId   = currentUser.wali_kelas_class_id;
+    const dateStart = document.getElementById('wali-late-date-start').value;
+    const dateEnd   = document.getElementById('wali-late-date-end').value;
+    const el        = document.getElementById('wali-late-content');
+    if (!dateStart || !dateEnd) { el.innerHTML = '<p class="hint">Pilih rentang tanggal lalu klik Filter.</p>'; return; }
+    el.innerHTML = '<p class="hint">Memuat…</p>';
+    try {
+        const rows = await getWaliLateArrivals(classId, dateStart, dateEnd);
+        if (!rows.length) { el.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>'; return; }
+        el.innerHTML = `
+            <div style="overflow-x:auto">
+            <table class="data-table">
+                <thead><tr>
+                    <th>Tanggal</th><th>Nama Siswa</th><th>NIS</th>
+                    <th>Jam Masuk</th><th>Keterangan</th>
+                </tr></thead>
+                <tbody>
+                ${rows.map(r => `<tr>
+                    <td>${r.date}</td>
+                    <td>${r.student_name}</td>
+                    <td>${r.nis}</td>
+                    <td>${r.arrival_time ?? '—'}</td>
+                    <td>${r.reason || '—'}</td>
+                </tr>`).join('')}
+                </tbody>
+            </table>
+            </div>`;
+    } catch (err) {
+        el.innerHTML = `<p class="hint error">Gagal memuat: ${fe(err)}</p>`;
+    }
+}
+
+async function loadWaliExit() {
+    const classId   = currentUser.wali_kelas_class_id;
+    const dateStart = document.getElementById('wali-exit-date-start').value;
+    const dateEnd   = document.getElementById('wali-exit-date-end').value;
+    const el        = document.getElementById('wali-exit-content');
+    if (!dateStart || !dateEnd) { el.innerHTML = '<p class="hint">Pilih rentang tanggal lalu klik Filter.</p>'; return; }
+    el.innerHTML = '<p class="hint">Memuat…</p>';
+    try {
+        const rows = await getWaliExits(classId, dateStart, dateEnd);
+        if (!rows.length) { el.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>'; return; }
+        el.innerHTML = `
+            <div style="overflow-x:auto">
+            <table class="data-table">
+                <thead><tr>
+                    <th>Tanggal</th><th>Nama Siswa</th><th>NIS</th>
+                    <th>Jam Keluar</th><th>Jam Kembali</th><th>Keterangan</th>
+                </tr></thead>
+                <tbody>
+                ${rows.map(r => `<tr>
+                    <td>${r.date}</td>
+                    <td>${r.student_name}</td>
+                    <td>${r.nis}</td>
+                    <td>${r.exit_time ?? '—'}</td>
+                    <td>${r.return_time}</td>
+                    <td>${r.reason || '—'}</td>
+                </tr>`).join('')}
+                </tbody>
+            </table>
+            </div>`;
+    } catch (err) {
+        el.innerHTML = `<p class="hint error">Gagal memuat: ${fe(err)}</p>`;
+    }
 }
 
 async function initWaliKasusSection() {

@@ -1746,6 +1746,53 @@ export async function deleteExit(exitId) {
     if (error) throw error;
 }
 
+export async function getWaliLateArrivals(classId, dateStart, dateEnd) {
+    const { data, error } = await supabase
+        .from('late_arrivals')
+        .select(`
+            late_id, late_date, arrival_time, reason,
+            student:students(student_id, full_name, nis)
+        `)
+        .gte('late_date', dateStart)
+        .lte('late_date', dateEnd)
+        .order('late_date', { ascending: false })
+        .order('arrival_time', { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map(r => ({
+        late_id:      r.late_id,
+        date:         r.late_date,
+        arrival_time: r.arrival_time,
+        reason:       r.reason ?? '',
+        student_id:   r.student?.student_id,
+        student_name: r.student?.full_name ?? '—',
+        nis:          r.student?.nis ?? '—',
+    }));
+}
+
+export async function getWaliExits(classId, dateStart, dateEnd) {
+    const { data, error } = await supabase
+        .from('student_exits')
+        .select(`
+            exit_id, exit_date, exit_time, return_time, reason,
+            student:students(student_id, full_name, nis)
+        `)
+        .gte('exit_date', dateStart)
+        .lte('exit_date', dateEnd)
+        .order('exit_date', { ascending: false })
+        .order('exit_time', { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map(r => ({
+        exit_id:      r.exit_id,
+        date:         r.exit_date,
+        exit_time:    r.exit_time,
+        return_time:  r.return_time ?? '—',
+        reason:       r.reason ?? '',
+        student_id:   r.student?.student_id,
+        student_name: r.student?.full_name ?? '—',
+        nis:          r.student?.nis ?? '—',
+    }));
+}
+
 export async function getLateArrivalsByRange(dateStart, dateEnd, academicYear = null) {
     const rows = [];
     const pageSize = 1000;
