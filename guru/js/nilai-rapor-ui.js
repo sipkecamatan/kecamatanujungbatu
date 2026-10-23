@@ -150,9 +150,9 @@ export async function renderNilaiRapor(body, ctx) {
         // Nilai rapor SELALU hasil rumus (tidak ada angka manual). Rumus lengkap tetapi siswa tak punya datanya: kosong. Rumus belum lengkap: nilai tersimpan dibiarkan.
         if (hitung !== null) row.nilai = String(hitung);
         else if (!rumusBelumLengkap()) row.nilai = '';
-        if (!r && (tr.optimal.length || tr.perlu.length)) {
+        if (tr.optimal.length || tr.perlu.length) {
             row.optimal = new Set(tr.optimal); row.perlu = new Set(tr.perlu); row.dasarNilai = tr.dasarNilai;
-            const d = susunDeskripsi({ optimal: tr.optimal, perlu: tr.perlu, tpById }); row.desT = d.tertinggi; row.desR = d.terendah;
+            if (!r) { const d = susunDeskripsi({ optimal: tr.optimal, perlu: tr.perlu, tpById }); row.desT = d.tertinggi; row.desR = d.terendah; }
         }
         st.rows[s.id] = row;
     }
