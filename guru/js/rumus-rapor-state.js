@@ -49,7 +49,7 @@ export function setMetode(m) {
 }
 
 export function setBobot(id, nilai) {
-    const v = angkaBobot(nilai) ?? 0;
+    const v = Math.max(0, Math.min(100, angkaBobot(nilai) ?? 0));
     if (S.bobot[id] === v) return false;
     S.bobot[id] = v; kabari('bobot'); return true;
 }
