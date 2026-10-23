@@ -1519,6 +1519,20 @@ async function openAsmtModal(editAsmt) {
                 tanggal,
             };
 
+            // Validasi nilai sebelum insert asesmen agar tidak ada asesmen orphan bila validasi gagal.
+            if (jenis === 'SUMATIF') {
+                if (teknik !== 'TES') {
+                    const rentSimpan = _sumCurrentRentang();
+                    for (const d of Object.values(_sumNilai)) if (d.predikat) d.nilai = nilaiTengah(d.predikat, rentSimpan);
+                }
+                for (const [sid, data] of Object.entries(_sumNilai)) {
+                    if (data.nilai != null && (data.nilai < 0 || data.nilai > 100)) {
+                        const nama = _sumSiswaList.find(r => r.id === sid)?.nama ?? 'siswa';
+                        throw new Error('Nilai ' + nama + ' (' + data.nilai + ') harus antara 0 dan 100.');
+                    }
+                }
+            }
+
             let asmtId;
             if (editAsmt) {
                 await updateAssessment(editAsmt.id, payload, _schoolId);
@@ -1535,18 +1549,6 @@ async function openAsmtModal(editAsmt) {
 
             if (jenis === 'SUMATIF') {
                 flushSumActive();
-                // Nilai angka penilaian non-TES berasal dari predikat; dihitung ULANG di sini dengan rentang TP yang terpilih SAAT INI
-                // (guru mungkin mengganti TP setelah memilih predikat), supaya yang tersimpan selalu sesuai KKTP TP-nya.
-                if (teknik !== 'TES') {
-                    const rentSimpan = _sumCurrentRentang();
-                    for (const d of Object.values(_sumNilai)) if (d.predikat) d.nilai = nilaiTengah(d.predikat, rentSimpan);
-                }
-                for (const [sid, data] of Object.entries(_sumNilai)) {
-                    if (data.nilai != null && (data.nilai < 0 || data.nilai > 100)) {
-                        const nama = _sumSiswaList.find(r => r.id === sid)?.nama ?? 'siswa';
-                        throw new Error('Nilai ' + nama + ' (' + data.nilai + ') harus antara 0 dan 100.');
-                    }
-                }
                 for (const [sid, data] of Object.entries(_sumNilai)) {
                     if (data.nilai != null || data.predikat) {
                         await upsertAssessmentResult(_schoolId, _kelasId, asmtId, sid, {
