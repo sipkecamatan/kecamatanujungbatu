@@ -1104,7 +1104,7 @@ function renderNilaiGrid(grades, gridEl) {
                 <th style="text-align:left; padding:8px 4px">Penilaian</th>
                 <th style="text-align:center; padding:8px 4px; width:80px">Nilai</th>
                 <th style="text-align:center; padding:8px 4px; width:80px">Predikat</th>
-                <th style="text-align:left; padding:8px 4px">Deskripsi</th>
+                <th style="text-align:left; padding:8px 4px">Tindak Lanjut</th>
               </tr>
             </thead>
             <tbody>
@@ -1116,8 +1116,8 @@ function renderNilaiGrid(grades, gridEl) {
                     ${g.nilai_akhir != null ? Number(g.nilai_akhir).toFixed(1) : '—'}
                   </td>
                   <td style="padding:8px 4px; text-align:center">${esc(g.predikat || '—')}</td>
-                  <td style="padding:8px 4px; color:var(--color-text-muted); font-size:12px">
-                    ${esc(g.deskripsi_naratif || '—')}
+                  <td style="padding:8px 4px; font-size:12px">
+                    ${{PENGAYAAN:'Pengayaan',PENGUATAN:'Penguatan',PENDAMPINGAN:'Pendampingan'}[g.tindak_lanjut] || '—'}
                   </td>
                 </tr>
               `).join('')}
