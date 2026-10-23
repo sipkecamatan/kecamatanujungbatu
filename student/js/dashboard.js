@@ -1109,7 +1109,14 @@ function renderNilaiGrid(grades, gridEl) {
         if (!bySem[key]) bySem[key] = [];
         bySem[key].push(g);
     });
-    gridEl.innerHTML = Object.entries(bySem).map(([label, items]) => `
+    gridEl.innerHTML = Object.entries(bySem).map(([label, items]) => {
+        const sorted = [...items].sort((a, b) => {
+            if (a.kind === 'ASESMEN' && b.kind === 'ASESMEN') {
+                return (a.tanggal_pelaksanaan || '').localeCompare(b.tanggal_pelaksanaan || '');
+            }
+            return 0;
+        });
+        return `
         <div style="margin-bottom:24px">
           <h4 style="margin:0 0 8px; color:var(--color-text-muted); font-size:13px;
                      text-transform:uppercase; letter-spacing:0">${esc(label)}</h4>
@@ -1118,21 +1125,24 @@ function renderNilaiGrid(grades, gridEl) {
               <tr style="border-bottom:2px solid var(--color-border)">
                 <th style="text-align:left; padding:8px 4px">Mata Pelajaran</th>
                 <th style="text-align:left; padding:8px 4px">Penilaian</th>
+                <th style="text-align:center; padding:8px 4px; width:90px">Tanggal</th>
                 <th style="text-align:center; padding:8px 4px; width:80px">Nilai</th>
                 <th style="text-align:center; padding:8px 4px; width:80px">Predikat</th>
                 <th style="text-align:left; padding:8px 4px">Tindak Lanjut</th>
               </tr>
             </thead>
             <tbody>
-              ${items.map(g => {
+              ${sorted.map(g => {
                 const tl = g.tindak_lanjut;
                 const LABEL_TL = {PENGAYAAN:'Pengayaan',PENGUATAN:'Penguatan',PENDAMPINGAN:'Pendampingan'};
                 const labelTl = LABEL_TL[tl] || '—';
                 const saran = tl ? saranTindakLanjut({ nama: student?.full_name, mapel: g.subject_name, nilai: g.nilai_akhir, predikat: g.predikat, tl, untukOrtu: false }) : '';
+                const tgl = g.tanggal_pelaksanaan ? g.tanggal_pelaksanaan.slice(0,10) : '—';
                 return `
                 <tr style="border-bottom:1px solid var(--color-border)">
                   <td style="padding:8px 4px">${esc(g.subject_name || '—')}</td>
                   <td style="padding:8px 4px">${esc(g.label || '—')}</td>
+                  <td style="padding:8px 4px; text-align:center; color:var(--color-text-muted)">${esc(tgl)}</td>
                   <td style="padding:8px 4px; text-align:center; font-weight:600">
                     ${g.nilai_akhir != null ? Number(g.nilai_akhir).toFixed(1) : '—'}
                   </td>
@@ -1145,5 +1155,6 @@ function renderNilaiGrid(grades, gridEl) {
             </tbody>
           </table></div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
