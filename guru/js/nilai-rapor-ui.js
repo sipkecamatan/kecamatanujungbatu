@@ -74,9 +74,6 @@ export async function renderNilaiRapor(body, ctx) {
     const idSumatif = sumatif.map((a) => a.id);
     siapkanRumus({ kunci: kunciKonteks(ctx), rumusSimpan, metodeAwal: tersimpan[0]?.metode ?? null, sumatifIds: idSumatif });
     const st = {
-        // Izin tampil di portal: aktif bila SEMUA nilai rapor tersimpan sudah diizinkan (berlaku untuk seluruh kelas ini pada mapel dan semester ini)
-        visSiswa: tersimpan.length > 0 && tersimpan.every((r) => r.is_visible_siswa === true),
-        visOrtu:  tersimpan.length > 0 && tersimpan.every((r) => r.is_visible_ortu === true),
         rows: {},
     };
     Object.defineProperty(st, 'metode', { get: () => getRumus().metode, enumerable: true });
@@ -221,11 +218,7 @@ export async function renderNilaiRapor(body, ctx) {
             '<div style="font-size:12px;color:var(--color-text-muted);margin-bottom:10px">' +
             'Nilai rapor adalah <strong>nilai akhir yang Anda tetapkan</strong> (0–100) untuk satu semester, dihitung dari penilaian <strong>sumatif</strong> (formatif tidak digabung). ' +
             'Nilai rapor <strong>dihitung otomatis</strong> dari penilaian sumatif memakai rumus yang Anda pilih di bagian <strong>Rekap</strong>; rumus ikut tersimpan bersama nilai rapor. Angka nilai rapor tidak diubah di sini: untuk mengubahnya, ubah nilai pada penilaian di bagian <strong>Pelaksanaan</strong>. Perubahan baru dibaca wali kelas dan pimpinan setelah Anda menekan <strong>Simpan Nilai Rapor</strong>. Tanda <strong>T</strong> (TP dicapai optimal) dan <strong>R</strong> (TP perlu peningkatan) dipakai untuk deskripsi capaian di e-Rapor. ' +
-            'Nilai rapor terlihat oleh Anda, wali kelas, Kepala Sekolah, dan Waka Kurikulum. Siswa dan orang tua baru melihatnya di portal bila Anda mengizinkan di bawah ini.</div>' +
-            '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:13px">' +
-            '<label style="display:flex;align-items:center;gap:6px;font-weight:normal"><input type="checkbox" id="nr-vis-siswa"' + (st.visSiswa ? ' checked' : '') + '> Izinkan <strong>siswa</strong> melihat nilai rapor</label>' +
-            '<label style="display:flex;align-items:center;gap:6px;font-weight:normal"><input type="checkbox" id="nr-vis-ortu"' + (st.visOrtu ? ' checked' : '') + '> Izinkan <strong>orang tua</strong> melihat nilai rapor</label>' +
-            '<span style="color:var(--color-text-muted);font-size:12px">Berlaku untuk semua siswa kelas ini; tersimpan saat Anda menekan Simpan Nilai Rapor.</span></div>' +
+            'Nilai rapor terlihat oleh Anda, wali kelas, Kepala Sekolah, dan Waka Kurikulum.</div>' +
             '<div class="rc-filter-bar" style="justify-content:space-between"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
             '<span id="nr-ringkas" style="font-size:13px">' + ringkasRumusHtml() + '</span>' +
             '</div>' +
@@ -270,8 +263,7 @@ export async function renderNilaiRapor(body, ctx) {
     body.onchange = (e) => {
         const t = e.target;
         st.konfirmasiHapus = null;   // perubahan apa pun membatalkan konfirmasi penghapusan yang menunggu
-        if (t.id === 'nr-vis-siswa') { st.visSiswa = !!t.checked; return; }
-        if (t.id === 'nr-vis-ortu')  { st.visOrtu  = !!t.checked; return; }
+
         const tr = t.closest('tr'); const sid = tr?.dataset.sid ?? tr?.dataset.sidDetail; if (!sid || !st.rows[sid]) return;
         const row = st.rows[sid];
         if (t.classList.contains('nr-tp')) {
@@ -310,7 +302,7 @@ export async function renderNilaiRapor(body, ctx) {
                 rumus: { metode: st.metode, bobot: Object.fromEntries(sumatif.map((a) => [a.id, Number(st.bobot[a.id]) || 0])) },
                 tp_optimal: [...row.optimal], tp_perlu: [...row.perlu],
                 deskripsi_tertinggi: des.tertinggi, deskripsi_terendah: des.terendah,
-                is_visible_siswa: st.visSiswa === true, is_visible_ortu: st.visOrtu === true,
+                is_visible_siswa: false, is_visible_ortu: false,
             });
         }
         // Nilai yang dikosongkan = nilai rapor tersimpan DIHAPUS. Itu tidak boleh terjadi tanpa guru tahu: minta Simpan sekali lagi setelah menyebut siapa saja.
