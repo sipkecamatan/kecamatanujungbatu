@@ -221,7 +221,7 @@ export async function renderNilaiRapor(body, ctx) {
             '<div class="rc-filter-bar" style="justify-content:space-between"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
             '<span id="nr-ringkas" style="font-size:13px">' + ringkasRumusHtml() + '</span>' +
             '</div>' +
-            '<div style="display:flex;gap:8px"><button type="button" class="pen-btn" data-nr="unduh">⬇ Unduh Excel e-Rapor</button>' +
+            '<div style="display:flex;gap:8px"><button type="button" class="pen-btn" data-nr="unduh">⬇ Unduh Lembar Kerja Excel</button>' +
             '<button type="button" class="pen-btn pen-btn-primary" data-nr="simpan">Simpan Nilai Rapor</button></div></div>' +
             '<div id="nr-rumus">' + infoRumus() + '</div>' +
             '<div style="overflow-x:auto"><table class="rc-table"><thead><tr><th>Nama Siswa</th><th>Nilai Rapor</th><th>Tanda TP</th><th></th></tr></thead><tbody>' +
