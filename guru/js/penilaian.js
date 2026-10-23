@@ -1504,6 +1504,7 @@ async function openAsmtModal(editAsmt) {
             const visO = _ov.querySelector('#pai-vis-ortu').checked;
 
             const tanggal   = _ov.querySelector('#pai-tanggal').value || null;
+            if (!tanggal) throw new Error('Tanggal pelaksanaan wajib diisi.');
 
             const instrBody = _ov.querySelector('#pai-instrumen-body');
             const konten = jenis === 'SUMATIF'
