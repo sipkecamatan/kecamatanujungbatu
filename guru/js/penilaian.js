@@ -1725,7 +1725,12 @@ function confirmDeleteAsmt(asmtId, origBtn) {
     const row = origBtn.closest('.pen-asmt-row');
     const bar = document.createElement('div');
     bar.className = 'pen-del-bar';
-    bar.innerHTML = '<span style="flex:1;font-size:12px">Hapus penilaian ini beserta semua hasilnya?</span>' +
+    const asmt = _asmtCache.find(a => a.id === asmtId);
+    const adaHasil = asmt && _rosterCache.length > 0;
+    const infoHasil = adaHasil
+        ? ' Semua nilai siswa yang sudah diinput untuk penilaian ini akan <strong>terhapus permanen</strong>.'
+        : '';
+    bar.innerHTML = '<span style="flex:1;font-size:12px">Hapus penilaian ini beserta semua hasilnya?' + infoHasil + '</span>' +
         '<button class="pen-btn pen-btn-sm pen-btn-danger pen-del-yes">Ya, Hapus</button>' +
         '<button class="pen-btn pen-btn-sm pen-del-no">Tidak</button>';
     row.appendChild(bar);
