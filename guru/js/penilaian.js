@@ -512,8 +512,13 @@ async function confirmDeleteTp(tp, origBtn) {
     const row = origBtn.closest('.pen-tp-row');
     const bar = document.createElement('div');
     bar.className = 'pen-del-bar';
-    bar.innerHTML = '<span style="flex:1;font-size:12px">Hapus "' + esc(tp.kode_tp) + '"? KKTP TP ini ikut terhapus permanen. Penilaian yang tertaut ke TP ini tetap ada tetapi menjadi tanpa TP, ' +
-        'dan tanda T/R TP ini pada nilai rapor tersimpan dibuang.</span>' +
+    const terdampak = _asmtCache.filter(a => (a.tpIds ?? []).includes(tp.id));
+    const infoTerdampak = terdampak.length
+        ? ' <strong>Peringatan: ' + terdampak.length + ' penilaian memakai TP ini (' +
+          terdampak.map(a => esc(a.judul || a.instrumen)).join(', ') +
+          ') dan tidak lagi masuk rekap nilai setelah TP dihapus.</strong>'
+        : '';
+    bar.innerHTML = '<span style="flex:1;font-size:12px">Hapus "' + esc(tp.kode_tp) + '"? KKTP TP ini ikut terhapus permanen.' + infoTerdampak + '</span>' +
         '<button class="pen-btn pen-btn-sm pen-btn-danger pen-del-yes">Ya, Hapus</button>' +
         '<button class="pen-btn pen-btn-sm pen-del-no">Tidak</button>';
     row.appendChild(bar);
