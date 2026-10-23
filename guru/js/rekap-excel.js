@@ -1,14 +1,15 @@
 /**
  * @file guru/js/rekap-excel.js
  * Susunan berkas Excel "Unduh Excel" di bagian REKAP (logika murni, tanpa DOM/jaringan/SheetJS; diuji di tests/rekap-excel.mjs).
- * Isi berkas = salinan tampilan Rekap pada saat diunduh: HANYA penilaian yang lolos filter layar (saringPenilaian), satu baris per siswa roster per penilaian
- * (per aspek untuk instrumen beraspek), siswa yang belum dinilai tetap tampil dengan sel hasil kosong. Nilai TIDAK dapat diubah di sini (hanya di Pelaksanaan).
- * Lembar "e-Rapor" tidak lagi ada di berkas ini: nilai rapor dilihat dan diunduh dari bagian Nilai Rapor (keputusan Romo 23 Okt 2026).
+ * Model PIVOT: kolom = penilaian, baris = siswa (urut nama A-Z).
+ * Tiga baris header: (0) judul penilaian, (1) keterangan penilaian, (2) No/Nama/NIS + sub-kolom per penilaian.
+ * Sub-kolom: Sumatif → Nilai/Predikat/Tindak Lanjut; Diagnostik Kognitif → Nilai/Predikat;
+ *            instrumen beraspek → satu kolom per aspek; lainnya → Hasil.
+ * Nilai TIDAK dapat diubah di sini (hanya di Pelaksanaan).
+ * Lembar "e-Rapor" tidak ada di berkas ini: nilai rapor dilihat dan diunduh dari bagian Nilai Rapor (keputusan Romo 23 Okt 2026).
  */
 import { labelPenilaian, tpIdsUrut, namaTeknik } from './penilaian-label.js';
 import { extractLabelSiswa } from './konten-penilaian.js';
-
-export const HEADER_REKAP = ['Tanggal', 'Jenis', 'Penilaian', 'Teknik', 'Instrumen', 'TP', 'Keterangan', 'Aspek', 'Indikator', 'Nama Siswa', 'NIS', 'Nilai / Hasil', 'Status/Predikat', 'Tindak Lanjut', 'Refleksi Guru'];
 
 export const JENIS_EXCEL = {
     DIAGNOSTIK_NK: 'Diagnostik Non-Kognitif',
@@ -19,7 +20,6 @@ export const JENIS_EXCEL = {
 
 const TINGKAT_OBSERVASI = [['terlihat_jelas', 'Terlihat Jelas'], ['terlihat', 'Terlihat'], ['belum_terlihat', 'Belum Terlihat']];
 
-/** Hasil satu aspek (instrumen beraspek) menjadi { student_id: label }. Observasi: kategori terlihat; rubrik/formatif: predikat. */
 function petaAspek(aspek) {
     const peta = {};
     const observasi = TINGKAT_OBSERVASI.some(([k]) => Array.isArray(aspek?.[k]));
@@ -31,45 +31,86 @@ function petaAspek(aspek) {
     return peta;
 }
 
+/** Sub-kolom setiap penilaian ditentukan dari definisi penilaian (bukan dari ada/tidaknya hasil). */
+function subKolomAsmt(a) {
+    if (a.jenis === 'SUMATIF') return ['Nilai', 'Predikat', 'Tindak Lanjut'];
+    if (a.jenis === 'DIAGNOSTIK_K') return ['Nilai', 'Predikat'];
+    if (Array.isArray(a.konten?.aspeks) && a.konten.aspeks.length)
+        return a.konten.aspeks.map((asp, i) => asp.nama || ('Aspek ' + (i + 1)));
+    return ['Hasil'];
+}
+
+function keteranganAsmt(a, tpById) {
+    const bagian = [JENIS_EXCEL[a.jenis] || a.jenis];
+    if (a.teknik) bagian.push(namaTeknik(a.teknik));
+    const tpStr = tpIdsUrut(a, tpById).map((id) => tpById[id]?.kode_tp).filter(Boolean).join(', ');
+    if (tpStr) bagian.push(tpStr);
+    if (a.tujuan) bagian.push(a.tujuan);
+    return bagian.join(' · ');
+}
+
 /**
- * Baris lembar "Rekap Penilaian".
+ * Lembar "Rekap Penilaian" model pivot.
  * @param {object} p
  * @param {object[]} p.asmts   penilaian yang AKAN diekspor (sudah disaring dengan saringPenilaian)
  * @param {{id:string, nama?:string, full_name?:string, nis?:string}[]} p.roster
- * @param {Object<string, Object<string, {nilai?:number, status?:string, tindak_lanjut?:string}>>} [p.hasil]  assessment_id -> student_id -> baris assessment_results
- * @param {Object<string, {kode_tp?:string, deskripsi_tp?:string}>} [p.tpById]  menurut urutan TP (urutan kunci = urutan TP)
- * @returns {Array<Array>} baris tanpa header (lebar selalu HEADER_REKAP.length)
+ * @param {Object<string, Object<string, {nilai?:number, status?:string, tindak_lanjut?:string}>>} [p.hasil]
+ * @param {Object<string, {kode_tp?:string, deskripsi_tp?:string}>} [p.tpById]
+ * @returns {{ rows: Array<Array>, merges: Array<{s:{r,c},e:{r,c}}> }}
  */
 export function susunLembarRekap({ asmts, roster, hasil = {}, tpById = {} }) {
-    const baris = [];
+    const daftarAsmt = asmts ?? [];
     const rosterUrut = [...(roster ?? [])].sort((a, b) => (a.nama || a.full_name || '').localeCompare(b.nama || b.full_name || '', 'id'));
-    for (const a of asmts ?? []) {
-        const konten = a.konten;
-        const tpStr = tpIdsUrut(a, tpById).map((id) => tpById[id]).filter(Boolean).map((tp) => tp.kode_tp + ' – ' + tp.deskripsi_tp).join('; ');
-        const dasar = [a.tanggal || '', JENIS_EXCEL[a.jenis] || a.jenis || '', labelPenilaian(a, tpById), namaTeknik(a.teknik || ''), a.instrumen || '', tpStr, a.tujuan || ''];
-        const refleksi = a.refleksi_guru || konten?.refleksi || '';   // kolom database refleksi_guru (konten.refleksi hanya data lama)
-        const siswa = (s) => [s.nama || s.full_name || '', s.nis || ''];
-        const hasilA = hasil[a.id];
+    const subKolomList = daftarAsmt.map((a) => subKolomAsmt(a));
 
-        if (hasilA && Object.keys(hasilA).length) {
-            // Penilaian bernilai angka (assessment_results): sumatif dan diagnostik kognitif. Siswa tanpa hasil tetap satu baris kosong.
-            for (const s of rosterUrut) {
-                const r = hasilA[s.id];
-                baris.push([...dasar, '', '', ...siswa(s), r?.nilai ?? '', r?.status ?? '', r?.tindak_lanjut ?? '', refleksi]);
-            }
-        } else if (Array.isArray(konten?.aspeks) && konten.aspeks.length) {
-            // Instrumen beraspek (lembar observasi, rubrik): satu baris per siswa per aspek; yang belum dinilai pada aspek itu kosong.
-            konten.aspeks.forEach((aspek, i) => {
-                const peta = petaAspek(aspek);
-                for (const s of rosterUrut) baris.push([...dasar, aspek.nama || ('Aspek ' + (i + 1)), aspek.indikator || '', ...siswa(s), '', peta[s.id] ?? '', '', refleksi]);
-            });
-        } else {
-            // Bentuk lain (catatan anekdot, checklist, tes bergradasi, tes lisan): label per siswa dibaca oleh pembaca yang SAMA dengan layar Rekap.
-            const peta = extractLabelSiswa(konten, a.teknik, a.instrumen);
-            for (const s of rosterUrut) baris.push([...dasar, '', '', ...siswa(s), '', peta[s.id] ?? '', '', refleksi]);
-        }
+    // Tiga baris header
+    const row0 = ['', '', ''];   // judul penilaian
+    const row1 = ['', '', ''];   // keterangan penilaian
+    const row2 = ['No', 'Nama', 'NIS'];   // sub-kolom
+
+    for (let i = 0; i < daftarAsmt.length; i++) {
+        const subs = subKolomList[i];
+        row0.push(labelPenilaian(daftarAsmt[i], tpById), ...Array(subs.length - 1).fill(''));
+        row1.push(keteranganAsmt(daftarAsmt[i], tpById), ...Array(subs.length - 1).fill(''));
+        row2.push(...subs);
     }
-    return baris;
+
+    // Merges
+    const merges = [];
+    // No, Nama, NIS: merge 3 baris
+    for (let c = 0; c < 3; c++) merges.push({ s: { r: 0, c }, e: { r: 2, c } });
+    let col = 3;
+    for (const subs of subKolomList) {
+        if (subs.length > 1) {
+            merges.push({ s: { r: 0, c: col }, e: { r: 0, c: col + subs.length - 1 } });
+            merges.push({ s: { r: 1, c: col }, e: { r: 1, c: col + subs.length - 1 } });
+        }
+        col += subs.length;
+    }
+
+    // Baris data siswa
+    const rows = [row0, row1, row2];
+    rosterUrut.forEach((s, idx) => {
+        const baris = [idx + 1, s.nama || s.full_name || '', s.nis || ''];
+        for (let i = 0; i < daftarAsmt.length; i++) {
+            const a = daftarAsmt[i];
+            const hasilA = hasil[a.id];
+            if (a.jenis === 'SUMATIF') {
+                const r = hasilA?.[s.id];
+                baris.push(r?.nilai ?? '', r?.status ?? '', r?.tindak_lanjut ?? '');
+            } else if (a.jenis === 'DIAGNOSTIK_K') {
+                const r = hasilA?.[s.id];
+                baris.push(r?.nilai ?? '', r?.status ?? '');
+            } else if (Array.isArray(a.konten?.aspeks) && a.konten.aspeks.length) {
+                for (const aspek of a.konten.aspeks) baris.push(petaAspek(aspek)[s.id] ?? '');
+            } else {
+                baris.push(extractLabelSiswa(a.konten, a.teknik, a.instrumen)[s.id] ?? '');
+            }
+        }
+        rows.push(baris);
+    });
+
+    return { rows, merges };
 }
 
 /** Lembar "Catatan": cakupan berkas, waktu unduh, dan pengingat bahwa nilai hanya diubah di Pelaksanaan. */

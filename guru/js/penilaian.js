@@ -13,7 +13,7 @@ import {
 } from './api.js';
 import { renderNilaiRapor } from './nilai-rapor-ui.js';
 import { METODE_RAPOR, totalBobot } from './nilai-rapor.js';
-import { HEADER_REKAP, susunLembarRekap, susunCatatanRekap, namaBerkasRekap } from './rekap-excel.js';
+import { susunLembarRekap, susunCatatanRekap, namaBerkasRekap } from './rekap-excel.js';
 import { kunciKonteks, siapkanRumus, getRumus, getKunci, setMetode, setBobot, adaPerubahan, langgan } from './rumus-rapor-state.js';
 import { labelPenilaian, opsiTpPenilaian, namaTeknik, tpIdsPenilaian, ringkasTp, saringPenilaian } from './penilaian-label.js';
 import { extractLabelSiswa } from './konten-penilaian.js';
@@ -2138,11 +2138,13 @@ async function downloadPenilaianExcel() {
         }
         const tpById = Object.fromEntries(tpCache.map(t => [t.id, t]));
 
-        const baris = susunLembarRekap({ asmts, roster, hasil, tpById });
+        const { rows, merges } = susunLembarRekap({ asmts, roster, hasil, tpById });
 
         const wb  = XLSX.utils.book_new();
-        const ws1 = XLSX.utils.aoa_to_sheet([HEADER_REKAP, ...baris]);
-        ws1['!cols'] = HEADER_REKAP.map((h, i) => ({ wch: i === 2 ? 30 : i < 7 ? 18 : i < 9 ? 22 : 16 }));
+        const ws1 = XLSX.utils.aoa_to_sheet(rows);
+        ws1['!merges'] = merges;
+        // Kolom tetap: No(4), Nama(25), NIS(12); sub-kolom penilaian(14 masing-masing)
+        ws1['!cols'] = [{ wch: 4 }, { wch: 25 }, { wch: 12 }, ...(rows[2]?.slice(3) ?? []).map(() => ({ wch: 14 }))];
         XLSX.utils.book_append_sheet(wb, ws1, 'Rekap Penilaian');
         const catatan = susunCatatanRekap({
             jenis: _rcJenis, teknik: _rcTeknik, instrumen: _rcInstrumen, tpKode: tpById[_rcTp]?.kode_tp || '',

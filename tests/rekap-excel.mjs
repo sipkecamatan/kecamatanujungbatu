@@ -1,6 +1,7 @@
-// Uji logika murni Excel di REKAP dan catatan Excel Nilai Rapor (guru/js/rekap-excel.js, konten-penilaian.js, penilaian-label.js saringPenilaian, nilai-rapor.js statusSimpanRapor/susunCatatanRapor).
-// Keputusan Romo 23 Okt 2026: Excel Rekap = salinan tampilan (hanya yang lolos filter), semua bentuk penilaian ikut, judul penilaian dan refleksi ada, urutan TP mengikuti urutan TP,
-// tanpa lembar e-Rapor; Excel Nilai Rapor = berkas kerja dengan status penyimpanan. Tanpa jaringan dan tanpa SheetJS.
+// Uji logika murni Excel REKAP (guru/js/rekap-excel.js) — model pivot: kolom=penilaian, baris=siswa.
+// Tiga baris header: judul penilaian, keterangan, No/Nama/NIS + sub-kolom.
+// Sub-kolom: Sumatif→Nilai/Predikat/TL; DiagK→Nilai/Predikat; beraspek→per aspek; lainnya→Hasil.
+// Keputusan Romo 23 Okt 2026 (model pivot diputuskan sesi lanjutan).
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
@@ -16,128 +17,149 @@ let lulus = 0, gagal = 0;
 const uji = (nama, fn) => { try { fn(); lulus++; console.log('  LULUS  ' + nama); } catch (e) { gagal++; console.log('  GAGAL  ' + nama + '\n         ' + String(e.message).slice(0, 400)); } };
 
 const roster = [{ id: 's1', nama: 'Adelia', nis: '0012' }, { id: 's2', nama: 'Budi', nis: '0013' }, { id: 's3', nama: 'Citra', nis: '0014' }];
-const tpById = { t7: { kode_tp: 'TP7', deskripsi_tp: 'Fungsi aplikasi' }, t8: { kode_tp: 'TP8', deskripsi_tp: 'Data master' }, t9: { kode_tp: 'TP9', deskripsi_tp: 'Transaksi' } };   // urutan kunci = urutan TP
-const dasar = { tanggal: '2026-10-19', tujuan: 'Ket', refleksi_guru: null, konten: null, tpIds: [] };
+const tpById = { t7: { kode_tp: 'TP7', deskripsi_tp: 'Fungsi aplikasi' }, t8: { kode_tp: 'TP8', deskripsi_tp: 'Data master' }, t9: { kode_tp: 'TP9', deskripsi_tp: 'Transaksi' } };
+const dasar = { tanggal: '2026-10-19', tujuan: '', refleksi_guru: null, konten: null, tpIds: [] };
 const A = (o) => ({ ...dasar, ...o });
 
-const asmts = [
-  A({ id: 'a1', jenis: 'SUMATIF', teknik: 'TES', instrumen: 'Pilihan Ganda', judul: 'UH 1', tpIds: ['t7'], refleksi_guru: 'Refleksi UH1' }),
-  A({ id: 'a2', jenis: 'SUMATIF', teknik: 'PROYEK', instrumen: 'Rubrik', judul: 'Proyek', tpIds: ['t9', 't7', 't8'] }),   // urutan tautan acak
-  A({ id: 'a3', jenis: 'FORMATIF', teknik: 'OBSERVASI', instrumen: 'Lembar Observasi', judul: 'Observasi', konten: { aspeks: [{ nama: 'Kesiapan', indikator: 'Menyalakan', terlihat_jelas: ['s1'], terlihat: ['s2'], belum_terlihat: [] }, { nama: 'Kerapian', terlihat_jelas: [], terlihat: [], belum_terlihat: ['s3'] }] } }),
-  A({ id: 'a4', jenis: 'FORMATIF', teknik: 'PENUGASAN', instrumen: 'Rubrik', konten: { aspeks: [{ nama: 'Isi', predikat: [{ val: 'SB', label: 'Sangat Berkembang', siswa: ['s1'] }, { val: 'MB', siswa: ['s2'] }] }] } }),
-  A({ id: 'a5', jenis: 'FORMATIF', teknik: 'OBSERVASI', instrumen: 'Catatan Anekdot', konten: { catatan: [{ siswa: 's2', teks: 'x' }, { siswa: ['s1', 's3'], teks: 'y' }] } }),
-  A({ id: 'a6', jenis: 'FORMATIF', teknik: 'PORTOFOLIO', instrumen: 'Checklist', konten: { items: [{ nama: 'Jurnal', siswa: ['s1'] }, { nama: 'Buku besar', siswa: ['s1', 's2'] }] } }),
-  A({ id: 'a7', jenis: 'DIAGNOSTIK_K', teknik: 'TES', instrumen: 'Uraian', konten: { deskriptor: [{ label: 'Paham', siswa: ['s3'] }, { label: 'Belum', siswa: ['s2'] }] } }),
-  A({ id: 'a8', jenis: 'FORMATIF', teknik: 'TES_LISAN', instrumen: 'Dialog', konten: { predikat: [{ val: 'BSH', siswa: ['s2'] }, { val: 'SB', siswa: ['s2', 's1'] }] } }),
-  A({ id: 'a9', jenis: 'FORMATIF', teknik: 'UNJUK_KERJA', instrumen: 'Rubrik', konten: null }),   // belum ada data
-];
-const hasil = { a1: { s1: { nilai: 92, status: null, tindak_lanjut: 'PENGAYAAN' }, s2: { nilai: 55.5, status: null } }, a2: { s1: { nilai: 93, status: 'SB' }, s3: { nilai: 27, status: 'BB' } } };
-const baris = X.susunLembarRekap({ asmts, roster, hasil, tpById });
-const per = (id) => baris.filter((r) => r[2] === L.labelPenilaian(asmts.find((a) => a.id === id), tpById));
-const kolom = Object.fromEntries(X.HEADER_REKAP.map((h, i) => [h, i]));
+// Penilaian uji
+const asmtSumatifTes  = A({ id: 'a1', jenis: 'SUMATIF',      teknik: 'TES',         instrumen: 'PG',     judul: 'UH 1',    tpIds: ['t7'], tujuan: 'Menguji TP7' });
+const asmtSumatifProj = A({ id: 'a2', jenis: 'SUMATIF',      teknik: 'PROYEK',      instrumen: 'Rubrik', judul: 'Proyek',  tpIds: ['t9', 't7', 't8'] });
+const asmtDiagK       = A({ id: 'a3', jenis: 'DIAGNOSTIK_K', teknik: 'TES',         instrumen: 'Uraian', konten: { deskriptor: [{ label: 'Paham', siswa: ['s3'] }, { label: 'Belum', siswa: ['s2'] }] } });
+const asmtObs         = A({ id: 'a4', jenis: 'FORMATIF',     teknik: 'OBSERVASI',   instrumen: 'Lembar Observasi', konten: { aspeks: [{ nama: 'Kesiapan', indikator: 'Menyalakan', terlihat_jelas: ['s1'], terlihat: ['s2'], belum_terlihat: [] }, { nama: 'Kerapian', terlihat_jelas: [], terlihat: [], belum_terlihat: ['s3'] }] } });
+const asmtChecklist   = A({ id: 'a5', jenis: 'FORMATIF',     teknik: 'PORTOFOLIO',  instrumen: 'Checklist', konten: { items: [{ nama: 'Jurnal', siswa: ['s1'] }, { nama: 'Buku besar', siswa: ['s1', 's2'] }] } });
+const asmtKosong      = A({ id: 'a6', jenis: 'FORMATIF',     teknik: 'UNJUK_KERJA', instrumen: 'Rubrik', konten: null });
 
-uji('header berisi kolom Penilaian dan Refleksi Guru; setiap baris selalu selebar header (15 kolom) pada SEMUA bentuk penilaian', () => {
-  assert.equal(X.HEADER_REKAP.length, 15); assert.ok(X.HEADER_REKAP.includes('Penilaian') && X.HEADER_REKAP.includes('Refleksi Guru'));
-  assert.ok(baris.length > 0 && baris.every((r) => r.length === 15), 'ada baris yang tidak 15 kolom');
+const hasil = {
+    a1: { s1: { nilai: 92, status: 'SB', tindak_lanjut: 'PENGAYAAN' }, s2: { nilai: 55, status: 'BB', tindak_lanjut: null } },
+    a2: { s1: { nilai: 93, status: 'SB', tindak_lanjut: null }, s3: { nilai: 27, status: 'BB', tindak_lanjut: 'PENDAMPINGAN' } },
+    a3: {},   // diagnostik K: data dari konten, bukan hasil angka
+};
+
+// Helper: ambil nilai sel pada baris siswa berdasarkan offset sub-kolom
+// rows[0]=judul, rows[1]=ket, rows[2]=sub-header, rows[3+]=siswa
+const { rows: R, merges: M } = X.susunLembarRekap({ asmts: [asmtSumatifTes, asmtSumatifProj, asmtDiagK, asmtObs, asmtChecklist, asmtKosong], roster, hasil, tpById });
+const subH = R[2];   // baris sub-header
+const siswaRows = R.slice(3);
+
+const colOf = (label, dari = 3) => subH.indexOf(label, dari);   // offset kolom sub-header
+const selSiswa = (namaS, kolLabel) => siswaRows.find((r) => r[1] === namaS)?.[colOf(kolLabel)];
+
+uji('tiga baris header; baris pertama berisi judul penilaian; baris ketiga berisi No/Nama/NIS lalu sub-kolom', () => {
+    assert.equal(R[0][3], 'UH 1');
+    assert.equal(R[1][3], 'Sumatif · TES TERTULIS · TP7 · Menguji TP7');
+    assert.deepEqual(R[2].slice(0, 3), ['No', 'Nama', 'NIS']);
 });
-uji('penilaian bernilai angka: satu baris per siswa roster; angka tetap angka, NIS tetap teks (nol di depan), tindak lanjut ikut; siswa tanpa hasil kosong', () => {
-  const r = baris.filter((x) => x[kolom.Penilaian] === 'UH 1');
-  assert.equal(r.length, 3);
-  assert.deepEqual([r[0][kolom['Nama Siswa']], r[0][kolom.NIS], r[0][kolom['Nilai / Hasil']], r[0][kolom['Tindak Lanjut']]], ['Adelia', '0012', 92, 'PENGAYAAN']);
-  assert.equal(typeof r[1][kolom['Nilai / Hasil']], 'number'); assert.equal(r[1][kolom['Nilai / Hasil']], 55.5);
-  assert.equal(r[2][kolom['Nilai / Hasil']], ''); assert.equal(r[2][kolom['Nama Siswa']], 'Citra');
-  assert.equal(r[0][kolom.Teknik], 'TES TERTULIS');
+
+uji('Sumatif: tiga sub-kolom Nilai/Predikat/Tindak Lanjut', () => {
+    const i = subH.indexOf('Nilai');
+    assert.equal(subH[i], 'Nilai'); assert.equal(subH[i + 1], 'Predikat'); assert.equal(subH[i + 2], 'Tindak Lanjut');
 });
-uji('sumatif non-TES: predikat di kolom Status/Predikat bersama angka', () => {
-  const r = baris.filter((x) => x[kolom.Penilaian] === 'Proyek');
-  assert.deepEqual([r[0][kolom['Nilai / Hasil']], r[0][kolom['Status/Predikat']]], [93, 'SB']); assert.deepEqual([r[2][kolom['Nilai / Hasil']], r[2][kolom['Status/Predikat']]], [27, 'BB']);
+
+uji('Diagnostik Kognitif: dua sub-kolom Nilai/Predikat (tanpa Tindak Lanjut)', () => {
+    // DiagK kolom dimulai setelah 2 sumatif (3+3=6 sub-kolom) + No/Nama/NIS
+    const start = 3 + 3 + 3;   // No/Nama/NIS + UH1(3) + Proyek(3)
+    assert.equal(subH[start], 'Nilai'); assert.equal(subH[start + 1], 'Predikat');
+    assert.equal(subH[start + 2], 'Kesiapan', 'kolom ke-3 dari DiagK harusnya aspek Obs, bukan TL');
 });
-uji('kolom Penilaian memuat judul bila ada; tanpa judul memakai label turunan yang sama dengan layar (TP + tanggal + teknik)', () => {
-  assert.ok(baris.some((r) => r[kolom.Penilaian] === 'UH 1'));
-  const tanpaJudul = baris.find((r) => r[kolom.Instrumen] === 'Catatan Anekdot')[kolom.Penilaian];
-  assert.equal(tanpaJudul, L.labelPenilaian(asmts.find((a) => a.id === 'a5'), tpById)); assert.match(tanpaJudul, /Tanpa TP/);
+
+uji('Observasi beraspek: satu sub-kolom per aspek', () => {
+    assert.ok(subH.includes('Kesiapan') && subH.includes('Kerapian'));
 });
-uji('kolom TP memuat kode + deskripsi dan urutannya mengikuti URUTAN TP (bukan urutan tautan di database)', () => {
-  const tp = baris.find((r) => r[kolom.Penilaian] === 'Proyek')[kolom.TP];
-  assert.equal(tp, 'TP7 – Fungsi aplikasi; TP8 – Data master; TP9 – Transaksi');
+
+uji('Penilaian lainnya (checklist, kosong): satu sub-kolom Hasil', () => {
+    const hasilCols = subH.map((v, i) => [v, i]).filter(([v]) => v === 'Hasil');
+    assert.equal(hasilCols.length, 2, 'harus ada 2 kolom Hasil (checklist + kosong)');
 });
-uji('refleksi guru dari kolom refleksi_guru ikut di setiap baris penilaian itu (angka maupun lainnya); data lama konten.refleksi tetap terbaca', () => {
-  assert.ok(baris.filter((r) => r[kolom.Penilaian] === 'UH 1').every((r) => r[kolom['Refleksi Guru']] === 'Refleksi UH1'));
-  const hasilLama = X.susunLembarRekap({ asmts: [A({ id: 'x', jenis: 'FORMATIF', teknik: 'OBSERVASI', instrumen: 'Lembar Observasi', konten: { refleksi: 'lama', aspeks: [{ nama: 'A', terlihat: ['s1'] }] } })], roster, tpById });
-  assert.equal(hasilLama[0][kolom['Refleksi Guru']], 'lama');
-  const kosong = X.susunLembarRekap({ asmts: [asmts[1]], roster, hasil, tpById }); assert.equal(kosong[0][kolom['Refleksi Guru']], '');
+
+uji('baris siswa: nomor urut dari 1, nama, NIS; diurutkan A-Z', () => {
+    assert.deepEqual(siswaRows.map((r) => r[1]), ['Adelia', 'Budi', 'Citra']);
+    assert.deepEqual(siswaRows.map((r) => r[0]), [1, 2, 3]);
+    assert.equal(siswaRows[0][2], '0012');
 });
-uji('lembar observasi: satu baris per siswa PER ASPEK; kategori terbaca; siswa yang belum dinilai pada aspek itu tetap tampil kosong', () => {
-  const r = baris.filter((x) => x[kolom.Penilaian] === 'Observasi');
-  assert.equal(r.length, 6);   // 2 aspek x 3 siswa
-  const kesiapan = r.filter((x) => x[kolom.Aspek] === 'Kesiapan');
-  assert.deepEqual(kesiapan.map((x) => x[kolom['Status/Predikat']]), ['Terlihat Jelas', 'Terlihat', '']);
-  assert.equal(kesiapan[0][kolom.Indikator], 'Menyalakan');
-  assert.deepEqual(r.filter((x) => x[kolom.Aspek] === 'Kerapian').map((x) => x[kolom['Status/Predikat']]), ['', '', 'Belum Terlihat']);
+
+uji('baris diurutkan A-Z meski roster masuk urutan acak', () => {
+    const rAcak = [{ id: 's3', nama: 'Citra', nis: '0014' }, { id: 's1', nama: 'Adelia', nis: '0012' }, { id: 's2', nama: 'Budi', nis: '0013' }];
+    const { rows } = X.susunLembarRekap({ asmts: [asmtSumatifTes], roster: rAcak, hasil, tpById });
+    assert.deepEqual(rows.slice(3).map((r) => r[1]), ['Adelia', 'Budi', 'Citra']);
 });
-uji('rubrik beraspek: label predikat bila ada, kode bila tidak', () => {
-  const r = baris.filter((x) => x[kolom.Instrumen] === 'Rubrik' && x[kolom.Aspek] === 'Isi');
-  assert.deepEqual(r.map((x) => x[kolom['Status/Predikat']]), ['Sangat Berkembang', 'MB', '']);
+
+uji('nilai sumatif: ada bila ada, kosong bila tidak ada; predikat dan TL ikut', () => {
+    assert.equal(selSiswa('Adelia', 'Nilai'), 92);
+    assert.equal(selSiswa('Adelia', 'Predikat'), 'SB');
+    assert.equal(selSiswa('Adelia', 'Tindak Lanjut'), 'PENGAYAAN');
+    assert.equal(selSiswa('Citra', 'Nilai'), '', 'Citra tidak punya hasil UH1');
+    assert.equal(selSiswa('Citra', 'Tindak Lanjut'), '');
 });
-uji('bentuk yang dulu keluar KOSONG kini terbaca: catatan anekdot, checklist, tes bergradasi, tes lisan; pembaca SAMA dengan layar', () => {
-  const lab = (id) => baris.filter((x) => x[kolom.Penilaian] === L.labelPenilaian(asmts.find((a) => a.id === id), tpById)).map((x) => x[kolom['Status/Predikat']]);
-  assert.deepEqual(lab('a5'), ['Tercatat', 'Tercatat', 'Tercatat']);        // catatan anekdot (per siswa dan per kejadian)
-  assert.deepEqual(lab('a6'), ['Tercapai', 'Tercapai', '']);                // checklist
-  assert.deepEqual(lab('a7'), ['', 'Belum', 'Paham']);                       // deskriptor tes (urutan roster: s1 kosong, s2 Belum, s3 Paham)
-  assert.deepEqual(lab('a8'), ['SB', 'SB', '']);                              // tes lisan: predikat tertinggi menang
-  const s = src('guru/js/penilaian.js'), k = src('guru/js/konten-penilaian.js');
-  assert.ok(s.includes("import { extractLabelSiswa } from './konten-penilaian.js'") && !/function extractLabelSiswa/.test(s), 'layar masih punya pembaca sendiri');
-  assert.ok(src('guru/js/rekap-excel.js').includes("from './konten-penilaian.js'") && /export function extractLabelSiswa/.test(k));
+
+uji('nilai Proyek: Citra ada (27/BB/PENDAMPINGAN), Budi kosong', () => {
+    const iProj = subH.indexOf('Nilai', 3 + 3);   // Proyek mulai setelah UH1(3 sub-kol)
+    const row = (nama) => siswaRows.find((r) => r[1] === nama);
+    assert.equal(row('Citra')[iProj], 27);
+    assert.equal(row('Citra')[iProj + 1], 'BB');
+    assert.equal(row('Citra')[iProj + 2], 'PENDAMPINGAN');
+    assert.equal(row('Budi')[iProj], '');
 });
-uji('penilaian tanpa data: tetap satu baris kosong per siswa (tidak hilang dari Excel)', () => {
-  const r = X.susunLembarRekap({ asmts: [asmts[8]], roster, tpById });
-  assert.equal(r.length, 3); assert.ok(r.every((x) => x[kolom['Status/Predikat']] === '' && x[kolom['Nilai / Hasil']] === ''));
+
+uji('observasi beraspek: label keterlihatan per aspek per siswa', () => {
+    const iKes = subH.indexOf('Kesiapan');
+    const iKer = subH.indexOf('Kerapian');
+    const row = (nama) => siswaRows.find((r) => r[1] === nama);
+    assert.equal(row('Adelia')[iKes], 'Terlihat Jelas');
+    assert.equal(row('Budi')[iKes], 'Terlihat');
+    assert.equal(row('Citra')[iKes], '');
+    assert.equal(row('Citra')[iKer], 'Belum Terlihat');
+    assert.equal(row('Adelia')[iKer], '');
 });
-uji('jumlah baris = jumlah siswa untuk tiap penilaian tak-beraspek; tak ada duplikasi siswa dalam satu penilaian', () => {
-  for (const id of ['a1', 'a2', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9']) {
-    const nama = baris.filter((x) => x[kolom.Penilaian] === L.labelPenilaian(asmts.find((a) => a.id === id), tpById) && !x[kolom.Aspek]).map((x) => x[kolom['Nama Siswa']]);
-    if (['a4'].includes(id)) continue;   // beraspek: satu aspek di data uji ini
-    assert.deepEqual(nama, ['Adelia', 'Budi', 'Citra'], 'penilaian ' + id);
-  }
+
+uji('penilaian tanpa data: kolom Hasil kosong untuk semua siswa', () => {
+    const iHasil = subH.lastIndexOf('Hasil');   // penilaian kosong = kolom Hasil terakhir
+    assert.ok(siswaRows.every((r) => r[iHasil] === ''));
 });
-uji('baris diurutkan berdasarkan nama siswa (A-Z) terlepas dari urutan roster masuk', () => {
-  const rosterAcak = [{ id: 's3', nama: 'Citra', nis: '0014' }, { id: 's1', nama: 'Adelia', nis: '0012' }, { id: 's2', nama: 'Budi', nis: '0013' }];
-  const b = X.susunLembarRekap({ asmts: [asmts[0]], roster: rosterAcak, hasil, tpById });
-  assert.deepEqual(b.map((r) => r[kolom['Nama Siswa']]), ['Adelia', 'Budi', 'Citra']);
+
+uji('merges: No/Nama/NIS di-merge 3 baris; penilaian multi-sub-kol di-merge baris 0 dan 1', () => {
+    // No/Nama/NIS: merge r0c0..r2c0, r0c1..r2c1, r0c2..r2c2
+    for (let c = 0; c < 3; c++) {
+        const m = M.find((x) => x.s.r === 0 && x.s.c === c);
+        assert.ok(m && m.e.r === 2 && m.e.c === c, 'merge No/Nama/NIS col ' + c);
+    }
+    // UH 1 (3 sub-kol): merge r0c3..r0c5 dan r1c3..r1c5
+    const mJudul = M.find((x) => x.s.r === 0 && x.s.c === 3);
+    assert.ok(mJudul && mJudul.e.c === 5, 'merge judul UH1');
+    const mKet = M.find((x) => x.s.r === 1 && x.s.c === 3);
+    assert.ok(mKet && mKet.e.c === 5, 'merge keterangan UH1');
 });
-uji('saringPenilaian: jenis, teknik, instrumen, TP; filter kosong tidak menyaring; sama dengan yang dipakai layar', () => {
-  assert.equal(L.saringPenilaian(asmts, { jenis: 'SUMATIF' }).length, 2);
-  assert.deepEqual(L.saringPenilaian(asmts, { jenis: 'SUMATIF', teknik: 'PROYEK' }).map((a) => a.id), ['a2']);
-  assert.deepEqual(L.saringPenilaian(asmts, { jenis: 'SUMATIF', tp: 't8' }).map((a) => a.id), ['a2']);
-  assert.deepEqual(L.saringPenilaian(asmts, { jenis: 'FORMATIF', teknik: 'OBSERVASI', instrumen: 'Catatan Anekdot' }).map((a) => a.id), ['a5']);
-  assert.equal(L.saringPenilaian(asmts, {}).length, asmts.length); assert.deepEqual(L.saringPenilaian(null, { jenis: 'SUMATIF' }), []);
-  const s = src('guru/js/penilaian.js');
-  assert.ok(s.includes('saringPenilaian(_asmtCache, { jenis: _rcJenis') && s.includes('saringPenilaian(semua, { jenis: _rcJenis'), 'layar dan ekspor harus memakai fungsi filter yang sama');
+
+uji('penilaian dengan 1 sub-kolom tidak menghasilkan merge (tidak perlu)', () => {
+    const { rows, merges } = X.susunLembarRekap({ asmts: [asmtChecklist], roster, tpById });
+    assert.ok(!merges.some((m) => m.s.r === 0 && m.s.c === 3), 'tidak ada merge judul untuk 1 sub-kol');
 });
-uji('ekspor Rekap: hanya satu lembar data + Catatan; TIDAK ada lembar e-Rapor dan tidak memakai nilai rapor tersimpan', () => {
-  const s = src('guru/js/penilaian.js');
-  const ekspor = s.slice(s.indexOf('async function downloadPenilaianExcel'), s.indexOf('// ── Collapse helpers'));
-  assert.ok(!/e-Rapor|susunLembarERapor|getGradeFinal/.test(ekspor), 'ekspor Rekap masih memuat lembar/nilai rapor');
-  assert.ok(/'Rekap Penilaian'/.test(ekspor) && /'Catatan'/.test(ekspor));
-  assert.ok(!/susunLembarERapor/.test(s), 'impor susunLembarERapor masih ada di penilaian.js');
+
+uji('susunCatatanRekap menyebut cakupan, jumlah, dan pengingat Pelaksanaan', () => {
+    const c = X.susunCatatanRekap({ jenis: 'SUMATIF', teknik: 'TES_LISAN', tpKode: 'TP7', jumlahPenilaian: 2, jumlahSiswa: 32, waktu: 'W' });
+    const teks = JSON.stringify(c);
+    for (const x of ['Sumatif', 'TES LISAN', 'TP7', '"Jumlah penilaian",2', '"Jumlah siswa",32', 'hanya dapat diubah di bagian Pelaksanaan', 'Nilai rapor tidak ada di berkas ini']) assert.ok(teks.includes(x), x);
 });
-uji('nama berkas Rekap menyebut cakupan; karakter terlarang diganti; susunCatatanRekap menyebut cakupan, jumlah, dan pengingat Pelaksanaan', () => {
-  assert.equal(X.namaBerkasRekap({ mapel: 'Komputerisasi Akuntansi', kelas: 'XI AKL 2', jenis: 'SUMATIF', teknik: 'TES_LISAN', tpKode: 'TP7' }), 'Komputerisasi_Akuntansi_XI_AKL_2_Rekap_Sumatif_TES_LISAN_TP7.xlsx');
-  assert.equal(X.namaBerkasRekap({ mapel: 'A/B:C', kelas: 'X', jenis: 'FORMATIF' }), 'A_B_C_X_Rekap_Formatif.xlsx');
-  const c = X.susunCatatanRekap({ jenis: 'SUMATIF', teknik: 'TES_LISAN', tpKode: 'TP7', jumlahPenilaian: 2, jumlahSiswa: 32, waktu: 'W' });
-  const teks = JSON.stringify(c);
-  for (const x of ['Sumatif', 'TES LISAN', 'TP7', '"Jumlah penilaian",2', '"Jumlah siswa",32', 'hanya dapat diubah di bagian Pelaksanaan', 'Nilai rapor tidak ada di berkas ini']) assert.ok(teks.includes(x), x);
-  assert.ok(JSON.stringify(X.susunCatatanRekap({ jenis: 'SUMATIF' })).includes('"Teknik","Semua"'));
+
+uji('namaBerkasRekap menyebut cakupan; karakter terlarang diganti', () => {
+    assert.equal(X.namaBerkasRekap({ mapel: 'Komputerisasi Akuntansi', kelas: 'XI AKL 2', jenis: 'SUMATIF', teknik: 'TES_LISAN', tpKode: 'TP7' }), 'Komputerisasi_Akuntansi_XI_AKL_2_Rekap_Sumatif_TES_LISAN_TP7.xlsx');
+    assert.equal(X.namaBerkasRekap({ mapel: 'A/B:C', kelas: 'X', jenis: 'FORMATIF' }), 'A_B_C_X_Rekap_Formatif.xlsx');
 });
-uji('Excel Nilai Rapor: status penyimpanan jelas (aman / belum disimpan / rumus belum disimpan) dan dicatat di lembar Catatan bersama rumus, waktu, dan sifat berkas kerja', () => {
-  assert.deepEqual(N.statusSimpanRapor({}), { aman: true, teks: 'Semua angka pada berkas ini sudah tersimpan.' });
-  const a = N.statusSimpanRapor({ belumSimpan: 2 }); assert.equal(a.aman, false); assert.match(a.teks, /^PERHATIAN: 2 siswa belum disimpan\. Angka pada berkas ini sama dengan layar.*BUKAN yang tersimpan/);
-  assert.match(N.statusSimpanRapor({ rumusBelumSimpan: true }).teks, /rumus diubah di Rekap dan belum disimpan/);
-  assert.match(N.statusSimpanRapor({ belumSimpan: 1, rumusBelumSimpan: true }).teks, /1 siswa belum disimpan; rumus diubah/);
-  const c = JSON.stringify(N.susunCatatanRapor({ metode: 'BOBOT', status: a, waktu: 'W' }));
-  for (const x of ['Pembobotan per penilaian sumatif', '"Diunduh","W"', 'Status penyimpanan', 'PERHATIAN', 'BERKAS KERJA', 'BELUM dicocokkan']) assert.ok(c.includes(x), x);
-  const ui = src('guru/js/nilai-rapor-ui.js');
-  assert.ok(/statusSimpanRapor\(\{ belumSimpan, rumusBelumSimpan: adaPerubahan\(idSumatif\) \}\)/.test(ui) && /susunCatatanRapor/.test(ui) && /Excel diunduh, tetapi ada nilai yang belum disimpan/.test(ui));
+
+uji('ekspor Rekap di penilaian.js: memakai susunLembarRekap (pivot), ws1.merges, tidak ada HEADER_REKAP/e-Rapor/getGradeFinal', () => {
+    const s = src('guru/js/penilaian.js');
+    const ekspor = s.slice(s.indexOf('async function downloadPenilaianExcel'), s.indexOf('// ── Collapse helpers'));
+    assert.ok(!/HEADER_REKAP/.test(s), 'HEADER_REKAP masih diimpor');
+    assert.ok(!/e-Rapor|susunLembarERapor|getGradeFinal/.test(ekspor), 'ekspor Rekap masih memuat lembar/nilai rapor');
+    assert.ok(/ws1\['!merges'\]/.test(ekspor), 'merges belum dipasang ke worksheet');
+    assert.ok(/susunLembarRekap/.test(ekspor) && /{ rows, merges }/.test(ekspor));
+});
+
+uji('Excel Nilai Rapor: status penyimpanan jelas dan dicatat di lembar Catatan', () => {
+    assert.deepEqual(N.statusSimpanRapor({}), { aman: true, teks: 'Semua angka pada berkas ini sudah tersimpan.' });
+    const a = N.statusSimpanRapor({ belumSimpan: 2 }); assert.equal(a.aman, false); assert.match(a.teks, /^PERHATIAN: 2 siswa belum disimpan\. Angka pada berkas ini sama dengan layar.*BUKAN yang tersimpan/);
+    assert.match(N.statusSimpanRapor({ rumusBelumSimpan: true }).teks, /rumus diubah di Rekap dan belum disimpan/);
+    const c = JSON.stringify(N.susunCatatanRapor({ metode: 'BOBOT', status: a, waktu: 'W' }));
+    for (const x of ['Pembobotan per penilaian sumatif', '"Diunduh","W"', 'Status penyimpanan', 'PERHATIAN', 'BERKAS KERJA', 'BELUM dicocokkan']) assert.ok(c.includes(x), x);
 });
 
 console.log(`\nREKAP_EXCEL: ${lulus} lulus, ${gagal} gagal`);
