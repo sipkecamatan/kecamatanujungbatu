@@ -2,6 +2,9 @@
 -- Portal siswa/ortu kini menampilkan kolom Tindak Lanjut (PENGAYAAN/PENGUATAN/PENDAMPINGAN)
 -- menggantikan kolom Deskripsi yang selalu kosong untuk baris asesmen.
 
+-- Drop versi lama (character varying) agar tidak terjadi overloading ambigus dengan versi baru (text).
+DROP FUNCTION IF EXISTS public.fn_get_all_grades_summary(uuid, character varying, integer);
+
 CREATE OR REPLACE FUNCTION public.fn_get_all_grades_summary(
     p_student_id uuid DEFAULT NULL,
     p_academic_year text DEFAULT NULL,
