@@ -6,9 +6,8 @@ import {
     getStudentsForClass,
     getAssessments, createAssessment, updateAssessment, deleteAssessment,
     getAssessmentResults, upsertAssessmentResult, deleteAssessmentResult, getResultsForAssessments,
-    deleteGradeRecapForTp, getGradeFinal,
+    getGradeFinal,
     getStudentGroups, upsertStudentGroup,
-    hapusRekapTp,
     getCp, upsertCp, createCpElemen, updateCpElemen, deleteCpElemen,
 } from './api.js';
 import { renderNilaiRapor } from './nilai-rapor-ui.js';
@@ -1739,10 +1738,6 @@ function confirmDeleteAsmt(asmtId, origBtn) {
         try {
             const dihapus = _asmtCache.find(a => a.id === asmtId);
             await deleteAssessment(asmtId);
-            // Rekap kini hanya tampilan (tidak menyimpan lagi). Sisa rekap lama (data sebelum 18 Okt 2026) untuk TP itu tetap dibersihkan agar tidak menyisakan angka basi.
-            if (dihapus?.jenis === 'SUMATIF') {
-                for (const tpId of tpIdsPenilaian(dihapus)) await deleteGradeRecapForTp(_schoolId, _kelasId, tpId, Number(_semester), _year);
-            }
             await renderPelaksanaan();
         }
         catch (err) { bar.remove(); origBtn.style.display = ''; alert('Gagal hapus: ' + err.message); }

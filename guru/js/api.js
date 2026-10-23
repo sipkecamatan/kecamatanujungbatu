@@ -2129,72 +2129,6 @@ export async function upsertStudentGroup(schoolId, classId, studentId, grup) {
     if (error) throw error;
 }
 
-// ─── Penilaian: Grade Recap ───────────────────────────────────────────────────
-
-export async function upsertGradeRecap(schoolId, classId, studentId, loId, semester, year, payload) {
-    const { error } = await supabase
-        .from('grade_recap')
-        .upsert(
-            { school_id: schoolId, class_id: classId, student_id: studentId,
-              learning_objective_id: loId, semester, academic_year: year,
-              ...payload, updated_at: new Date().toISOString() },
-            { onConflict: 'school_id,class_id,student_id,learning_objective_id,semester,academic_year' }
-        );
-    if (error) throw error;
-}
-
-/**
- * Batch upsert rekap nilai — satu request untuk seluruh roster.
- * rows: array of { studentId, payload }. schoolId/classId/loId/semester/year sama untuk semua baris.
- * Dipakai supaya simpan rekap tidak parsial saat satu baris gagal (semua-atau-tidak per request).
- */
-export async function upsertGradeRecapBatch(schoolId, classId, loId, semester, year, rows) {
-    if (!rows.length) return;
-    const now = new Date().toISOString();
-    const { error } = await supabase
-        .from('grade_recap')
-        .upsert(
-            rows.map(r => ({
-                school_id: schoolId, class_id: classId, student_id: r.studentId,
-                learning_objective_id: loId, semester, academic_year: year,
-                ...r.payload, updated_at: now,
-            })),
-            { onConflict: 'school_id,class_id,student_id,learning_objective_id,semester,academic_year' }
-        );
-    if (error) throw error;
-}
-
-export async function getGradeRecap(schoolId, classId, semester, year) {
-    return ambilSemuaHalaman(() => supabase
-        .from('grade_recap')
-        .select('*')
-        .eq('school_id', schoolId)
-        .eq('class_id', classId)
-        .eq('semester', semester)
-        .eq('academic_year', year)
-        .order('id'));
-}
-
-/**
- * Sisakan hanya rekap milik mata pelajaran yang sedang diekspor (A-09): rekap kelas memuat semua TP semua mapel guru pada kelas/semester/tahun itu,
- * sedangkan TP mapel ini diketahui dari daftar TP (kelas, mapel, tahun, semester). Daftar TP kosong = tidak ada rekap yang dapat dipastikan milik mapel ini.
- */
-export function rekapUntukMapel(rows, tpIds) {
-    const milik = new Set(tpIds ?? []);
-    return (rows ?? []).filter((r) => milik.has(r.learning_objective_id));
-}
-
-/** Rekap kelas untuk ekspor, dipaginasi (A-11). */
-export async function getGradeRecapRows(schoolId, classId, semester, year) {
-    return ambilSemuaHalaman(() => supabase
-        .from('grade_recap')
-        .select('student_id, learning_objective_id, nilai_akhir, kktp_tercapai, deskripsi_capaian')
-        .eq('class_id', classId)
-        .eq('school_id', schoolId)
-        .eq('academic_year', year)
-        .eq('semester', semester)
-        .order('id'));
-}
 
 // ─── Waka Kurikulum / Kepala Sekolah: nilai setiap TP (dihitung otomatis; migrasi 20261017150000) ───
 
@@ -2309,35 +2243,6 @@ export async function deleteGradeRecapForStudents(schoolId, classId, loId, semes
     if (error) throw error;
 }
 
-/** Hapus seluruh rekap satu TP pada kelas/semester/tahun ini (rekap menjadi basi bila asesmen sumatifnya dihapus; A-05). */
-export async function deleteGradeRecapForTp(schoolId, classId, loId, semester, year) {
-    const { error } = await supabase
-        .from('grade_recap')
-        .delete()
-        .eq('school_id', schoolId)
-        .eq('class_id', classId)
-        .eq('learning_objective_id', loId)
-        .eq('semester', semester)
-        .eq('academic_year', year);
-    if (error) throw error;
-}
-
-export async function hitungRekapTp(tpId) {
-    const { count, error } = await supabase
-        .from('grade_recap')
-        .select('id', { count: 'exact', head: true })
-        .eq('learning_objective_id', tpId);
-    if (error) throw error;
-    return count ?? 0;
-}
-
-export async function hapusRekapTp(tpId) {
-    const { error } = await supabase
-        .from('grade_recap')
-        .delete()
-        .eq('learning_objective_id', tpId);
-    if (error) throw error;
-}
 
 // ─── CP Manual (teaching_cp + teaching_cp_elements) ───────────────────────────
 
