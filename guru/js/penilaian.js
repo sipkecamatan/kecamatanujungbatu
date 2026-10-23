@@ -489,6 +489,7 @@ function openTpModal(tp) {
             const urutan = parseInt(_ov.querySelector('#pen-tp-urutan').value, 10) || (_tpCache.length + 1);
             if (!kode) throw new Error('Kode TP wajib diisi.');
             if (!desc) throw new Error('Deskripsi TP wajib diisi.');
+            if (urutan < 1) throw new Error('Urutan harus 1 atau lebih.');
             await ensureUser();
             if (tp) {
                 await updateTp(tp.id, { kode_tp: kode, deskripsi_tp: desc, urutan });
