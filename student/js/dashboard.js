@@ -1061,6 +1061,22 @@ async function initNilaiTab() {
     await loadNilaiGrid();
 }
 
+function saranTindakLanjut({ nama, mapel, nilai, predikat, tl, untukOrtu }) {
+    const n  = nama ? nama.split(' ')[0] : 'Siswa';
+    const ns = nilai != null ? `${Number(nilai).toFixed(0)} / ${predikat || '—'}` : predikat || '—';
+    const mk = mapel || 'mata pelajaran ini';
+    if (!untukOrtu) {
+        if (tl === 'PENGAYAAN')    return `${n} sudah menguasai ${mk} dengan sangat baik (${ns}). Pertahankan prestasi ini dengan terus berlatih soal yang lebih menantang, berbagi pemahaman dengan teman, atau memperdalam materi secara mandiri.`;
+        if (tl === 'PENGUATAN')    return `${n} sudah cukup memahami ${mk} (${ns}), namun masih ada ruang untuk berkembang. Ulangi bagian yang terasa kurang jelas, kerjakan latihan tambahan, dan jangan ragu bertanya kepada guru.`;
+        if (tl === 'PENDAMPINGAN') return `${n} perlu perhatian lebih di ${mk} (${ns}). Temui guru untuk membahas materi yang masih sulit, buat jadwal belajar yang teratur, dan manfaatkan waktu di luar kelas untuk mengulang pelajaran.`;
+    } else {
+        if (tl === 'PENGAYAAN')    return `${n} menunjukkan penguasaan yang sangat baik di ${mk} (${ns}). Dukung semangat belajarnya dengan memberi akses ke sumber belajar tambahan dan apresiasi setiap pencapaiannya.`;
+        if (tl === 'PENGUATAN')    return `${n} sudah menunjukkan pemahaman yang cukup di ${mk} (${ns}). Bantu dengan memastikan waktu belajar yang cukup di rumah dan tanyakan kepada guru bagian mana yang perlu diperkuat.`;
+        if (tl === 'PENDAMPINGAN') return `${n} memerlukan pendampingan lebih di ${mk} (${ns}). Dampingi belajar di rumah, buat jadwal rutin bersama, dan pertimbangkan untuk berkomunikasi langsung dengan guru guna memantau perkembangan.`;
+    }
+    return '';
+}
+
 async function loadNilaiGrid() {
     const gridEl = document.getElementById('nilai-grid');
     const year   = document.getElementById('nilai-year-select').value || null;
@@ -1108,7 +1124,12 @@ function renderNilaiGrid(grades, gridEl) {
               </tr>
             </thead>
             <tbody>
-              ${items.map(g => `
+              ${items.map(g => {
+                const tl = g.tindak_lanjut;
+                const LABEL_TL = {PENGAYAAN:'Pengayaan',PENGUATAN:'Penguatan',PENDAMPINGAN:'Pendampingan'};
+                const labelTl = LABEL_TL[tl] || '—';
+                const saran = tl ? saranTindakLanjut({ nama: student?.full_name, mapel: g.subject_name, nilai: g.nilai_akhir, predikat: g.predikat, tl, untukOrtu: false }) : '';
+                return `
                 <tr style="border-bottom:1px solid var(--color-border)">
                   <td style="padding:8px 4px">${esc(g.subject_name || '—')}</td>
                   <td style="padding:8px 4px">${esc(g.label || '—')}</td>
@@ -1117,10 +1138,10 @@ function renderNilaiGrid(grades, gridEl) {
                   </td>
                   <td style="padding:8px 4px; text-align:center">${esc(g.predikat || '—')}</td>
                   <td style="padding:8px 4px; font-size:12px">
-                    ${{PENGAYAAN:'Pengayaan',PENGUATAN:'Penguatan',PENDAMPINGAN:'Pendampingan'}[g.tindak_lanjut] || '—'}
+                    ${tl ? `<div style="font-weight:600;margin-bottom:3px">${labelTl}</div><div style="color:var(--color-text-muted);line-height:1.5">${esc(saran)}</div>` : '—'}
                   </td>
-                </tr>
-              `).join('')}
+                </tr>`;
+              }).join('')}
             </tbody>
           </table></div>
         </div>

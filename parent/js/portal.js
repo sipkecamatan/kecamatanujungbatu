@@ -253,7 +253,7 @@ async function showTab(sectionId, signal = null, { replace = false, noHistory = 
         loaded = observations && cases;
     }
     if (key === 'forum')         loaded = await initForumSection(signal);
-    if (key === 'nilai')         loaded = await initNilaiTab(child.student_id, signal);
+    if (key === 'nilai')         { _nilaiNamaAnak = child.full_name || ''; loaded = await initNilaiTab(child.student_id, signal); }
     if (!signal?.aborted) tabLoaded[key] = loaded;
 }
 
@@ -1247,7 +1247,24 @@ async function submitForumBuat() {
 }
 
 // ── Tab Nilai (ortu) ──
-let _nilaiStudentId = null;
+let _nilaiStudentId  = null;
+let _nilaiNamaAnak   = '';
+
+function saranTindakLanjut({ nama, mapel, nilai, predikat, tl, untukOrtu }) {
+    const n  = nama ? nama.split(' ')[0] : 'Siswa';
+    const ns = nilai != null ? `${Number(nilai).toFixed(0)} / ${predikat || '—'}` : predikat || '—';
+    const mk = mapel || 'mata pelajaran ini';
+    if (!untukOrtu) {
+        if (tl === 'PENGAYAAN')    return `${n} sudah menguasai ${mk} dengan sangat baik (${ns}). Pertahankan prestasi ini dengan terus berlatih soal yang lebih menantang, berbagi pemahaman dengan teman, atau memperdalam materi secara mandiri.`;
+        if (tl === 'PENGUATAN')    return `${n} sudah cukup memahami ${mk} (${ns}), namun masih ada ruang untuk berkembang. Ulangi bagian yang terasa kurang jelas, kerjakan latihan tambahan, dan jangan ragu bertanya kepada guru.`;
+        if (tl === 'PENDAMPINGAN') return `${n} perlu perhatian lebih di ${mk} (${ns}). Temui guru untuk membahas materi yang masih sulit, buat jadwal belajar yang teratur, dan manfaatkan waktu di luar kelas untuk mengulang pelajaran.`;
+    } else {
+        if (tl === 'PENGAYAAN')    return `${n} menunjukkan penguasaan yang sangat baik di ${mk} (${ns}). Dukung semangat belajarnya dengan memberi akses ke sumber belajar tambahan dan apresiasi setiap pencapaiannya.`;
+        if (tl === 'PENGUATAN')    return `${n} sudah menunjukkan pemahaman yang cukup di ${mk} (${ns}). Bantu dengan memastikan waktu belajar yang cukup di rumah dan tanyakan kepada guru bagian mana yang perlu diperkuat.`;
+        if (tl === 'PENDAMPINGAN') return `${n} memerlukan pendampingan lebih di ${mk} (${ns}). Dampingi belajar di rumah, buat jadwal rutin bersama, dan pertimbangkan untuk berkomunikasi langsung dengan guru guna memantau perkembangan.`;
+    }
+    return '';
+}
 
 async function initNilaiTab(studentId, signal = null) {
     // Populate tahun ajaran hanya sekali
@@ -1340,7 +1357,12 @@ function renderNilaiGrid(grades, gridEl) {
                   </td>
                   <td style="padding:8px 4px; text-align:center">${esc(g.predikat || '—')}</td>
                   <td style="padding:8px 4px; font-size:12px">
-                    ${{PENGAYAAN:'Pengayaan',PENGUATAN:'Penguatan',PENDAMPINGAN:'Pendampingan'}[g.tindak_lanjut] || '—'}
+                    ${(tl => {
+                      const LABEL_TL = {PENGAYAAN:'Pengayaan',PENGUATAN:'Penguatan',PENDAMPINGAN:'Pendampingan'};
+                      if (!tl) return '—';
+                      const saran = saranTindakLanjut({ nama: _nilaiNamaAnak, mapel: g.subject_name, nilai: g.nilai_akhir, predikat: g.predikat, tl, untukOrtu: true });
+                      return `<div style="font-weight:600;margin-bottom:3px">${LABEL_TL[tl]}</div><div style="color:var(--color-text-muted);line-height:1.5">${esc(saran)}</div>`;
+                    })(g.tindak_lanjut)}
                   </td>
                 </tr>
               `).join('')}
