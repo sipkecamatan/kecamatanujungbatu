@@ -203,7 +203,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 .eq('student_id', student.student_id)
                 .eq('school_id', user.school_id);
             if (updErr) {
-                errors.push({ row: row.rowNumber, message: `Penempatan dibuat tapi gagal update status siswa: ${updErr.message}` });
+                // Rollback placement agar tidak orphan (status siswa tetap bukan PKL).
+                await admin.from('pkl_placements').delete()
+                    .eq('student_id', student.student_id)
+                    .eq('dudi_user_id', dudi.user_id)
+                    .eq('start_date', row.tanggal_mulai)
+                    .eq('school_id', user.school_id);
+                errors.push({ row: row.rowNumber, message: `Gagal update status siswa: ${updErr.message}` });
+                continue;
             }
 
             existingKeys.add(key); // prevent double-insert within same batch
