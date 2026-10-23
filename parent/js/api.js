@@ -16,6 +16,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         autoRefreshToken: true,
         persistSession:   true,
         storage:          localStorage,
+        storageKey:       'sip-ortu',
     },
 });
 

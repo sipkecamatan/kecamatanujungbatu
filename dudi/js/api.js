@@ -10,7 +10,7 @@ const SUPABASE_URL      = 'https://lqgzpiohxdzkkmxjtwor.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxxZ3pwaW9oeGR6a2tteGp0d29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4OTA2MjksImV4cCI6MjEwNzQ2NjYyOX0.omL9CGL5Ckcm2SXquYbXHr-aE8mLUe6H9FewDou-Lp4';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { autoRefreshToken: true, persistSession: true, storage: localStorage },
+    auth: { autoRefreshToken: true, persistSession: true, storage: localStorage, storageKey: 'sip-dudi' },
 });
 
 // Tanggal lokal dalam format YYYY-MM-DD. TIDAK memakai toISOString() yang
