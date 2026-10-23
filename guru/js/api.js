@@ -352,13 +352,14 @@ export async function getWaliKelasInfo(classId) {
  * Returns [{ student_id, full_name, nis, HADIR, ALPA, IZIN, SAKIT, total }]
  * Catatan: EKSKUL dihapus dari absensi → data lama berstatus EKSKUL dihitung HADIR.
  */
-export async function getWaliAttendanceSummary(classId, academicYear, dateStart, dateEnd) {
+export async function getWaliAttendanceSummary(classId, academicYear, dateStart, dateEnd, semester = null) {
     const { data, error } = await supabase.rpc('fn_class_attendance_summary', {
         p_class_id:      classId,
         p_academic_year: academicYear,
         p_date_start:    dateStart || null,
         p_date_end:      dateEnd   || null,
         p_teacher_id:    null,
+        p_semester:      semester  || null,
     });
     if (error) throw error;
     return (data ?? []).map(r => ({

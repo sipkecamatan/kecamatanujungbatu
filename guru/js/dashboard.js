@@ -1664,7 +1664,7 @@ async function initWaliTab() {
             const dateEnd   = document.getElementById('wali-date-end').value || null;
             const academicYear = config.current_academic_year;
 
-            const students = await getWaliAttendanceSummary(classId, academicYear, dateStart, dateEnd);
+            const students = await getWaliAttendanceSummary(classId, academicYear, dateStart, dateEnd, config.current_semester);
 
             const allSessions = await Promise.all(
                 students.map(s => getWaliAttendanceSessions(classId, academicYear, s.student_id, dateStart, dateEnd)
@@ -1774,7 +1774,7 @@ async function loadWaliSummary() {
 
     try {
         const students = await getWaliAttendanceSummary(
-            classId, academicYear, dateStart, dateEnd
+            classId, academicYear, dateStart, dateEnd, config.current_semester
         );
         if (seq !== _waliSummarySeq) return;
         if (!students.length) {
