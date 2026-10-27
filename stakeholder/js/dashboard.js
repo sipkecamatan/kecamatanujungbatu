@@ -143,13 +143,12 @@ async function loadSummary() {
         document.getElementById('st-staf').textContent           = fmtNum(s.total_staf);
         document.getElementById('st-program').textContent        = fmtNum(s.total_program);
         document.getElementById('st-kelas').textContent          = fmtNum(s.total_kelas);
-        document.getElementById('st-kehadiran-bulan').textContent = fmtPct(s.kehadiran_bulan_pct);
         document.getElementById('st-sesi').textContent           = fmtNum(s.sesi_hari_ini);
         document.getElementById('st-hadir-hari').textContent     = fmtNum(s.hadir_hari_ini);
         document.getElementById('updated-at').textContent        = fmtTime(s.updated_at);
     } catch (err) {
         if (request !== _summaryRequest) return;
-        for (const id of ['st-siswa','st-pkl','st-staf','st-program','st-kelas','st-kehadiran-bulan','st-sesi','st-hadir-hari','updated-at']) {
+        for (const id of ['st-siswa','st-pkl','st-staf','st-program','st-kelas','st-sesi','st-hadir-hari','updated-at']) {
             document.getElementById(id).textContent = '—';
         }
         errBox.textContent   = 'Gagal memuat ringkasan. Periksa koneksi lalu coba lagi.';
@@ -166,8 +165,9 @@ function clearMonitoring() {
     for (const id of ['ks-pct-siswa', 'ks-pct-guru', 'ks-count-late', 'ks-count-exits']) {
         document.getElementById(id).textContent = '—';
     }
-    for (const id of ['ks-detail-siswa', 'ks-detail-guru', 'ks-chart-hint']) {
-        document.getElementById(id).textContent = '';
+    for (const id of ['ks-detail-siswa', 'ks-detail-guru', 'ks-chart-hint', 'ks-rincian-siswa']) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '';
     }
     if (_ksChart) { _ksChart.destroy(); _ksChart = null; }
 }
@@ -207,6 +207,17 @@ async function loadKepsekMonitoring(period, academicYear = null, dateStart = nul
         if (countExits) countExits.textContent = s.count_exits != null ? s.count_exits + ' siswa' : '—';
         detSiswa.textContent = `${s.siswa_hadir ?? 0} / ${s.siswa_total ?? 0} siswa hadir`;
         detGuru.textContent  = `${s.guru_hadir  ?? 0} / ${s.guru_total  ?? 0} guru hadir`;
+
+        // Rincian breakdown — identik dengan tampilan Kepala Sekolah
+        const rincEl = document.getElementById('ks-rincian-siswa');
+        if (rincEl) {
+            const r = s.rincian_absensi;
+            if (r && s.siswa_total > 0) {
+                rincEl.textContent = `Hadir ${r.hadir_pct ?? 0}% · Sakit ${r.sakit_pct ?? 0}% · Izin ${r.izin_pct ?? 0}% · Alpa ${r.alpa_pct ?? 0}% dari ${s.siswa_total} catatan`;
+            } else {
+                rincEl.textContent = '';
+            }
+        }
 
         const chartData = d.chart ?? [];
         hintEl.textContent = chartData.length === 0
