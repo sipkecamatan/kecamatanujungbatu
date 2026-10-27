@@ -200,6 +200,14 @@ select.input option { background:var(--color-surface); }
 .bottom-nav .tab-btn.active { border-top-color:var(--color-primary); }
 .nav-icon { font-size:20px; line-height:1; }
 
+/* ── Pagination ───────────────────────────────────────────────── */
+.pagination-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; padding: 10px 0; flex-wrap: wrap;
+}
+.pagination-row .page-info { font-size: 13px; color: var(--color-text-muted); }
+.pagination-row .page-btns { display: flex; gap: 6px; }
+
 /* Base alignment — covers any table not using .data-table */
 table th, table td { text-align:left; padding:8px 12px; }
 

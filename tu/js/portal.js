@@ -371,6 +371,43 @@ const attEmpty   = document.getElementById('att-empty');
 const STATUS_LABEL = { ALPA: 'Alpa', IZIN: 'Izin', SAKIT: 'Sakit' };
 const STATUS_BADGE = { ALPA: 'badge-danger', IZIN: 'badge-warning', SAKIT: 'badge-info' };
 
+const ATT_PAGE_SIZE  = 25;
+let   _attPage       = 0;
+const attPagination  = document.getElementById('att-pagination');
+
+function renderAttPage() {
+    const rows  = _cachedAttendance;
+    const total = rows.length;
+    const start = _attPage * ATT_PAGE_SIZE;
+    const end   = Math.min(start + ATT_PAGE_SIZE, total);
+    const page  = rows.slice(start, end);
+
+    attTbody.innerHTML = page.map(r => `
+        <tr>
+            <td data-label="Tanggal">${esc(formatDate(r.date))}</td>
+            <td data-label="Nama Siswa">${esc(r.student_name)}</td>
+            <td data-label="NIS">${esc(r.nis)}</td>
+            <td data-label="Kelas">${esc(r.class_name)}</td>
+            <td data-label="Status"><span class="badge ${STATUS_BADGE[r.status] ?? ''}">${STATUS_LABEL[r.status] ?? r.status}</span></td>
+            <td data-label="Catatan">${esc(r.notes || '—')}</td>
+        </tr>`).join('');
+    attTable.style.display = 'table';
+
+    const totalPages = Math.ceil(total / ATT_PAGE_SIZE);
+    if (totalPages <= 1) { attPagination.style.display = 'none'; return; }
+
+    attPagination.style.display = 'flex';
+    attPagination.innerHTML = `
+        <span class="page-info">${start + 1}–${end} dari ${total}</span>
+        <div class="page-btns">
+            <button class="btn btn-sm btn-secondary" id="att-prev" ${_attPage === 0 ? 'disabled' : ''}>&#8592; Prev</button>
+            <span class="page-info" style="padding:0 4px">${_attPage + 1} / ${totalPages}</span>
+            <button class="btn btn-sm btn-secondary" id="att-next" ${_attPage >= totalPages - 1 ? 'disabled' : ''}>Next &#8594;</button>
+        </div>`;
+    document.getElementById('att-prev').onclick = () => { _attPage--; renderAttPage(); attTable.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    document.getElementById('att-next').onclick = () => { _attPage++; renderAttPage(); attTable.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+}
+
 async function loadAttendance() {
     const dateStart    = document.getElementById('att-date-start').value;
     const dateEnd      = document.getElementById('att-date-end').value;
@@ -383,11 +420,12 @@ async function loadAttendance() {
 
     btn.disabled             = true;
     btn.textContent          = 'Memuat…';
-    attHintEl.style.display  = 'none';
-    attSummary.style.display = 'none';
-    attTable.style.display   = 'none';
-    attEmpty.style.display   = 'none';
-    attTbody.innerHTML       = '';
+    attHintEl.style.display      = 'none';
+    attSummary.style.display     = 'none';
+    attTable.style.display       = 'none';
+    attPagination.style.display  = 'none';
+    attEmpty.style.display       = 'none';
+    attTbody.innerHTML           = '';
 
     try {
         const rows = await fetchAttendanceSummary(dateStart || null, dateEnd || null, statuses, programId, classId);
@@ -416,16 +454,8 @@ async function loadAttendance() {
             </div>`;
         attSummary.style.display = 'flex';
 
-        attTbody.innerHTML = rows.map(r => `
-            <tr>
-                <td data-label="Tanggal">${esc(formatDate(r.date))}</td>
-                <td data-label="Nama Siswa">${esc(r.student_name)}</td>
-                <td data-label="NIS">${esc(r.nis)}</td>
-                <td data-label="Kelas">${esc(r.class_name)}</td>
-                <td data-label="Status"><span class="badge ${STATUS_BADGE[r.status] ?? ''}">${STATUS_LABEL[r.status] ?? r.status}</span></td>
-                <td data-label="Catatan">${esc(r.notes || '—')}</td>
-            </tr>`).join('');
-        attTable.style.display = 'table';
+        _attPage = 0;
+        renderAttPage();
 
     } catch (err) {
         attHintEl.textContent   = `Gagal memuat data. ${esc(fe(err))}`;
