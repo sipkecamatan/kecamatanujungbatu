@@ -1628,57 +1628,44 @@ async function initWaliTab() {
         btn.textContent = 'Menyiapkan…';
 
         try {
-            const classId   = currentUser.wali_kelas_class_id;
-            const dateStart = document.getElementById('wali-date-start').value || null;
-            const dateEnd   = document.getElementById('wali-date-end').value || null;
+            const classId      = currentUser.wali_kelas_class_id;
+            const dateStart    = document.getElementById('wali-date-start').value || null;
+            const dateEnd      = document.getElementById('wali-date-end').value || null;
             const academicYear = config.current_academic_year;
 
-            const students = await getWaliAttendanceSummary(classId, academicYear, dateStart, dateEnd, config.current_semester);
+            const [students, detail] = await Promise.all([
+                getWaliAttendanceSummary(classId, academicYear, dateStart, dateEnd, config.current_semester),
+                getClassAttendanceByDate(classId, academicYear, dateStart, dateEnd, null),
+            ]);
 
-            const allSessions = await Promise.all(
-                students.map(s => getWaliAttendanceSessions(classId, academicYear, s.student_id, dateStart, dateEnd)
-                    .then(sessions => ({ student: s, sessions }))
-                )
-            );
+            // Tanggal unik urut asc
+            const dateSet = new Set(detail.map(r => r.session_date));
+            const dates   = [...dateSet].sort();
+
+            // Pivot: student_id → tanggal → status (prioritas A>S>I>H)
+            const PRIO = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
+            const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
+            const pivot = {};
+            for (const r of detail) {
+                if (!pivot[r.student_id]) pivot[r.student_id] = {};
+                const prev = pivot[r.student_id][r.session_date];
+                if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
+                    pivot[r.student_id][r.session_date] = r.status;
+            }
+
+            // Siswa urut A-Z
+            const roster = [...students].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+
+            const header   = ['No', 'Nama', ...dates, 'Persentase'];
+            const dataRows = roster.map((s, idx) => {
+                const tot = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
+                const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) + '%' : '—';
+                const dateCells = dates.map(d => STATUS_HURUF[pivot[s.student_id]?.[d]] ?? '');
+                return [idx + 1, s.full_name, ...dateCells, pct];
+            });
 
             const wb = XLSX.utils.book_new();
-
-            const summaryData = [
-                ['Nama', 'Hadir', 'Izin', 'Sakit', 'Alpa', 'Total Sesi', '% Hadir'],
-                ...students.map(s => {
-                    const tot = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
-                    const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) : 0;
-                    return [s.full_name, s.HADIR, s.IZIN, s.SAKIT, s.ALPA, s.total,
-                            tot > 0 ? pct + '%' : '—'];
-                })
-            ];
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), 'Ringkasan');
-
-            const usedNames = new Set(['ringkasan']);
-            for (const { student, sessions } of allSessions) {
-                const sheetData = [
-                    ['Nama', student.full_name],
-                    ['NIS', student.nis ?? ''],
-                    ['Tanggal', 'Jam', 'Mata Pelajaran', 'Guru', 'Status', 'Keterangan'],
-                    ...sessions.map(s => [
-                        s.schedule?.session_date ?? '',
-                        s.schedule?.session_start ? fmtTime(s.schedule.session_start) : '',
-                        s.schedule?.subject_label ?? '',
-                        s.schedule?.teacher?.full_name ?? '',
-                        s.status ?? '',
-                        s.status === 'IZIN' ? (s.notes ?? '') : '',
-                    ])
-                ];
-                const baseName = (student.full_name ?? 'Siswa').replace(/[\\/:?*\[\]]/g, ' ')
-                    .trim().replace(/^'+|'+$/g, '').slice(0, 31).replace(/^'+|'+$/g, '') || 'Siswa';
-                let sheetName = baseName;
-                for (let n = 2; usedNames.has(sheetName.toLowerCase()); n++) {
-                    const suffix = ` (${n})`;
-                    sheetName = baseName.slice(0, 31 - suffix.length) + suffix;
-                }
-                usedNames.add(sheetName.toLowerCase());
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetData), sheetName);
-            }
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...dataRows]), 'Rekap Kehadiran');
 
             const className = document.getElementById('wali-class-title')
                 .textContent.replace('Kelas Walian — ', '').trim();
