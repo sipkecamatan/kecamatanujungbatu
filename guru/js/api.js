@@ -817,6 +817,37 @@ export async function getAttendanceSummaryByStudents(classId, academicYear, date
     }));
 }
 
+/** Detail kehadiran per siswa per tanggal untuk satu kelas — untuk export Excel pivot. */
+export async function getClassAttendanceByDate(classId, academicYear, dateStart, dateEnd, teacherId = null) {
+    const rows = [];
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+        let q = supabase
+            .from('attendance')
+            .select(`
+                student_id, status, is_void,
+                schedule:teaching_schedules!inner ( session_date, academic_year, class_id, scheduled_teacher_id )
+            `)
+            .eq('is_void', false)
+            .eq('teaching_schedules.class_id', classId)
+            .eq('teaching_schedules.academic_year', academicYear);
+        if (dateStart) q = q.gte('teaching_schedules.session_date', dateStart);
+        if (dateEnd)   q = q.lte('teaching_schedules.session_date', dateEnd);
+        if (teacherId) q = q.eq('teaching_schedules.scheduled_teacher_id', teacherId);
+        q = q.range(offset, offset + pageSize - 1);
+        const { data, error } = await q;
+        if (error) throw error;
+        const page = (data ?? []).filter(r => r.schedule);
+        rows.push(...page);
+        if (page.length < pageSize) break;
+    }
+    return rows.map(r => ({
+        student_id:   r.student_id,
+        session_date: r.schedule.session_date,
+        status:       r.status,
+    }));
+}
+
 export async function getOpenCases(schoolId, track = null) {
     let q = supabase
         .from('coaching_cases')

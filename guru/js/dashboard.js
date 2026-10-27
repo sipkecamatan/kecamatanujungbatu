@@ -17,7 +17,7 @@ import {
     getWaliKelasInfo, getWaliAttendanceSummary, getWaliCoachingStudents, getWaliAttendanceSessions,
     getProgram, fetchPklStudents, fetchNonPklStudents,
     fetchDudiPartners, fetchPklAttendance, fetchDudiObservations,
-    getAttendanceSummaryByStudents,
+    getAttendanceSummaryByStudents, getClassAttendanceByDate,
     fetchAllPklStudents, fetchAllDudiPartners,
     createPlacement, finishPlacement, bulkImportPkl,
 
@@ -745,24 +745,46 @@ async function loadGuruRecap() {
             </div>
             <div id="guru-rekap-accordion"></div>`;
 
-        document.getElementById('guru-recap-export').addEventListener('click', () => {
-            const rows = _guruRekapRows;
-            if (!rows.length) return;
+        document.getElementById('guru-recap-export').addEventListener('click', async () => {
+            const summaryRows = _guruRekapRows;
+            if (!summaryRows.length) return;
 
-            const wsData = [
-                ['Nama', 'Hadir', 'Izin', 'Sakit', 'Alpa', 'Total Sesi', '% Hadir'],
-                ...rows.map(s => {
-                    const tot = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
-                    const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) : 0;
-                    return [s.full_name, s.HADIR, s.IZIN, s.SAKIT, s.ALPA, s.total, tot > 0 ? pct + '%' : '—'];
-                })
-            ];
+            const classId   = document.getElementById('guru-recap-class').value;
+            const start     = document.getElementById('guru-recap-start').value;
+            const end       = document.getElementById('guru-recap-end').value;
 
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            const detail = await getClassAttendanceByDate(classId, config.current_academic_year, start || null, end || null, currentUser.user_id);
+
+            // Kumpulkan tanggal unik, urut asc
+            const dateSet = new Set(detail.map(r => r.session_date));
+            const dates   = [...dateSet].sort();
+
+            // Peta: student_id → tanggal → status (ambil satu per tanggal, prioritas A>S>I>H)
+            const PRIO = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
+            const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
+            const pivot = {};
+            for (const r of detail) {
+                if (!pivot[r.student_id]) pivot[r.student_id] = {};
+                const prev = pivot[r.student_id][r.session_date];
+                if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
+                    pivot[r.student_id][r.session_date] = r.status;
+            }
+
+            // Siswa urut A-Z
+            const roster = [...summaryRows].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+
+            // Header
+            const header = ['No', 'Nama', ...dates, 'Persentase'];
+            const dataRows = roster.map((s, idx) => {
+                const tot = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
+                const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) + '%' : '—';
+                const dateCells = dates.map(d => STATUS_HURUF[pivot[s.student_id]?.[d]] ?? '');
+                return [idx + 1, s.full_name, ...dateCells, pct];
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet([header, ...dataRows]);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Rekap Kehadiran');
-            const start = document.getElementById('guru-recap-start').value;
-            const end   = document.getElementById('guru-recap-end').value;
             XLSX.writeFile(wb, `kehadiran_${_guruRekapClassName ?? 'kelas'}_${start}_${end}.xlsx`);
         });
 
