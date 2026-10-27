@@ -168,13 +168,19 @@ export async function getExitsByRange(dateStart, dateEnd) {
  * @returns {Array} satu baris per (blok pertemuan, siswa) — JP dalam blok yang sama digabung
  */
 export async function fetchAttendanceSummary(dateStart, dateEnd, statuses = ['ALPA', 'IZIN', 'SAKIT']) {
-    const { data, error } = await supabase.rpc('fn_tu_attendance_recap', {
-        p_date_start: dateStart ?? null,
-        p_date_end:   dateEnd   ?? null,
-        p_statuses:   statuses,
-    });
-    if (error) throw error;
-    return (data ?? []).map(r => ({
+    const all = [];
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase.rpc('fn_tu_attendance_recap', {
+            p_date_start: dateStart ?? null,
+            p_date_end:   dateEnd   ?? null,
+            p_statuses:   statuses,
+        }).range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        all.push(...(data ?? []));
+        if (!data || data.length < pageSize) break;
+    }
+    return all.map(r => ({
         date:         r.session_date,
         student_name: r.student_name,
         nis:          r.nis,
