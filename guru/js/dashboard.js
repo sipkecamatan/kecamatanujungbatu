@@ -2213,8 +2213,8 @@ async function initWakaKesiswaanKasusSection() {
 let _wkAttendanceRequestSeq = 0;
 let _wkLateRequestSeq = 0;
 
-function buildAttStatCards(rows) {
-    const tot  = rows.reduce((s,r) => s + r.HADIR + r.IZIN + r.SAKIT + r.ALPA, 0);
+function buildAttStatCards(rows, getTot = r => r.HADIR + r.IZIN + r.SAKIT + r.ALPA) {
+    const tot  = rows.reduce((s,r) => s + getTot(r), 0);
     const h    = rows.reduce((s,r) => s + r.HADIR,       0);
     const i    = rows.reduce((s,r) => s + r.IZIN,        0);
     const sk   = rows.reduce((s,r) => s + r.SAKIT,       0);
@@ -2768,11 +2768,11 @@ async function loadKpClsRecap() {
         const html = rows
             .sort((a, b) => a.name.localeCompare(b.name, 'id'))
             .map(r => {
-                const tot  = r.HADIR + r.IZIN + r.SAKIT + r.ALPA;
-                const pctH = tot > 0 ? Math.round(r.HADIR       / tot * 100) : 0;
-                const pctI = tot > 0 ? Math.round(r.IZIN        / tot * 100) : 0;
-                const pctS = tot > 0 ? Math.round(r.SAKIT       / tot * 100) : 0;
-                const pctA = tot > 0 ? Math.round(r.ALPA / tot * 100) : 0;
+                const tot  = r.total;
+                const pctH = tot > 0 ? Math.round(r.HADIR / tot * 100) : 0;
+                const pctI = tot > 0 ? Math.round(r.IZIN  / tot * 100) : 0;
+                const pctS = tot > 0 ? Math.round(r.SAKIT / tot * 100) : 0;
+                const pctA = tot > 0 ? Math.round(r.ALPA  / tot * 100) : 0;
                 const colH = pctH >= 80 ? 'var(--color-success)' : pctH >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
                 return `
                 <details class="att-accordion" style="margin-bottom:8px">
@@ -2794,7 +2794,7 @@ async function loadKpClsRecap() {
                 </details>`;
             }).join('');
 
-        container.innerHTML = buildAttStatCards(rows) + html;
+        container.innerHTML = buildAttStatCards(rows, r => r.total) + html;
 
         // Lazy load siswa saat accordion kelas dibuka
         container.querySelectorAll('details.att-accordion').forEach(det => {
