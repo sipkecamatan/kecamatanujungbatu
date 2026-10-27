@@ -124,11 +124,13 @@ async function getXLSX() {
     return _XLSX;
 }
 
-async function downloadXLSX(rows, filename, sheetName = 'Data') {
+// sheets: [{ name, rows }, ...]
+async function downloadXLSX(sheets, filename) {
     const XLSX = await getXLSX();
-    const ws   = XLSX.utils.aoa_to_sheet(rows);
     const wb   = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    for (const { name, rows } of sheets) {
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), name);
+    }
     XLSX.writeFile(wb, filename);
 }
 
@@ -215,7 +217,7 @@ document.getElementById('btn-export-piket').addEventListener('click', async () =
         r.academic_year,
         `Semester ${r.semester}`,
     ]);
-    downloadXLSX([...header, ...rows], `jadwal-piket-${Date.now()}.xlsx`, 'Jadwal Piket');
+    downloadXLSX([{ name: 'Jadwal Piket', rows: [...header, ...rows] }], `jadwal-piket-${Date.now()}.xlsx`);
 });
 
 // ── Tab 2: Keterlambatan ───────────────────────────────────────
@@ -281,7 +283,7 @@ document.getElementById('btn-export-late').addEventListener('click', async () =>
     const rows   = _cachedLate.map(r => [
         formatDate(r.date), r.arrival_time, r.student_name, r.nis, r.reason || '',
     ]);
-    downloadXLSX([...header, ...rows], `keterlambatan-${Date.now()}.xlsx`, 'Keterlambatan');
+    downloadXLSX([{ name: 'Keterlambatan', rows: [...header, ...rows] }], `keterlambatan-${Date.now()}.xlsx`);
 });
 
 // ── Tab 3: Izin Keluar ────────────────────────────────────────
@@ -356,7 +358,7 @@ document.getElementById('btn-export-exits')?.addEventListener('click', async () 
         r.return_time ? r.return_time.slice(0,5) : '—',
         r.student_name, r.nis, r.reason || '',
     ]);
-    downloadXLSX([...header, ...rows], `izin-keluar-${Date.now()}.xlsx`, 'Izin Keluar');
+    downloadXLSX([{ name: 'Izin Keluar', rows: [...header, ...rows] }], `izin-keluar-${Date.now()}.xlsx`);
 });
 
 // ── Tab 4: Rekap Kehadiran ─────────────────────────────────────
@@ -438,12 +440,30 @@ document.getElementById('btn-att-filter').addEventListener('click', loadAttendan
 
 document.getElementById('btn-export-att').addEventListener('click', async () => {
     if (!_cachedAttendance.length) { _tuHint('Tampilkan data dulu sebelum export.'); return; }
-    const header = [['Tanggal', 'Nama Siswa', 'NIS', 'Kelas', 'Status', 'Catatan']];
-    const rows   = _cachedAttendance.map(r => [
+
+    // Sheet 1: detail per baris
+    const detailHeader = [['Tanggal', 'Nama Siswa', 'NIS', 'Kelas', 'Status', 'Catatan']];
+    const detailRows   = _cachedAttendance.map(r => [
         formatDate(r.date), r.student_name, r.nis, r.class_name,
         STATUS_LABEL[r.status] ?? r.status, r.notes || '',
     ]);
-    downloadXLSX([...header, ...rows], `rekap-kehadiran-${Date.now()}.xlsx`, 'Rekap Kehadiran');
+
+    // Sheet 2: ringkasan per kelas
+    const kelasMap = new Map(); // class_name → { ALPA, IZIN, SAKIT }
+    for (const r of _cachedAttendance) {
+        if (!kelasMap.has(r.class_name)) kelasMap.set(r.class_name, { ALPA: 0, IZIN: 0, SAKIT: 0 });
+        const k = kelasMap.get(r.class_name);
+        if (r.status in k) k[r.status]++;
+    }
+    const summaryHeader = [['Kelas', 'Alpa', 'Izin', 'Sakit', 'Total']];
+    const summaryRows   = [...kelasMap.entries()]
+        .sort(([a], [b]) => a.localeCompare(b, 'id'))
+        .map(([kelas, c]) => [kelas, c.ALPA, c.IZIN, c.SAKIT, c.ALPA + c.IZIN + c.SAKIT]);
+
+    downloadXLSX([
+        { name: 'Rekap Kehadiran', rows: [...detailHeader, ...detailRows] },
+        { name: 'Per Kelas',       rows: [...summaryHeader, ...summaryRows] },
+    ], `rekap-kehadiran-${Date.now()}.xlsx`);
 });
 
 // ── Logout ─────────────────────────────────────────────────────
