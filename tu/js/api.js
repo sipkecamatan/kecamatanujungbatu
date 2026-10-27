@@ -160,8 +160,7 @@ export async function getExitsByRange(dateStart, dateEnd) {
 
 /**
  * Ambil rekap kehadiran tidak hadir (ALPA, IZIN, SAKIT) dalam rentang tanggal.
- * Query dari attendance langsung agar filter status tidak perlu dot-notation nested.
- * RLS rls_attendance_read_tu + rls_schedules_read_tu memastikan isolasi tenant.
+ * Pakai RPC fn_tu_attendance_recap agar filter session_date memanfaatkan index.
  *
  * @param {string|null} dateStart
  * @param {string|null} dateEnd
@@ -169,46 +168,20 @@ export async function getExitsByRange(dateStart, dateEnd) {
  * @returns {Array} satu baris per (blok pertemuan, siswa) — JP dalam blok yang sama digabung
  */
 export async function fetchAttendanceSummary(dateStart, dateEnd, statuses = ['ALPA', 'IZIN', 'SAKIT']) {
-    let q = supabase
-        .from('attendance')
-        .select(`
-            attendance_id,
-            status,
-            notes,
-            schedule:teaching_schedules!attendance_schedule_id_fkey!inner (
-                block_group_id,
-                session_date,
-                class:classes!teaching_schedules_class_id_fkey ( name )
-            ),
-            student:students!attendance_student_id_fkey ( full_name, nis )
-        `)
-        .in('status', statuses)
-        .eq('is_void', false);
-
-    if (dateStart) q = q.gte('schedule.session_date', dateStart);
-    if (dateEnd)   q = q.lte('schedule.session_date', dateEnd);
-
-    const { data, error } = await q;
+    const { data, error } = await supabase.rpc('fn_tu_attendance_recap', {
+        p_date_start: dateStart ?? null,
+        p_date_end:   dateEnd   ?? null,
+        p_statuses:   statuses,
+    });
     if (error) throw error;
-
-    // Deduplikasi per blok per siswa — beberapa JP dalam satu blok tidak boleh menghasilkan baris ganda
-    const seen = new Set();
-    const rows = [];
-    for (const att of (data ?? [])) {
-        const blockKey = att.schedule?.block_group_id ?? att.schedule?.session_date;
-        const key = `${blockKey}|${att.student?.nis ?? att.attendance_id}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        rows.push({
-            date:         att.schedule?.session_date ?? '—',
-            student_name: att.student?.full_name ?? '—',
-            nis:          att.student?.nis ?? '—',
-            class_name:   att.schedule?.class?.name ?? '—',
-            status:       att.status,
-            notes:        att.notes ?? '',
-        });
-    }
-    return rows.sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
+    return (data ?? []).map(r => ({
+        date:         r.session_date,
+        student_name: r.student_name,
+        nis:          r.nis,
+        class_name:   r.class_name,
+        status:       r.status,
+        notes:        r.notes ?? '',
+    }));
 }
 
 // ─── Forum Sekolah ────────────────────────────────────────────
