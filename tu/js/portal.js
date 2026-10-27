@@ -115,7 +115,24 @@ function fe(err) {
     return 'Gagal memuat data. Silakan coba lagi.';
 }
 
-// ── CSV Export ─────────────────────────────────────────────────
+// ── Excel Export (SheetJS) ─────────────────────────────────────
+let _XLSX = null;
+async function getXLSX() {
+    if (_XLSX) return _XLSX;
+    const mod = await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
+    _XLSX = mod.default ?? mod;
+    return _XLSX;
+}
+
+async function downloadXLSX(rows, filename, sheetName = 'Data') {
+    const XLSX = await getXLSX();
+    const ws   = XLSX.utils.aoa_to_sheet(rows);
+    const wb   = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, filename);
+}
+
+// kept for reference — replaced by downloadXLSX
 function downloadCSV(rows, filename) {
     const BOM = '﻿';
     const csv  = BOM + rows.map(row =>
@@ -189,7 +206,7 @@ async function loadPiket() {
 
 document.getElementById('btn-piket-filter').addEventListener('click', loadPiket);
 
-document.getElementById('btn-export-piket').addEventListener('click', () => {
+document.getElementById('btn-export-piket').addEventListener('click', async () => {
     if (!_cachedPiket.length) { _tuHint('Tampilkan data dulu sebelum export.'); return; }
     const header = [['Hari', 'Nama Guru', 'Tahun Ajaran', 'Semester']];
     const rows   = _cachedPiket.map(r => [
@@ -198,7 +215,7 @@ document.getElementById('btn-export-piket').addEventListener('click', () => {
         r.academic_year,
         `Semester ${r.semester}`,
     ]);
-    downloadCSV([...header, ...rows], `jadwal-piket-${Date.now()}.csv`);
+    downloadXLSX([...header, ...rows], `jadwal-piket-${Date.now()}.xlsx`, 'Jadwal Piket');
 });
 
 // ── Tab 2: Keterlambatan ───────────────────────────────────────
@@ -258,13 +275,13 @@ async function loadLate() {
 
 document.getElementById('btn-late-filter').addEventListener('click', loadLate);
 
-document.getElementById('btn-export-late').addEventListener('click', () => {
+document.getElementById('btn-export-late').addEventListener('click', async () => {
     if (!_cachedLate.length) { _tuHint('Tampilkan data dulu sebelum export.'); return; }
     const header = [['Tanggal', 'Jam Datang', 'Nama Siswa', 'NIS', 'Alasan']];
     const rows   = _cachedLate.map(r => [
         formatDate(r.date), r.arrival_time, r.student_name, r.nis, r.reason || '',
     ]);
-    downloadCSV([...header, ...rows], `keterlambatan-${Date.now()}.csv`);
+    downloadXLSX([...header, ...rows], `keterlambatan-${Date.now()}.xlsx`, 'Keterlambatan');
 });
 
 // ── Tab 3: Izin Keluar ────────────────────────────────────────
@@ -330,7 +347,7 @@ async function loadExitsRecap() {
 
 document.getElementById('btn-exits-filter')?.addEventListener('click', loadExitsRecap);
 
-document.getElementById('btn-export-exits')?.addEventListener('click', () => {
+document.getElementById('btn-export-exits')?.addEventListener('click', async () => {
     if (!_cachedExits.length) { _tuHint('Tampilkan data dulu sebelum export.'); return; }
     const header = [['Tanggal', 'Jam Keluar', 'Jam Kembali', 'Nama Siswa', 'NIS', 'Alasan']];
     const rows   = _cachedExits.map(r => [
@@ -339,7 +356,7 @@ document.getElementById('btn-export-exits')?.addEventListener('click', () => {
         r.return_time ? r.return_time.slice(0,5) : '—',
         r.student_name, r.nis, r.reason || '',
     ]);
-    downloadCSV([...header, ...rows], `izin-keluar-${Date.now()}.csv`);
+    downloadXLSX([...header, ...rows], `izin-keluar-${Date.now()}.xlsx`, 'Izin Keluar');
 });
 
 // ── Tab 4: Rekap Kehadiran ─────────────────────────────────────
@@ -419,14 +436,14 @@ async function loadAttendance() {
 
 document.getElementById('btn-att-filter').addEventListener('click', loadAttendance);
 
-document.getElementById('btn-export-att').addEventListener('click', () => {
+document.getElementById('btn-export-att').addEventListener('click', async () => {
     if (!_cachedAttendance.length) { _tuHint('Tampilkan data dulu sebelum export.'); return; }
     const header = [['Tanggal', 'Nama Siswa', 'NIS', 'Kelas', 'Status', 'Catatan']];
     const rows   = _cachedAttendance.map(r => [
         formatDate(r.date), r.student_name, r.nis, r.class_name,
         STATUS_LABEL[r.status] ?? r.status, r.notes || '',
     ]);
-    downloadCSV([...header, ...rows], `rekap-kehadiran-${Date.now()}.csv`);
+    downloadXLSX([...header, ...rows], `rekap-kehadiran-${Date.now()}.xlsx`, 'Rekap Kehadiran');
 });
 
 // ── Logout ─────────────────────────────────────────────────────
