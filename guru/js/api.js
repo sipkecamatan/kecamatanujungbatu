@@ -819,31 +819,39 @@ export async function getAttendanceSummaryByStudents(classId, academicYear, date
 
 /** Detail kehadiran per siswa per tanggal untuk satu kelas — untuk export Excel pivot. */
 export async function getClassAttendanceByDate(classId, academicYear, dateStart, dateEnd, teacherId = null) {
+    // Langkah 1: ambil schedule_id yang relevan (query kecil, pakai index class_id)
+    let sq = supabase
+        .from('teaching_schedules')
+        .select('schedule_id, session_date')
+        .eq('class_id', classId)
+        .eq('academic_year', academicYear);
+    if (dateStart) sq = sq.gte('session_date', dateStart);
+    if (dateEnd)   sq = sq.lte('session_date', dateEnd);
+    if (teacherId) sq = sq.eq('scheduled_teacher_id', teacherId);
+    const { data: scheds, error: schedErr } = await sq;
+    if (schedErr) throw schedErr;
+    if (!scheds?.length) return [];
+
+    const dateBySchedId = Object.fromEntries(scheds.map(s => [s.schedule_id, s.session_date]));
+    const schedIds = scheds.map(s => s.schedule_id);
+
+    // Langkah 2: query attendance dengan filter schedule_id (index langsung)
     const rows = [];
     const pageSize = 1000;
     for (let offset = 0; ; offset += pageSize) {
-        let q = supabase
+        const { data, error } = await supabase
             .from('attendance')
-            .select(`
-                student_id, status, is_void,
-                schedule:teaching_schedules!inner ( session_date, academic_year, class_id, scheduled_teacher_id )
-            `)
+            .select('student_id, schedule_id, status')
+            .in('schedule_id', schedIds)
             .eq('is_void', false)
-            .eq('teaching_schedules.class_id', classId)
-            .eq('teaching_schedules.academic_year', academicYear);
-        if (dateStart) q = q.gte('teaching_schedules.session_date', dateStart);
-        if (dateEnd)   q = q.lte('teaching_schedules.session_date', dateEnd);
-        if (teacherId) q = q.eq('teaching_schedules.scheduled_teacher_id', teacherId);
-        q = q.range(offset, offset + pageSize - 1);
-        const { data, error } = await q;
+            .range(offset, offset + pageSize - 1);
         if (error) throw error;
-        const page = (data ?? []).filter(r => r.schedule);
-        rows.push(...page);
-        if (page.length < pageSize) break;
+        rows.push(...(data ?? []));
+        if ((data ?? []).length < pageSize) break;
     }
     return rows.map(r => ({
         student_id:   r.student_id,
-        session_date: r.schedule.session_date,
+        session_date: dateBySchedId[r.schedule_id],
         status:       r.status,
     }));
 }
