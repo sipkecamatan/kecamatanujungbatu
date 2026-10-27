@@ -441,29 +441,28 @@ document.getElementById('btn-att-filter').addEventListener('click', loadAttendan
 document.getElementById('btn-export-att').addEventListener('click', async () => {
     if (!_cachedAttendance.length) { _tuHint('Tampilkan data dulu sebelum export.'); return; }
 
-    // Sheet 1: detail per baris
-    const detailHeader = [['Tanggal', 'Nama Siswa', 'NIS', 'Kelas', 'Status', 'Catatan']];
-    const detailRows   = _cachedAttendance.map(r => [
-        formatDate(r.date), r.student_name, r.nis, r.class_name,
-        STATUS_LABEL[r.status] ?? r.status, r.notes || '',
-    ]);
-
-    // Sheet 2: ringkasan per kelas
-    const kelasMap = new Map(); // class_name → { ALPA, IZIN, SAKIT }
+    // Kelompokkan baris per kelas, diurutkan nama kelas A-Z
+    const kelasMap = new Map();
     for (const r of _cachedAttendance) {
-        if (!kelasMap.has(r.class_name)) kelasMap.set(r.class_name, { ALPA: 0, IZIN: 0, SAKIT: 0 });
-        const k = kelasMap.get(r.class_name);
-        if (r.status in k) k[r.status]++;
+        if (!kelasMap.has(r.class_name)) kelasMap.set(r.class_name, []);
+        kelasMap.get(r.class_name).push(r);
     }
-    const summaryHeader = [['Kelas', 'Alpa', 'Izin', 'Sakit', 'Total']];
-    const summaryRows   = [...kelasMap.entries()]
+    const header = ['Tanggal', 'Nama Siswa', 'NIS', 'Status', 'Catatan'];
+    const sheets = [...kelasMap.entries()]
         .sort(([a], [b]) => a.localeCompare(b, 'id'))
-        .map(([kelas, c]) => [kelas, c.ALPA, c.IZIN, c.SAKIT, c.ALPA + c.IZIN + c.SAKIT]);
+        .map(([kelas, rows]) => ({
+            // Nama sheet max 31 karakter (batas Excel)
+            name: kelas.slice(0, 31),
+            rows: [
+                header,
+                ...rows.map(r => [
+                    formatDate(r.date), r.student_name, r.nis,
+                    STATUS_LABEL[r.status] ?? r.status, r.notes || '',
+                ]),
+            ],
+        }));
 
-    downloadXLSX([
-        { name: 'Rekap Kehadiran', rows: [...detailHeader, ...detailRows] },
-        { name: 'Per Kelas',       rows: [...summaryHeader, ...summaryRows] },
-    ], `rekap-kehadiran-${Date.now()}.xlsx`);
+    downloadXLSX(sheets, `rekap-kehadiran-${Date.now()}.xlsx`);
 });
 
 // ── Logout ─────────────────────────────────────────────────────
