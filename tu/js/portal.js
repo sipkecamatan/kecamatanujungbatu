@@ -31,6 +31,8 @@ import {
     fetchDutySchedules,
     fetchLateArrivals,
     fetchAttendanceSummary,
+    fetchPrograms,
+    fetchClassesByProgram,
     getExitsByRange,
     getForumSekolahPosts, getForumSekolahSentPosts, getForumSekolahComments,
     addForumSekolahComment, addForumSekolahAck, createForumSekolahPost,
@@ -354,6 +356,8 @@ async function loadAttendance() {
     const dateStart    = document.getElementById('att-date-start').value;
     const dateEnd      = document.getElementById('att-date-end').value;
     const statusFilter = document.getElementById('att-status').value;
+    const programId    = document.getElementById('att-program').value || null;
+    const classId      = document.getElementById('att-class').value   || null;
     const btn          = document.getElementById('btn-att-filter');
 
     const statuses = statusFilter ? [statusFilter] : ['ALPA', 'IZIN', 'SAKIT'];
@@ -367,7 +371,7 @@ async function loadAttendance() {
     attTbody.innerHTML       = '';
 
     try {
-        const rows = await fetchAttendanceSummary(dateStart || null, dateEnd || null, statuses);
+        const rows = await fetchAttendanceSummary(dateStart || null, dateEnd || null, statuses, programId, classId);
         _cachedAttendance = rows;
 
         if (!rows.length) {
@@ -2083,6 +2087,33 @@ async function init() {
     document.getElementById('late-date-end').value   = todayStr;
     document.getElementById('att-date-start').value  = monthAgoStr;
     document.getElementById('att-date-end').value    = todayStr;
+
+    // Isi dropdown Prodi dan cascade ke Kelas
+    try {
+        const programs = await fetchPrograms();
+        const progSel  = document.getElementById('att-program');
+        programs.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value       = p.program_id;
+            opt.textContent = p.name;
+            progSel.appendChild(opt);
+        });
+    } catch (_) { /* dropdown tetap tampil dengan "Semua Program" */ }
+
+    document.getElementById('att-program').addEventListener('change', async function () {
+        const classSel = document.getElementById('att-class');
+        classSel.innerHTML = '<option value="">Semua Kelas</option>';
+        if (!this.value) return;
+        try {
+            const classes = await fetchClassesByProgram(this.value);
+            classes.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value       = c.class_id;
+                opt.textContent = c.name;
+                classSel.appendChild(opt);
+            });
+        } catch (_) { /* biarkan dropdown kosong */ }
+    });
 
     // Isi dropdown tahun ajaran dari school_config
     const yearSelect  = document.getElementById('piket-year');

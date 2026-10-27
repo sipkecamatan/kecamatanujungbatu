@@ -2,9 +2,11 @@
 -- agar filter session_date bisa memanfaatkan index pada teaching_schedules.
 
 CREATE OR REPLACE FUNCTION public.fn_tu_attendance_recap(
-    p_date_start date   DEFAULT NULL,
-    p_date_end   date   DEFAULT NULL,
-    p_statuses   text[] DEFAULT ARRAY['ALPA','IZIN','SAKIT']
+    p_date_start  date   DEFAULT NULL,
+    p_date_end    date   DEFAULT NULL,
+    p_statuses    text[] DEFAULT ARRAY['ALPA','IZIN','SAKIT'],
+    p_program_id  uuid   DEFAULT NULL,
+    p_class_id    uuid   DEFAULT NULL
 )
 RETURNS TABLE(
     block_group_id uuid,
@@ -43,6 +45,8 @@ BEGIN
       AND a.status::text = ANY(p_statuses)
       AND (p_date_start IS NULL OR ts.session_date >= p_date_start)
       AND (p_date_end   IS NULL OR ts.session_date <= p_date_end)
+      AND (p_class_id   IS NULL OR ts.class_id = p_class_id)
+      AND (p_program_id IS NULL OR c.program_id = p_program_id)
     ORDER BY ts.session_date DESC, a.student_id, a.status;
 END;
 $f$;

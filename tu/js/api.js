@@ -158,23 +158,37 @@ export async function getExitsByRange(dateStart, dateEnd) {
     });
 }
 
-/**
- * Ambil rekap kehadiran tidak hadir (ALPA, IZIN, SAKIT) dalam rentang tanggal.
- * Pakai RPC fn_tu_attendance_recap agar filter session_date memanfaatkan index.
- *
- * @param {string|null} dateStart
- * @param {string|null} dateEnd
- * @param {string[]} statuses - subset dari ['ALPA','IZIN','SAKIT']
- * @returns {Array} satu baris per (blok pertemuan, siswa) — JP dalam blok yang sama digabung
- */
-export async function fetchAttendanceSummary(dateStart, dateEnd, statuses = ['ALPA', 'IZIN', 'SAKIT']) {
+export async function fetchPrograms() {
+    const { data, error } = await supabase
+        .from('programs')
+        .select('program_id, name')
+        .eq('school_id', (await supabase.rpc('fn_current_school_id')).data)
+        .order('name');
+    if (error) throw error;
+    return data ?? [];
+}
+
+export async function fetchClassesByProgram(programId) {
+    let q = supabase
+        .from('classes')
+        .select('class_id, name')
+        .order('name');
+    if (programId) q = q.eq('program_id', programId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data ?? [];
+}
+
+export async function fetchAttendanceSummary(dateStart, dateEnd, statuses = ['ALPA', 'IZIN', 'SAKIT'], programId = null, classId = null) {
     const all = [];
     const pageSize = 1000;
     for (let offset = 0; ; offset += pageSize) {
         const { data, error } = await supabase.rpc('fn_tu_attendance_recap', {
-            p_date_start: dateStart ?? null,
-            p_date_end:   dateEnd   ?? null,
+            p_date_start: dateStart  ?? null,
+            p_date_end:   dateEnd    ?? null,
             p_statuses:   statuses,
+            p_program_id: programId  ?? null,
+            p_class_id:   classId    ?? null,
         }).range(offset, offset + pageSize - 1);
         if (error) throw error;
         all.push(...(data ?? []));
