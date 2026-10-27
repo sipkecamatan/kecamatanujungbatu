@@ -440,20 +440,15 @@ async function loadAttendance() {
         const rows = await getMyAttendance(student.student_id, start, end);
         // Kartu: hitung per blok (satu pertemuan = satu kejadian)
         const card = { HADIR:0, IZIN:0, SAKIT:0, ALPA:0 };
-        let totalSlots = 0, hadirSlots = 0;
         for (const block of rows) {
             if (card[block.summary_status] !== undefined) card[block.summary_status]++;
-            for (const s of (block.slots ?? [])) {
-                if (s.status === 'HADIR') hadirSlots++;
-                totalSlots++;
-            }
         }
-        const pct = totalSlots > 0 ? Math.round(hadirSlots / totalSlots * 100) : 0;
+        const pct = rows.length > 0 ? Math.round(card.HADIR / rows.length * 100) : 0;
         document.getElementById('att-hadir').textContent = card.HADIR;
         document.getElementById('att-izin').textContent  = card.IZIN;
         document.getElementById('att-sakit').textContent = card.SAKIT;
         document.getElementById('att-alpha').textContent = card.ALPA;
-        document.getElementById('att-pct').textContent   = totalSlots > 0 ? pct + '%' : '—';
+        document.getElementById('att-pct').textContent   = rows.length > 0 ? pct + '%' : '—';
         if (!document.getElementById('att-granularity-note')) {
             const statsRow = document.getElementById('att-stats');
             if (statsRow) {
@@ -461,7 +456,7 @@ async function loadAttendance() {
                 note.id = 'att-granularity-note';
                 note.className = 'hint';
                 note.style.cssText = 'margin-top:4px;font-size:11px;';
-                note.textContent = 'Hadir/Izin/Sakit/Alpa dihitung per pertemuan; % Hadir dihitung per jam pelajaran.';
+                note.textContent = 'Semua kolom dihitung per pertemuan.';
                 statsRow.insertAdjacentElement('afterend', note);
             }
         }
@@ -476,7 +471,7 @@ async function loadAttendance() {
             SAKIT: 'badge-info',    ALPA: 'badge-danger', CAMPURAN: 'badge-secondary'
         };
         const STATUS_LABEL_MAP = {
-            HADIR: 'Hadir', IZIN: 'Izin', SAKIT: 'Sakit', ALPA: 'Alfa', CAMPURAN: 'Campuran'
+            HADIR: 'Hadir', IZIN: 'Izin', SAKIT: 'Sakit', ALPA: 'Alpa', CAMPURAN: 'Campuran'
         };
 
         tbody.innerHTML = rows.map(block => `

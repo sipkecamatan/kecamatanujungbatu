@@ -444,7 +444,7 @@ async function loadAttendance(studentId, signal = null) {
             SAKIT: 'badge-info',    ALPA: 'badge-danger', CAMPURAN: 'badge-secondary'
         };
         const STATUS_LABEL_MAP = {
-            HADIR: 'Hadir', IZIN: 'Izin', SAKIT: 'Sakit', ALPA: 'Alfa', CAMPURAN: 'Campuran'
+            HADIR: 'Hadir', IZIN: 'Izin', SAKIT: 'Sakit', ALPA: 'Alpa', CAMPURAN: 'Campuran'
         };
 
         attTbody.innerHTML = rows.map(block => `
