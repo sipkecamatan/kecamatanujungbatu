@@ -748,23 +748,34 @@ function renderGuruRekapPage() {
                     const key = `${s.schedule.session_date}|${s.schedule.subject_label ?? ''}`;
                     if (!seen.has(key)) { seen.set(key, true); grouped.push(s); }
                 }
-                body.innerHTML = grouped.map(s => `
-                    <div style="display:flex;align-items:center;gap:8px;
-                        padding:7px 16px;border-top:0.5px solid var(--color-border)">
-                        <span style="font-size:12px;color:var(--color-text-muted);min-width:90px">
-                            ${esc(s.schedule.session_date)}
-                        </span>
-                        <span style="flex:1;font-size:12px;color:var(--color-text-muted)">
-                            ${esc(s.schedule.subject_label ?? '—')}
-                        </span>
-                        <span style="font-size:11px;font-weight:600;
-                            color:${STATUS_COLOR[s.status] ?? 'var(--color-text-muted)'}">
-                            ${STATUS_LABEL[s.status] ?? esc(s.status)}
-                        </span>
-                        <span style="font-size:11px;color:var(--color-text-muted);min-width:100px;text-align:right">
-                            ${s.status === 'IZIN' && s.notes ? esc(s.notes) : '—'}
-                        </span>
-                    </div>`).join('');
+                const hadirCount  = grouped.filter(s => s.status === 'HADIR').length;
+                const absenSessions = grouped.filter(s => s.status !== 'HADIR');
+                const hadirInfo = hadirCount > 0
+                    ? `<div style="padding:6px 16px;font-size:12px;color:var(--color-text-muted);
+                          border-top:0.5px solid var(--color-border)">
+                          ✓ ${hadirCount} sesi hadir</div>`
+                    : '';
+                const absenHtml = absenSessions.length
+                    ? absenSessions.map(s => `
+                        <div style="display:flex;align-items:center;gap:8px;
+                            padding:7px 16px;border-top:0.5px solid var(--color-border)">
+                            <span style="font-size:12px;color:var(--color-text-muted);min-width:90px">
+                                ${esc(s.schedule.session_date)}
+                            </span>
+                            <span style="flex:1;font-size:12px;color:var(--color-text-muted)">
+                                ${esc(s.schedule.subject_label ?? '—')}
+                            </span>
+                            <span style="font-size:11px;font-weight:600;
+                                color:${STATUS_COLOR[s.status] ?? 'var(--color-text-muted)'}">
+                                ${STATUS_LABEL[s.status] ?? esc(s.status)}
+                            </span>
+                            <span style="font-size:11px;color:var(--color-text-muted);min-width:100px;text-align:right">
+                                ${s.notes ? esc(s.notes) : '—'}
+                            </span>
+                        </div>`).join('')
+                    : `<div style="padding:6px 16px;font-size:12px;color:var(--color-text-muted);
+                          border-top:0.5px solid var(--color-border)">Tidak ada ketidakhadiran.</div>`;
+                body.innerHTML = absenHtml + hadirInfo;
             } catch(err) {
                 body.innerHTML = `<div class="alert alert-danger" style="margin:8px 16px">${esc(fe(err))}</div>`;
             }
@@ -1905,24 +1916,33 @@ async function loadWaliSummary() {
                         HADIR: 'var(--color-success)',
                         IZIN:  'var(--color-warning,#f59e0b)',
                         SAKIT: 'var(--color-primary)',
-                        ALPA: 'var(--color-danger)',
+                        ALPA:  'var(--color-danger)',
                     };
                     const STATUS_LABEL = { HADIR:'Hadir', IZIN:'Izin', SAKIT:'Sakit', ALPA:'Alpa' };
-                    body.innerHTML = sessions.map(s => `
-                        <div style="display:flex;align-items:center;gap:8px;
-                            padding:7px 16px;border-top:0.5px solid var(--color-border)">
-                            <span style="font-size:12px;color:var(--color-text-muted);min-width:90px">
-                                ${esc(s.schedule.session_date)}
-                                <br>${esc(fmtTime(s.schedule.session_start))} - ${esc(fmtTime(s.schedule.session_end))}
-                            </span>
-                            <span style="flex:1;font-size:12px;color:var(--color-text-muted)">
-                                ${esc(s.schedule.subject_label ?? '—')} · ${esc(s.schedule.teacher?.full_name ?? '—')}
-                            </span>
-                            <span style="font-size:11px;font-weight:600;
-                                color:${STATUS_COLOR[s.status] ?? 'var(--color-text-muted)'}">
-                                ${STATUS_LABEL[s.status] ?? esc(s.status)}
-                            </span>
-                        </div>`).join('');
+                    const hadirCount    = sessions.filter(s => s.status === 'HADIR').length;
+                    const absenSessions = sessions.filter(s => s.status !== 'HADIR');
+                    const hadirInfo = hadirCount > 0
+                        ? `<div style="padding:6px 16px;font-size:12px;color:var(--color-text-muted);
+                              border-top:0.5px solid var(--color-border)">✓ ${hadirCount} sesi hadir</div>`
+                        : '';
+                    const absenHtml = absenSessions.length
+                        ? absenSessions.map(s => `
+                            <div style="display:flex;align-items:center;gap:8px;
+                                padding:7px 16px;border-top:0.5px solid var(--color-border)">
+                                <span style="font-size:12px;color:var(--color-text-muted);min-width:90px">
+                                    ${esc(s.schedule.session_date)}
+                                </span>
+                                <span style="flex:1;font-size:12px;color:var(--color-text-muted)">
+                                    ${esc(s.schedule.subject_label ?? '—')} · ${esc(s.schedule.teacher?.full_name ?? '—')}
+                                </span>
+                                <span style="font-size:11px;font-weight:600;
+                                    color:${STATUS_COLOR[s.status] ?? 'var(--color-text-muted)'}">
+                                    ${STATUS_LABEL[s.status] ?? esc(s.status)}
+                                </span>
+                            </div>`).join('')
+                        : `<div style="padding:6px 16px;font-size:12px;color:var(--color-text-muted);
+                              border-top:0.5px solid var(--color-border)">Tidak ada ketidakhadiran.</div>`;
+                    body.innerHTML = absenHtml + hadirInfo;
                 } catch(err) {
                     delete body.dataset.loaded;
                     body.innerHTML = `<div class="alert alert-danger" style="margin:8px 16px">${esc(fe(err))}</div>`;
@@ -2105,7 +2125,7 @@ async function loadBkAttendanceRecap() {
                                     HADIR: 'var(--color-success)',
                                     IZIN:  'var(--color-warning,#f59e0b)',
                                     SAKIT: 'var(--color-primary)',
-                                    ALPA: 'var(--color-danger)',
+                                    ALPA:  'var(--color-danger)',
                                 };
                                 const STATUS_LABEL = { HADIR: 'Hadir', IZIN: 'Izin', SAKIT: 'Sakit', ALPA: 'Alpa' };
                                 const grouped = [];
@@ -2114,20 +2134,30 @@ async function loadBkAttendanceRecap() {
                                     const key = `${s.schedule.session_date}|${s.schedule.subject_label ?? ''}|${s.schedule.teacher?.full_name ?? ''}`;
                                     if (!seen.has(key)) { seen.set(key, true); grouped.push(s); }
                                 }
-                                sBody.innerHTML = grouped.map(s => `
-                                    <div style="display:flex;align-items:center;gap:8px;
-                                        padding:7px 24px;border-top:0.5px solid var(--color-border)">
-                                        <span style="font-size:12px;color:var(--color-text-muted);min-width:90px">
-                                            ${esc(s.schedule.session_date)}
-                                        </span>
-                                        <span style="flex:1;font-size:12px;color:var(--color-text-muted)">
-                                            ${esc(s.schedule.subject_label ?? '—')} · ${esc(s.schedule.teacher?.full_name ?? '—')}
-                                        </span>
-                                        <span style="font-size:11px;font-weight:600;
-                                            color:${STATUS_COLOR[s.status] ?? 'var(--color-text-muted)'}">
-                                            ${STATUS_LABEL[s.status] ?? esc(s.status)}
-                                        </span>
-                                    </div>`).join('');
+                                const hadirCount    = grouped.filter(s => s.status === 'HADIR').length;
+                                const absenSessions = grouped.filter(s => s.status !== 'HADIR');
+                                const hadirInfo = hadirCount > 0
+                                    ? `<div style="padding:6px 24px;font-size:12px;color:var(--color-text-muted);
+                                          border-top:0.5px solid var(--color-border)">✓ ${hadirCount} sesi hadir</div>`
+                                    : '';
+                                const absenHtml = absenSessions.length
+                                    ? absenSessions.map(s => `
+                                        <div style="display:flex;align-items:center;gap:8px;
+                                            padding:7px 24px;border-top:0.5px solid var(--color-border)">
+                                            <span style="font-size:12px;color:var(--color-text-muted);min-width:90px">
+                                                ${esc(s.schedule.session_date)}
+                                            </span>
+                                            <span style="flex:1;font-size:12px;color:var(--color-text-muted)">
+                                                ${esc(s.schedule.subject_label ?? '—')} · ${esc(s.schedule.teacher?.full_name ?? '—')}
+                                            </span>
+                                            <span style="font-size:11px;font-weight:600;
+                                                color:${STATUS_COLOR[s.status] ?? 'var(--color-text-muted)'}">
+                                                ${STATUS_LABEL[s.status] ?? esc(s.status)}
+                                            </span>
+                                        </div>`).join('')
+                                    : `<div style="padding:6px 24px;font-size:12px;color:var(--color-text-muted);
+                                          border-top:0.5px solid var(--color-border)">Tidak ada ketidakhadiran.</div>`;
+                                sBody.innerHTML = absenHtml + hadirInfo;
                             } catch(err) {
                                 sBody.innerHTML = `<div class="alert alert-danger" style="margin:8px 24px">${esc(fe(err))}</div>`;
                             }
