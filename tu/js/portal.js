@@ -441,20 +441,26 @@ document.getElementById('btn-att-filter').addEventListener('click', loadAttendan
 document.getElementById('btn-export-att').addEventListener('click', async () => {
     if (!_cachedAttendance.length) { _tuHint('Tampilkan data dulu sebelum export.'); return; }
 
-    // Kelompokkan baris per kelas, diurutkan nama kelas A-Z
+    // Sheet 1: semua data lengkap
+    const allHeader = [['Tanggal', 'Nama Siswa', 'NIS', 'Kelas', 'Status', 'Catatan']];
+    const allRows   = _cachedAttendance.map(r => [
+        formatDate(r.date), r.student_name, r.nis, r.class_name,
+        STATUS_LABEL[r.status] ?? r.status, r.notes || '',
+    ]);
+
+    // Sheet 2+: detail per kelas, diurutkan A-Z
     const kelasMap = new Map();
     for (const r of _cachedAttendance) {
         if (!kelasMap.has(r.class_name)) kelasMap.set(r.class_name, []);
         kelasMap.get(r.class_name).push(r);
     }
-    const header = ['Tanggal', 'Nama Siswa', 'NIS', 'Status', 'Catatan'];
-    const sheets = [...kelasMap.entries()]
+    const detailHeader = ['Tanggal', 'Nama Siswa', 'NIS', 'Status', 'Catatan'];
+    const kelasSheets  = [...kelasMap.entries()]
         .sort(([a], [b]) => a.localeCompare(b, 'id'))
         .map(([kelas, rows]) => ({
-            // Nama sheet max 31 karakter (batas Excel)
             name: kelas.slice(0, 31),
             rows: [
-                header,
+                detailHeader,
                 ...rows.map(r => [
                     formatDate(r.date), r.student_name, r.nis,
                     STATUS_LABEL[r.status] ?? r.status, r.notes || '',
@@ -462,7 +468,10 @@ document.getElementById('btn-export-att').addEventListener('click', async () => 
             ],
         }));
 
-    downloadXLSX(sheets, `rekap-kehadiran-${Date.now()}.xlsx`);
+    downloadXLSX([
+        { name: 'Rekap Kehadiran', rows: [...allHeader, ...allRows] },
+        ...kelasSheets,
+    ], `rekap-kehadiran-${Date.now()}.xlsx`);
 });
 
 // ── Logout ─────────────────────────────────────────────────────
