@@ -2037,7 +2037,7 @@ async function loadBkAttendanceRecap() {
             </details>`;
         }).join('');
 
-        container.innerHTML = buildAttStatCards(rows) + html;
+        container.innerHTML = html;
 
         container.querySelectorAll('details.wz-accordion-inner').forEach(det => {
             det.addEventListener('toggle', async () => {
@@ -2338,7 +2338,7 @@ async function loadWkAttendanceRecap() {
             </details>`;
         }).join('');
 
-        container.innerHTML = buildAttStatCards(rows, r => r.total) + html;
+        container.innerHTML = html;
 
         // Lazy load siswa saat accordion kelas dibuka
         container.querySelectorAll('details.wz-accordion-inner').forEach(det => {
@@ -2794,7 +2794,7 @@ async function loadKpClsRecap() {
                 </details>`;
             }).join('');
 
-        container.innerHTML = buildAttStatCards(rows, r => r.total) + html;
+        container.innerHTML = html;
 
         // Lazy load siswa saat accordion kelas dibuka
         container.querySelectorAll('details.att-accordion').forEach(det => {
