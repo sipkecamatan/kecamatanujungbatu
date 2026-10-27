@@ -2300,11 +2300,11 @@ async function loadWkAttendanceRecap() {
             const classAccordions = prog.classes
                 .sort((a, b) => a.name.localeCompare(b.name, 'id'))
                 .map(r => {
-                    const tot  = r.HADIR + r.IZIN + r.SAKIT + r.ALPA;
-                    const pctH = tot > 0 ? Math.round(r.HADIR       / tot * 100) : 0;
-                    const pctI = tot > 0 ? Math.round(r.IZIN        / tot * 100) : 0;
-                    const pctS = tot > 0 ? Math.round(r.SAKIT       / tot * 100) : 0;
-                    const pctA = tot > 0 ? Math.round(r.ALPA / tot * 100) : 0;
+                    const tot  = r.total;
+                    const pctH = tot > 0 ? Math.round(r.HADIR / tot * 100) : 0;
+                    const pctI = tot > 0 ? Math.round(r.IZIN  / tot * 100) : 0;
+                    const pctS = tot > 0 ? Math.round(r.SAKIT / tot * 100) : 0;
+                    const pctA = tot > 0 ? Math.round(r.ALPA  / tot * 100) : 0;
                     const colH = pctH >= 80 ? 'var(--color-success)' : pctH >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
                     const safeId = r.class_id.replace(/[^a-z0-9]/gi, '_');
                     return `
@@ -2338,7 +2338,7 @@ async function loadWkAttendanceRecap() {
             </details>`;
         }).join('');
 
-        container.innerHTML = buildAttStatCards(rows) + html;
+        container.innerHTML = buildAttStatCards(rows, r => r.total) + html;
 
         // Lazy load siswa saat accordion kelas dibuka
         container.querySelectorAll('details.wz-accordion-inner').forEach(det => {
