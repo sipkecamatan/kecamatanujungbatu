@@ -1817,14 +1817,15 @@ async function loadWaliSummary() {
             return;
         }
 
-        container.innerHTML = buildAttStatCards(students) + students
+        container.innerHTML = buildAttStatCards(students) + [...students]
             .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'))
-            .map(s => {
+            .map((s, idx) => {
                 const pct   = s.total > 0 ? Math.round(s.HADIR / s.total * 100) : null;
                 const color = pct === null ? 'var(--color-text-muted)' : pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
                 return `
-                <div class="att-accordion-summary" style="margin-bottom:4px;cursor:default">
-                    <span class="att-acc-name">${esc(s.full_name)}</span>
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--color-border,#e5e7eb)">
+                    <span style="min-width:24px;font-size:11px;color:var(--color-text-muted);text-align:right;flex-shrink:0">${idx + 1}</span>
+                    <span style="flex:1;font-size:13px">${esc(s.full_name)}</span>
                     <span style="display:flex;gap:10px;align-items:center;font-size:11px;font-weight:500;flex-shrink:0">
                         <span style="color:var(--color-success)">${s.HADIR}H</span>
                         <span style="color:var(--color-warning,#f59e0b)">${s.IZIN}I</span>
