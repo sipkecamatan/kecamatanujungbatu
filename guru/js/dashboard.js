@@ -690,97 +690,23 @@ function renderGuruRekapPage() {
     const container = document.getElementById('guru-rekap-accordion');
     if (!container) return;
 
-    const STATUS_COLOR = {
-        HADIR: 'var(--color-success)',
-        IZIN:  'var(--color-warning,#f59e0b)',
-        SAKIT: 'var(--color-primary)',
-        ALPA:  'var(--color-danger)',
-    };
-    const STATUS_LABEL = { HADIR:'Hadir', IZIN:'Izin', SAKIT:'Sakit', ALPA:'Alpa' };
-
     container.innerHTML = _guruRekapRows
         .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'))
         .map(s => {
             const pct   = s.total > 0 ? Math.round(s.HADIR / s.total * 100) : null;
             const color = pct === null ? 'var(--color-text-muted)' : pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
             return `
-            <details class="att-accordion" style="margin-bottom:6px"
-                     data-student-id="${esc(s.student_id)}"
-                     data-date-start="${esc(_guruRekapDateStart ?? '')}"
-                     data-date-end="${esc(_guruRekapDateEnd ?? '')}">
-                <summary class="att-accordion-summary">
-                    <span class="att-acc-name">
-                        ${esc(s.full_name)}
-                    </span>
-                    <span style="display:flex;gap:10px;align-items:center;font-size:11px;font-weight:500">
-                        <span>${s.HADIR}H · ${s.IZIN}I · ${s.SAKIT}S · ${s.ALPA}A</span>
-                        <span style="color:${color};font-weight:600">${pct !== null ? pct + '%' : '—'}</span>
-                    </span>
-                </summary>
-                <div style="padding:4px 0">
-                    <p class="acc-empty">Memuat sesi…</p>
-                </div>
-            </details>`;
+            <div class="att-accordion-summary" style="margin-bottom:4px;cursor:default">
+                <span class="att-acc-name">${esc(s.full_name)}</span>
+                <span style="display:flex;gap:10px;align-items:center;font-size:11px;font-weight:500;flex-shrink:0">
+                    <span style="color:var(--color-success)">${s.HADIR}H</span>
+                    <span style="color:var(--color-warning,#f59e0b)">${s.IZIN}I</span>
+                    <span style="color:var(--color-primary)">${s.SAKIT}S</span>
+                    <span style="color:var(--color-danger)">${s.ALPA}A</span>
+                    <span style="color:${color};font-weight:700;min-width:36px;text-align:right">${pct !== null ? pct + '%' : '—'}</span>
+                </span>
+            </div>`;
         }).join('');
-
-    container.querySelectorAll('details[data-student-id]').forEach(det => {
-        det.addEventListener('toggle', async () => {
-            if (!det.open) return;
-            const body = det.querySelector('div');
-            if (!body || body.dataset.loaded) return;
-            body.dataset.loaded = '1';
-            const sid = det.dataset.studentId;
-            const ds  = det.dataset.dateStart || null;
-            const de  = det.dataset.dateEnd   || null;
-            if (!ds || !de) {
-                body.innerHTML = '<p class="acc-empty">Pilih rentang tanggal untuk melihat detail sesi. Untuk data lengkap, gunakan fitur Unduh Excel.</p>';
-                return;
-            }
-            try {
-                const sessions = await getStudentAttendanceSessions(sid, ds, de, currentUser.user_id);
-                if (!sessions.length) {
-                    body.innerHTML = '<p class="acc-empty">Belum ada sesi tercatat.</p>';
-                    return;
-                }
-                const grouped = [];
-                const seen = new Map();
-                for (const s of sessions) {
-                    const key = `${s.schedule.session_date}|${s.schedule.subject_label ?? ''}`;
-                    if (!seen.has(key)) { seen.set(key, true); grouped.push(s); }
-                }
-                const hadirCount  = grouped.filter(s => s.status === 'HADIR').length;
-                const absenSessions = grouped.filter(s => s.status !== 'HADIR');
-                const hadirInfo = hadirCount > 0
-                    ? `<div style="padding:6px 16px;font-size:12px;color:var(--color-text-muted);
-                          border-top:0.5px solid var(--color-border)">
-                          ✓ ${hadirCount} sesi hadir</div>`
-                    : '';
-                const absenHtml = absenSessions.length
-                    ? absenSessions.map(s => `
-                        <div style="display:flex;align-items:center;gap:8px;
-                            padding:7px 16px;border-top:0.5px solid var(--color-border)">
-                            <span style="font-size:12px;color:var(--color-text-muted);min-width:90px">
-                                ${esc(s.schedule.session_date)}
-                            </span>
-                            <span style="flex:1;font-size:12px;color:var(--color-text-muted)">
-                                ${esc(s.schedule.subject_label ?? '—')}
-                            </span>
-                            <span style="font-size:11px;font-weight:600;
-                                color:${STATUS_COLOR[s.status] ?? 'var(--color-text-muted)'}">
-                                ${STATUS_LABEL[s.status] ?? esc(s.status)}
-                            </span>
-                            <span style="font-size:11px;color:var(--color-text-muted);min-width:100px;text-align:right">
-                                ${s.notes ? esc(s.notes) : '—'}
-                            </span>
-                        </div>`).join('')
-                    : `<div style="padding:6px 16px;font-size:12px;color:var(--color-text-muted);
-                          border-top:0.5px solid var(--color-border)">Tidak ada ketidakhadiran.</div>`;
-                body.innerHTML = absenHtml + hadirInfo;
-            } catch(err) {
-                body.innerHTML = `<div class="alert alert-danger" style="margin:8px 16px">${esc(fe(err))}</div>`;
-            }
-        });
-    });
 }
 
 async function loadGuruRecap() {
@@ -967,13 +893,22 @@ function openAttModal(btn) {
     loadAttModalContent(btn.dataset.schedule, btn.dataset.class, btn.dataset.classname, seq);
 }
 
-function closeAttModal() {
+let _attSavedFlag = false;
+
+function closeAttModal(saved = false) {
     _attModalSeq++;   // DG-04: batalkan pemuatan yang masih berjalan
     sipCloseOverlay(document.getElementById('att-modal'));
     document.body.style.overflow = '';
     // DG-13: kembalikan fokus ke tombol yang membuka modal
     try { _attModalFokusAsal?.focus?.(); } catch (_) { /* elemen sudah tidak ada */ }
     _attModalFokusAsal = null;
+    // Refresh rekap guru jika baru saja menyimpan absensi dan rekap sedang tampil
+    if (saved) {
+        const content = document.getElementById('guru-recap-content');
+        if (content && content.style.display !== 'none' && _guruRekapRows.length) {
+            loadGuruRecap().catch(() => {});
+        }
+    }
 }
 
 async function loadSchedule() {
@@ -1232,13 +1167,13 @@ async function saveAttendance(scheduleIds, students) {
             statusEl.className   = 'status-msg status-warn';
             statusEl.style.display = 'inline-block';
             await updateSyncBanner();
-            setTimeout(() => closeAttModal(), 1800);
+            setTimeout(() => closeAttModal(true), 1800);
         } else {
             statusEl.textContent = `✓ Tersimpan — ${records.length} siswa × ${allIds.length} sesi`;
             statusEl.className   = 'status-msg status-ok';
             statusEl.style.display = 'inline-block';
             await updateSyncBanner();
-            setTimeout(() => closeAttModal(), 1200);
+            setTimeout(() => closeAttModal(true), 1200);
         }
     } catch (err) {
         statusEl.textContent = `✗ ${fe(err, 's')}`;
@@ -1878,77 +1813,17 @@ async function loadWaliSummary() {
                 const pct   = s.total > 0 ? Math.round(s.HADIR / s.total * 100) : null;
                 const color = pct === null ? 'var(--color-text-muted)' : pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
                 return `
-                <details class="att-accordion" style="margin-bottom:6px"
-                         data-student-id="${esc(s.student_id)}"
-                         data-date-start="${esc(dateStart ?? '')}"
-                         data-date-end="${esc(dateEnd ?? '')}">
-                    <summary class="att-accordion-summary">
-                        <span class="att-acc-name">
-                            ${esc(s.full_name)}
-                        </span>
-                        <span class="att-acc-status" style="color:${color};font-weight:600">
-                            ${pct !== null ? pct + '%' : '—'}
-                        </span>
-                    </summary>
-                    <div style="padding:4px 0">
-                        <p class="acc-empty">Memuat sesi…</p>
-                    </div>
-                </details>`;
+                <div class="att-accordion-summary" style="margin-bottom:4px;cursor:default">
+                    <span class="att-acc-name">${esc(s.full_name)}</span>
+                    <span style="display:flex;gap:10px;align-items:center;font-size:11px;font-weight:500;flex-shrink:0">
+                        <span style="color:var(--color-success)">${s.HADIR}H</span>
+                        <span style="color:var(--color-warning,#f59e0b)">${s.IZIN}I</span>
+                        <span style="color:var(--color-primary)">${s.SAKIT}S</span>
+                        <span style="color:var(--color-danger)">${s.ALPA}A</span>
+                        <span style="color:${color};font-weight:700;min-width:36px;text-align:right">${pct !== null ? pct + '%' : '—'}</span>
+                    </span>
+                </div>`;
             }).join('');
-
-        // Lazy load sesi per siswa
-        container.querySelectorAll('details[data-student-id]').forEach(det => {
-            det.addEventListener('toggle', async () => {
-                if (!det.open) return;
-                const body = det.querySelector('div');
-                if (!body || body.dataset.loaded) return;
-                body.dataset.loaded = '1';
-                const sid = det.dataset.studentId;
-                const ds  = det.dataset.dateStart || null;
-                const de  = det.dataset.dateEnd   || null;
-                try {
-                    const sessions = await getWaliAttendanceSessions(classId, academicYear, sid, ds, de);
-                    if (!sessions.length) {
-                        body.innerHTML = '<p class="acc-empty">Belum ada sesi tercatat.</p>';
-                        return;
-                    }
-                    const STATUS_COLOR = {
-                        HADIR: 'var(--color-success)',
-                        IZIN:  'var(--color-warning,#f59e0b)',
-                        SAKIT: 'var(--color-primary)',
-                        ALPA:  'var(--color-danger)',
-                    };
-                    const STATUS_LABEL = { HADIR:'Hadir', IZIN:'Izin', SAKIT:'Sakit', ALPA:'Alpa' };
-                    const hadirCount    = sessions.filter(s => s.status === 'HADIR').length;
-                    const absenSessions = sessions.filter(s => s.status !== 'HADIR');
-                    const hadirInfo = hadirCount > 0
-                        ? `<div style="padding:6px 16px;font-size:12px;color:var(--color-text-muted);
-                              border-top:0.5px solid var(--color-border)">✓ ${hadirCount} sesi hadir</div>`
-                        : '';
-                    const absenHtml = absenSessions.length
-                        ? absenSessions.map(s => `
-                            <div style="display:flex;align-items:center;gap:8px;
-                                padding:7px 16px;border-top:0.5px solid var(--color-border)">
-                                <span style="font-size:12px;color:var(--color-text-muted);min-width:90px">
-                                    ${esc(s.schedule.session_date)}
-                                </span>
-                                <span style="flex:1;font-size:12px;color:var(--color-text-muted)">
-                                    ${esc(s.schedule.subject_label ?? '—')} · ${esc(s.schedule.teacher?.full_name ?? '—')}
-                                </span>
-                                <span style="font-size:11px;font-weight:600;
-                                    color:${STATUS_COLOR[s.status] ?? 'var(--color-text-muted)'}">
-                                    ${STATUS_LABEL[s.status] ?? esc(s.status)}
-                                </span>
-                            </div>`).join('')
-                        : `<div style="padding:6px 16px;font-size:12px;color:var(--color-text-muted);
-                              border-top:0.5px solid var(--color-border)">Tidak ada ketidakhadiran.</div>`;
-                    body.innerHTML = absenHtml + hadirInfo;
-                } catch(err) {
-                    delete body.dataset.loaded;
-                    body.innerHTML = `<div class="alert alert-danger" style="margin:8px 16px">${esc(fe(err))}</div>`;
-                }
-            });
-        });
 
         document.getElementById('wali-recap-export').style.display = '';
 
