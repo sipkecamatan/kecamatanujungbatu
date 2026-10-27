@@ -237,11 +237,11 @@ async function loadLate() {
 
         lateTbody.innerHTML = rows.map(r => `
             <tr>
-                <td>${esc(formatDate(r.date))}</td>
-                <td>${esc(r.arrival_time)}</td>
-                <td>${esc(r.student_name)}</td>
-                <td>${esc(r.nis)}</td>
-                <td>${esc(r.reason || '—')}</td>
+                <td data-label="Tanggal">${esc(formatDate(r.date))}</td>
+                <td data-label="Jam Datang">${esc(r.arrival_time)}</td>
+                <td data-label="Nama Siswa">${esc(r.student_name)}</td>
+                <td data-label="NIS">${esc(r.nis)}</td>
+                <td data-label="Alasan">${esc(r.reason || '—')}</td>
             </tr>`).join('');
         lateTable.style.display = 'table';
 
@@ -306,12 +306,12 @@ async function loadExitsRecap() {
         if (exitsTbody) {
             exitsTbody.innerHTML = rows.map(r => `
                 <tr>
-                    <td>${esc(formatDate(r.date))}</td>
-                    <td>${esc(r.exit_time ? r.exit_time.slice(0,5) : '—')}</td>
-                    <td>${esc(r.return_time ? r.return_time.slice(0,5) : '—')}</td>
-                    <td>${esc(r.student_name)}</td>
-                    <td>${esc(r.nis)}</td>
-                    <td>${esc(r.reason || '—')}</td>
+                    <td data-label="Tanggal">${esc(formatDate(r.date))}</td>
+                    <td data-label="Jam Keluar">${esc(r.exit_time ? r.exit_time.slice(0,5) : '—')}</td>
+                    <td data-label="Jam Kembali">${esc(r.return_time ? r.return_time.slice(0,5) : '—')}</td>
+                    <td data-label="Nama Siswa">${esc(r.student_name)}</td>
+                    <td data-label="NIS">${esc(r.nis)}</td>
+                    <td data-label="Alasan">${esc(r.reason || '—')}</td>
                 </tr>`).join('');
             if (exitsTable) exitsTable.style.display = 'table';
         }
@@ -395,12 +395,12 @@ async function loadAttendance() {
 
         attTbody.innerHTML = rows.map(r => `
             <tr>
-                <td>${esc(formatDate(r.date))}</td>
-                <td>${esc(r.student_name)}</td>
-                <td>${esc(r.nis)}</td>
-                <td>${esc(r.class_name)}</td>
-                <td><span class="badge ${STATUS_BADGE[r.status] ?? ''}">${STATUS_LABEL[r.status] ?? r.status}</span></td>
-                <td>${esc(r.notes || '—')}</td>
+                <td data-label="Tanggal">${esc(formatDate(r.date))}</td>
+                <td data-label="Nama Siswa">${esc(r.student_name)}</td>
+                <td data-label="NIS">${esc(r.nis)}</td>
+                <td data-label="Kelas">${esc(r.class_name)}</td>
+                <td data-label="Status"><span class="badge ${STATUS_BADGE[r.status] ?? ''}">${STATUS_LABEL[r.status] ?? r.status}</span></td>
+                <td data-label="Catatan">${esc(r.notes || '—')}</td>
             </tr>`).join('');
         attTable.style.display = 'table';
 
