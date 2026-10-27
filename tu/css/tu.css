@@ -192,7 +192,8 @@ select.input option { background:var(--color-surface); }
 }
 .bottom-nav-inner { display:flex; }
 .bottom-nav .tab-btn {
-    flex:1; flex-direction:column; gap:2px; padding:8px 4px;
+    display:flex; flex:1; flex-direction:column; align-items:center;
+    gap:2px; padding:8px 4px;
     min-height:56px; border-radius:0; border-bottom:none;
     border-top:2px solid transparent; font-size:10px;
 }
@@ -204,6 +205,9 @@ table th, table td { text-align:left; padding:8px 12px; }
 
 @media (max-width: 640px) {
     .bottom-nav { display:block; }
+
+    /* Top tab-nav disembunyikan di mobile — navigasi lewat bottom-nav */
+    .tab-nav { display:none !important; }
 
     .filter-row {
         display: grid;

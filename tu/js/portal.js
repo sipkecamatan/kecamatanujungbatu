@@ -2169,8 +2169,9 @@ async function init() {
         semSelect.value = String(schoolConfig.current_semester);
     }
 
-    tabNav.style.display    = 'flex';
-    bottomNav.style.display = 'block';
+    tabNav.style.display = 'flex';
+    // Hapus inline style — biarkan CSS media query yang kendalikan bottom-nav
+    bottomNav.style.removeProperty('display');
 
     const hashSid = location.hash.slice(1);
     showTab(ALL_SECTIONS.includes(hashSid) ? hashSid : 'section-piket', { replace: true });
