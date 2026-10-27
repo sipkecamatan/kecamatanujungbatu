@@ -24,8 +24,9 @@ BEGIN
         RAISE EXCEPTION 'Tidak berwenang' USING ERRCODE = '42501';
     END IF;
 
+    -- Dedup per (tanggal, siswa, status): satu baris per siswa per hari per status
     RETURN QUERY
-    SELECT DISTINCT ON (ts.block_group_id, a.student_id)
+    SELECT DISTINCT ON (ts.session_date, a.student_id, a.status)
         ts.block_group_id,
         ts.session_date,
         c.name::text,
@@ -42,6 +43,6 @@ BEGIN
       AND a.status::text = ANY(p_statuses)
       AND (p_date_start IS NULL OR ts.session_date >= p_date_start)
       AND (p_date_end   IS NULL OR ts.session_date <= p_date_end)
-    ORDER BY ts.block_group_id, a.student_id, ts.session_date DESC;
+    ORDER BY ts.session_date DESC, a.student_id, a.status;
 END;
 $f$;
