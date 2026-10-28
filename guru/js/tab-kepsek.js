@@ -147,9 +147,7 @@ async function loadKepsekMonitoring(period, { config, ayLalu = null, dateStart =
         setText('ks-sub-guru',       `${s.guru_hadir ?? 0} / ${s.guru_total ?? 0} guru`);
 
         const chartData = d.chart ?? [];
-        hintEl.textContent = chartData.length === 0
-            ? 'Belum ada data pada periode ini'
-            : d.by_month ? 'Persentase kehadiran per bulan' : 'Persentase kehadiran per hari';
+        hintEl.innerHTML = _buildChartCaption(period, d);
         _renderKepsekChart(chartData, d.by_month);
 
         const btnTahunLalu = document.querySelector('.ks-period-btn[data-period="tahun_ajaran_lalu"]');
@@ -223,6 +221,64 @@ function _renderKepsekChart(chartData, byMonth) {
             },
         },
     });
+}
+
+function _fmtTgl(iso) {
+    const [y, m, day] = iso.split('-');
+    const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+    return `${+day} ${BLN[+m - 1]} ${y}`;
+}
+function _fmtBulan(iso) {
+    const [y, m] = iso.split('-');
+    const BLN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    return `${BLN[+m - 1]} ${y}`;
+}
+function _buildChartCaption(period, d) {
+    const ds = d.date_start ?? '', de = d.date_end ?? '';
+    const byMonth = d.by_month;
+    const noData  = !d.chart || d.chart.length === 0;
+    const CARA = 'Hadir/Sakit/Izin/Alpa = % dari total catatan absensi (bukan jumlah siswa unik). ' +
+                 'Guru di Kelas = % guru berjadwal yang kelasnya sudah diisi absensi (sumbu kiri). ' +
+                 'Terlambat dan Izin Keluar = jumlah kejadian (sumbu kanan).';
+    if (noData) return '<strong>Belum ada data</strong><br>Tidak ada catatan absensi pada periode ini.';
+    let title, narasi;
+    switch (period) {
+        case 'hari_ini':
+            title  = `Kehadiran Hari Ini — ${_fmtTgl(ds)}`;
+            narasi = `Satu titik data untuk ${_fmtTgl(ds)}. ${CARA}`;
+            break;
+        case '7_hari':
+            title  = `Tren 7 Hari Terakhir — ${_fmtTgl(ds)} s/d ${_fmtTgl(de)}`;
+            narasi = `Setiap titik = satu hari sekolah dengan absensi tercatat. Hari tanpa absensi tidak muncul. ${CARA}`;
+            break;
+        case 'minggu_lalu':
+            title  = `Tren Minggu Lalu — ${_fmtTgl(ds)} s/d ${_fmtTgl(de)}`;
+            narasi = `Setiap titik = satu hari sekolah dengan absensi tercatat. ${CARA}`;
+            break;
+        case 'bulan_lalu':
+            title  = `Tren ${_fmtBulan(ds)} — per Hari`;
+            narasi = `Setiap titik = satu hari sekolah pada ${_fmtBulan(ds)}. ${CARA}`;
+            break;
+        case 'tahun_ajaran_lalu': {
+            const tMulai = ds.split('-')[0], tAkhir = de.split('-')[0];
+            title  = `Tren Tahun Ajaran ${tMulai}/${tAkhir} — per Bulan`;
+            narasi = `Setiap titik = satu bulan dalam tahun ajaran ${tMulai}/${tAkhir}. ` +
+                     `Hadir/Sakit/Izin/Alpa = % dari total catatan absensi bulan itu. ` +
+                     `Guru di Kelas = % guru berjadwal yang kelasnya sudah diisi (sumbu kiri). ` +
+                     `Terlambat dan Izin Keluar = jumlah kejadian (sumbu kanan).`;
+            break;
+        }
+        case 'rentang':
+            title  = `Rentang ${_fmtTgl(ds)} s/d ${_fmtTgl(de)} — per ${byMonth ? 'Bulan' : 'Hari'}`;
+            narasi = byMonth
+                ? `Rentang > 60 hari: setiap titik = satu bulan. ${CARA}`
+                : `Setiap titik = satu hari sekolah dengan absensi tercatat. ${CARA}`;
+            break;
+        default:
+            title  = 'Tren Kehadiran';
+            narasi = CARA;
+    }
+    return `<strong>${title}</strong><br>${narasi}`;
 }
 
 function fmtNum(n) { return (n ?? 0).toLocaleString('id-ID'); }
