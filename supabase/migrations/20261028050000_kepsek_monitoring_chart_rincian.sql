@@ -4,8 +4,6 @@
 -- kini diganti pct_hadir/pct_sakit/pct_izin/pct_alpa (% catatan per status, sama dengan card).
 -- Menggunakan LATERAL join tunggal per hari/bulan agar efisien (satu scan attendance).
 
-BEGIN;
-
 CREATE OR REPLACE FUNCTION public.fn_kepsek_monitoring(
     p_period        text    DEFAULT 'hari_ini',
     p_academic_year text    DEFAULT NULL,
@@ -314,4 +312,3 @@ BEGIN
 END;
 $function$;
 
-ROLLBACK;
