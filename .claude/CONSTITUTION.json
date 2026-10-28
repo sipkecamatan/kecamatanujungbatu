@@ -111,6 +111,45 @@
     "Ringkasan harian (cabang codex/ringkasan-harian) dipasang ke produksi — ada risiko kunci baris"
   ],
 
+  "dependency_map": {
+    "nilai-rapor.js": {
+      "berpasangan_dengan": ["supabase/migrations/*_fn_hitung_nilai_rapor*"],
+      "bergantung_pada": ["rumus-rapor-state.js", "penilaian-label.js"],
+      "test_relevan": ["nilai-rapor-server.mjs", "nilai-rapor-ui.mjs", "nilai-rapor-hitung.mjs"]
+    },
+    "rumus-rapor-state.js": {
+      "dipakai_di": ["nilai-rapor.js", "rekap (panel rumus)"],
+      "test_relevan": ["rumus-rapor-state.mjs"]
+    },
+    "penilaian-label.js": {
+      "dipakai_di": ["rekap-excel.js", "nilai-rapor.js"],
+      "test_relevan": ["penilaian-label.mjs", "rekap-excel.mjs"]
+    },
+    "rekap-excel.js": {
+      "bergantung_pada": ["penilaian-label.js", "konten-penilaian.js"],
+      "test_relevan": ["rekap-excel.mjs"]
+    },
+    "konten-penilaian.js": {
+      "dipakai_di": ["rekap-excel.js", "layar Rekap"],
+      "test_relevan": ["rekap-excel.mjs"]
+    },
+    "block_group_id": {
+      "dipakai_di": ["rekap-excel.js", "fn_class_attendance_summary", "waka-kesiswaan"],
+      "test_relevan": ["rekap-excel.mjs"]
+    },
+    "fn_hitung_nilai_rapor": {
+      "berpasangan_dengan": ["nilai-rapor.js"],
+      "dipakai_oleh": ["trg_grade_final_hitung"],
+      "test_relevan": ["nilai-rapor-server.mjs", "nilai-rapor-rumus.mjs"]
+    },
+    "RLS_policy": {
+      "test_relevan": ["tenant-isolation.mjs", "nilai-keterlihatan.mjs"]
+    },
+    "SECURITY_DEFINER_function": {
+      "test_relevan": ["tenant-isolation.mjs", "wizard-reset-guard.mjs"]
+    }
+  },
+
   "jebakan_teknis": {
     "bash_heredoc": "heredoc Bash menelan backslash (\\d jadi d) — tulis script ke file dengan Write",
     "tmp_path": "jalur /tmp Bash != jalur Node/Python Windows — pakai scratchpad session atau path absolut Windows",

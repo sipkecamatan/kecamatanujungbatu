@@ -1,32 +1,32 @@
 # Protocol: Session Start
 
-Jalankan ini di awal SETIAP sesi sebelum ada perubahan apapun.
+Jalankan ini di awal SETIAP sesi. Orchestrator mengkoordinasi dua fase pertama.
 
-## Langkah Wajib (urut)
+## Fase 1 — ARCHITECT
 
-1. **Baca CONSTITUTION**
-   ```
-   Baca .claude/CONSTITUTION.json
-   ```
-
-2. **Verifikasi keadaan repo**
+1. Baca `.claude/CONSTITUTION.json` (seluruh file)
+2. Verifikasi keadaan repo:
    ```
    git fetch && git status -sb
-   supabase migration list --linked | tail -3
    ```
-   Bandingkan dengan `state.main_sha` dan `state.migrasi_terpasang_sampai` di CONSTITUTION.
-   Jika berbeda → laporkan perbedaannya ke Romo sebelum lanjut.
+   Bandingkan HEAD dengan `state.main_sha` di CONSTITUTION. Laporkan jika berbeda.
+3. Petakan dampak berdasarkan tujuan sesi yang akan ditetapkan
+4. Nyatakan constraint aktif sesi ini
 
-3. **Architect: tetapkan tujuan sesi**
-   Nyatakan dalam SATU kalimat: "Tujuan sesi ini adalah [X]."
-   Periksa apakah tujuan ini menyentuh constraint apapun di CONSTITUTION.
+## Fase 2 — SCOPE GUARD
 
-4. **Architect: nyatakan constraint aktif**
-   "Constraint yang berlaku sesi ini: [daftar dari CONSTITUTION]"
+5. Terima tujuan sesi dari Romo
+6. Tetapkan scope eksplisit: file mana yang BOLEH diubah
+7. Nyatakan batas: file mana yang TIDAK BOLEH diubah tanpa konfirmasi Romo
 
-5. **BARU mulai kerjakan**
+## Output Session Start
+```
+SESSION START SELESAI:
+- Tujuan sesi: [satu kalimat]
+- File boleh diubah: [daftar]
+- Komponen terdampak: [dari dependency_map]
+- Test yang akan dijalankan nanti: [daftar]
+- Constraint aktif: [daftar]
+```
 
-## Yang Tidak Boleh Dilakukan Sebelum Langkah 1-4 Selesai
-- Menulis kode apapun
-- Menjalankan SQL apapun
-- Mengubah file apapun
+## Baru mulai kerjakan setelah output ini dinyatakan

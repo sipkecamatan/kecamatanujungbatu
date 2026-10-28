@@ -2,27 +2,31 @@
 
 ## WAJIB: Baca di awal setiap sesi
 
-1. Baca `.claude/CONSTITUTION.json` — sumber kebenaran tunggal untuk semua keputusan arsitektur
-2. Jalankan `.claude/protocols/session-start.md` — verifikasi keadaan repo, tetapkan tujuan sesi
+1. Baca `.claude/CONSTITUTION.json` — sumber kebenaran tunggal
+2. Jalankan `.claude/protocols/session-start.md` — Orchestrator koordinasi Architect + Scope Guard
 3. Baru kerjakan tugas
 
 ## WAJIB: Sebelum setiap commit
 
-Jalankan `.claude/protocols/session-end.md` — Verifier checklist + update CONSTITUTION
+Jalankan `.claude/protocols/session-end.md` — Orchestrator koordinasi Consistency Checker + Regression Guard + Knowledge Capture
 
 ## Struktur agentic
 
 ```
 .claude/
-  CONSTITUTION.json       ← sumber kebenaran tunggal (baca di awal sesi)
+  CONSTITUTION.json          ← sumber kebenaran tunggal (baca di awal sesi)
   agents/
-    architect.md          ← jaga CONSTITUTION, tetapkan constraint sesi
-    implementer.md        ← tulis kode dalam constraint
-    verifier.md           ← checklist sebelum commit
+    orchestrator.md          ← koordinasi semua agent, tidak ada fase yang dilewati
+    architect.md             ← jaga CONSTITUTION, petakan dampak perubahan
+    scope-guard.md           ← tetapkan batas file yang boleh diubah
+    implementer.md           ← tulis kode dalam constraint + scope
+    consistency-checker.md   ← verifikasi komponen berpasangan masih sinkron
+    regression-guard.md      ← jalankan test relevan berdasarkan file yang diubah
+    knowledge-capture.md     ← update CONSTITUTION dengan keputusan baru sesi
   protocols/
-    session-start.md      ← protocol awal sesi
-    session-end.md        ← protocol akhir sesi + update CONSTITUTION
-    commit-gate.md        ← ringkas cepat sebelum commit
+    session-start.md         ← Architect + Scope Guard (sebelum mulai)
+    session-end.md           ← Consistency Checker + Regression Guard + Knowledge Capture (sebelum commit)
+    commit-gate.md           ← ringkas cepat sebelum commit
 ```
 
 ## Aturan tidak boleh dilanggar
@@ -31,6 +35,7 @@ Jalankan `.claude/protocols/session-end.md` — Verifier checklist + update CONS
 - SQL ke live WAJIB dalam BEGIN/ROLLBACK
 - `db push` dan `git push` hanya dilakukan Romo
 - Fungsi SECURITY DEFINER wajib `IS DISTINCT FROM` untuk penjaga NULL
-- Nilai-rapor.js dan fn_hitung_nilai_rapor wajib diubah bersamaan
+- `nilai-rapor.js` dan `fn_hitung_nilai_rapor` wajib diubah bersamaan
+- Tidak ada fase agent yang boleh dilewati
 
 Detail lengkap: `.claude/CONSTITUTION.json`

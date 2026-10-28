@@ -1,17 +1,24 @@
 # Commit Gate
 
-Satu halaman ringkas untuk dicek cepat sebelum commit.
-Detail ada di verifier.md dan session-end.md.
+Ringkasan cepat. Detail ada di session-end.md dan masing-masing agent.
 
 ## STOP jika salah satu ini benar:
 
-- [ ] Ada file docs/ yang staged → `git reset HEAD docs/`
-- [ ] Ada SQL yang dijalankan ke live tanpa BEGIN/ROLLBACK
-- [ ] Ada fungsi SECURITY DEFINER baru dengan penjaga <> (harus IS DISTINCT FROM)
-- [ ] Nilai-rapor.js diubah tapi fn_hitung_nilai_rapor tidak (atau sebaliknya)
-- [ ] CONSTITUTION.json belum diupdate (last_session_commit masih SHA lama)
-- [ ] open_tasks belum direfleksikan (task selesai masih listed, task baru belum masuk)
+CONSISTENCY
+- [ ] Ada komponen berpasangan yang tidak sinkron (nilai-rapor.js vs fn_hitung_nilai_rapor, dll.)
 
-## GO jika semua kotak di atas kosong (tidak ada yang benar)
+REGRESSION
+- [ ] Ada test relevan yang gagal
+- [ ] Ada SQL yang dijalankan ke live tanpa BEGIN/ROLLBACK
+
+SCOPE
+- [ ] Ada file di luar scope yang diubah tanpa konfirmasi Romo
+
+CONSTITUTION
+- [ ] Ada keputusan sesi yang belum masuk CONSTITUTION
+- [ ] state.last_session_commit belum diupdate
+- [ ] Ada docs/ yang staged
+
+## GO jika semua kotak di atas kosong
 
 Lanjut commit. Ingatkan Romo: **git push dilakukan Romo, bukan Claude.**
