@@ -1,0 +1,397 @@
+/**
+ * @file guru/js/tab-kepsek.js
+ * Tab Kepsek — monitoring kehadiran, ringkasan pembinaan, manajemen admin,
+ * dan pengaturan berbagi data ke wilayah.
+ */
+import {
+    listSchoolAdmins, addSchoolAdmin, removeSchoolAdmin,
+    getKepsekMonitoring, getKepsekCaseSummary,
+    getRegionSharingStatus, setRegionSharingLevel,
+} from './api.js';
+import { pasangNilaiPimpinan } from './nilai-pimpinan-ui.js';
+import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
+import { pasangKunciPeriode } from './kunci-periode-ui.js';
+import { esc, fe, wireSimpleAccordion, localDateStr } from './tab-shared.js';
+
+/* global Chart */
+
+const BULAN_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+
+let _ksTabInit       = false;
+let _ksChart         = null;
+let _ksMonitoringSeq = 0;
+let _ksAdminTabInit  = false;
+let _ksCurrentUser   = null; // untuk window.confirmRemoveAdmin
+
+window.confirmRemoveAdmin = async function(btn) {
+    const uid  = btn.dataset.uid;
+    const name = btn.dataset.name;
+    if (!confirm(`Hapus akun admin "${name}"?\n\nMereka tidak akan bisa login lagi.`)) return;
+    btn.disabled = true;
+    try {
+        await removeSchoolAdmin(uid);
+        await loadAdminList({ currentUser: _ksCurrentUser });
+    } catch (err) {
+        alert(`Gagal menghapus: ${fe(err)}`);
+        btn.disabled = false;
+    }
+};
+
+export async function initKepsekTab({ currentUser, config }) {
+    _ksCurrentUser = currentUser;
+    pasangNilaiPimpinan(document.getElementById('tab-kepsek'), {
+        esc, tahun: config?.current_academic_year, semester: config?.current_semester,
+    });
+    pasangNilaiRaporKelas(document.getElementById('tab-kepsek'), {
+        esc, mode: 'pimpinan', tahun: config?.current_academic_year, semester: config?.current_semester,
+    });
+    pasangKunciPeriode(document.getElementById('tab-kepsek'), {
+        esc, tahun: config?.current_academic_year, semester: config?.current_semester,
+    });
+
+    if (!_ksTabInit) {
+        _ksTabInit = true;
+        wireSimpleAccordion('ks-chart-card');
+        wireSimpleAccordion('ks-monitoring-card');
+        wireSimpleAccordion('ks-admin-card');
+        wireSimpleAccordion('ks-region-card');
+
+        document.getElementById('ks-period-toggle').addEventListener('click', e => {
+            const btn = e.target.closest('.ks-period-btn');
+            if (!btn || btn.disabled) return;
+            document.querySelectorAll('.ks-period-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const period = btn.dataset.period;
+            const ayLalu = period === 'tahun_ajaran_lalu' ? _prevAcademicYear(config) : null;
+            loadKepsekMonitoring(period, { config, ayLalu });
+        });
+
+        document.getElementById('ks-range-btn').addEventListener('click', () => {
+            const start = document.getElementById('ks-range-start').value;
+            const end   = document.getElementById('ks-range-end').value;
+            if (!start || !end) return;
+            if (start > end) {
+                const errEl = document.getElementById('ks-monitoring-error');
+                errEl.textContent = 'Tanggal awal tidak boleh setelah tanggal akhir.';
+                errEl.style.display = 'block';
+                return;
+            }
+            document.querySelectorAll('.ks-period-btn').forEach(b => b.classList.remove('active'));
+            loadKepsekMonitoring('rentang', { config, dateStart: start, dateEnd: end });
+        });
+
+        document.getElementById('ks-range-start').value = localDateStr(new Date(Date.now() - 6 * 86400000));
+        document.getElementById('ks-range-end').value   = localDateStr();
+    }
+
+    await loadKepsekMonitoring('7_hari', { config });
+    await loadKepsekKasusRingkasan();
+    await initKsAdminTab({ currentUser });
+    await initKsRegionSharing();
+}
+
+function _prevAcademicYear(config) {
+    const y = parseInt(config?.current_academic_year?.split('/')[0] ?? new Date().getFullYear());
+    return `${y - 1}/${y}`;
+}
+
+function _fmtChartLabel(dateStr, byMonth) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return byMonth
+        ? BULAN_ID[d.getMonth()] + ' ' + d.getFullYear()
+        : d.getDate() + ' ' + BULAN_ID[d.getMonth()];
+}
+
+function _kepsekLocalRange(period) {
+    const today = new Date();
+    const shift = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+    const todayStr = localDateStr(today);
+    if (period === 'hari_ini')    return { start: todayStr, end: todayStr };
+    if (period === '7_hari')      return { start: localDateStr(shift(today, -6)), end: todayStr };
+    if (period === 'minggu_lalu') {
+        const daysSinceMonday = (today.getDay() + 6) % 7;
+        const thisMonday = shift(today, -daysSinceMonday);
+        return { start: localDateStr(shift(thisMonday, -7)), end: localDateStr(shift(thisMonday, -1)) };
+    }
+    if (period === 'bulan_lalu') {
+        const firstThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        return { start: localDateStr(new Date(today.getFullYear(), today.getMonth() - 1, 1)), end: localDateStr(shift(firstThisMonth, -1)) };
+    }
+    return null;
+}
+
+async function loadKepsekMonitoring(period, { config, ayLalu = null, dateStart = null, dateEnd = null } = {}) {
+    const seq            = ++_ksMonitoringSeq;
+    const errEl          = document.getElementById('ks-monitoring-error');
+    const pctSiswa       = document.getElementById('ks-pct-siswa');
+    const pctGuru        = document.getElementById('ks-pct-guru');
+    const detSiswa       = document.getElementById('ks-detail-siswa');
+    const rincianAbsensi = document.getElementById('ks-rincian-absensi');
+    const rincianHint    = document.getElementById('ks-rincian-absensi-hint');
+    const detGuru        = document.getElementById('ks-detail-guru');
+    const hintEl         = document.getElementById('ks-chart-hint');
+    const countLate      = document.getElementById('ks-count-late');
+    const countExits     = document.getElementById('ks-count-exits');
+
+    pctSiswa.textContent = '…'; pctGuru.textContent = '…';
+    detSiswa.textContent = ''; rincianAbsensi.textContent = ''; rincianHint.textContent = '';
+    detGuru.textContent  = ''; hintEl.textContent = '';
+    if (countLate)  countLate.textContent  = '…';
+    if (countExits) countExits.textContent = '…';
+    errEl.style.display = 'none';
+    if (_ksChart) { _ksChart.destroy(); _ksChart = null; }
+
+    try {
+        let _period = period, _dateStart = dateStart, _dateEnd = dateEnd;
+        const localRange = _kepsekLocalRange(period);
+        if (localRange) { _period = 'rentang'; _dateStart = localRange.start; _dateEnd = localRange.end; }
+
+        const d = await getKepsekMonitoring(_period, ayLalu, _dateStart, _dateEnd);
+        if (seq !== _ksMonitoringSeq) return;
+        const s = d.summary ?? {};
+
+        pctSiswa.textContent = (s.pct_siswa != null && !isNaN(s.pct_siswa)) ? s.pct_siswa + '%' : '0%';
+        pctGuru.textContent  = (s.pct_guru  != null && !isNaN(s.pct_guru))  ? s.pct_guru  + '%' : '0%';
+        if (countLate)  countLate.textContent  = s.count_late  != null ? s.count_late  + ' siswa' : '—';
+        if (countExits) countExits.textContent = s.count_exits != null ? s.count_exits + ' siswa' : '—';
+        detSiswa.textContent = `${s.siswa_hadir ?? 0} / ${s.siswa_total ?? 0} siswa hadir`;
+        detGuru.textContent  = `${s.guru_hadir  ?? 0} / ${s.guru_total  ?? 0} guru hadir`;
+
+        const rincian    = s.rincian_absensi ?? {};
+        const barisAbsensi = Number(rincian.baris ?? 0);
+        if (barisAbsensi > 0) {
+            const persen = k => `${(100 * Number(rincian[k] ?? 0) / barisAbsensi).toFixed(1)}% (${Number(rincian[k] ?? 0)})`;
+            rincianAbsensi.textContent = `Hadir ${persen('hadir')} · Sakit ${persen('sakit')} · Izin ${persen('izin')} · Alpa ${persen('alpa')}`;
+            rincianHint.textContent    = `dari ${barisAbsensi} catatan absensi (siswa x sesi) pada periode ini`;
+        } else {
+            rincianAbsensi.textContent = 'Belum ada catatan absensi pada periode ini';
+            rincianHint.textContent    = '';
+        }
+
+        const chartData = d.chart ?? [];
+        hintEl.textContent = chartData.length === 0
+            ? 'Belum ada data pada periode ini'
+            : d.by_month ? 'Persentase kehadiran per bulan' : 'Persentase kehadiran per hari';
+        _renderKepsekChart(chartData, d.by_month);
+
+        const btnTahunLalu = document.querySelector('.ks-period-btn[data-period="tahun_ajaran_lalu"]');
+        if (btnTahunLalu) {
+            const earliest  = d.data_earliest;
+            const prevAyEnd = _prevAcademicYear(config).split('/')[1] + '-06-30';
+            const noData = !earliest || earliest > prevAyEnd;
+            btnTahunLalu.disabled     = noData;
+            btnTahunLalu.style.opacity = noData ? '0.4' : '';
+            if (noData && btnTahunLalu.classList.contains('active')) {
+                btnTahunLalu.classList.remove('active');
+                const btn7 = document.querySelector('.ks-period-btn[data-period="7_hari"]');
+                if (btn7) btn7.classList.add('active');
+                loadKepsekMonitoring('7_hari', { config });
+            }
+        }
+    } catch (err) {
+        if (seq !== _ksMonitoringSeq) return;
+        errEl.textContent   = `Gagal memuat data: ${fe(err)}`;
+        errEl.style.display = 'block';
+        pctSiswa.textContent = '—'; pctGuru.textContent = '—';
+        rincianAbsensi.textContent = ''; rincianHint.textContent = '';
+        if (countLate)  countLate.textContent  = '—';
+        if (countExits) countExits.textContent = '—';
+        hintEl.textContent = '';
+        if (_ksChart) { _ksChart.destroy(); _ksChart = null; }
+        console.error('[kepsek monitoring]', err);
+    }
+}
+
+function _renderKepsekChart(chartData, byMonth) {
+    const canvas  = document.getElementById('ks-chart');
+    const maxY2   = Math.max(10, ...chartData.map(p => p.count_late ?? 0), ...chartData.map(p => p.count_exits ?? 0));
+    const labels  = chartData.map(p => _fmtChartLabel(p.date, byMonth));
+    if (_ksChart) { _ksChart.destroy(); _ksChart = null; }
+    _ksChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Kehadiran Siswa (%)', data: chartData.map(p => p.pct_siswa),    borderColor: '#1D9E75', backgroundColor: '#1D9E7518', tension: 0.3, fill: true,  yAxisID: 'y1', pointRadius: chartData.length <= 14 ? 4 : 2, spanGaps: true },
+                { label: 'Kehadiran Guru (%)',  data: chartData.map(p => p.pct_guru),     borderColor: '#185FA5', backgroundColor: '#185FA518', tension: 0.3, fill: true,  yAxisID: 'y1', pointRadius: chartData.length <= 14 ? 4 : 2, spanGaps: true },
+                { label: 'Keterlambatan',       data: chartData.map(p => p.count_late  ?? null), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', tension: 0.3, yAxisID: 'y2', pointRadius: chartData.length <= 14 ? 4 : 2, spanGaps: true },
+                { label: 'Izin Keluar',         data: chartData.map(p => p.count_exits ?? null), borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)',   tension: 0.3, yAxisID: 'y2', pointRadius: chartData.length <= 14 ? 4 : 2, spanGaps: true },
+            ],
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => {
+                    const v = ctx.parsed.y;
+                    return ctx.dataset.yAxisID === 'y2'
+                        ? `${ctx.dataset.label}: ${v != null ? v + ' siswa' : '—'}`
+                        : `${ctx.dataset.label}: ${v != null ? v + '%' : '0%'}`;
+                }}},
+            },
+            scales: {
+                y1: { type: 'linear', display: true, position: 'left',  min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 11 } }, grid: { color: '#0001' } },
+                y2: { type: 'linear', display: true, position: 'right', min: 0, max: maxY2, title: { display: true, text: 'Jumlah Siswa', font: { size: 10 } }, ticks: { font: { size: 11 }, precision: 0 }, grid: { drawOnChartArea: false } },
+                x:  { ticks: { font: { size: 11 }, maxRotation: 45 } },
+            },
+        },
+    });
+}
+
+async function loadKepsekKasusRingkasan() {
+    const el = document.getElementById('ks-pembinaan-ringkasan');
+    if (!el) return;
+    const BARIS = [['OPEN','Buka'],['UNDER_REVIEW','Ditinjau'],['INTERVENTION','Intervensi'],['MONITORING','Monitoring'],['CLOSED','Tutup']];
+    try {
+        const d = await getKepsekCaseSummary();
+        const aktif = BARIS.slice(0, 4).reduce((j, [k]) => j + (Number(d?.per_status?.[k]) || 0), 0);
+        const sel = (label, nilai) =>
+            `<div style="padding:8px 12px;border:1px solid var(--color-border);border-radius:var(--radius);min-width:120px">
+                <div style="font-size:12px;color:var(--color-text-muted)">${esc(label)}</div>
+                <div style="font-size:20px;font-weight:600">${esc(String(nilai ?? '—'))}</div>
+            </div>`;
+        const hari = d?.rata_hari_penyelesaian;
+        el.innerHTML = `
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                ${sel('Total kasus', d?.total ?? 0)}${sel('Masih aktif', aktif)}${sel('Tutup', d?.per_status?.CLOSED ?? 0)}
+                ${sel('Dibuka 30 hari terakhir', d?.dibuka_30_hari ?? 0)}${sel('Ditutup 30 hari terakhir', d?.ditutup_30_hari ?? 0)}
+                ${sel('Rata-rata lama penyelesaian', hari == null ? '—' : hari + ' hari')}
+            </div>
+            <table class="rc-table" style="width:100%;max-width:420px"><thead><tr><th>Status</th><th>Jumlah</th></tr></thead><tbody>
+                ${BARIS.map(([k, l]) => `<tr><td>${esc(l)}</td><td>${esc(String(d?.per_status?.[k] ?? 0))}</td></tr>`).join('')}
+            </tbody></table>
+            <p class="hint" style="margin:10px 0 0;font-size:12px">Jalur: Sekolah ${esc(String(d?.per_track?.SEKOLAH ?? 0))} · PKL ${esc(String(d?.per_track?.PKL ?? 0))}</p>`;
+    } catch (err) {
+        el.innerHTML = `<p class="status-err">Gagal memuat ringkasan pembinaan. ${esc(fe(err, 's'))}</p>`;
+    }
+}
+
+async function initKsAdminTab({ currentUser }) {
+    if (!_ksAdminTabInit) {
+        _ksAdminTabInit = true;
+        document.getElementById('ks-add-admin-form').addEventListener('submit', e => handleAddAdmin(e, { currentUser }));
+    }
+    await loadAdminList({ currentUser });
+}
+
+async function loadAdminList({ currentUser }) {
+    const el = document.getElementById('ks-admin-list');
+    try {
+        const admins = await listSchoolAdmins();
+        if (!admins.length) { el.innerHTML = '<p class="hint">Belum ada data admin.</p>'; return; }
+        el.innerHTML = `
+            <table class="data-table" style="width:100%">
+                <thead><tr><th style="text-align:left">Nama</th><th style="text-align:left">Login Admin</th><th></th></tr></thead>
+                <tbody>
+                    ${admins.map(a => `
+                        <tr>
+                            <td>${esc(a.full_name)}</td>
+                            <td><code style="font-size:12px">${esc(a.login_identifier || '—')}</code></td>
+                            <td style="text-align:right">
+                                ${a.user_id === currentUser.user_id
+                                    ? '<span class="hint">(Anda)</span>'
+                                    : `<button class="btn btn-sm btn-danger" data-uid="${esc(a.user_id)}" data-name="${esc(a.full_name)}" onclick="confirmRemoveAdmin(this)">Hapus</button>`
+                                }
+                            </td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>`;
+    } catch (err) {
+        el.innerHTML = `<p class="hint">Gagal memuat daftar admin: ${fe(err)}</p>`;
+    }
+}
+
+async function handleAddAdmin(e, { currentUser }) {
+    e.preventDefault();
+    const btn      = document.getElementById('ks-add-admin-btn');
+    const msgEl    = document.getElementById('ks-add-admin-msg');
+    const resultEl = document.getElementById('ks-new-admin-result');
+    const name     = document.getElementById('ks-admin-name').value.trim();
+    const loginId  = document.getElementById('ks-admin-loginid').value.trim();
+    const idType   = document.getElementById('ks-admin-idtype').value;
+
+    if (loginId.length < 9) {
+        msgEl.textContent = 'NIP/NIK minimal 9 karakter.'; msgEl.style.display = 'block'; return;
+    }
+    btn.disabled = true; msgEl.style.display = 'none'; resultEl.style.display = 'none';
+    try {
+        const result = await addSchoolAdmin({ full_name: name, login_identifier: loginId, identifier_type: idType });
+        document.getElementById('ks-result-loginid').textContent  = result.login_identifier;
+        document.getElementById('ks-result-password').textContent = result.temp_password;
+        resultEl.style.display = 'block';
+        e.target.reset();
+        e.target.closest('details').open = false;
+        await loadAdminList({ currentUser });
+    } catch (err) {
+        msgEl.textContent = fe(err); msgEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function initKsRegionSharing() {
+    const statusEl = document.getElementById('ks-region-status');
+    const listEl   = document.getElementById('ks-region-levels');
+    const msgEl    = document.getElementById('ks-region-msg');
+    if (!statusEl || !listEl) return;
+    msgEl.style.display = 'none';
+
+    const TINGKAT = [
+        { level: 'KECAMATAN', label: 'Kecamatan', nama: 'wilayah',   ada: 'terdaftar_di_wilayah', aktif: 'dibagikan',           bisa: 'dapat_mengubah' },
+        { level: 'KABUPATEN', label: 'Kabupaten', nama: 'kabupaten', ada: 'terdaftar_kabupaten',  aktif: 'dibagikan_kabupaten', bisa: 'dapat_mengubah_kabupaten' },
+        { level: 'PROVINSI',  label: 'Provinsi',  nama: 'provinsi',  ada: 'terdaftar_provinsi',   aktif: 'dibagikan_provinsi',  bisa: 'dapat_mengubah_provinsi' },
+    ];
+
+    const show = (st) => {
+        listEl.replaceChildren();
+        const adaTingkat = TINGKAT.some(t => st[t.ada]);
+        statusEl.textContent = adaTingkat
+            ? 'Pilih sendiri tingkat mana yang boleh melihat angka ringkas sekolah ini.'
+            : 'Sekolah Anda belum didaftarkan ke wilayah mana pun oleh pengelola platform.';
+        for (const t of TINGKAT) {
+            const row  = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap';
+            const info = document.createElement('span');
+            const nama = st[t.nama] ? ': ' + st[t.nama] : '';
+            info.textContent = t.label + nama + ' — ' +
+                (!st[t.ada] ? 'belum dicatat oleh pengelola platform'
+                    : st[t.aktif] ? 'DIBAGIKAN' : 'tidak dibagikan');
+            row.append(info);
+            if (st[t.ada] && st[t.bisa]) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = st[t.aktif] ? 'btn' : 'btn btn-primary';
+                btn.textContent = st[t.aktif] ? 'Hentikan berbagi' : 'Bagikan ke ' + t.label.toLowerCase();
+                btn.addEventListener('click', async () => {
+                    const aktifkan = !st[t.aktif];
+                    const tanya = aktifkan
+                        ? `Bagikan ringkasan agregat sekolah ke ${t.label.toLowerCase()}?\n\nYang terlihat hanya angka ringkas: jumlah siswa aktif, jumlah orang tua aktif, kehadiran, cakupan input, serta jumlah keterlambatan dan izin keluar. Tidak ada nama atau data pribadi siswa maupun orang tua. Anda dapat menghentikannya kapan saja.`
+                        : `Hentikan berbagi ke ${t.label.toLowerCase()}? Sekolah ini akan langsung hilang dari dashboard tingkat itu.`;
+                    if (!window.confirm(tanya)) return;
+                    btn.disabled = true; msgEl.style.display = 'none';
+                    try {
+                        show(await setRegionSharingLevel(t.level, aktifkan));
+                        msgEl.textContent = aktifkan ? 'Berbagi ke ' + t.label.toLowerCase() + ' diaktifkan.'
+                                                     : 'Berbagi ke ' + t.label.toLowerCase() + ' dihentikan.';
+                        msgEl.className = 'status-msg status-ok';
+                    } catch (err) {
+                        msgEl.textContent = 'Gagal menyimpan: ' + fe(err, 's');
+                        msgEl.className = 'status-msg status-err';
+                        btn.disabled = false;
+                    } finally {
+                        msgEl.style.display = 'inline-block';
+                    }
+                });
+                row.append(btn);
+            }
+            listEl.append(row);
+        }
+    };
+
+    try {
+        show(await getRegionSharingStatus());
+    } catch {
+        statusEl.textContent = 'Gagal memuat status berbagi data.';
+        listEl.replaceChildren();
+    }
+}
