@@ -483,7 +483,7 @@
   "state": {
     "last_updated": "2026-10-28",
     "last_session_commit": "9ee3f14",
-    "migrasi_terpasang_sampai": "20261028050000 (060000 pending push Romo)",
+    "migrasi_terpasang_sampai": "20261028060000",
     "main_sha": "9ee3f14"
   }
 }
