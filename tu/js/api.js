@@ -195,12 +195,13 @@ export async function fetchAttendanceSummary(dateStart, dateEnd, statuses = ['AL
         if (!data || data.length < pageSize) break;
     }
     return all.map(r => ({
-        date:         r.session_date,
-        student_name: r.student_name,
-        nis:          r.nis,
-        class_name:   r.class_name,
-        status:       r.status,
-        notes:        r.notes ?? '',
+        date:           r.session_date,
+        block_group_id: r.block_group_id,
+        student_name:   r.student_name,
+        nis:            r.nis,
+        class_name:     r.class_name,
+        status:         r.status,
+        notes:          r.notes ?? '',
     }));
 }
 

@@ -134,8 +134,13 @@
       "test_relevan": ["rekap-excel.mjs"]
     },
     "block_group_id": {
-      "dipakai_di": ["rekap-excel.js", "fn_class_attendance_summary", "waka-kesiswaan"],
+      "dipakai_di": ["rekap-excel.js", "fn_class_attendance_summary", "waka-kesiswaan", "fn_tu_attendance_recap", "tab-bk.js"],
       "test_relevan": ["rekap-excel.mjs"]
+    },
+    "fn_tu_attendance_recap": {
+      "berpasangan_dengan": ["tu/js/api.js (fetchAttendanceSummary)"],
+      "dipakai_oleh": ["tu/js/portal.js (loadAttendance, downloadBkAttExcel)"],
+      "test_relevan": ["tenant-isolation.mjs"]
     },
     "fn_hitung_nilai_rapor": {
       "berpasangan_dengan": ["nilai-rapor.js"],
@@ -160,7 +165,8 @@
     "trg_grade_final": "uji lama yang menulis angka sembarang ke grade_final harus matikan trigger di transaksi ujinya (blok do $$ di tests/lib/*.sql)",
     "koordinat_klik": "kerangka tangkapan layar 1568 lebar; skala = 1568 / innerWidth; setelah reload tunggu >=4 dtk",
     "postgrest_404": "404 pada RPC sering berarti galat tipe runtime (enum vs text) bukan tidak ditemukan",
-    "excel_pivot_guru": "Excel rekap absensi harus pivot per block_group_id (bukan session_date) — dua pertemuan sehari harus jadi dua kolom terpisah; pakai buildPertemuanMeta dari tab-shared.js"
+    "excel_pivot_guru": "Excel rekap absensi harus pivot per block_group_id (bukan session_date) — dua pertemuan sehari harus jadi dua kolom terpisah; pakai buildPertemuanMeta dari tab-shared.js",
+    "excel_semua_data": "Excel unduhan di semua tab (Wali, Waka, Kaprodi, BK, TU) mengambil SEMUA data tanpa filter tanggal/status/kelas — bukan data yang sedang ditampilkan di layar"
   },
 
   "open_tasks": [
@@ -168,7 +174,7 @@
       "id": "T001",
       "task": "Audit + perbaiki alur absensi semua rekap",
       "status": "SELESAI 28 Okt",
-      "catatan": "tab-guru.js pivot ke block_group_id; fn_attendance_recap_per_class diperbaiki via migrasi 20261028000000; semua rekap (Guru, Wali, Kaprodi, Waka) kini konsisten"
+      "catatan": "tab-guru.js pivot ke block_group_id; fn_attendance_recap_per_class (migrasi 20261028000000) untuk Kaprodi+Waka; tab-bk.js Level 3 dedup per block_group_id; fn_tu_attendance_recap (migrasi 20261028010000) untuk TU; Excel semua tab unduh data lengkap (tanpa filter); BK Excel ditambahkan"
     },
     {
       "id": "T002",
@@ -197,7 +203,7 @@
   "state": {
     "last_updated": "2026-10-28",
     "last_session_commit": "c5b392b",
-    "migrasi_terpasang_sampai": "20261028000000",
+    "migrasi_terpasang_sampai": "20261028010000",
     "main_sha": "c5b392b (fix excel pivot guru 28 Okt — verifikasi dengan git fetch sebelum mulai)"
   }
 }

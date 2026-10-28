@@ -469,39 +469,80 @@ async function loadAttendance() {
 document.getElementById('btn-att-filter').addEventListener('click', loadAttendance);
 
 document.getElementById('btn-export-att').addEventListener('click', async () => {
-    if (!_cachedAttendance.length) { _tuHint('Tampilkan data dulu sebelum export.'); return; }
+    const btn = document.getElementById('btn-export-att');
+    btn.disabled = true;
+    btn.textContent = 'Menyiapkan…';
+    try {
+    const allRows = await fetchAttendanceSummary(null, null, ['ALPA', 'IZIN', 'SAKIT'], null, null);
+    if (!allRows.length) { _tuHint('Belum ada data kehadiran untuk diunduh.'); return; }
 
-    // Sheet 1: semua data lengkap
-    const allHeader = [['Tanggal', 'Nama Siswa', 'NIS', 'Kelas', 'Status', 'Catatan']];
-    const allRows   = _cachedAttendance.map(r => [
-        formatDate(r.date), r.student_name, r.nis, r.class_name,
-        STATUS_LABEL[r.status] ?? r.status, r.notes || '',
-    ]);
+    const XLSX = await getXLSX();
+    const wb   = XLSX.utils.book_new();
+    const PRIO         = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
+    const STATUS_HURUF = { ALPA: 'A', IZIN: 'I', SAKIT: 'S', HADIR: 'H' };
 
-    // Sheet 2+: detail per kelas, diurutkan A-Z
+    // Pivot per kelas, lalu per siswa × block_group_id
     const kelasMap = new Map();
-    for (const r of _cachedAttendance) {
+    for (const r of allRows) {
         if (!kelasMap.has(r.class_name)) kelasMap.set(r.class_name, []);
         kelasMap.get(r.class_name).push(r);
     }
-    const detailHeader = ['Tanggal', 'Nama Siswa', 'NIS', 'Status', 'Catatan'];
-    const kelasSheets  = [...kelasMap.entries()]
-        .sort(([a], [b]) => a.localeCompare(b, 'id'))
-        .map(([kelas, rows]) => ({
-            name: kelas.slice(0, 31),
-            rows: [
-                detailHeader,
-                ...rows.map(r => [
-                    formatDate(r.date), r.student_name, r.nis,
-                    STATUS_LABEL[r.status] ?? r.status, r.notes || '',
-                ]),
-            ],
-        }));
 
-    downloadXLSX([
-        { name: 'Rekap Kehadiran', rows: [...allHeader, ...allRows] },
-        ...kelasSheets,
-    ], `rekap-kehadiran-${Date.now()}.xlsx`);
+    for (const [kelas, rows] of [...kelasMap.entries()].sort(([a], [b]) => a.localeCompare(b, 'id'))) {
+        // Bangun label kolom per block_group_id (inline buildPertemuanMeta)
+        const bgDate = new Map();
+        for (const r of rows)
+            if (r.block_group_id && !bgDate.has(r.block_group_id))
+                bgDate.set(r.block_group_id, r.date);
+        const sortedBg = [...bgDate.entries()].sort(([, a], [, b]) => a < b ? -1 : a > b ? 1 : 0);
+        const cntPerDate = new Map();
+        for (const [, d] of sortedBg) cntPerDate.set(d, (cntPerDate.get(d) ?? 0) + 1);
+        const idxPerDate = new Map();
+        const labelById  = new Map();
+        for (const [bgId, d] of sortedBg) {
+            if (cntPerDate.get(d) === 1) {
+                labelById.set(bgId, d);
+            } else {
+                const n = (idxPerDate.get(d) ?? 0) + 1;
+                idxPerDate.set(d, n);
+                labelById.set(bgId, `${d} (${n})`);
+            }
+        }
+        const sortedIds = sortedBg.map(([id]) => id);
+
+        // Pivot: student_name → block_group_id → status terburuk
+        const pivot    = {};
+        const nisByName = {};
+        for (const r of rows) {
+            if (!r.block_group_id) continue;
+            if (!pivot[r.student_name]) { pivot[r.student_name] = {}; nisByName[r.student_name] = r.nis; }
+            const prev = pivot[r.student_name][r.block_group_id];
+            if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
+                pivot[r.student_name][r.block_group_id] = r.status;
+        }
+
+        const names = Object.keys(pivot).sort((a, b) => a.localeCompare(b, 'id'));
+        const header = ['No', 'Nama', 'NIS', ...sortedIds.map(id => labelById.get(id)), 'A', 'I', 'S'];
+        const dataRows = names.map((name, idx) => {
+            const byBg = pivot[name];
+            let A = 0, I = 0, S = 0;
+            for (const st of Object.values(byBg)) {
+                if (st === 'ALPA') A++; else if (st === 'IZIN') I++; else if (st === 'SAKIT') S++;
+            }
+            return [idx + 1, name, nisByName[name], ...sortedIds.map(id => STATUS_HURUF[byBg[id]] ?? ''), A, I, S];
+        });
+
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...dataRows]), kelas.slice(0, 31));
+    }
+
+    if (!wb.SheetNames.length) { _tuHint('Belum ada data kehadiran untuk diunduh.'); return; }
+    XLSX.writeFile(wb, `rekap-kehadiran-${Date.now()}.xlsx`);
+    } catch (err) {
+        _tuHint('Gagal mengunduh: ' + fe(err));
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Unduh Excel';
+    }
 });
 
 // ── Logout ─────────────────────────────────────────────────────

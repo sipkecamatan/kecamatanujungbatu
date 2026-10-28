@@ -170,7 +170,6 @@ async function downloadWkAttExcel({ config }) {
         const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
         const PRIO         = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
 
-        // Ambil semua kelas yang bisa dilihat waka (tanpa filter tanggal)
         const allRows = await getAttendanceRecapPerClass(null, null);
         if (!allRows.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
 

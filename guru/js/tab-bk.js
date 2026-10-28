@@ -8,8 +8,11 @@ import { supabase } from './api.js';
 import {
     getPrograms, getAttendanceRecapPerClass,
     getWaliAttendanceSummary, getStudentAttendanceSessions,
+    getClassStudents, getClassAttendanceByDate,
 } from './api.js';
-import { esc, fe, wireSimpleAccordion, localDateStr } from './tab-shared.js';
+import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta } from './tab-shared.js';
+
+/* global XLSX */
 
 let _bkKasusCtx = null;
 
@@ -22,6 +25,7 @@ export async function initBkTab({ config, kasusEngine }) {
     document.getElementById('bk-att-start').value = firstOfMonth;
     document.getElementById('bk-att-end').value   = today;
     document.getElementById('bk-att-filter-btn').onclick = () => loadBkAttendanceRecap({ config });
+    document.getElementById('bk-att-export-btn').onclick = () => downloadBkAttExcel({ config });
     await loadBkAttendanceRecap({ config });
     await _initBkKasusSection({ makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList });
 }
@@ -224,5 +228,69 @@ async function loadBkAttendanceRecap({ config }) {
 
     } catch (err) {
         container.innerHTML = `<div class="alert alert-danger">${esc(fe(err))}</div>`;
+    }
+}
+
+async function downloadBkAttExcel({ config }) {
+    const btn = document.getElementById('bk-att-export-btn');
+    btn.disabled = true;
+    btn.textContent = 'Menyiapkan…';
+    try {
+        const academicYear = config.current_academic_year;
+        const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
+        const PRIO         = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
+
+        const allRows = await getAttendanceRecapPerClass(null, null);
+        if (!allRows.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
+
+        const wb = XLSX.utils.book_new();
+
+        const results = await Promise.all(
+            allRows.map(r => Promise.all([
+                getClassStudents(r.class_id),
+                getClassAttendanceByDate(r.class_id, academicYear, null, null),
+            ]).then(([roster, detail]) => ({ cls: r, roster, detail })))
+        );
+
+        for (const { cls, roster, detail } of results.sort((a, b) => a.cls.name.localeCompare(b.cls.name, 'id'))) {
+            if (!roster.length) continue;
+
+            const pivot = {};
+            for (const r of detail) {
+                if (!r.block_group_id) continue;
+                if (!pivot[r.student_id]) pivot[r.student_id] = {};
+                const prev = pivot[r.student_id][r.block_group_id];
+                if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
+                    pivot[r.student_id][r.block_group_id] = r.status;
+            }
+
+            const { sortedIds, labelById } = buildPertemuanMeta(detail);
+            const sorted = [...roster].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+
+            const header = ['No', 'Nama', 'NIS', ...sortedIds.map(id => labelById.get(id)), 'H', 'I', 'S', 'A', '%Hadir'];
+            const dataRows = sorted.map((s, idx) => {
+                const byBg = pivot[s.student_id] ?? {};
+                let H = 0, I = 0, S = 0, A = 0;
+                for (const st of Object.values(byBg)) {
+                    if (st === 'HADIR') H++; else if (st === 'IZIN') I++;
+                    else if (st === 'SAKIT') S++; else if (st === 'ALPA') A++;
+                }
+                const tot = H + I + S + A;
+                const pct = tot > 0 ? Math.round(H / tot * 100) + '%' : '—';
+                return [idx + 1, s.full_name, s.nis ?? '',
+                    ...sortedIds.map(id => STATUS_HURUF[byBg[id]] ?? ''),
+                    H, I, S, A, pct];
+            });
+
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...dataRows]), cls.name.slice(0, 31));
+        }
+
+        if (!wb.SheetNames.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
+        XLSX.writeFile(wb, `rekap_absensi_bk_${academicYear}.xlsx`);
+    } catch (err) {
+        alert('Gagal mengunduh: ' + fe(err));
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '↓ Unduh Excel';
     }
 }
