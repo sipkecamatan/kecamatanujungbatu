@@ -96,7 +96,8 @@
       "git status diperiksa — tidak ada docs/ yang ikut",
       "Verifier checklist dijalankan",
       "CONSTITUTION.json last_session_commit diupdate"
-    ]
+    ],
+    "responsivitas_hp": "Jika ada perubahan .html/.css/DOM: Romo sudah cek tampilan di 360px di browser nyata sebelum commit"
   },
   "forbidden": [
     "SQL debug/test ke live tanpa BEGIN di awal dan ROLLBACK di akhir",
@@ -110,7 +111,8 @@
     "Mengubah rumus nilai-rapor.js tanpa mengubah fn_hitung_nilai_rapor bersamaan",
     "Memanggil upsertGradeFinalBatch dengan baris sebagian (menimpa T/R dan deskripsi)",
     "Ringkasan harian (cabang codex/ringkasan-harian) dipasang ke produksi — ada risiko kunci baris",
-    "Mengubah CSS, layout, atau tampilan komponen yang tidak disebutkan dalam scope pekerjaan"
+    "Mengubah CSS, layout, atau tampilan komponen yang tidak disebutkan dalam scope pekerjaan",
+    "Commit perubahan .html, .css, atau JS yang merender DOM tanpa Romo memverifikasi tampilan di 360px di browser nyata"
   ],
   "ui_map": {
     "_sumber": "guru/dashboard.html, student/dashboard.html, parent/portal.html, tu/portal.html, stakeholder/dashboard.html, kecamatan/index.html",
@@ -446,7 +448,8 @@
     "rincian_absensi_raw": "fn_kepsek_monitoring mengembalikan rincian_absensi berisi raw count (baris, hadir, sakit, izin, alpa) — BUKAN field _pct; klien wajib hitung sendiri: pct = Math.round(100 * r.hadir / r.baris)",
     "period_server_bukan_klien": "periode preset (hari_ini, 7_hari, minggu_lalu, bulan_lalu) wajib dikirim langsung ke fn_kepsek_monitoring — jangan konversi ke rentang di sisi klien; server pakai now() AT TIME ZONE Asia/Jakarta sehingga tanggal selalu konsisten lintas portal",
     "migration_jangan_rollback": "file di supabase/migrations/ TIDAK BOLEH diakhiri ROLLBACK — BEGIN/ROLLBACK hanya untuk SQL debug ad-hoc. Supabase menjalankan migration via psql tanpa membungkusnya, sehingga ROLLBACK di akhir file membatalkan seluruh isi migration; Supabase tetap mencatat migration sebagai 'applied' di migration history sehingga db push berikutnya tidak akan re-apply. Jika terlanjur, buat migration baru dengan nama timestamp lebih besar",
-    "scope_creep_ui": "Implementer cenderung merapikan CSS/layout sambil lalu saat mengerjakan logika — ini melanggar Scope Guard. Setiap perubahan visual yang tidak diminta harus dianggap bug, bukan perbaikan."
+    "scope_creep_ui": "Implementer cenderung merapikan CSS/layout sambil lalu saat mengerjakan logika — ini melanggar Scope Guard. Setiap perubahan visual yang tidak diminta harus dianggap bug, bukan perbaikan.",
+    "responsivitas_hp": "Perubahan HTML (struktur DOM) sama berbahayanya dengan perubahan CSS untuk tampilan HP — menambah kolom tabel, wrapper div, atau urutan elemen bisa merusak layout 360px tanpa menyentuh CSS."
   },
   "open_tasks": [
     {
