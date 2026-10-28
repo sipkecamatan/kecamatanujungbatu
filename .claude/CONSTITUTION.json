@@ -2,7 +2,6 @@
   "_keterangan": "CONSTITUTION SIP Kecamatan — perjanjian yang mengikat semua agent. Baca ini di awal setiap sesi. Update sebelum setiap commit.",
   "_versi": "1.0.0",
   "_dibuat": "2026-10-28",
-
   "project": {
     "nama": "SIP Kecamatan",
     "tujuan": "Sistem informasi sekolah multi-jenjang (SMP/SMA/SMK) yang bisa direalisasikan dan dipakai guru nyata, dengan dashboard kecamatan/kabupaten/provinsi untuk monitoring agregat lintas sekolah",
@@ -15,7 +14,6 @@
       "Sembunyikan/lewati fitur yang tidak relevan per jenjang, jangan rename"
     ]
   },
-
   "non_negotiable": [
     "Tidak ada data antar tenant yang bocor — RLS harus berlaku untuk semua jalur API",
     "Semua fitur harus bisa jalan di GitHub Pages (static) + Supabase free tier",
@@ -26,14 +24,15 @@
     "db push dan git push dilakukan Romo, bukan Claude",
     "Claude tidak membuat akun login atau menyimpan password/token di chat"
   ],
-
   "architecture": {
     "unit_pertemuan": {
       "field": "block_group_id",
       "bukan": "session_date",
       "alasan": "satu pertemuan = satu block_group; tanggal bisa duplikat lintas sesi",
       "diputuskan": "2026-10-22",
-      "pelanggaran_sebelumnya": ["6c1f78e (pakai session_date, dibalik di 1272198)"]
+      "pelanggaran_sebelumnya": [
+        "6c1f78e (pakai session_date, dibalik di 1272198)"
+      ]
     },
     "isolasi_tenant": {
       "pola": "RLS + SECURITY DEFINER",
@@ -60,7 +59,11 @@
       "referensi_migrasi": "20261020150000"
     },
     "jenjang": {
-      "didukung": ["SMP (kelas 7-9)", "SMA (kelas 10-12)", "SMK (kelas 10-12)"],
+      "didukung": [
+        "SMP (kelas 7-9)",
+        "SMA (kelas 10-12)",
+        "SMK (kelas 10-12)"
+      ],
       "deteksi": "jenjang-labels.js — hide menu+baris ringkasan per jenjang",
       "wizard_skip": "SMP skip langkah Program Keahlian + DUDI; SMA skip DUDI"
     },
@@ -70,7 +73,6 @@
       "label_satu_pintu": "penilaian-label.js (labelPenilaian, tpIdsPenilaian, tpIdsUrut, ringkasTp, namaTeknik)"
     }
   },
-
   "definition_of_done": {
     "fitur_baru": [
       "RLS tidak bocor antar tenant — diverifikasi dengan role berbeda",
@@ -96,7 +98,6 @@
       "CONSTITUTION.json last_session_commit diupdate"
     ]
   },
-
   "forbidden": [
     "SQL debug/test ke live tanpa BEGIN di awal dan ROLLBACK di akhir",
     "git add docs/ atau git add -A tanpa cek git status terlebih dulu",
@@ -110,87 +111,186 @@
     "Memanggil upsertGradeFinalBatch dengan baris sebagian (menimpa T/R dan deskripsi)",
     "Ringkasan harian (cabang codex/ringkasan-harian) dipasang ke produksi — ada risiko kunci baris"
   ],
-
   "ui_map": {
     "_sumber": "guru/dashboard.html, student/dashboard.html, parent/portal.html, tu/portal.html, stakeholder/dashboard.html, kecamatan/index.html",
     "_catatan": "Setiap entry = tab yang terlihat oleh role itu. Section = section-card dalam tab tersebut.",
-
     "guru": {
-      "Tab Guru (Beranda)": ["Jadwal Mengajar (hari ini / minggu ini)", "Rekap Kehadiran Siswa (filter kelas + tanggal)"],
-      "Tab Jurnal Mengajar": ["Progress Mengajar", "Tulis Catatan", "Riwayat Jurnal", "Panel Penilaian (Perencanaan/Pelaksanaan/Rekap/Nilai Rapor)"],
-      "Tab Piket": ["Input piket (diisi JS — perlu cek tab-piket.js)"],
-      "Tab Observasi Siswa": ["Tulis Catatan Siswa", "Riwayat Catatan Saya"],
-      "Tab Forum Sekolah": ["Daftar posting", "Buat Posting", "Detail posting + komentar"],
-      "Tab Kasus": ["Daftar Kasus", "Detail Kasus", "Timeline Kasus", "Tindakan", "Buat Kasus Baru"]
+      "Tab Guru (Beranda)": [
+        "Jadwal Mengajar (hari ini / minggu ini)",
+        "Rekap Kehadiran Siswa (filter kelas + tanggal)"
+      ],
+      "Tab Jurnal Mengajar": [
+        "Progress Mengajar",
+        "Tulis Catatan",
+        "Riwayat Jurnal",
+        "Panel Penilaian (Perencanaan/Pelaksanaan/Rekap/Nilai Rapor)"
+      ],
+      "Tab Piket": [
+        "Input piket (diisi JS — perlu cek tab-piket.js)"
+      ],
+      "Tab Observasi Siswa": [
+        "Tulis Catatan Siswa",
+        "Riwayat Catatan Saya"
+      ],
+      "Tab Forum Sekolah": [
+        "Daftar posting",
+        "Buat Posting",
+        "Detail posting + komentar"
+      ],
+      "Tab Kasus": [
+        "Daftar Kasus",
+        "Detail Kasus",
+        "Timeline Kasus",
+        "Tindakan",
+        "Buat Kasus Baru"
+      ]
     },
-
     "guru_wali": {
-      "Tab Wali Kelas": ["Rekap Kehadiran Kelas Walian", "Pembinaan Siswa Walian", "Keterlambatan Siswa Walian", "Izin Keluar Siswa Walian"],
+      "Tab Wali Kelas": [
+        "Rekap Kehadiran Kelas Walian",
+        "Pembinaan Siswa Walian",
+        "Keterlambatan Siswa Walian",
+        "Izin Keluar Siswa Walian"
+      ],
       "_mewarisi": "Semua tab Guru"
     },
-
     "guru_piket": {
-      "Tab Piket": ["Ringkasan Hari Ini", "Catat Keterlambatan", "Rekap Hari Ini", "Catat Izin Keluar", "Izin Keluar Hari Ini"]
+      "Tab Piket": [
+        "Ringkasan Hari Ini",
+        "Catat Keterlambatan",
+        "Rekap Hari Ini",
+        "Catat Izin Keluar",
+        "Izin Keluar Hari Ini"
+      ]
     },
-
     "bk": {
-      "Tab BK": ["Rekap Kehadiran (fokus rendah)", "Pembinaan Siswa — BK", "Detail kasus + tindakan BK"],
+      "Tab BK": [
+        "Rekap Kehadiran (fokus rendah)",
+        "Pembinaan Siswa — BK",
+        "Detail kasus + tindakan BK"
+      ],
       "_mewarisi": "Tab Forum Sekolah, Tab Kasus"
     },
-
     "kaprodi": {
-      "Tab Kaprodi": ["Rekap Kehadiran per Kelas Prodi", "Rekap Absensi PKL", "Rekap Nilai per Kelas", "Monitoring Observasi PKL", "Pembinaan Siswa Prodi", "Eskalasi Kasus", "Kasus PKL"]
+      "Tab Kaprodi": [
+        "Rekap Kehadiran per Kelas Prodi",
+        "Rekap Absensi PKL",
+        "Rekap Nilai per Kelas",
+        "Monitoring Observasi PKL",
+        "Pembinaan Siswa Prodi",
+        "Eskalasi Kasus",
+        "Kasus PKL"
+      ]
     },
-
     "waka_kesiswaan": {
-      "Tab Waka Kesiswaan": ["Rekap Kehadiran Seluruh Sekolah", "Keterlambatan Seluruh Sekolah", "Pembinaan Siswa — Kesiswaan", "Detail kasus + tindakan Waka"]
+      "Tab Waka Kesiswaan": [
+        "Rekap Kehadiran Seluruh Sekolah",
+        "Keterlambatan Seluruh Sekolah",
+        "Pembinaan Siswa — Kesiswaan",
+        "Detail kasus + tindakan Waka"
+      ]
     },
-
     "waka_kurikulum": {
-      "Tab Waka Kurikulum": ["Sesi Belum Diisi — Hari Ini", "Sesi Belum Diisi — Rentang Waktu"]
+      "Tab Waka Kurikulum": [
+        "Sesi Belum Diisi — Hari Ini",
+        "Sesi Belum Diisi — Rentang Waktu"
+      ]
     },
-
     "waka_humas": {
-      "Tab Waka Humas": ["Daftar Siswa PKL", "Rekap Absensi PKL", "Mitra DUDI", "Observasi dari DUDI", "Kasus PKL"]
+      "Tab Waka Humas": [
+        "Daftar Siswa PKL",
+        "Rekap Absensi PKL",
+        "Mitra DUDI",
+        "Observasi dari DUDI",
+        "Kasus PKL"
+      ]
     },
-
     "kepsek": {
-      "Tab Kepsek": ["Grafik kehadiran sekolah", "Ringkasan Pembinaan", "Status Berbagi Data ke Wilayah", "Panel Admin Sekolah"]
+      "Tab Kepsek": [
+        "Grafik kehadiran sekolah",
+        "Ringkasan Pembinaan",
+        "Status Berbagi Data ke Wilayah",
+        "Panel Admin Sekolah"
+      ]
     },
-
     "tu": {
-      "Portal TU": ["Jadwal Guru Piket", "Rekap Keterlambatan", "Rekap Izin Keluar", "Rekap Kehadiran (Alpa/Izin/Sakit)", "Forum Sekolah"]
+      "Portal TU": [
+        "Jadwal Guru Piket",
+        "Rekap Keterlambatan",
+        "Rekap Izin Keluar",
+        "Rekap Kehadiran (Alpa/Izin/Sakit)",
+        "Forum Sekolah"
+      ]
     },
-
     "siswa": {
-      "Tab Jadwal Hari Ini": ["Jadwal Pelajaran"],
-      "Tab Kehadiran": ["Rekap Kehadiran", "Riwayat Keterlambatan", "Riwayat Izin Keluar"],
-      "Tab Observasi": ["Catatan dari Guru", "Kasus Tentang Saya"],
-      "Tab PKL": ["Status PKL", "Riwayat Absensi PKL"],
-      "Tab Forum Kelas": ["Daftar posting kelas"],
-      "Tab Nilai": ["Nilai per mata pelajaran (dirender JS — tampil hanya jika guru sudah publikasi)"]
+      "Tab Jadwal Hari Ini": [
+        "Jadwal Pelajaran"
+      ],
+      "Tab Kehadiran": [
+        "Rekap Kehadiran",
+        "Riwayat Keterlambatan",
+        "Riwayat Izin Keluar"
+      ],
+      "Tab Observasi": [
+        "Catatan dari Guru",
+        "Kasus Tentang Saya"
+      ],
+      "Tab PKL": [
+        "Status PKL",
+        "Riwayat Absensi PKL"
+      ],
+      "Tab Forum Kelas": [
+        "Daftar posting kelas"
+      ],
+      "Tab Nilai": [
+        "Nilai per mata pelajaran (dirender JS — tampil hanya jika guru sudah publikasi)"
+      ]
     },
-
     "orang_tua": {
-      "Portal Orang Tua": ["Informasi PKL (jika anaknya PKL)", "Jadwal Pelajaran", "Kehadiran + Rekap", "Riwayat Keterlambatan", "Riwayat Izin Keluar", "Catatan Guru", "Riwayat Kasus", "Nilai", "Forum Sekolah", "Form Izin Ketidakhadiran"]
+      "Portal Orang Tua": [
+        "Informasi PKL (jika anaknya PKL)",
+        "Jadwal Pelajaran",
+        "Kehadiran + Rekap",
+        "Riwayat Keterlambatan",
+        "Riwayat Izin Keluar",
+        "Catatan Guru",
+        "Riwayat Kasus",
+        "Nilai",
+        "Forum Sekolah",
+        "Form Izin Ketidakhadiran"
+      ]
     },
-
     "stakeholder": {
-      "Dashboard Stakeholder": ["Ringkasan Sekolah", "Monitoring Kehadiran", "Grafik tren kehadiran"]
+      "Dashboard Stakeholder": [
+        "Ringkasan Sekolah",
+        "Monitoring Kehadiran",
+        "Grafik tren kehadiran"
+      ]
     },
-
     "pegawai_kecamatan": {
-      "Dashboard Kecamatan": ["Subtotal per jenjang", "Daftar Sekolah (datar + pencarian)", "Tren mingguan", "Cara membaca angka", "Ganti kata sandi"]
+      "Dashboard Kecamatan": [
+        "Subtotal per jenjang",
+        "Daftar Sekolah (datar + pencarian)",
+        "Tren mingguan",
+        "Cara membaca angka",
+        "Ganti kata sandi"
+      ]
     },
-
-    "pegawai_kabupaten": { "_sama_dengan": "pegawai_kecamatan tapi scope kabupaten" },
-    "pegawai_provinsi": { "_sama_dengan": "pegawai_kecamatan tapi scope provinsi" },
-
+    "pegawai_kabupaten": {
+      "_sama_dengan": "pegawai_kecamatan tapi scope kabupaten"
+    },
+    "pegawai_provinsi": {
+      "_sama_dengan": "pegawai_kecamatan tapi scope provinsi"
+    },
     "dudi": {
-      "Portal DUDI": ["Daftar siswa PKL di tempat ini", "Input kehadiran PKL", "Input penilaian siswa PKL", "Observasi siswa"]
+      "Portal DUDI": [
+        "Daftar siswa PKL di tempat ini",
+        "Input kehadiran PKL",
+        "Input penilaian siswa PKL",
+        "Observasi siswa"
+      ]
     }
   },
-
   "test_accounts": {
     "_catatan": "Password TIDAK disimpan di sini — ada di pengelola kata sandi Romo. Akun uji ada di sekolah uji (smauji1 dst.)",
     "guru": "akun guru aktif di sekolah uji",
@@ -212,56 +312,114 @@
     "pegawai_provinsi": "akun pegawai provinsi aktif",
     "superadmin": "akun superadmin — hanya Romo yang tahu"
   },
-
   "dependency_map": {
     "nilai-rapor.js": {
-      "berpasangan_dengan": ["supabase/migrations/*_fn_hitung_nilai_rapor*"],
-      "bergantung_pada": ["rumus-rapor-state.js", "penilaian-label.js"],
-      "test_relevan": ["nilai-rapor-server.mjs", "nilai-rapor-ui.mjs", "nilai-rapor-hitung.mjs"]
+      "berpasangan_dengan": [
+        "supabase/migrations/*_fn_hitung_nilai_rapor*"
+      ],
+      "bergantung_pada": [
+        "rumus-rapor-state.js",
+        "penilaian-label.js"
+      ],
+      "test_relevan": [
+        "nilai-rapor-server.mjs",
+        "nilai-rapor-ui.mjs",
+        "nilai-rapor-hitung.mjs"
+      ]
     },
     "rumus-rapor-state.js": {
-      "dipakai_di": ["nilai-rapor.js", "rekap (panel rumus)"],
-      "test_relevan": ["rumus-rapor-state.mjs"]
+      "dipakai_di": [
+        "nilai-rapor.js",
+        "rekap (panel rumus)"
+      ],
+      "test_relevan": [
+        "rumus-rapor-state.mjs"
+      ]
     },
     "penilaian-label.js": {
-      "dipakai_di": ["rekap-excel.js", "nilai-rapor.js"],
-      "test_relevan": ["penilaian-label.mjs", "rekap-excel.mjs"]
+      "dipakai_di": [
+        "rekap-excel.js",
+        "nilai-rapor.js"
+      ],
+      "test_relevan": [
+        "penilaian-label.mjs",
+        "rekap-excel.mjs"
+      ]
     },
     "rekap-excel.js": {
-      "bergantung_pada": ["penilaian-label.js", "konten-penilaian.js"],
-      "test_relevan": ["rekap-excel.mjs"]
+      "bergantung_pada": [
+        "penilaian-label.js",
+        "konten-penilaian.js"
+      ],
+      "test_relevan": [
+        "rekap-excel.mjs"
+      ]
     },
     "konten-penilaian.js": {
-      "dipakai_di": ["rekap-excel.js", "layar Rekap"],
-      "test_relevan": ["rekap-excel.mjs"]
+      "dipakai_di": [
+        "rekap-excel.js",
+        "layar Rekap"
+      ],
+      "test_relevan": [
+        "rekap-excel.mjs"
+      ]
     },
     "block_group_id": {
-      "dipakai_di": ["rekap-excel.js", "fn_class_attendance_summary", "waka-kesiswaan", "fn_tu_attendance_recap", "tab-bk.js"],
-      "test_relevan": ["rekap-excel.mjs"]
+      "dipakai_di": [
+        "rekap-excel.js",
+        "fn_class_attendance_summary",
+        "waka-kesiswaan",
+        "fn_tu_attendance_recap",
+        "tab-bk.js"
+      ],
+      "test_relevan": [
+        "rekap-excel.mjs"
+      ]
     },
     "fn_tu_attendance_recap": {
-      "berpasangan_dengan": ["tu/js/api.js (fetchAttendanceSummary)"],
-      "dipakai_oleh": ["tu/js/portal.js (loadAttendance, downloadBkAttExcel)"],
-      "test_relevan": ["tenant-isolation.mjs"]
+      "berpasangan_dengan": [
+        "tu/js/api.js (fetchAttendanceSummary)"
+      ],
+      "dipakai_oleh": [
+        "tu/js/portal.js (loadAttendance, downloadBkAttExcel)"
+      ],
+      "test_relevan": [
+        "tenant-isolation.mjs"
+      ]
     },
     "fn_hitung_nilai_rapor": {
-      "berpasangan_dengan": ["nilai-rapor.js"],
-      "dipakai_oleh": ["trg_grade_final_hitung"],
-      "test_relevan": ["nilai-rapor-server.mjs", "nilai-rapor-rumus.mjs"]
+      "berpasangan_dengan": [
+        "nilai-rapor.js"
+      ],
+      "dipakai_oleh": [
+        "trg_grade_final_hitung"
+      ],
+      "test_relevan": [
+        "nilai-rapor-server.mjs",
+        "nilai-rapor-rumus.mjs"
+      ]
     },
     "shared/attendance-pivot.js": {
-      "dipakai_di": ["parent/js/api.js (fetchAttendance)", "student/js/api.js (getMyAttendance)"],
+      "dipakai_di": [
+        "parent/js/api.js (fetchAttendance)",
+        "student/js/api.js (getMyAttendance)"
+      ],
       "sumber_data": "fn_portal_attendance (RPC SECURITY DEFINER)",
       "catatan": "pivot block_group_id + EKSKUL→HADIR; CAMPURAN tidak terjadi di jalur normal karena saveAttendanceBatch kirim records identik ke semua schedule_id dalam satu block_group"
     },
     "RLS_policy": {
-      "test_relevan": ["tenant-isolation.mjs", "nilai-keterlihatan.mjs"]
+      "test_relevan": [
+        "tenant-isolation.mjs",
+        "nilai-keterlihatan.mjs"
+      ]
     },
     "SECURITY_DEFINER_function": {
-      "test_relevan": ["tenant-isolation.mjs", "wizard-reset-guard.mjs"]
+      "test_relevan": [
+        "tenant-isolation.mjs",
+        "wizard-reset-guard.mjs"
+      ]
     }
   },
-
   "jebakan_teknis": {
     "bash_heredoc": "heredoc Bash menelan backslash (\\d jadi d) — tulis script ke file dengan Write",
     "tmp_path": "jalur /tmp Bash != jalur Node/Python Windows — pakai scratchpad session atau path absolut Windows",
@@ -273,9 +431,10 @@
     "koordinat_klik": "kerangka tangkapan layar 1568 lebar; skala = 1568 / innerWidth; setelah reload tunggu >=4 dtk",
     "postgrest_404": "404 pada RPC sering berarti galat tipe runtime (enum vs text) bukan tidak ditemukan",
     "excel_pivot_guru": "Excel rekap absensi harus pivot per block_group_id (bukan session_date) — dua pertemuan sehari harus jadi dua kolom terpisah; pakai buildPertemuanMeta dari tab-shared.js",
-    "excel_semua_data": "Excel unduhan di semua tab (Wali, Waka, Kaprodi, BK, TU) mengambil SEMUA data tanpa filter tanggal/status/kelas — bukan data yang sedang ditampilkan di layar"
+    "excel_semua_data": "Excel unduhan di semua tab (Wali, Waka, Kaprodi, BK, TU) mengambil SEMUA data tanpa filter tanggal/status/kelas — bukan data yang sedang ditampilkan di layar",
+    "hooks_jq": "jq tidak tersedia di mesin Windows ini — pakai node untuk parsing stdin di hook commands",
+    "hooks_settings_watcher": "settings.json baru tidak aktif sampai sesi di-restart atau buka /hooks di UI Claude Code"
   },
-
   "open_tasks": [
     {
       "id": "T001",
@@ -293,7 +452,11 @@
       "id": "T003",
       "task": "Model penjualan Rp500.000/sekolah",
       "status": "diskusi, belum ada keputusan final",
-      "pertanyaan_terbuka": ["pembaruan dijual sebagai langganan atau gratis", "sekolah tanpa orang teknis", "fitur kirim ringkasan ke kecamatan"]
+      "pertanyaan_terbuka": [
+        "pembaruan dijual sebagai langganan atau gratis",
+        "sekolah tanpa orang teknis",
+        "fitur kirim ringkasan ke kecamatan"
+      ]
     },
     {
       "id": "T004",
@@ -306,11 +469,10 @@
       "status": "ditunda Romo"
     }
   ],
-
   "state": {
     "last_updated": "2026-10-28",
-    "last_session_commit": "TBD",
+    "last_session_commit": "dfba89d",
     "migrasi_terpasang_sampai": "20261028010000",
-    "main_sha": "TBD — diupdate setelah commit"
+    "main_sha": "dfba89d"
   }
 }
