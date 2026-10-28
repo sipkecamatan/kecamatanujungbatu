@@ -13,7 +13,7 @@ import {
     getProgram, fetchPklStudents, fetchNonPklStudents, fetchDudiPartners,
     fetchPklAttendance, fetchDudiObservations,
     getAttendanceRecapPerClass, getClassesByProgram,
-    getWaliAttendanceSummary, getClassAttendanceByDate,
+    getClassStudents, getClassAttendanceByDate,
     createPlacement, finishPlacement, bulkImportPkl,
 } from './api.js';
 import { esc, fe, fmt, localDateStr } from './tab-shared.js';
@@ -332,16 +332,16 @@ async function downloadKpClsExcel({ config }) {
 
         const wb = XLSX.utils.book_new();
 
-        // Ambil semua data paralel
+        // Ambil semua data paralel — roster nama/NIS + detail per tanggal
         const results = await Promise.all(
             classes.map(c => Promise.all([
-                getWaliAttendanceSummary(c.class_id, academicYear, null, null),
+                getClassStudents(c.class_id),
                 getClassAttendanceByDate(c.class_id, academicYear, null, null),
-            ]).then(([students, detail]) => ({ cls: c, students, detail })))
+            ]).then(([roster, detail]) => ({ cls: c, roster, detail })))
         );
 
-        for (const { cls, students, detail } of results.sort((a, b) => a.cls.name.localeCompare(b.cls.name, 'id'))) {
-            if (!students.length) continue;
+        for (const { cls, roster, detail } of results.sort((a, b) => a.cls.name.localeCompare(b.cls.name, 'id'))) {
+            if (!roster.length) continue;
 
             // Pivot: student_id → session_date → status (ambil prioritas terendah)
             const pivot = {};
@@ -352,16 +352,25 @@ async function downloadKpClsExcel({ config }) {
                     pivot[r.student_id][r.session_date] = r.status;
             }
 
-            const dates = [...new Set(detail.map(r => r.session_date))].sort();
-            const roster = [...students].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+            const dates  = [...new Set(detail.map(r => r.session_date))].sort();
+            const sorted = [...roster].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
 
             const header = ['No', 'Nama', 'NIS', ...dates, 'H', 'I', 'S', 'A', '%Hadir'];
-            const dataRows = roster.map((s, idx) => {
-                const tot = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
-                const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) + '%' : '—';
+            const dataRows = sorted.map((s, idx) => {
+                const byDate = pivot[s.student_id] ?? {};
+                // Hitung dari pivot agar konsisten dengan kolom tanggal (1 hari = 1 hitungan)
+                let H = 0, I = 0, S = 0, A = 0;
+                for (const st of Object.values(byDate)) {
+                    if (st === 'HADIR') H++;
+                    else if (st === 'IZIN')  I++;
+                    else if (st === 'SAKIT') S++;
+                    else if (st === 'ALPA')  A++;
+                }
+                const tot = H + I + S + A;
+                const pct = tot > 0 ? Math.round(H / tot * 100) + '%' : '—';
                 return [idx + 1, s.full_name, s.nis ?? '',
-                    ...dates.map(d => STATUS_HURUF[pivot[s.student_id]?.[d]] ?? ''),
-                    s.HADIR, s.IZIN, s.SAKIT, s.ALPA, pct];
+                    ...dates.map(d => STATUS_HURUF[byDate[d]] ?? ''),
+                    H, I, S, A, pct];
             });
 
             // Nama sheet max 31 karakter (batas Excel)
