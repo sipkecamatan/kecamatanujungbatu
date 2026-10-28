@@ -1,0 +1,164 @@
+{
+  "_keterangan": "CONSTITUTION SIP Kecamatan — perjanjian yang mengikat semua agent. Baca ini di awal setiap sesi. Update sebelum setiap commit.",
+  "_versi": "1.0.0",
+  "_dibuat": "2026-10-28",
+
+  "project": {
+    "nama": "SIP Kecamatan",
+    "tujuan": "Sistem informasi sekolah multi-jenjang (SMP/SMA/SMK) yang bisa direalisasikan dan dipakai guru nyata, dengan dashboard kecamatan/kabupaten/provinsi untuk monitoring agregat lintas sekolah",
+    "repo_github": "https://github.com/sipkecamatan/kecamatanujungbatu (PUBLIK)",
+    "hosting": "GitHub Pages (Cloudflare Pages pattern — static JS, tidak ada server-side rendering)",
+    "database": "Supabase (free tier, Singapore), ref: lqgzpiohxdzkkmxjtwor",
+    "prinsip_romo": [
+      "Perbaiki SUMBER masalah (atap), bukan gejala per layar",
+      "Kerja sederhana — jangan menciptakan istilah baru untuk konsep yang tidak ada",
+      "Sembunyikan/lewati fitur yang tidak relevan per jenjang, jangan rename"
+    ]
+  },
+
+  "non_negotiable": [
+    "Tidak ada data antar tenant yang bocor — RLS harus berlaku untuk semua jalur API",
+    "Semua fitur harus bisa jalan di GitHub Pages (static) + Supabase free tier",
+    "Guru role VIEWER tidak bisa menulis data apapun",
+    "Pegawai wilayah hanya bisa BACA data agregat sekolah yang kepseknya setuju berbagi",
+    "Pendaftaran publik MATI (disable_signup) — akun dibuat superadmin/wizard",
+    "docs/ TIDAK PERNAH dikomit ke repo (repo publik, berisi data sensitif)",
+    "db push dan git push dilakukan Romo, bukan Claude",
+    "Claude tidak membuat akun login atau menyimpan password/token di chat"
+  ],
+
+  "architecture": {
+    "unit_pertemuan": {
+      "field": "block_group_id",
+      "bukan": "session_date",
+      "alasan": "satu pertemuan = satu block_group; tanggal bisa duplikat lintas sesi",
+      "diputuskan": "2026-10-22",
+      "pelanggaran_sebelumnya": ["6c1f78e (pakai session_date, dibalik di 1272198)"]
+    },
+    "isolasi_tenant": {
+      "pola": "RLS + SECURITY DEFINER",
+      "constraint": "tidak ada cross-tenant query",
+      "penjaga_null": "fungsi SECURITY DEFINER wajib pakai IS DISTINCT FROM, bukan <>, untuk tolak pemanggil NULL",
+      "diputuskan": "2026-10-16",
+      "referensi_migrasi": "20261016050000"
+    },
+    "arsitektur_wilayah": {
+      "terhubung_vs_berbagi": "TERHUBUNG (penanda region) dan BERBAGI (persetujuan kepsek) adalah dua hal berbeda",
+      "visibilitas": "syarat TERLIHAT = penanda cocok AND sekolah aktif AND kepsek setuju berbagi",
+      "fungsi_tunggal": "fn_region_sekolah_terlihat — satu fungsi visibilitas, bukan tabel turunan",
+      "tampilan_pegawai": "daftar datar dengan pencarian dan urutan, tanpa label kecamatan per sekolah",
+      "diputuskan": "2026-10-16"
+    },
+    "alur_nilai_rapor": {
+      "rantai": "Pelaksanaan → Rekap (pilih rumus) → Nilai Rapor (tampil otomatis)",
+      "rekap": "hanya-baca untuk nilai; guru pilih rumus di panel BAWAH tabel (sumatif saja)",
+      "nilai_rapor": "nilai dihitung DATABASE (fn_hitung_nilai_rapor + trigger trg_grade_final_hitung); angka kiriman klien diabaikan",
+      "tidak_ada_nilai_manual": true,
+      "rumus_hanya_sumatif": true,
+      "paritas_wajib": "nilai-rapor.js (layar) HARUS sama dengan fn_hitung_nilai_rapor (SQL) — ubah satu wajib ubah keduanya",
+      "diputuskan": "2026-10-23",
+      "referensi_migrasi": "20261020150000"
+    },
+    "jenjang": {
+      "didukung": ["SMP (kelas 7-9)", "SMA (kelas 10-12)", "SMK (kelas 10-12)"],
+      "deteksi": "jenjang-labels.js — hide menu+baris ringkasan per jenjang",
+      "wizard_skip": "SMP skip langkah Program Keahlian + DUDI; SMA skip DUDI"
+    },
+    "frontend": {
+      "stack": "Vanilla JS di GitHub Pages — tidak ada framework baru tanpa persetujuan Romo",
+      "state_bersama": "guru/js/rumus-rapor-state.js untuk rumus (Rekap dan Nilai Rapor tidak punya salinan sendiri)",
+      "label_satu_pintu": "penilaian-label.js (labelPenilaian, tpIdsPenilaian, tpIdsUrut, ringkasTp, namaTeknik)"
+    }
+  },
+
+  "definition_of_done": {
+    "fitur_baru": [
+      "RLS tidak bocor antar tenant — diverifikasi dengan role berbeda",
+      "Tidak ada CORS error dari GitHub Pages",
+      "Fungsi SECURITY DEFINER baru memakai IS DISTINCT FROM untuk penjaga NULL",
+      "SQL baru ditest dalam BEGIN/ROLLBACK sebelum dijalankan ke live",
+      "open_tasks diupdate",
+      "CONSTITUTION diupdate jika ada keputusan arsitektur baru"
+    ],
+    "bug_fix": [
+      "Root cause diidentifikasi, bukan hanya symptom",
+      "Tidak ada regression pada fitur yang sudah ada",
+      "Test terkait dijalankan dan lulus"
+    ],
+    "perubahan_nilai_rapor": [
+      "nilai-rapor.js dan fn_hitung_nilai_rapor diubah bersamaan",
+      "tests/nilai-rapor-server.mjs dijalankan dan lulus",
+      "Paritas layar vs SQL diverifikasi"
+    ],
+    "sebelum_commit": [
+      "git status diperiksa — tidak ada docs/ yang ikut",
+      "Verifier checklist dijalankan",
+      "CONSTITUTION.json last_session_commit diupdate"
+    ]
+  },
+
+  "forbidden": [
+    "SQL debug/test ke live tanpa BEGIN di awal dan ROLLBACK di akhir",
+    "git add docs/ atau git add -A tanpa cek git status terlebih dulu",
+    "Commit file di docs/ — folder ini tidak terlacak git (.gitignore)",
+    "Mengubah unit pertemuan dari block_group_id tanpa update CONSTITUTION",
+    "Fungsi SECURITY DEFINER baru dengan penjaga <> (harus IS DISTINCT FROM)",
+    "Kebijakan RLS yang memeriksa properti pemanggil saja tanpa school_id baris",
+    "Membuat akun login atau menyimpan password/token di chat",
+    "db push atau git push dilakukan Claude (hanya Romo)",
+    "Mengubah rumus nilai-rapor.js tanpa mengubah fn_hitung_nilai_rapor bersamaan",
+    "Memanggil upsertGradeFinalBatch dengan baris sebagian (menimpa T/R dan deskripsi)",
+    "Ringkasan harian (cabang codex/ringkasan-harian) dipasang ke produksi — ada risiko kunci baris"
+  ],
+
+  "jebakan_teknis": {
+    "bash_heredoc": "heredoc Bash menelan backslash (\\d jadi d) — tulis script ke file dengan Write",
+    "tmp_path": "jalur /tmp Bash != jalur Node/Python Windows — pakai scratchpad session atau path absolut Windows",
+    "crlf": "file ber-CRLF wajib ditulis via node/python; grep/cat melucuti \\r",
+    "pglite_bom": "Set-Content -Encoding utf8 di PowerShell menambah BOM yang merusak SQL — hindari",
+    "jwt_reset": "setelah reset role di uji SQL, kosongkan request.jwt.claims sebelum uji jalur tanpa pengguna",
+    "upsert_grade_final": "upsertGradeFinalBatch menimpa SELURUH baris (T/R, deskripsi, izin tampil) — jangan panggil dengan baris sebagian",
+    "trg_grade_final": "uji lama yang menulis angka sembarang ke grade_final harus matikan trigger di transaksi ujinya (blok do $$ di tests/lib/*.sql)",
+    "koordinat_klik": "kerangka tangkapan layar 1568 lebar; skala = 1568 / innerWidth; setelah reload tunggu >=4 dtk",
+    "postgrest_404": "404 pada RPC sering berarti galat tipe runtime (enum vs text) bukan tidak ditemukan"
+  },
+
+  "open_tasks": [
+    {
+      "id": "T001",
+      "task": "Audit alur absensi (Codex)",
+      "status": "prompt sudah disiapkan, belum dijalankan",
+      "cara": "Jalankan manual di PowerShell terpisah (bukan dari Claude Code) — lihat HANDOFF 23 Okt bagian 7 butir 1",
+      "blocker": "auto mode Claude Code memblokir pemanggilan Codex"
+    },
+    {
+      "id": "T002",
+      "task": "Proposal ke kecamatan Ujungbatu",
+      "status": "belum ditulis — tunggu persetujuan Romo",
+      "catatan": "jangan tulis dokumen sebelum Romo setuju; konteks lengkap di HANDOFF 23 Okt bagian 7 butir 2"
+    },
+    {
+      "id": "T003",
+      "task": "Model penjualan Rp500.000/sekolah",
+      "status": "diskusi, belum ada keputusan final",
+      "pertanyaan_terbuka": ["pembaruan dijual sebagai langganan atau gratis", "sekolah tanpa orang teknis", "fitur kirim ringkasan ke kecamatan"]
+    },
+    {
+      "id": "T004",
+      "task": "Audit tab Wali (A-03, A-06, A-02, B-01..B-05) dan temuan kecil Forum",
+      "status": "ditunda"
+    },
+    {
+      "id": "T005",
+      "task": "10 catatan UX tab Jurnal Mengajar",
+      "status": "ditunda Romo"
+    }
+  ],
+
+  "state": {
+    "last_updated": "2026-10-28",
+    "last_session_commit": "b518ed5",
+    "migrasi_terpasang_sampai": "20261023260000",
+    "main_sha": "e4cbcdb (dari HANDOFF 23 Okt — verifikasi dengan git fetch sebelum mulai)"
+  }
+}
