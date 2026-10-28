@@ -111,6 +111,18 @@
     "Ringkasan harian (cabang codex/ringkasan-harian) dipasang ke produksi — ada risiko kunci baris"
   ],
 
+  "test_accounts": {
+    "_catatan": "Password TIDAK disimpan di sini — ada di pengelola kata sandi Romo",
+    "guru": "guru.anwar@smauji1.test (atau akun uji aktif di sekolah uji)",
+    "wali_kelas": "akun wali kelas aktif di sekolah uji",
+    "kaprodi": "akun kaprodi aktif di sekolah uji",
+    "waka_kesiswaan": "akun waka aktif di sekolah uji",
+    "bk": "akun BK aktif di sekolah uji",
+    "kepsek": "akun kepsek aktif di sekolah uji",
+    "pegawai_kecamatan": "pegawai.ujungbatu@contoh.test",
+    "superadmin": "akun superadmin — hanya Romo yang tahu"
+  },
+
   "dependency_map": {
     "nilai-rapor.js": {
       "berpasangan_dengan": ["supabase/migrations/*_fn_hitung_nilai_rapor*"],

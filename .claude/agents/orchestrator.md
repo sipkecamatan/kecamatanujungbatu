@@ -32,6 +32,19 @@ COMMIT:
 - Jika REGRESSION GUARD menemukan test gagal → berhenti, kembalikan ke Implementer
 - Jika KNOWLEDGE CAPTURE belum selesai → tidak ada commit
 
+## Audit UI (di luar alur commit)
+
+Ketika Romo meminta audit tampilan fitur tertentu, Orchestrator menjalankan:
+```
+Untuk setiap role yang relevan:
+  → UI ROLE AUDITOR (persona role tersebut)
+  → Laporkan hasil per role
+Gabungkan semua laporan → tabel ringkasan → urutan prioritas perbaikan
+```
+
+Trigger: "audit tampilan [fitur] semua role" atau "cek tampilan [fitur] dari sudut pandang [role]"
+
 ## Tidak Boleh
 - Melompati fase apapun dengan alasan "sesinya singkat" atau "perubahannya kecil"
 - Commit sebelum fase 4-6 selesai semua
+- Menjalankan UI audit dengan perspektif developer — harus dari perspektif role pengguna

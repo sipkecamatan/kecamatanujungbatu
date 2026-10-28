@@ -23,6 +23,7 @@ Jalankan `.claude/protocols/session-end.md` — Orchestrator koordinasi Consiste
     consistency-checker.md   ← verifikasi komponen berpasangan masih sinkron
     regression-guard.md      ← jalankan test relevan berdasarkan file yang diubah
     knowledge-capture.md     ← update CONSTITUTION dengan keputusan baru sesi
+    ui-role-auditor.md       ← audit tampilan dari perspektif setiap role pengguna
   protocols/
     session-start.md         ← Architect + Scope Guard (sebelum mulai)
     session-end.md           ← Consistency Checker + Regression Guard + Knowledge Capture (sebelum commit)
