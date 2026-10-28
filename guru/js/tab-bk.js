@@ -183,12 +183,18 @@ async function loadBkAttendanceRecap({ config }) {
                                     ALPA:  'var(--color-danger)',
                                 };
                                 const STATUS_LABEL = { HADIR: 'Hadir', IZIN: 'Izin', SAKIT: 'Sakit', ALPA: 'Alpa' };
-                                const grouped = [];
-                                const seen = new Map();
+                                // Dedup per block_group_id — satu pertemuan bisa punya beberapa schedule_id
+                                // (multi-jam), ambil baris dengan status terburuk.
+                                const PRIO = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
+                                const bgMap = new Map();
                                 for (const s of sessions) {
-                                    const key = `${s.schedule.session_date}|${s.schedule.subject_label ?? ''}|${s.schedule.teacher?.full_name ?? ''}`;
-                                    if (!seen.has(key)) { seen.set(key, true); grouped.push(s); }
+                                    const bgId = s.schedule?.block_group_id ?? s.schedule?.schedule_id;
+                                    const prev = bgMap.get(bgId);
+                                    if (!prev || (PRIO[s.status] ?? 99) < (PRIO[prev.status] ?? 99))
+                                        bgMap.set(bgId, s);
                                 }
+                                const grouped = [...bgMap.values()]
+                                    .sort((a, b) => (b.schedule.session_date ?? '').localeCompare(a.schedule.session_date ?? ''));
                                 const hadirCount    = grouped.filter(s => s.status === 'HADIR').length;
                                 const absenSessions = grouped.filter(s => s.status !== 'HADIR');
                                 const hadirInfo = hadirCount > 0
