@@ -112,14 +112,24 @@
   ],
 
   "test_accounts": {
-    "_catatan": "Password TIDAK disimpan di sini — ada di pengelola kata sandi Romo",
-    "guru": "guru.anwar@smauji1.test (atau akun uji aktif di sekolah uji)",
-    "wali_kelas": "akun wali kelas aktif di sekolah uji",
+    "_catatan": "Password TIDAK disimpan di sini — ada di pengelola kata sandi Romo. Akun uji ada di sekolah uji (smauji1 dst.)",
+    "guru": "akun guru aktif di sekolah uji",
+    "guru_piket": "akun guru piket aktif di sekolah uji",
+    "guru_wali": "akun wali kelas aktif di sekolah uji",
+    "waka_kesiswaan": "akun waka kesiswaan aktif di sekolah uji",
+    "waka_kurikulum": "akun waka kurikulum aktif di sekolah uji",
+    "waka_humas": "akun waka humas aktif di sekolah uji",
     "kaprodi": "akun kaprodi aktif di sekolah uji",
-    "waka_kesiswaan": "akun waka aktif di sekolah uji",
     "bk": "akun BK aktif di sekolah uji",
     "kepsek": "akun kepsek aktif di sekolah uji",
+    "tu": "akun TU aktif di sekolah uji",
+    "orang_tua": "akun orang tua aktif di sekolah uji",
+    "siswa": "akun siswa aktif di sekolah uji",
+    "dudi": "akun DUDI aktif di sekolah uji",
+    "stakeholder": "akun stakeholder/dinas aktif",
     "pegawai_kecamatan": "pegawai.ujungbatu@contoh.test",
+    "pegawai_kabupaten": "akun pegawai kabupaten aktif",
+    "pegawai_provinsi": "akun pegawai provinsi aktif",
     "superadmin": "akun superadmin — hanya Romo yang tahu"
   },
 
