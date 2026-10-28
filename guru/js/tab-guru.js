@@ -11,7 +11,7 @@ import {
     getMyStudents, insertObservation, getMyObservations, voidObservation,
 } from './api.js';
 import { saveAttendanceBatch, flushPending, pendingCount, rejectedCount } from './offline.js';
-import { esc, fe, fmt, fmtTime, buildAttStatCards, sipPrepareOpen, sipCloseOverlay, localDateStr } from './tab-shared.js';
+import { esc, fe, fmt, fmtTime, buildAttStatCards, sipPrepareOpen, sipCloseOverlay, localDateStr, buildPertemuanMeta } from './tab-shared.js';
 
 // ── Module state ─────────────────────────────────────────────
 let _currentUser   = null;
@@ -195,23 +195,23 @@ async function loadGuruRecap() {
                         getClassAttendanceByDate(cls.class_id, _config.current_academic_year, null, null, _currentUser.user_id),
                     ]);
 
-                    const dateSet = new Set(detail.map(r => r.session_date));
-                    const dates   = [...dateSet].sort();
+                    const { sortedIds, labelById } = buildPertemuanMeta(detail);
 
                     const pivot = {};
                     for (const r of detail) {
+                        if (!r.block_group_id) continue;
                         if (!pivot[r.student_id]) pivot[r.student_id] = {};
-                        const prev = pivot[r.student_id][r.session_date];
+                        const prev = pivot[r.student_id][r.block_group_id];
                         if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
-                            pivot[r.student_id][r.session_date] = r.status;
+                            pivot[r.student_id][r.block_group_id] = r.status;
                     }
 
                     const roster   = [...summary].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
-                    const header   = ['No', 'Nama', ...dates, 'Persentase'];
+                    const header   = ['No', 'Nama', ...sortedIds.map(id => labelById.get(id)), 'Persentase'];
                     const dataRows = roster.map((s, idx) => {
                         const tot = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
                         const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) + '%' : '—';
-                        return [idx + 1, s.full_name, ...dates.map(d => STATUS_HURUF[pivot[s.student_id]?.[d]] ?? ''), pct];
+                        return [idx + 1, s.full_name, ...sortedIds.map(id => STATUS_HURUF[pivot[s.student_id]?.[id]] ?? ''), pct];
                     });
 
                     let sheetName = (cls.name ?? cls.class_id).slice(0, 31);

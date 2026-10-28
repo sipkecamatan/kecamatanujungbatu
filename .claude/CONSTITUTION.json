@@ -159,16 +159,16 @@
     "upsert_grade_final": "upsertGradeFinalBatch menimpa SELURUH baris (T/R, deskripsi, izin tampil) — jangan panggil dengan baris sebagian",
     "trg_grade_final": "uji lama yang menulis angka sembarang ke grade_final harus matikan trigger di transaksi ujinya (blok do $$ di tests/lib/*.sql)",
     "koordinat_klik": "kerangka tangkapan layar 1568 lebar; skala = 1568 / innerWidth; setelah reload tunggu >=4 dtk",
-    "postgrest_404": "404 pada RPC sering berarti galat tipe runtime (enum vs text) bukan tidak ditemukan"
+    "postgrest_404": "404 pada RPC sering berarti galat tipe runtime (enum vs text) bukan tidak ditemukan",
+    "excel_pivot_guru": "Excel rekap absensi harus pivot per block_group_id (bukan session_date) — dua pertemuan sehari harus jadi dua kolom terpisah; pakai buildPertemuanMeta dari tab-shared.js"
   },
 
   "open_tasks": [
     {
       "id": "T001",
-      "task": "Audit alur absensi (Codex)",
-      "status": "prompt sudah disiapkan, belum dijalankan",
-      "cara": "Jalankan manual di PowerShell terpisah (bukan dari Claude Code) — lihat HANDOFF 23 Okt bagian 7 butir 1",
-      "blocker": "auto mode Claude Code memblokir pemanggilan Codex"
+      "task": "Pasang migrasi 20261028000000_fix_attendance_recap_per_class",
+      "status": "menunggu db push oleh Romo",
+      "catatan": "audit kode selesai 28 Okt; kode tab-guru.js sudah diperbaiki; migrasi di repo belum terpasang ke Supabase"
     },
     {
       "id": "T002",
