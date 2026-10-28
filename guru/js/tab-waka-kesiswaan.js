@@ -126,21 +126,19 @@ async function loadWkAttendanceRecap({ config }) {
         container.innerHTML = activeProgs.map(prog => {
             const rows = prog.classes.sort((a, b) => a.name.localeCompare(b.name, 'id'));
             const classRows = rows.map((r, idx) => {
-                const tot   = r.total;
-                const pctH  = tot > 0 ? Math.round(r.HADIR / tot * 100) : null;
-                const pctI  = tot > 0 ? Math.round(r.IZIN  / tot * 100) : null;
-                const pctS  = tot > 0 ? Math.round(r.SAKIT / tot * 100) : null;
-                const pctA  = tot > 0 ? Math.round(r.ALPA  / tot * 100) : null;
-                const colH  = pctH === null ? 'var(--color-text-muted)' : pctH >= 80 ? 'var(--color-success)' : pctH >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
+                const tot   = r.HADIR + r.IZIN + r.SAKIT + r.ALPA;
+                const pct   = tot > 0 ? Math.round(r.HADIR / tot * 100) : null;
+                const color = pct === null ? 'var(--color-text-muted)' : pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
                 return `
                 <div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--color-border,#e5e7eb)">
                     <span style="min-width:24px;font-size:11px;color:var(--color-text-muted);text-align:right;flex-shrink:0">${idx + 1}</span>
                     <span style="flex:1;font-size:13px">${esc(r.name)}</span>
                     <span style="display:flex;gap:10px;align-items:center;font-size:11px;font-weight:500;flex-shrink:0">
-                        <span style="color:${colH}">${pctH !== null ? pctH + '%' : '—'}H</span>
-                        <span style="color:var(--color-warning,#f59e0b)">${pctI !== null ? pctI + '%' : '—'}I</span>
-                        <span style="color:var(--color-primary)">${pctS !== null ? pctS + '%' : '—'}S</span>
-                        <span style="color:var(--color-danger)">${pctA !== null ? pctA + '%' : '—'}A</span>
+                        <span style="color:var(--color-success)">${r.HADIR}H</span>
+                        <span style="color:var(--color-warning,#f59e0b)">${r.IZIN}I</span>
+                        <span style="color:var(--color-primary)">${r.SAKIT}S</span>
+                        <span style="color:var(--color-danger)">${r.ALPA}A</span>
+                        <span style="color:${color};font-weight:700;min-width:36px;text-align:right">${pct !== null ? pct + '%' : '—'}</span>
                     </span>
                 </div>`;
             }).join('');
