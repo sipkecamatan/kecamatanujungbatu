@@ -390,8 +390,8 @@ function hitungRentang() {
 async function loadOverview() {
   setError('app-error', '');
   $('app-loading').hidden = false;
-  $('cards').hidden = $('grafik-card').hidden = $('jenjang-card').hidden = $('sekolah-card').hidden = $('method-card').hidden = $('trend-card').hidden = true;
-  if (_grafikChart) { _grafikChart.destroy(); _grafikChart = null; }
+  $('cards').hidden = $('jenjang-card').hidden = $('sekolah-card').hidden = $('method-card').hidden = $('trend-card').hidden = true;
+  // Grafik tren punya periode sendiri — tidak direset saat overview berubah
 
   const r = hitungRentang();
   if (!r) { $('app-loading').hidden = true; setError('app-error', 'Rentang tanggal tidak valid: awal harus sebelum akhir, paling lama 366 hari.'); return; }
