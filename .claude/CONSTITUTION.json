@@ -272,7 +272,7 @@
     },
     "pegawai_kecamatan": {
       "Dashboard Kecamatan": [
-        "Grafik Terlambat & Izin Keluar per Sekolah (bar chart horizontal + narasi otomatis)",
+        "Tren Kehadiran (line chart harian/bulanan, tombol periode, narasi otomatis — identik kepsek)",
         "Subtotal per jenjang",
         "Daftar Sekolah (datar + pencarian)",
         "Tren mingguan",
@@ -488,8 +488,8 @@
   ],
   "state": {
     "last_updated": "2026-10-29",
-    "last_session_commit": "2309573",
-    "migrasi_terpasang_sampai": "20261028060000",
-    "main_sha": "2309573"
+    "last_session_commit": "PENDING",
+    "migrasi_terpasang_sampai": "20261029000000",
+    "main_sha": "PENDING"
   }
 }

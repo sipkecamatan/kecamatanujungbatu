@@ -70,15 +70,33 @@
       <section id="cards" class="cards" hidden></section>
 
       <section class="card" id="grafik-card" hidden>
-        <div class="card-head"><h2>Terlambat &amp; Izin Keluar per Sekolah</h2></div>
-        <p id="grafik-hint" class="grafik-hint muted small"></p>
+        <div class="card-head"><h2>Tren Kehadiran</h2></div>
+        <div id="grafik-period-toggle" class="ks-period-toggle" role="group" aria-label="Pilih periode">
+          <button class="btn ks-period-btn" data-period="tahun_ajaran_lalu" type="button">Tahun Lalu</button>
+          <button class="btn ks-period-btn" data-period="bulan_lalu"        type="button">Bulan Lalu</button>
+          <button class="btn ks-period-btn" data-period="minggu_lalu"       type="button">Minggu Lalu</button>
+          <button class="btn ks-period-btn" data-period="hari_ini"          type="button">Hari Ini</button>
+          <button class="btn ks-period-btn active" data-period="7_hari"     type="button">7 Hari</button>
+        </div>
+        <p class="muted small" style="text-align:center;margin:.25rem 0">atau pilih rentang bebas</p>
+        <div class="grafik-rentang">
+          <label>Dari <input id="grafik-dari" type="date" /></label>
+          <label>s/d  <input id="grafik-sampai" type="date" /></label>
+          <button id="grafik-terapkan" class="btn" type="button">Tampilkan</button>
+        </div>
+        <p id="grafik-error" class="error" hidden></p>
         <div class="grafik-wrap">
-          <canvas id="grafik-chart" aria-label="Grafik terlambat dan izin keluar per sekolah"></canvas>
+          <canvas id="grafik-chart" aria-label="Grafik tren kehadiran wilayah"></canvas>
         </div>
         <div class="grafik-legend" aria-hidden="true">
+          <span class="grafik-legend-item" style="--c:#1D9E75">Hadir (%)</span>
+          <span class="grafik-legend-item" style="--c:#f59e0b">Sakit (%)</span>
+          <span class="grafik-legend-item" style="--c:#8b5cf6">Izin (%)</span>
+          <span class="grafik-legend-item" style="--c:#ef4444">Alpa (%)</span>
           <span class="grafik-legend-item" style="--c:#f97316">Terlambat</span>
-          <span class="grafik-legend-item" style="--c:#ec4899">Izin keluar</span>
+          <span class="grafik-legend-item" style="--c:#ec4899">Izin Keluar</span>
         </div>
+        <p id="grafik-hint" class="grafik-hint muted small"></p>
       </section>
 
       <section class="card" id="jenjang-card" hidden>

@@ -100,90 +100,245 @@ function el(tag, props = {}, ...kids) {
 }
 const pct = (v) => (v == null ? '—' : `${v}%`);
 
-// ── Grafik per sekolah ───────────────────────────────────────────
+// ── Grafik tren kehadiran wilayah ────────────────────────────────
+const BULAN_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 let _grafikChart = null;
+let _grafikSeq   = 0;
 
-function _buildGrafikNarasi(o) {
-  const sekolah = o.sekolah ?? [];
-  const dari = tgl(o.dari), sampai = tgl(o.sampai);
-  const title = `Terlambat &amp; Izin Keluar per Sekolah — ${dari} s/d ${sampai}`;
+function _fmtTgl(iso) {
+  const [y, m, d] = iso.split('-');
+  return `${+d} ${BULAN_ID[+m - 1]} ${y}`;
+}
+function _fmtBulan(iso) {
+  const BLN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const [y, m] = iso.split('-');
+  return `${BLN[+m - 1]} ${y}`;
+}
+function _fmtChartLabel(dateStr, byMonth) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return byMonth ? BULAN_ID[d.getMonth()] + ' ' + d.getFullYear() : d.getDate() + ' ' + BULAN_ID[d.getMonth()];
+}
 
-  if (!sekolah.length) return `<strong>${title}</strong><br>Belum ada sekolah yang membagikan data.`;
+function _buildChartCaption(period, d) {
+  const ds = d.date_start ?? '', de = d.date_end ?? '';
+  const data = d.chart ?? [];
+  if (!data.length) return '<strong>Belum ada data</strong><br>Tidak ada catatan absensi pada periode ini.';
 
-  const totalLate  = sekolah.reduce((s, x) => s + (x.terlambat  ?? 0), 0);
-  const totalExit  = sekolah.reduce((s, x) => s + (x.izin_keluar ?? 0), 0);
-
-  function insightTotal() {
-    if (totalLate === 0 && totalExit === 0)
-      return `Sepanjang periode tidak ada catatan keterlambatan maupun izin keluar dari semua sekolah.`;
-    const hari = o.jendela_hari ?? 1;
-    const parts = [];
-    if (totalLate  > 0) parts.push(`${totalLate} keterlambatan (rata-rata ${(totalLate / hari).toFixed(1)}/hari)`);
-    if (totalExit  > 0) parts.push(`${totalExit} izin keluar (rata-rata ${(totalExit / hari).toFixed(1)}/hari)`);
-    const sinyal = (totalLate >= 50 || totalExit >= 50) ? ' — perlu evaluasi kebijakan disiplin di tingkat kecamatan.' : '.';
-    return `Sepanjang periode tercatat ${parts.join(' dan ')}${sinyal}`;
+  let title;
+  switch (period) {
+    case 'hari_ini':          title = `Kehadiran Hari Ini — ${_fmtTgl(ds)}`; break;
+    case '7_hari':            title = `Tren 7 Hari Terakhir — ${_fmtTgl(ds)} s/d ${_fmtTgl(de)}`; break;
+    case 'minggu_lalu':       title = `Tren Minggu Lalu — ${_fmtTgl(ds)} s/d ${_fmtTgl(de)}`; break;
+    case 'bulan_lalu':        title = `Tren ${_fmtBulan(ds)}`; break;
+    case 'tahun_ajaran_lalu': title = `Tren Tahun Ajaran ${ds.split('-')[0]}/${de.split('-')[0]}`; break;
+    case 'rentang':           title = `Rentang ${_fmtTgl(ds)} s/d ${_fmtTgl(de)}`; break;
+    default:                  title = 'Tren Kehadiran';
   }
 
-  function insightTertinggi() {
-    const byLate = [...sekolah].sort((a, b) => (b.terlambat ?? 0) - (a.terlambat ?? 0));
-    const byExit = [...sekolah].sort((a, b) => (b.izin_keluar ?? 0) - (a.izin_keluar ?? 0));
-    const parts = [];
-    const topLate = byLate[0];
-    if (topLate && (topLate.terlambat ?? 0) > 0) {
-      const pctTop = totalLate > 0 ? Math.round(100 * topLate.terlambat / totalLate) : 0;
-      parts.push(`Keterlambatan terbanyak: ${topLate.nama} (${topLate.terlambat} catatan, ${pctTop}% dari total wilayah).`);
+  const vals  = key => data.map(p => p[key]).filter(v => v != null && !isNaN(v));
+  const first = key => vals(key)[0];
+  const last  = key => { const v = vals(key); return v[v.length - 1]; };
+  const avgV  = key => { const v = vals(key); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+  const minV  = key => Math.min(...vals(key));
+  const maxV  = key => Math.max(...vals(key));
+  const total = key => data.reduce((s, p) => s + (p[key] ?? 0), 0);
+  const STABIL = 3;
+
+  function insightHadir() {
+    const v = vals('pct_hadir'); if (!v.length) return null;
+    const f = first('pct_hadir'), l = last('pct_hadir'), a = avgV('pct_hadir');
+    const mn = minV('pct_hadir'), mx = maxV('pct_hadir'), delta = l - f;
+    if (v.length === 1) {
+      const absen = 100 - f;
+      return absen <= 0 ? `Kehadiran siswa ${f}% — seluruh siswa hadir.`
+           : `Kehadiran siswa ${f}% — sekitar 1 dari ${Math.round(100 / absen)} siswa tidak hadir.`;
     }
-    const topExit = byExit[0];
-    if (topExit && (topExit.izin_keluar ?? 0) > 0 && topExit.nama !== topLate?.nama) {
-      const pctTop = totalExit > 0 ? Math.round(100 * topExit.izin_keluar / totalExit) : 0;
-      parts.push(`Izin keluar terbanyak: ${topExit.nama} (${topExit.izin_keluar} catatan, ${pctTop}% dari total wilayah).`);
+    if (mx - mn > 20) return `Kehadiran siswa tidak merata, antara ${mn}% dan ${mx}% — perlu ditelusuri hari-hari dengan angka rendah.`;
+    if (Math.abs(delta) >= STABIL) {
+      return delta > 0
+        ? `Kehadiran siswa membaik dari ${f}% menjadi ${l}% — tren positif.`
+        : `Kehadiran siswa turun dari ${f}% menjadi ${l}% — perlu ditelusuri penyebabnya.`;
+    }
+    if (a >= 90) return `Kehadiran siswa baik, konsisten di atas 90%.`;
+    const absen = 100 - a;
+    return a >= 80
+      ? `Kehadiran siswa ${a}% — rata-rata 1 dari ${Math.round(100 / absen)} siswa tidak hadir setiap hari.`
+      : `Kehadiran siswa ${a}% — di bawah 80%, perlu penanganan segera.`;
+  }
+
+  function insightAlpa() {
+    const v = vals('pct_alpa'); if (!v.length) return null;
+    const f = first('pct_alpa'), l = last('pct_alpa'), a = avgV('pct_alpa');
+    const mn = minV('pct_alpa'), mx = maxV('pct_alpa'), delta = l - f;
+    if (v.length === 1) {
+      return f < 3 ? `Alpa ${f}% — terkendali.`
+           : f < 7 ? `Alpa ${f}% — perlu dipantau wali kelas.`
+           :         `Alpa ${f}% — siswa tidak hadir tanpa keterangan, perlu tindak lanjut BK.`;
+    }
+    if (mx - mn > 20) return `Alpa berfluktuasi antara ${mn}% dan ${mx}% — perlu ditelusuri faktor penyebabnya.`;
+    if (Math.abs(delta) >= STABIL) {
+      return delta > 0
+        ? `Alpa naik dari ${f}% menjadi ${l}% — ketidakhadiran tanpa keterangan meningkat, perlu penanganan.`
+        : `Alpa turun dari ${f}% menjadi ${l}% — perbaikan kedisiplinan siswa.`;
+    }
+    return a < 3 ? `Alpa terkendali di sekitar ${a}%.`
+         : a < 7 ? `Alpa ${a}% — perlu dipantau wali kelas dan BK.`
+         :         `Alpa ${a}% — cukup tinggi, perlu tindak lanjut segera.`;
+  }
+
+  function insightSakitIzin() {
+    const vs = vals('pct_sakit'), vi = vals('pct_izin');
+    const parts = [];
+    const tren = (v, f, l, a) => {
+      const delta = l - f;
+      if (Math.abs(delta) >= STABIL) return delta > 0 ? `naik dari ${f}% menjadi ${l}%` : `turun dari ${f}% menjadi ${l}%`;
+      return `stabil di ${a}%`;
+    };
+    if (vs.length) {
+      const f = first('pct_sakit'), l = last('pct_sakit'), a = avgV('pct_sakit');
+      const t = vs.length === 1 ? `${f}%` : tren(vs, f, l, a);
+      parts.push(`Sakit ${t}${a >= 10 && vs.length > 1 ? ' — perlu perhatian kondisi kesehatan siswa' : ''}.`);
+    }
+    if (vi.length) {
+      const f = first('pct_izin'), l = last('pct_izin'), a = avgV('pct_izin');
+      const t = vi.length === 1 ? `${f}%` : tren(vi, f, l, a);
+      parts.push(`Izin ${t}.`);
     }
     return parts.join(' ') || null;
   }
 
-  function insightCakupan() {
-    const rendah = sekolah.filter(s => s.cakupan_pct != null && s.cakupan_pct < 50);
-    if (!rendah.length) return null;
-    if (rendah.length === sekolah.length)
-      return `Semua sekolah memiliki cakupan input di bawah 50% — angka terlambat dan izin keluar mungkin belum lengkap.`;
-    return `${rendah.length} dari ${sekolah.length} sekolah memiliki cakupan input di bawah 50% — angka belum mencerminkan kondisi penuh.`;
+  function insightLateExit() {
+    const totLate = total('count_late'), totExits = total('count_exits');
+    const hari = data.length;
+    const periodeKata = period === 'hari_ini' ? 'Hari ini' : 'Sepanjang periode';
+    if (totLate === 0 && totExits === 0)
+      return `${periodeKata} tidak ada keterlambatan maupun izin keluar.`;
+    const lateStr = totLate === 0 ? null
+      : hari > 1 ? `${totLate} keterlambatan (rata-rata ${(totLate / hari).toFixed(1)}/hari)`
+      :            `${totLate} keterlambatan`;
+    const exitStr = totExits === 0 ? null
+      : hari > 1 ? `${totExits} izin keluar (rata-rata ${(totExits / hari).toFixed(1)}/hari)`
+      :            `${totExits} izin keluar`;
+    const angka = [lateStr, exitStr].filter(Boolean).join(' dan ');
+    const sinyal = totLate >= 10 || totExits >= 10 ? ' — perlu evaluasi kebijakan disiplin.' : '.';
+    return `${periodeKata} tercatat ${angka}${sinyal}`;
   }
 
-  const parts = [insightTotal(), insightTertinggi(), insightCakupan()].filter(Boolean);
+  const parts = [insightHadir(), insightAlpa(), insightSakitIzin(), insightLateExit()].filter(Boolean);
   return `<strong>${title}</strong><br>${parts.join(' ')}`;
 }
 
-function _renderGrafik(o) {
+function _renderGrafik(chartData, byMonth) {
   const canvas = document.getElementById('grafik-chart');
-  const sekolah = (o.sekolah ?? []).slice().sort((a, b) => (b.terlambat ?? 0) - (a.terlambat ?? 0));
-
+  const maxY2  = Math.max(10, ...chartData.map(p => p.count_late ?? 0), ...chartData.map(p => p.count_exits ?? 0));
+  const pr     = chartData.length <= 14 ? 4 : 2;
+  const labels = chartData.map(p => _fmtChartLabel(p.date, byMonth));
+  const ds = (label, key, color, yId, extra = {}) => ({
+    label, yAxisID: yId, tension: 0.3, spanGaps: true, pointRadius: pr,
+    borderColor: color, backgroundColor: color + '18',
+    data: chartData.map(p => p[key] ?? null),
+    ...extra,
+  });
   if (_grafikChart) { _grafikChart.destroy(); _grafikChart = null; }
-
-  const labels   = sekolah.map(s => s.nama);
-  const dataLate = sekolah.map(s => s.terlambat  ?? 0);
-  const dataExit = sekolah.map(s => s.izin_keluar ?? 0);
-  const maxY = Math.max(10, ...dataLate, ...dataExit);
-
-  _grafikChart = new Chart(canvas, {   // eslint-disable-line no-undef
-    type: 'bar',
+  _grafikChart = new Chart(canvas, {  // eslint-disable-line no-undef
+    type: 'line',
     data: {
       labels,
       datasets: [
-        { label: 'Terlambat',   data: dataLate, backgroundColor: '#f97316cc', borderColor: '#f97316', borderWidth: 1 },
-        { label: 'Izin keluar', data: dataExit, backgroundColor: '#ec4899cc', borderColor: '#ec4899', borderWidth: 1 },
+        ds('Hadir (%)',    'pct_hadir', '#1D9E75', 'y1', { fill: true }),
+        ds('Sakit (%)',    'pct_sakit', '#f59e0b', 'y1'),
+        ds('Izin (%)',     'pct_izin',  '#8b5cf6', 'y1'),
+        ds('Alpa (%)',     'pct_alpa',  '#ef4444', 'y1'),
+        ds('Terlambat',   'count_late',  '#f97316', 'y2'),
+        ds('Izin Keluar', 'count_exits', '#ec4899', 'y2'),
       ],
     },
     options: {
-      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.x} catatan` } },
+        tooltip: { callbacks: { label: ctx => {
+          const v = ctx.parsed.y;
+          return ctx.dataset.yAxisID === 'y2'
+            ? `${ctx.dataset.label}: ${v != null ? v + ' siswa' : '—'}`
+            : `${ctx.dataset.label}: ${v != null ? v + '%' : '—'}`;
+        }}},
       },
       scales: {
-        x: { min: 0, max: maxY, ticks: { precision: 0, font: { size: 11 } }, grid: { color: '#0001' } },
-        y: { ticks: { font: { size: 11 } } },
+        y1: { type: 'linear', display: true, position: 'left',  min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 11 } }, grid: { color: '#0001' } },
+        y2: { type: 'linear', display: true, position: 'right', min: 0, max: maxY2, title: { display: true, text: 'Jumlah Siswa', font: { size: 10 } }, ticks: { font: { size: 11 }, precision: 0 }, grid: { drawOnChartArea: false } },
+        x:  { ticks: { font: { size: 11 }, maxRotation: 45 } },
       },
     },
+  });
+}
+
+async function _loadMonitoring(period, ayLalu = null, dateStart = null, dateEnd = null) {
+  const seq = ++_grafikSeq;
+  const errEl  = $('grafik-error');
+  const hintEl = $('grafik-hint');
+  errEl.hidden = true;
+  hintEl.innerHTML = '';
+  if (_grafikChart) { _grafikChart.destroy(); _grafikChart = null; }
+
+  const body = { p_period: period };
+  if (ayLalu)    body.p_academic_year = ayLalu;
+  if (dateStart) body.p_date_start    = dateStart;
+  if (dateEnd)   body.p_date_end      = dateEnd;
+
+  const { data, error } = await supabase.rpc('fn_region_monitoring', body);
+  if (seq !== _grafikSeq) return;
+  if (error) {
+    errEl.textContent = `Gagal memuat grafik: ${error.message}`;
+    errEl.hidden = false;
+    return;
+  }
+  hintEl.innerHTML = _buildChartCaption(period, data);
+  _renderGrafik(data.chart ?? [], data.by_month);
+
+  // Nonaktifkan Tahun Lalu bila data tidak tersedia
+  const btnTahunLalu = document.querySelector('.ks-period-btn[data-period="tahun_ajaran_lalu"]');
+  if (btnTahunLalu) {
+    const prevAyEnd = _prevAcademicYear() + '-06-30';
+    const noData = !data.data_earliest || data.data_earliest > prevAyEnd;
+    btnTahunLalu.disabled      = noData;
+    btnTahunLalu.style.opacity = noData ? '0.4' : '';
+  }
+}
+
+function _prevAcademicYear() {
+  const y = new Date().getFullYear();
+  const m = new Date().getMonth(); // 0-based
+  const base = m >= 6 ? y : y - 1;
+  return `${base - 1}/${base}`;
+}
+
+function _wireGrafikControls() {
+  const iso = (d) => d.toISOString().slice(0, 10);
+  $('grafik-dari').value   = iso(new Date(Date.now() - 6 * 86400000));
+  $('grafik-sampai').value = iso(new Date());
+
+  document.getElementById('grafik-period-toggle').addEventListener('click', e => {
+    const btn = e.target.closest('.ks-period-btn');
+    if (!btn || btn.disabled) return;
+    document.querySelectorAll('.ks-period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const period = btn.dataset.period;
+    const ayLalu = period === 'tahun_ajaran_lalu' ? _prevAcademicYear() : null;
+    _loadMonitoring(period, ayLalu);
+  });
+
+  $('grafik-terapkan').addEventListener('click', () => {
+    const start = $('grafik-dari').value;
+    const end   = $('grafik-sampai').value;
+    if (!start || !end) return;
+    if (start > end) {
+      $('grafik-error').textContent = 'Tanggal awal tidak boleh setelah tanggal akhir.';
+      $('grafik-error').hidden = false;
+      return;
+    }
+    document.querySelectorAll('.ks-period-btn').forEach(b => b.classList.remove('active'));
+    _loadMonitoring('rentang', null, start, end);
   });
 }
 const statusValue = nilaiStatus;
@@ -407,11 +562,8 @@ function render() {
     }, j === 'SEMUA' ? 'Semua' : j));
   }
 
-  // Grafik
-  const hintEl = $('grafik-hint');
-  hintEl.innerHTML = _buildGrafikNarasi(o);
-  _renderGrafik(o);
-  $('grafik-card').hidden = !(o.sekolah && o.sekolah.length);
+  // Grafik tren — tampil bila ada sekolah yang berbagi data
+  $('grafik-card').hidden = !o.jumlah_sekolah_dibagikan;
 
   renderSchoolList(o);
   $('sekolah-card').hidden = false;
@@ -609,11 +761,17 @@ $('pw-form').addEventListener('submit', async (e) => {
   }
 });
 
+let _grafikWired = false;
 async function enterApp() {
   showView('app');
   const { data } = await supabase.auth.getSession();
   if (perluGantiSandi(data.session?.user)) { bukaGantiWajib(); return; }
   await loadOverview();
+  if (!_grafikWired) {
+    _grafikWired = true;
+    _wireGrafikControls();
+    _loadMonitoring('7_hari');
+  }
 }
 
 aturLipat();
