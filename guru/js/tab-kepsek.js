@@ -194,7 +194,7 @@ function _renderKepsekChart(chartData, byMonth) {
             labels,
             datasets: [
                 { label: 'Kehadiran Siswa (%)', data: chartData.map(p => p.pct_siswa),    borderColor: '#1D9E75', backgroundColor: '#1D9E7518', tension: 0.3, fill: true,  yAxisID: 'y1', pointRadius: chartData.length <= 14 ? 4 : 2, spanGaps: true },
-                { label: 'Kehadiran Guru (%)',  data: chartData.map(p => p.pct_guru),     borderColor: '#185FA5', backgroundColor: '#185FA518', tension: 0.3, fill: true,  yAxisID: 'y1', pointRadius: chartData.length <= 14 ? 4 : 2, spanGaps: true },
+                { label: 'Kehadiran Guru di Kelas (%)',  data: chartData.map(p => p.pct_guru),     borderColor: '#185FA5', backgroundColor: '#185FA518', tension: 0.3, fill: true,  yAxisID: 'y1', pointRadius: chartData.length <= 14 ? 4 : 2, spanGaps: true },
                 { label: 'Keterlambatan',       data: chartData.map(p => p.count_late  ?? null), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', tension: 0.3, yAxisID: 'y2', pointRadius: chartData.length <= 14 ? 4 : 2, spanGaps: true },
                 { label: 'Izin Keluar',         data: chartData.map(p => p.count_exits ?? null), borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)',   tension: 0.3, yAxisID: 'y2', pointRadius: chartData.length <= 14 ? 4 : 2, spanGaps: true },
             ],

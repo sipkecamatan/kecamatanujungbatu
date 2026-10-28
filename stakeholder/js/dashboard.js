@@ -282,7 +282,7 @@ function renderKepsekChart(chartData, byMonth) {
                     spanGaps: true,
                 },
                 {
-                    label: 'Kehadiran Guru (%)',
+                    label: 'Kehadiran Guru di Kelas (%)',
                     data: dataGuru,
                     borderColor: '#185FA5',
                     backgroundColor: '#185FA518',
