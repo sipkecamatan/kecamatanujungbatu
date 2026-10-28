@@ -130,6 +130,43 @@ export function buildAttStatCards(rows, getTot = r => r.HADIR + r.IZIN + r.SAKIT
     </div>`;
 }
 
+/**
+ * Dari daftar baris { block_group_id, session_date }, hasilkan:
+ *   - sortedIds : block_group_id[] urut kronologis
+ *   - labelById : Map<block_group_id, string>
+ *       "YYYY-MM-DD"       jika satu pertemuan per hari
+ *       "YYYY-MM-DD (n)"   jika lebih dari satu pertemuan per hari
+ */
+export function buildPertemuanMeta(rows) {
+    // Kumpulkan block_group_id unik + tanggal pertamanya
+    const bgDate = new Map();
+    for (const r of rows) {
+        if (r.block_group_id && !bgDate.has(r.block_group_id))
+            bgDate.set(r.block_group_id, r.session_date);
+    }
+    // Urut berdasarkan session_date lalu insertion order
+    const sorted = [...bgDate.entries()]
+        .sort(([, a], [, b]) => a < b ? -1 : a > b ? 1 : 0);
+
+    // Hitung berapa pertemuan per tanggal
+    const countPerDate = new Map();
+    for (const [, date] of sorted)
+        countPerDate.set(date, (countPerDate.get(date) ?? 0) + 1);
+
+    const indexPerDate = new Map();
+    const labelById   = new Map();
+    for (const [bgId, date] of sorted) {
+        if (countPerDate.get(date) === 1) {
+            labelById.set(bgId, date);
+        } else {
+            const n = (indexPerDate.get(date) ?? 0) + 1;
+            indexPerDate.set(date, n);
+            labelById.set(bgId, `${date} (${n})`);
+        }
+    }
+    return { sortedIds: sorted.map(([id]) => id), labelById };
+}
+
 export function wireSimpleAccordion(cardId) {
     const card = document.getElementById(cardId);
     if (!card || card.dataset.accWired) return;

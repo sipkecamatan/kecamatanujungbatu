@@ -817,12 +817,16 @@ export async function getAttendanceSummaryByStudents(classId, academicYear, date
     }));
 }
 
-/** Detail kehadiran per siswa per tanggal untuk satu kelas — untuk export Excel pivot. */
+/**
+ * Detail kehadiran per siswa per pertemuan untuk satu kelas — untuk export Excel pivot.
+ * Mengembalikan { student_id, block_group_id, session_date, status } per baris.
+ * Satu pertemuan (block_group_id) = satu satuan kehadiran; bisa ada beberapa pertemuan per tanggal.
+ */
 export async function getClassAttendanceByDate(classId, academicYear, dateStart, dateEnd, teacherId = null) {
-    // Langkah 1: ambil schedule_id yang relevan (query kecil, pakai index class_id)
+    // Langkah 1: ambil schedule_id + block_group_id yang relevan
     let sq = supabase
         .from('teaching_schedules')
-        .select('schedule_id, session_date')
+        .select('schedule_id, session_date, block_group_id')
         .eq('class_id', classId)
         .eq('academic_year', academicYear);
     if (dateStart) sq = sq.gte('session_date', dateStart);
@@ -832,10 +836,12 @@ export async function getClassAttendanceByDate(classId, academicYear, dateStart,
     if (schedErr) throw schedErr;
     if (!scheds?.length) return [];
 
-    const dateBySchedId = Object.fromEntries(scheds.map(s => [s.schedule_id, s.session_date]));
+    const infoBySchedId = Object.fromEntries(
+        scheds.map(s => [s.schedule_id, { session_date: s.session_date, block_group_id: s.block_group_id }])
+    );
     const schedIds = scheds.map(s => s.schedule_id);
 
-    // Langkah 2: query attendance dengan filter schedule_id (index langsung)
+    // Langkah 2: query attendance dengan filter schedule_id
     const rows = [];
     const pageSize = 1000;
     for (let offset = 0; ; offset += pageSize) {
@@ -850,9 +856,10 @@ export async function getClassAttendanceByDate(classId, academicYear, dateStart,
         if ((data ?? []).length < pageSize) break;
     }
     return rows.map(r => ({
-        student_id:   r.student_id,
-        session_date: dateBySchedId[r.schedule_id],
-        status:       r.status,
+        student_id:    r.student_id,
+        block_group_id: infoBySchedId[r.schedule_id]?.block_group_id,
+        session_date:  infoBySchedId[r.schedule_id]?.session_date,
+        status:        r.status,
     }));
 }
 

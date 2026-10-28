@@ -10,7 +10,7 @@ import {
     getWaliLateArrivals, getWaliExits, getClassAttendanceByDate,
 } from './api.js';
 import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
-import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr } from './tab-shared.js';
+import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, buildPertemuanMeta } from './tab-shared.js';
 
 /* global XLSX */
 
@@ -58,26 +58,34 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
                 getClassAttendanceByDate(classId, academicYear, null, null, null),
             ]);
 
-            const dateSet = new Set(detail.map(r => r.session_date));
-            const dates   = [...dateSet].sort();
-
             const PRIO = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
             const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
+
+            // Pivot per pertemuan (block_group_id), ambil status terburuk
             const pivot = {};
             for (const r of detail) {
+                if (!r.block_group_id) continue;
                 if (!pivot[r.student_id]) pivot[r.student_id] = {};
-                const prev = pivot[r.student_id][r.session_date];
+                const prev = pivot[r.student_id][r.block_group_id];
                 if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
-                    pivot[r.student_id][r.session_date] = r.status;
+                    pivot[r.student_id][r.block_group_id] = r.status;
             }
 
+            const { sortedIds, labelById } = buildPertemuanMeta(detail);
             const roster = [...students].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
-            const header   = ['No', 'Nama', ...dates, 'Persentase'];
+            const header   = ['No', 'Nama', ...sortedIds.map(id => labelById.get(id)), 'H', 'I', 'S', 'A', 'Persentase'];
             const dataRows = roster.map((s, idx) => {
-                const tot = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
-                const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) + '%' : '—';
-                const dateCells = dates.map(d => STATUS_HURUF[pivot[s.student_id]?.[d]] ?? '');
-                return [idx + 1, s.full_name, ...dateCells, pct];
+                const byBg = pivot[s.student_id] ?? {};
+                let H = 0, I = 0, S = 0, A = 0;
+                for (const st of Object.values(byBg)) {
+                    if (st === 'HADIR') H++; else if (st === 'IZIN') I++;
+                    else if (st === 'SAKIT') S++; else if (st === 'ALPA') A++;
+                }
+                const tot = H + I + S + A;
+                const pct = tot > 0 ? Math.round(H / tot * 100) + '%' : '—';
+                return [idx + 1, s.full_name,
+                    ...sortedIds.map(id => STATUS_HURUF[byBg[id]] ?? ''),
+                    H, I, S, A, pct];
             });
 
             const wb = XLSX.utils.book_new();
