@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"console.log(JSON.stringify({systemMessage:'[SESSION END] Ada file yang diubah? Jalankan session-end.md sebelum commit: Consistency Checker → Data Truth Verifier → Regression Guard → Knowledge Capture'}))\"",
+            "shell": "bash",
+            "statusMessage": "Menampilkan reminder session-end..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let b='';process.stdin.on('data',c=>b+=c);process.stdin.on('end',()=>{const d=JSON.parse(b);const cmd=d.tool_input&&d.tool_input.command||'';if(cmd.includes('git commit')){console.log(JSON.stringify({systemMessage:'[GIT PUSH] Ingat: git push dilakukan ROMO, bukan Claude. Jalankan: git push'}));}})\"",
+            "shell": "bash",
+            "statusMessage": "Memeriksa apakah perlu reminder git push..."
+          }
+        ]
+      }
+    ]
+  }
+}
