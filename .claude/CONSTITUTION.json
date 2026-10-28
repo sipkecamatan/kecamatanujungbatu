@@ -130,7 +130,7 @@
     },
 
     "guru_piket": {
-      "Tab Piket": ["Input keterlambatan siswa", "Input izin keluar siswa"]
+      "Tab Piket": ["Ringkasan Hari Ini", "Catat Keterlambatan", "Rekap Hari Ini", "Catat Izin Keluar", "Izin Keluar Hari Ini"]
     },
 
     "bk": {
@@ -168,7 +168,7 @@
       "Tab Observasi": ["Catatan dari Guru", "Kasus Tentang Saya"],
       "Tab PKL": ["Status PKL", "Riwayat Absensi PKL"],
       "Tab Forum Kelas": ["Daftar posting kelas"],
-      "Tab Nilai": ["Nilai per mata pelajaran"]
+      "Tab Nilai": ["Nilai per mata pelajaran (dirender JS — tampil hanya jika guru sudah publikasi)"]
     },
 
     "orang_tua": {
