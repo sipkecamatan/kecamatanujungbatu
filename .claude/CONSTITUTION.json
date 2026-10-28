@@ -443,7 +443,8 @@
     "hooks_jq": "jq tidak tersedia di mesin Windows ini — pakai node untuk parsing stdin di hook commands",
     "hooks_settings_watcher": "settings.json baru tidak aktif sampai sesi di-restart atau buka /hooks di UI Claude Code",
     "rincian_absensi_raw": "fn_kepsek_monitoring mengembalikan rincian_absensi berisi raw count (baris, hadir, sakit, izin, alpa) — BUKAN field _pct; klien wajib hitung sendiri: pct = Math.round(100 * r.hadir / r.baris)",
-    "period_server_bukan_klien": "periode preset (hari_ini, 7_hari, minggu_lalu, bulan_lalu) wajib dikirim langsung ke fn_kepsek_monitoring — jangan konversi ke rentang di sisi klien; server pakai now() AT TIME ZONE Asia/Jakarta sehingga tanggal selalu konsisten lintas portal"
+    "period_server_bukan_klien": "periode preset (hari_ini, 7_hari, minggu_lalu, bulan_lalu) wajib dikirim langsung ke fn_kepsek_monitoring — jangan konversi ke rentang di sisi klien; server pakai now() AT TIME ZONE Asia/Jakarta sehingga tanggal selalu konsisten lintas portal",
+    "migration_jangan_rollback": "file di supabase/migrations/ TIDAK BOLEH diakhiri ROLLBACK — BEGIN/ROLLBACK hanya untuk SQL debug ad-hoc. Supabase menjalankan migration via psql tanpa membungkusnya, sehingga ROLLBACK di akhir file membatalkan seluruh isi migration; Supabase tetap mencatat migration sebagai 'applied' di migration history sehingga db push berikutnya tidak akan re-apply. Jika terlanjur, buat migration baru dengan nama timestamp lebih besar"
   },
   "open_tasks": [
     {
@@ -481,8 +482,8 @@
   ],
   "state": {
     "last_updated": "2026-10-28",
-    "last_session_commit": "aa32908",
-    "migrasi_terpasang_sampai": "20261028050000",
-    "main_sha": "aa32908"
+    "last_session_commit": "9ee3f14",
+    "migrasi_terpasang_sampai": "20261028050000 (060000 pending push Romo)",
+    "main_sha": "9ee3f14"
   }
 }
