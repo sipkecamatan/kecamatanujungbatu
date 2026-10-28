@@ -693,7 +693,8 @@ function renderGuruRekapPage() {
     container.innerHTML = [..._guruRekapRows]
         .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'))
         .map((s, idx) => {
-            const pct   = s.total > 0 ? Math.round(s.HADIR / s.total * 100) : null;
+            const tot   = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
+            const pct   = tot > 0 ? Math.round(s.HADIR / tot * 100) : null;
             const color = pct === null ? 'var(--color-text-muted)' : pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
             return `
             <div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--color-border,#e5e7eb)">
@@ -1820,7 +1821,8 @@ async function loadWaliSummary() {
         container.innerHTML = buildAttStatCards(students) + [...students]
             .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'))
             .map((s, idx) => {
-                const pct   = s.total > 0 ? Math.round(s.HADIR / s.total * 100) : null;
+                const tot   = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
+                const pct   = tot > 0 ? Math.round(s.HADIR / tot * 100) : null;
                 const color = pct === null ? 'var(--color-text-muted)' : pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
                 return `
                 <div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--color-border,#e5e7eb)">
