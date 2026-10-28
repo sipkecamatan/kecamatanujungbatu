@@ -5,9 +5,9 @@
 --   → satu block_group bisa masuk H, I, S, A sekaligus (siswa berbeda)
 --   → %H selalu mendekati 100% karena hampir setiap sesi ada yang hadir
 --
--- Metrik baru: COUNT(student × block_group pairs WHERE status = X)
---   → setiap (siswa, block_group) dihitung satu kali dengan status terburuk
---   → hadir/total = rata-rata kehadiran siswa sesungguhnya
+-- Metrik baru: COUNT(student × session_date pairs WHERE status = X)
+--   → setiap (siswa, hari) dihitung satu kali dengan status terburuk hari itu
+--   → hadir/total = rata-rata kehadiran siswa sesungguhnya (1 hari = 1 hitungan)
 
 CREATE OR REPLACE FUNCTION public.fn_attendance_recap_per_class(
     p_date_start date DEFAULT NULL,
@@ -41,13 +41,15 @@ eligible_classes AS (
             )
           )
 ),
--- Satu baris per (siswa, kelas, block_group): ambil status terburuk
+-- Satu baris per (siswa, kelas, session_date): ambil status terburuk hari itu
 -- Prioritas: ALPA(1) > SAKIT(2) > IZIN(3) > HADIR(4)
+-- Pakai session_date bukan block_group_id agar 1 hari = 1 hitungan,
+-- konsisten dengan kolom tanggal di Excel pivot.
 student_block AS (
     SELECT
         ce.class_id,
         ce.student_id,
-        ts.block_group_id,
+        ts.session_date,
         MIN(CASE a.status
                 WHEN 'ALPA'  THEN 1
                 WHEN 'SAKIT' THEN 2
@@ -75,7 +77,7 @@ student_block AS (
                     AND a.student_id     = ce.student_id
                     AND a.school_id      = public.fn_current_school_id()
                     AND NOT a.is_void
-    GROUP BY ce.class_id, ce.student_id, ts.block_group_id
+    GROUP BY ce.class_id, ce.student_id, ts.session_date
 )
 SELECT
     ec.class_id,
