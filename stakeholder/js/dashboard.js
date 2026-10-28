@@ -252,11 +252,15 @@ async function loadKepsekMonitoring(period, academicYear = null, dateStart = nul
 function renderKepsekChart(chartData, byMonth) {
     const canvas = document.getElementById('ks-chart');
     const maxY2  = Math.max(10, ...chartData.map(p => p.count_late ?? 0), ...chartData.map(p => p.count_exits ?? 0));
-    const labels     = chartData.map(p => fmtChartLabel(p.date, byMonth));
-    const dataSiswa  = chartData.map(p => p.pct_siswa);
-    const dataGuru   = chartData.map(p => p.pct_guru);
-    const dataLate   = chartData.map(p => p.count_late  ?? null);
-    const dataExits  = chartData.map(p => p.count_exits ?? null);
+    const pr     = chartData.length <= 14 ? 4 : 2;
+    const labels = chartData.map(p => fmtChartLabel(p.date, byMonth));
+
+    const ds = (label, key, color, yId, extra = {}) => ({
+        label, yAxisID: yId, tension: 0.3, spanGaps: true, pointRadius: pr,
+        borderColor: color, backgroundColor: color + '18',
+        data: chartData.map(p => p[key] ?? null),
+        ...extra,
+    });
 
     if (_ksChart) { _ksChart.destroy(); _ksChart = null; }
 
@@ -265,48 +269,13 @@ function renderKepsekChart(chartData, byMonth) {
         data: {
             labels,
             datasets: [
-                {
-                    label: 'Kehadiran Siswa (%)',
-                    data: dataSiswa,
-                    borderColor: '#1D9E75',
-                    backgroundColor: '#1D9E7518',
-                    tension: 0.3,
-                    fill: true,
-                    yAxisID: 'y1',
-                    pointRadius: chartData.length <= 14 ? 4 : 2,
-                    spanGaps: true,
-                },
-                {
-                    label: 'Kehadiran Guru di Kelas (%)',
-                    data: dataGuru,
-                    borderColor: '#185FA5',
-                    backgroundColor: '#185FA518',
-                    tension: 0.3,
-                    fill: true,
-                    yAxisID: 'y1',
-                    pointRadius: chartData.length <= 14 ? 4 : 2,
-                    spanGaps: true,
-                },
-                {
-                    label: 'Keterlambatan',
-                    data: dataLate,
-                    borderColor: '#f59e0b',
-                    backgroundColor: 'rgba(245,158,11,0.1)',
-                    tension: 0.3,
-                    yAxisID: 'y2',
-                    pointRadius: chartData.length <= 14 ? 4 : 2,
-                    spanGaps: true,
-                },
-                {
-                    label: 'Izin Keluar',
-                    data: dataExits,
-                    borderColor: '#8b5cf6',
-                    backgroundColor: 'rgba(139,92,246,0.1)',
-                    tension: 0.3,
-                    yAxisID: 'y2',
-                    pointRadius: chartData.length <= 14 ? 4 : 2,
-                    spanGaps: true,
-                },
+                ds('Hadir (%)',       'pct_hadir', '#1D9E75', 'y1', { fill: true }),
+                ds('Sakit (%)',       'pct_sakit', '#f59e0b', 'y1'),
+                ds('Izin (%)',        'pct_izin',  '#8b5cf6', 'y1'),
+                ds('Alpa (%)',        'pct_alpa',  '#ef4444', 'y1'),
+                ds('Guru di Kelas (%)', 'pct_guru','#185FA5', 'y1'),
+                ds('Terlambat',    'count_late',  '#f97316', 'y2'),
+                ds('Izin Keluar',  'count_exits', '#ec4899', 'y2'),
             ],
         },
         options: {
@@ -318,29 +287,21 @@ function renderKepsekChart(chartData, byMonth) {
                     callbacks: {
                         label: ctx => {
                             const v = ctx.parsed.y;
-                            if (ctx.dataset.yAxisID === 'y2') {
-                                return `${ctx.dataset.label}: ${v != null ? v + ' siswa' : '—'}`;
-                            }
-                            return `${ctx.dataset.label}: ${v != null ? v + '%' : '—'}`;
+                            return ctx.dataset.yAxisID === 'y2'
+                                ? `${ctx.dataset.label}: ${v != null ? v + ' siswa' : '—'}`
+                                : `${ctx.dataset.label}: ${v != null ? v + '%' : '—'}`;
                         },
                     },
                 },
             },
             scales: {
                 y1: {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    min: 0, max: 100,
+                    type: 'linear', position: 'left', min: 0, max: 100,
                     ticks: { callback: v => v + '%', font: { size: 11 } },
                     grid: { color: '#0001' },
                 },
                 y2: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    min: 0,
-                    max: maxY2,
+                    type: 'linear', position: 'right', min: 0, max: maxY2,
                     title: { display: true, text: 'Jumlah Siswa', font: { size: 10 } },
                     ticks: { font: { size: 11 }, precision: 0 },
                     grid: { drawOnChartArea: false },
