@@ -382,7 +382,7 @@
         "guru/js/tab-kepsek.js (loadSchoolSummary)"
       ],
       "field_pertemuan": "pertemuan_hari_ini = COUNT DISTINCT block_group_id WHERE NORMAL",
-      "field_guru": "guru_mengajar_hari_ini = COUNT DISTINCT scheduled_teacher_id WHERE NORMAL hari ini"
+      "field_guru": "guru_mengajar_hari_ini = COUNT DISTINCT scheduled_teacher_id WHERE session_date=today (tanpa filter meeting_status — semua guru berjadwal, bukan hanya yang sudah menjalankan pertemuan)"
     },
     "fn_tu_attendance_recap": {
       "berpasangan_dengan": [
@@ -481,8 +481,8 @@
   ],
   "state": {
     "last_updated": "2026-10-28",
-    "last_session_commit": "0340ccc",
-    "migrasi_terpasang_sampai": "20261028030000",
-    "main_sha": "0340ccc"
+    "last_session_commit": "pending",
+    "migrasi_terpasang_sampai": "20261028040000",
+    "main_sha": "pending"
   }
 }
