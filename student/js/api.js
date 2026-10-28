@@ -10,6 +10,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { attachPortalUserLabels } from '../../shared/portal-user-labels.js';
+import { pivotAttendanceBlocks } from '../../shared/attendance-pivot.js';
 
 const SUPABASE_URL      = 'https://lqgzpiohxdzkkmxjtwor.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxxZ3pwaW9oeGR6a2tteGp0d29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4OTA2MjksImV4cCI6MjEwNzQ2NjYyOX0.omL9CGL5Ckcm2SXquYbXHr-aE8mLUe6H9FewDou-Lp4';
@@ -125,42 +126,7 @@ export async function getMyAttendance(studentId, dateStart, dateEnd) {
         p_student_id: studentId, p_date_start: dateStart || null, p_date_end: dateEnd || null,
     });
     if (error) throw error;
-
-    // Group by block_group_id
-    const blockMap = new Map();
-    for (const sched of (data ?? [])) {
-        const att = (sched.attendance ?? [])[0];
-        if (!att) continue;
-        const key = sched.block_group_id ?? `${sched.session_date}_${sched.session_start}`;
-        if (!blockMap.has(key)) {
-            blockMap.set(key, {
-                block_group_id:  key,
-                date:            sched.session_date,
-                subject:         sched.subject?.name ?? 'KBM',
-                teacher:         sched.teacher?.full_name ?? '—',
-                slots:           [],
-            });
-        }
-        blockMap.get(key).slots.push({
-            start:  sched.session_start?.slice(0, 5),
-            end:    sched.session_end?.slice(0, 5),
-            status: att.status === 'EKSKUL' ? 'HADIR' : att.status,
-            notes:  att.notes ?? '',
-        });
-    }
-
-    return Array.from(blockMap.values()).map(block => {
-        const statuses = block.slots.map(s => s.status);
-        const unique   = [...new Set(statuses)];
-        const summary  = unique.length === 1 ? unique[0] : 'CAMPURAN';
-        const first    = block.slots[0];
-        const last     = block.slots[block.slots.length - 1];
-        return {
-            ...block,
-            time_range:     `${first.start} – ${last.end}`,
-            summary_status: summary,
-        };
-    });
+    return pivotAttendanceBlocks(data);
 }
 
 export async function getMyCases(studentId) {

@@ -249,6 +249,11 @@
       "dipakai_oleh": ["trg_grade_final_hitung"],
       "test_relevan": ["nilai-rapor-server.mjs", "nilai-rapor-rumus.mjs"]
     },
+    "shared/attendance-pivot.js": {
+      "dipakai_di": ["parent/js/api.js (fetchAttendance)", "student/js/api.js (getMyAttendance)"],
+      "sumber_data": "fn_portal_attendance (RPC SECURITY DEFINER)",
+      "catatan": "pivot block_group_id + EKSKUL→HADIR; CAMPURAN tidak terjadi di jalur normal karena saveAttendanceBatch kirim records identik ke semua schedule_id dalam satu block_group"
+    },
     "RLS_policy": {
       "test_relevan": ["tenant-isolation.mjs", "nilai-keterlihatan.mjs"]
     },
@@ -304,8 +309,8 @@
 
   "state": {
     "last_updated": "2026-10-28",
-    "last_session_commit": "13d6e23",
+    "last_session_commit": "TBD",
     "migrasi_terpasang_sampai": "20261028010000",
-    "main_sha": "13d6e23 (fix excel: getClassAttendanceByDate via SECURITY DEFINER — verifikasi dengan git fetch sebelum mulai)"
+    "main_sha": "TBD — diupdate setelah commit"
   }
 }
