@@ -144,7 +144,7 @@ async function loadSummary() {
         document.getElementById('st-program').textContent        = fmtNum(s.total_program);
         document.getElementById('st-kelas').textContent          = fmtNum(s.total_kelas);
         document.getElementById('st-sesi').textContent           = fmtNum(s.pertemuan_hari_ini);
-        document.getElementById('st-hadir-hari').textContent     = fmtNum(s.hadir_hari_ini);
+        document.getElementById('st-hadir-hari').textContent     = fmtNum(s.guru_mengajar_hari_ini);
         document.getElementById('updated-at').textContent        = fmtTime(s.updated_at);
     } catch (err) {
         if (request !== _summaryRequest) return;

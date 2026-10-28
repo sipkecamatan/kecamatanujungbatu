@@ -231,7 +231,7 @@ async function loadSchoolSummary() {
         set('ks-sum-program',    fmtNum(s.total_program));
         set('ks-sum-kelas',      fmtNum(s.total_kelas));
         set('ks-sum-sesi',       fmtNum(s.pertemuan_hari_ini));
-        set('ks-sum-hadir-hari', fmtNum(s.hadir_hari_ini));
+        set('ks-sum-hadir-hari', fmtNum(s.guru_mengajar_hari_ini));
     } catch (err) {
         console.error('[kepsek summary]', err);
     }
