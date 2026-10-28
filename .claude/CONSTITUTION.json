@@ -166,9 +166,9 @@
   "open_tasks": [
     {
       "id": "T001",
-      "task": "Pasang migrasi 20261028000000_fix_attendance_recap_per_class",
-      "status": "menunggu db push oleh Romo",
-      "catatan": "audit kode selesai 28 Okt; kode tab-guru.js sudah diperbaiki; migrasi di repo belum terpasang ke Supabase"
+      "task": "Audit + perbaiki alur absensi semua rekap",
+      "status": "SELESAI 28 Okt",
+      "catatan": "tab-guru.js pivot ke block_group_id; fn_attendance_recap_per_class diperbaiki via migrasi 20261028000000; semua rekap (Guru, Wali, Kaprodi, Waka) kini konsisten"
     },
     {
       "id": "T002",
@@ -197,7 +197,7 @@
   "state": {
     "last_updated": "2026-10-28",
     "last_session_commit": "c5b392b",
-    "migrasi_terpasang_sampai": "20261023260000",
+    "migrasi_terpasang_sampai": "20261028000000",
     "main_sha": "c5b392b (fix excel pivot guru 28 Okt — verifikasi dengan git fetch sebelum mulai)"
   }
 }
