@@ -823,43 +823,29 @@ export async function getAttendanceSummaryByStudents(classId, academicYear, date
  * Satu pertemuan (block_group_id) = satu satuan kehadiran; bisa ada beberapa pertemuan per tanggal.
  */
 export async function getClassAttendanceByDate(classId, academicYear, dateStart, dateEnd, teacherId = null) {
-    // Langkah 1: ambil schedule_id + block_group_id yang relevan
-    let sq = supabase
-        .from('teaching_schedules')
-        .select('schedule_id, session_date, block_group_id')
-        .eq('class_id', classId)
-        .eq('academic_year', academicYear);
-    if (dateStart) sq = sq.gte('session_date', dateStart);
-    if (dateEnd)   sq = sq.lte('session_date', dateEnd);
-    if (teacherId) sq = sq.eq('scheduled_teacher_id', teacherId);
-    const { data: scheds, error: schedErr } = await sq;
-    if (schedErr) throw schedErr;
-    if (!scheds?.length) return [];
-
-    const infoBySchedId = Object.fromEntries(
-        scheds.map(s => [s.schedule_id, { session_date: s.session_date, block_group_id: s.block_group_id }])
-    );
-    const schedIds = scheds.map(s => s.schedule_id);
-
-    // Langkah 2: query attendance dengan filter schedule_id
-    const rows = [];
+    // Pakai SECURITY DEFINER agar semua peran (Waka, BK, Wali, Kaprodi)
+    // bisa melihat semua pertemuan di kelas, bukan hanya yang mereka ajar.
+    // teacherId tidak digunakan (dipertahankan agar pemanggil lama tetap kompatibel).
+    const all = [];
     const pageSize = 1000;
     for (let offset = 0; ; offset += pageSize) {
         const { data, error } = await supabase
-            .from('attendance')
-            .select('student_id, schedule_id, status')
-            .in('schedule_id', schedIds)
-            .eq('is_void', false)
+            .rpc('fn_class_attendance_detail', {
+                p_class_id:      classId,
+                p_academic_year: academicYear,
+                p_date_start:    dateStart ?? null,
+                p_date_end:      dateEnd   ?? null,
+            })
             .range(offset, offset + pageSize - 1);
         if (error) throw error;
-        rows.push(...(data ?? []));
+        all.push(...(data ?? []));
         if ((data ?? []).length < pageSize) break;
     }
-    return rows.map(r => ({
-        student_id:    r.student_id,
-        block_group_id: infoBySchedId[r.schedule_id]?.block_group_id,
-        session_date:  infoBySchedId[r.schedule_id]?.session_date,
-        status:        r.status,
+    return all.map(r => ({
+        student_id:     r.student_id,
+        block_group_id: r.block_group_id,
+        session_date:   r.session_date,
+        status:         r.status,
     }));
 }
 
