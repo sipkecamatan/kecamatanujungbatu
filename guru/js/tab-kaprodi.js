@@ -13,6 +13,7 @@ import {
     getProgram, fetchPklStudents, fetchNonPklStudents, fetchDudiPartners,
     fetchPklAttendance, fetchDudiObservations,
     getAttendanceRecapPerClass, getClassesByProgram,
+    getWaliAttendanceSummary, getClassAttendanceByDate,
     createPlacement, finishPlacement, bulkImportPkl,
 } from './api.js';
 import { esc, fe, fmt, localDateStr } from './tab-shared.js';
@@ -83,6 +84,7 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
 
         document.getElementById('kp-filter-btn').onclick     = loadKpRecap;
         document.getElementById('kp-cls-filter-btn').onclick = () => loadKpClsRecap({ config });
+        document.getElementById('kp-cls-export-btn').onclick = () => downloadKpClsExcel({ config });
 
         const studentsBody = document.getElementById('kp-students-body');
         studentsBody.removeEventListener('click', _handleKpStudentsClick);
@@ -307,8 +309,73 @@ async function loadKpClsRecap({ config }) {
                 </div>`;
             }).join('');
 
+        document.getElementById('kp-cls-export-btn').style.display = '';
+
     } catch (err) {
         container.innerHTML = `<div class="alert alert-danger">${esc(fe(err))}</div>`;
+    }
+}
+
+// ─── Download Excel Rekap Kelas ───────────────────────────────
+
+async function downloadKpClsExcel({ config }) {
+    const btn = document.getElementById('kp-cls-export-btn');
+    btn.disabled = true;
+    btn.textContent = 'Menyiapkan…';
+    try {
+        const classes = await getClassesByProgram(kpProgramId);
+        if (!classes.length) return;
+
+        const academicYear = config.current_academic_year;
+        const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
+        const PRIO         = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
+
+        const wb = XLSX.utils.book_new();
+
+        // Ambil semua data paralel
+        const results = await Promise.all(
+            classes.map(c => Promise.all([
+                getWaliAttendanceSummary(c.class_id, academicYear, null, null),
+                getClassAttendanceByDate(c.class_id, academicYear, null, null),
+            ]).then(([students, detail]) => ({ cls: c, students, detail })))
+        );
+
+        for (const { cls, students, detail } of results.sort((a, b) => a.cls.name.localeCompare(b.cls.name, 'id'))) {
+            if (!students.length) continue;
+
+            // Pivot: student_id → session_date → status (ambil prioritas terendah)
+            const pivot = {};
+            for (const r of detail) {
+                if (!pivot[r.student_id]) pivot[r.student_id] = {};
+                const prev = pivot[r.student_id][r.session_date];
+                if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
+                    pivot[r.student_id][r.session_date] = r.status;
+            }
+
+            const dates = [...new Set(detail.map(r => r.session_date))].sort();
+            const roster = [...students].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+
+            const header = ['No', 'Nama', 'NIS', ...dates, 'H', 'I', 'S', 'A', '%Hadir'];
+            const dataRows = roster.map((s, idx) => {
+                const tot = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
+                const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) + '%' : '—';
+                return [idx + 1, s.full_name, s.nis ?? '',
+                    ...dates.map(d => STATUS_HURUF[pivot[s.student_id]?.[d]] ?? ''),
+                    s.HADIR, s.IZIN, s.SAKIT, s.ALPA, pct];
+            });
+
+            // Nama sheet max 31 karakter (batas Excel)
+            const sheetName = cls.name.slice(0, 31);
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...dataRows]), sheetName);
+        }
+
+        if (!wb.SheetNames.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
+        XLSX.writeFile(wb, `rekap_absensi_kelas_${academicYear}.xlsx`);
+    } catch (err) {
+        alert('Gagal mengunduh: ' + fe(err));
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Unduh Excel';
     }
 }
 
