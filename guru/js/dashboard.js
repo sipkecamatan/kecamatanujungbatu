@@ -1551,9 +1551,6 @@ async function refreshKasusDetail(ctx = kasusCtxDefault) {
     }
 }
 
-
-}
-
 // ─── Download: Template & Rekap Pembinaan ────────────────────
 function wireKasusDownloadButtons(ctx) {
     const prefix     = ctx.prefix;
