@@ -2695,20 +2695,19 @@ async function loadKpClsRecap() {
         const classIds = new Set(classes.map(c => c.class_id));
         const rows = allRows.filter(r => classIds.has(r.class_id));
 
-        if (!rows.length) {
-            container.innerHTML = '<p class="hint">Belum ada kelas di program ini untuk rentang tanggal tersebut.</p>';
-            return;
-        }
+        // Masukkan kelas tanpa data absensi sebagai baris kosong (HADIR/IZIN/SAKIT/ALPA=0)
+        const attById = new Map(rows.map(r => [r.class_id, r]));
+        const allClsRows = classes.map(c => attById.get(c.class_id) ?? { class_id: c.class_id, name: c.name, HADIR: 0, IZIN: 0, SAKIT: 0, ALPA: 0, total: 0 });
 
-        const html = rows
+        const html = allClsRows
             .sort((a, b) => a.name.localeCompare(b.name, 'id'))
             .map(r => {
-                const tot  = r.total;
+                const tot  = r.HADIR + r.IZIN + r.SAKIT + r.ALPA;
                 const pctH = tot > 0 ? Math.round(r.HADIR / tot * 100) : 0;
                 const pctI = tot > 0 ? Math.round(r.IZIN  / tot * 100) : 0;
                 const pctS = tot > 0 ? Math.round(r.SAKIT / tot * 100) : 0;
                 const pctA = tot > 0 ? Math.round(r.ALPA  / tot * 100) : 0;
-                const colH = pctH >= 80 ? 'var(--color-success)' : pctH >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
+                const colH = tot === 0 ? 'var(--color-text-muted)' : pctH >= 80 ? 'var(--color-success)' : pctH >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
                 return `
                 <details class="att-accordion" style="margin-bottom:8px">
                     <summary class="att-accordion-summary">
@@ -2749,85 +2748,26 @@ async function loadKpClsRecap() {
                         body.innerHTML = '<p class="hint" style="padding:8px 16px">Belum ada data kehadiran siswa.</p>';
                         return;
                     }
-                    body.innerHTML = students
-                        .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'))
-                        .map(s => {
-                            const pct   = s.total > 0 ? Math.round(s.HADIR / s.total * 100) : null;
+                    const sortedStu = [...students].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+                    body.innerHTML = sortedStu
+                        .map((s, idx) => {
+                            const tot   = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
+                            const pct   = tot > 0 ? Math.round(s.HADIR / tot * 100) : null;
                             const color = pct === null ? 'var(--color-text-muted)' : pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
                             return `
-                            <details class="att-accordion wz-accordion-inner"
-                                     style="margin:4px 8px 4px 24px"
-                                     data-student-id="${esc(s.student_id)}"
-                                     data-date-start="${esc(dStart ?? '')}"
-                                     data-date-end="${esc(dEnd ?? '')}">
-                                <summary class="att-accordion-summary">
-                                    <span class="att-acc-name">
-                                        ${esc(s.full_name)}
-                                        <span class="sub-label" style="margin-left:4px">${esc(s.nis)}</span>
-                                    </span>
-                                    <span style="color:${color};font-weight:600">
-                                        ${pct !== null ? pct + '%' : '—'}
-                                    </span>
-                                </summary>
-                                <div style="padding:4px 0">
-                                    <p class="hint" style="padding:8px 24px">Memuat sesi…</p>
-                                </div>
-                            </details>`;
+                            <div style="display:flex;align-items:center;gap:8px;padding:6px 16px;border-bottom:1px solid var(--color-border,#e5e7eb)">
+                                <span style="min-width:24px;font-size:11px;color:var(--color-text-muted);text-align:right;flex-shrink:0">${idx + 1}</span>
+                                <span style="flex:1;font-size:13px">${esc(s.full_name)} <span class="sub-label">${esc(s.nis ?? '')}</span></span>
+                                <span style="display:flex;gap:10px;align-items:center;font-size:11px;font-weight:500;flex-shrink:0">
+                                    <span style="color:var(--color-success)">${s.HADIR}H</span>
+                                    <span style="color:var(--color-warning,#f59e0b)">${s.IZIN}I</span>
+                                    <span style="color:var(--color-primary)">${s.SAKIT}S</span>
+                                    <span style="color:var(--color-danger)">${s.ALPA}A</span>
+                                    <span style="color:${color};font-weight:700;min-width:36px;text-align:right">${pct !== null ? pct + '%' : '—'}</span>
+                                </span>
+                            </div>`;
                         }).join('');
 
-                    body.querySelectorAll('details[data-student-id]').forEach(stuDet => {
-                        stuDet.addEventListener('toggle', async () => {
-                            if (!stuDet.open) return;
-                            const sBody = stuDet.querySelector('div');
-                            if (!sBody || sBody.dataset.loaded) return;
-                            sBody.dataset.loaded = '1';
-                            const sid = stuDet.dataset.studentId;
-                            const ds  = stuDet.dataset.dateStart || null;
-                            const de  = stuDet.dataset.dateEnd   || null;
-                            if (!ds || !de) {
-                                sBody.innerHTML = '<p class="hint" style="padding:8px 24px">Pilih rentang tanggal untuk melihat detail sesi. Untuk data lengkap, gunakan fitur Unduh Excel.</p>';
-                                return;
-                            }
-                            try {
-                                const sessions = await getStudentAttendanceSessions(sid, ds, de);
-                                if (!sessions.length) {
-                                    sBody.innerHTML = '<p class="hint" style="padding:8px 24px">Belum ada sesi tercatat.</p>';
-                                    return;
-                                }
-                                const STATUS_COLOR = {
-                                    HADIR: 'var(--color-success)',
-                                    IZIN:  'var(--color-warning,#f59e0b)',
-                                    SAKIT: 'var(--color-primary)',
-                                    ALPA: 'var(--color-danger)',
-                                };
-                                const STATUS_LABEL = { HADIR: 'Hadir', IZIN: 'Izin', SAKIT: 'Sakit', ALPA: 'Alpa' };
-                                 const grouped = [];
-                                 const seen = new Set();
-                                 for (const s of sessions) {
-                                     const key = s.schedule.schedule_id ?? s.attendance_id;
-                                     if (!seen.has(key)) { seen.add(key); grouped.push(s); }
-                                 }
-                                sBody.innerHTML = grouped.map(s => `
-                                    <div style="display:flex;align-items:center;gap:8px;
-                                        padding:7px 24px;border-top:0.5px solid var(--color-border)">
-                                        <span style="font-size:12px;color:var(--color-text-muted);min-width:90px">
-                                            ${esc(s.schedule.session_date)}
-                                        </span>
-                                        <span style="flex:1;font-size:12px;color:var(--color-text-muted)">
-                                             ${esc(s.schedule.subject_label ?? '—')} · ${esc(s.schedule.teacher?.full_name ?? '—')}
-                                             ${s.schedule.session_start ? ` · ${esc(s.schedule.session_start.slice(0, 5))}–${esc((s.schedule.session_end ?? '').slice(0, 5))}` : ''}
-                                        </span>
-                                        <span style="font-size:11px;font-weight:600;
-                                            color:${STATUS_COLOR[s.status] ?? 'var(--color-text-muted)'}">
-                                            ${STATUS_LABEL[s.status] ?? esc(s.status)}
-                                        </span>
-                                    </div>`).join('');
-                            } catch(err) {
-                                 delete sBody.dataset.loaded;
-                                sBody.innerHTML = `<div class="alert alert-danger" style="margin:8px 24px">${esc(fe(err))}</div>`;
-                            }
-                        });
-                    });
                 } catch (err) {
                     delete body.dataset.loaded;
                     body.innerHTML = `<div class="alert alert-danger" style="margin:8px 16px">${esc(fe(err))}</div>`;
