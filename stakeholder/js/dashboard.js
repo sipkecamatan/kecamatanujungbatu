@@ -212,8 +212,10 @@ async function loadKepsekMonitoring(period, academicYear = null, dateStart = nul
         const rincEl = document.getElementById('ks-rincian-siswa');
         if (rincEl) {
             const r = s.rincian_absensi;
-            if (r && s.siswa_total > 0) {
-                rincEl.textContent = `Hadir ${r.hadir_pct ?? 0}% · Sakit ${r.sakit_pct ?? 0}% · Izin ${r.izin_pct ?? 0}% · Alpa ${r.alpa_pct ?? 0}% dari ${s.siswa_total} catatan`;
+            const total = r?.baris ?? 0;
+            if (r && total > 0) {
+                const pct = n => Math.round(100 * (n ?? 0) / total);
+                rincEl.textContent = `Hadir ${pct(r.hadir)}% · Sakit ${pct(r.sakit)}% · Izin ${pct(r.izin)}% · Alpa ${pct(r.alpa)}% dari ${total} catatan`;
             } else {
                 rincEl.textContent = '';
             }
