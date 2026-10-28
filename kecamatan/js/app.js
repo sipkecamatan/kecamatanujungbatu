@@ -99,6 +99,93 @@ function el(tag, props = {}, ...kids) {
   return n;
 }
 const pct = (v) => (v == null ? '—' : `${v}%`);
+
+// ── Grafik per sekolah ───────────────────────────────────────────
+let _grafikChart = null;
+
+function _buildGrafikNarasi(o) {
+  const sekolah = o.sekolah ?? [];
+  const dari = tgl(o.dari), sampai = tgl(o.sampai);
+  const title = `Terlambat &amp; Izin Keluar per Sekolah — ${dari} s/d ${sampai}`;
+
+  if (!sekolah.length) return `<strong>${title}</strong><br>Belum ada sekolah yang membagikan data.`;
+
+  const totalLate  = sekolah.reduce((s, x) => s + (x.terlambat  ?? 0), 0);
+  const totalExit  = sekolah.reduce((s, x) => s + (x.izin_keluar ?? 0), 0);
+
+  function insightTotal() {
+    if (totalLate === 0 && totalExit === 0)
+      return `Sepanjang periode tidak ada catatan keterlambatan maupun izin keluar dari semua sekolah.`;
+    const hari = o.jendela_hari ?? 1;
+    const parts = [];
+    if (totalLate  > 0) parts.push(`${totalLate} keterlambatan (rata-rata ${(totalLate / hari).toFixed(1)}/hari)`);
+    if (totalExit  > 0) parts.push(`${totalExit} izin keluar (rata-rata ${(totalExit / hari).toFixed(1)}/hari)`);
+    const sinyal = (totalLate >= 50 || totalExit >= 50) ? ' — perlu evaluasi kebijakan disiplin di tingkat kecamatan.' : '.';
+    return `Sepanjang periode tercatat ${parts.join(' dan ')}${sinyal}`;
+  }
+
+  function insightTertinggi() {
+    const byLate = [...sekolah].sort((a, b) => (b.terlambat ?? 0) - (a.terlambat ?? 0));
+    const byExit = [...sekolah].sort((a, b) => (b.izin_keluar ?? 0) - (a.izin_keluar ?? 0));
+    const parts = [];
+    const topLate = byLate[0];
+    if (topLate && (topLate.terlambat ?? 0) > 0) {
+      const pctTop = totalLate > 0 ? Math.round(100 * topLate.terlambat / totalLate) : 0;
+      parts.push(`Keterlambatan terbanyak: ${topLate.nama} (${topLate.terlambat} catatan, ${pctTop}% dari total wilayah).`);
+    }
+    const topExit = byExit[0];
+    if (topExit && (topExit.izin_keluar ?? 0) > 0 && topExit.nama !== topLate?.nama) {
+      const pctTop = totalExit > 0 ? Math.round(100 * topExit.izin_keluar / totalExit) : 0;
+      parts.push(`Izin keluar terbanyak: ${topExit.nama} (${topExit.izin_keluar} catatan, ${pctTop}% dari total wilayah).`);
+    }
+    return parts.join(' ') || null;
+  }
+
+  function insightCakupan() {
+    const rendah = sekolah.filter(s => s.cakupan_pct != null && s.cakupan_pct < 50);
+    if (!rendah.length) return null;
+    if (rendah.length === sekolah.length)
+      return `Semua sekolah memiliki cakupan input di bawah 50% — angka terlambat dan izin keluar mungkin belum lengkap.`;
+    return `${rendah.length} dari ${sekolah.length} sekolah memiliki cakupan input di bawah 50% — angka belum mencerminkan kondisi penuh.`;
+  }
+
+  const parts = [insightTotal(), insightTertinggi(), insightCakupan()].filter(Boolean);
+  return `<strong>${title}</strong><br>${parts.join(' ')}`;
+}
+
+function _renderGrafik(o) {
+  const canvas = document.getElementById('grafik-chart');
+  const sekolah = (o.sekolah ?? []).slice().sort((a, b) => (b.terlambat ?? 0) - (a.terlambat ?? 0));
+
+  if (_grafikChart) { _grafikChart.destroy(); _grafikChart = null; }
+
+  const labels   = sekolah.map(s => s.nama);
+  const dataLate = sekolah.map(s => s.terlambat  ?? 0);
+  const dataExit = sekolah.map(s => s.izin_keluar ?? 0);
+  const maxY = Math.max(10, ...dataLate, ...dataExit);
+
+  _grafikChart = new Chart(canvas, {   // eslint-disable-line no-undef
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Terlambat',   data: dataLate, backgroundColor: '#f97316cc', borderColor: '#f97316', borderWidth: 1 },
+        { label: 'Izin keluar', data: dataExit, backgroundColor: '#ec4899cc', borderColor: '#ec4899', borderWidth: 1 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.x} catatan` } },
+      },
+      scales: {
+        x: { min: 0, max: maxY, ticks: { precision: 0, font: { size: 11 } }, grid: { color: '#0001' } },
+        y: { ticks: { font: { size: 11 } } },
+      },
+    },
+  });
+}
 const statusValue = nilaiStatus;
 function statusCell(row, key) {
   const value = statusValue(row, key);
@@ -148,7 +235,8 @@ function hitungRentang() {
 async function loadOverview() {
   setError('app-error', '');
   $('app-loading').hidden = false;
-  $('cards').hidden = $('jenjang-card').hidden = $('sekolah-card').hidden = $('method-card').hidden = $('trend-card').hidden = true;
+  $('cards').hidden = $('grafik-card').hidden = $('jenjang-card').hidden = $('sekolah-card').hidden = $('method-card').hidden = $('trend-card').hidden = true;
+  if (_grafikChart) { _grafikChart.destroy(); _grafikChart = null; }
 
   const r = hitungRentang();
   if (!r) { $('app-loading').hidden = true; setError('app-error', 'Rentang tanggal tidak valid: awal harus sebelum akhir, paling lama 366 hari.'); return; }
@@ -318,6 +406,12 @@ function render() {
       onclick: () => { state.jenjang = j; state.sekolahTampil = 50; render(); },
     }, j === 'SEMUA' ? 'Semua' : j));
   }
+
+  // Grafik
+  const hintEl = $('grafik-hint');
+  hintEl.innerHTML = _buildGrafikNarasi(o);
+  _renderGrafik(o);
+  $('grafik-card').hidden = !(o.sekolah && o.sekolah.length);
 
   renderSchoolList(o);
   $('sekolah-card').hidden = false;

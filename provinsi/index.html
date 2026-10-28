@@ -69,6 +69,18 @@
 
       <section id="cards" class="cards" hidden></section>
 
+      <section class="card" id="grafik-card" hidden>
+        <div class="card-head"><h2>Terlambat &amp; Izin Keluar per Sekolah</h2></div>
+        <p id="grafik-hint" class="grafik-hint muted small"></p>
+        <div class="grafik-wrap">
+          <canvas id="grafik-chart" aria-label="Grafik terlambat dan izin keluar per sekolah"></canvas>
+        </div>
+        <div class="grafik-legend" aria-hidden="true">
+          <span class="grafik-legend-item" style="--c:#f97316">Terlambat</span>
+          <span class="grafik-legend-item" style="--c:#ec4899">Izin keluar</span>
+        </div>
+      </section>
+
       <section class="card" id="jenjang-card" hidden>
         <div class="card-head"><h2>Subtotal per jenjang</h2></div>
         <div class="table-wrap">
@@ -176,6 +188,7 @@
     </form>
   </dialog>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
   <script type="module" src="../kecamatan/js/app.js"></script>
 </body>
 </html>
