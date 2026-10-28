@@ -690,8 +690,8 @@ function renderGuruRekapPage() {
     const container = document.getElementById('guru-rekap-accordion');
     if (!container) return;
 
-    container.innerHTML = [..._guruRekapRows]
-        .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'))
+    const sorted = [..._guruRekapRows].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+    container.innerHTML = buildAttStatCards(sorted) + sorted
         .map((s, idx) => {
             const tot   = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
             const pct   = tot > 0 ? Math.round(s.HADIR / tot * 100) : null;
