@@ -376,6 +376,13 @@
         "rekap-excel.mjs"
       ]
     },
+    "fn_stakeholder_summary": {
+      "berpasangan_dengan": [
+        "stakeholder/js/dashboard.js (loadSummary)",
+        "guru/js/tab-kepsek.js (loadSchoolSummary)"
+      ],
+      "field_pertemuan": "pertemuan_hari_ini = COUNT DISTINCT block_group_id WHERE NORMAL (bukan sesi_hari_ini/COUNT *)"
+    },
     "fn_tu_attendance_recap": {
       "berpasangan_dengan": [
         "tu/js/api.js (fetchAttendanceSummary)"
@@ -473,8 +480,8 @@
   ],
   "state": {
     "last_updated": "2026-10-28",
-    "last_session_commit": "029736a",
-    "migrasi_terpasang_sampai": "20261028010000",
-    "main_sha": "029736a"
+    "last_session_commit": "pending",
+    "migrasi_terpasang_sampai": "20261028020000",
+    "main_sha": "pending"
   }
 }

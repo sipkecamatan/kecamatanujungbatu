@@ -676,6 +676,13 @@ export async function getSchoolStats(academicYear, semester) {
     };
 }
 
+/** Ringkasan sekolah (siswa, staf, kelas, sesi hari ini) — fungsi sama dengan stakeholder. */
+export async function getSchoolSummary() {
+    const { data, error } = await supabase.rpc('fn_stakeholder_summary');
+    if (error) throw error;
+    return data ?? {};
+}
+
 /** Ringkasan agregat pembinaan siswa untuk dashboard Kepala Sekolah (hanya angka; migrasi 20261018180000). */
 export async function getKepsekCaseSummary() {
     const { data, error } = await supabase.rpc('fn_kepsek_case_summary');

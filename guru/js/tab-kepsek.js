@@ -5,7 +5,7 @@
  */
 import {
     listSchoolAdmins, addSchoolAdmin, removeSchoolAdmin,
-    getKepsekMonitoring, getKepsekCaseSummary,
+    getKepsekMonitoring, getKepsekCaseSummary, getSchoolSummary,
     getRegionSharingStatus, setRegionSharingLevel,
 } from './api.js';
 import { pasangNilaiPimpinan } from './nilai-pimpinan-ui.js';
@@ -84,8 +84,11 @@ export async function initKepsekTab({ currentUser, config }) {
         document.getElementById('ks-range-end').value   = localDateStr();
     }
 
-    await loadKepsekMonitoring('7_hari', { config });
-    await loadKepsekKasusRingkasan();
+    await Promise.all([
+        loadSchoolSummary(),
+        loadKepsekMonitoring('7_hari', { config }),
+        loadKepsekKasusRingkasan(),
+    ]);
     await initKsAdminTab({ currentUser });
     await initKsRegionSharing();
 }
@@ -214,6 +217,24 @@ function _renderKepsekChart(chartData, byMonth) {
             },
         },
     });
+}
+
+function fmtNum(n) { return (n ?? 0).toLocaleString('id-ID'); }
+
+async function loadSchoolSummary() {
+    try {
+        const s = await getSchoolSummary();
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        set('ks-sum-siswa',      fmtNum(s.total_siswa));
+        set('ks-sum-pkl',        fmtNum(s.total_pkl));
+        set('ks-sum-staf',       fmtNum(s.total_staf));
+        set('ks-sum-program',    fmtNum(s.total_program));
+        set('ks-sum-kelas',      fmtNum(s.total_kelas));
+        set('ks-sum-sesi',       fmtNum(s.pertemuan_hari_ini));
+        set('ks-sum-hadir-hari', fmtNum(s.hadir_hari_ini));
+    } catch (err) {
+        console.error('[kepsek summary]', err);
+    }
 }
 
 async function loadKepsekKasusRingkasan() {
