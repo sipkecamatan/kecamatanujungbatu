@@ -162,10 +162,11 @@ async function loadSummary() {
 }
 
 function clearMonitoring() {
-    for (const id of ['ks-pct-siswa', 'ks-pct-guru', 'ks-count-late', 'ks-count-exits']) {
-        document.getElementById(id).textContent = '—';
+    for (const id of ['ks-pct-hadir','ks-pct-sakit','ks-pct-izin-siswa','ks-pct-alpa','ks-pct-late','ks-pct-exits','ks-pct-guru']) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '—';
     }
-    for (const id of ['ks-detail-siswa', 'ks-detail-guru', 'ks-chart-hint', 'ks-rincian-siswa']) {
+    for (const id of ['ks-sub-hadir','ks-sub-sakit','ks-sub-izin-siswa','ks-sub-alpa','ks-sub-late','ks-sub-exits','ks-sub-guru','ks-chart-hint']) {
         const el = document.getElementById(id);
         if (el) el.textContent = '';
     }
@@ -180,46 +181,42 @@ async function loadKepsekMonitoring(period, academicYear = null, dateStart = nul
     if (_accessEnded) return;
     _monitoringFilter = { period, academicYear, dateStart, dateEnd };
     const request = ++_monitoringRequest;
-    const errEl    = document.getElementById('ks-monitoring-error');
-    const pctSiswa = document.getElementById('ks-pct-siswa');
-    const pctGuru  = document.getElementById('ks-pct-guru');
-    const detSiswa = document.getElementById('ks-detail-siswa');
-    const detGuru  = document.getElementById('ks-detail-guru');
-    const hintEl   = document.getElementById('ks-chart-hint');
+    const errEl  = document.getElementById('ks-monitoring-error');
+    const hintEl = document.getElementById('ks-chart-hint');
 
     clearMonitoring();
-    pctSiswa.textContent = '…';
-    pctGuru.textContent  = '…';
-    detSiswa.textContent = '';
-    detGuru.textContent  = '';
-    errEl.style.display  = 'none';
+    ['ks-pct-hadir','ks-pct-guru'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '…'; });
+    errEl.style.display = 'none';
 
     try {
         const d = await getKepsekMonitoring(period, academicYear, dateStart, dateEnd);
         if (request !== _monitoringRequest) return;
         const s = d.summary ?? {};
 
-        pctSiswa.textContent = monitoringPct(s.pct_siswa, s.siswa_total);
-        pctGuru.textContent  = monitoringPct(s.pct_guru, s.guru_total);
-        const countLate  = document.getElementById('ks-count-late');
-        const countExits = document.getElementById('ks-count-exits');
-        if (countLate)  countLate.textContent  = s.count_late  != null ? s.count_late  + ' siswa' : '—';
-        if (countExits) countExits.textContent = s.count_exits != null ? s.count_exits + ' siswa' : '—';
-        detSiswa.textContent = `${s.siswa_hadir ?? 0} / ${s.siswa_total ?? 0} siswa hadir`;
-        detGuru.textContent  = `${s.guru_hadir  ?? 0} / ${s.guru_total  ?? 0} guru hadir`;
+        const r      = s.rincian_absensi ?? {};
+        const baris  = Number(r.baris ?? 0);
+        const total  = Number(s.siswa_total ?? 0);
 
-        // Rincian breakdown — identik dengan tampilan Kepala Sekolah
-        const rincEl = document.getElementById('ks-rincian-siswa');
-        if (rincEl) {
-            const r = s.rincian_absensi;
-            const total = r?.baris ?? 0;
-            if (r && total > 0) {
-                const pct = n => Math.round(100 * (n ?? 0) / total);
-                rincEl.textContent = `Hadir ${pct(r.hadir)}% · Sakit ${pct(r.sakit)}% · Izin ${pct(r.izin)}% · Alpa ${pct(r.alpa)}% dari ${total} catatan`;
-            } else {
-                rincEl.textContent = '';
-            }
-        }
+        const pctR = (k) => baris > 0 ? Math.round(100 * Number(r[k] ?? 0) / baris) + '%' : '—';
+        const subR = (k) => baris > 0 ? `${r[k] ?? 0} dari ${baris}` : '';
+        const pctE = (n) => total > 0 && n != null ? Math.round(100 * Number(n) / total) + '%' : '—';
+        const subE = (n) => n != null ? `${n} kejadian` : '';
+        const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+        setText('ks-pct-hadir',      pctR('hadir'));
+        setText('ks-sub-hadir',      subR('hadir'));
+        setText('ks-pct-sakit',      pctR('sakit'));
+        setText('ks-sub-sakit',      subR('sakit'));
+        setText('ks-pct-izin-siswa', pctR('izin'));
+        setText('ks-sub-izin-siswa', subR('izin'));
+        setText('ks-pct-alpa',       pctR('alpa'));
+        setText('ks-sub-alpa',       subR('alpa'));
+        setText('ks-pct-late',       pctE(s.count_late));
+        setText('ks-sub-late',       subE(s.count_late));
+        setText('ks-pct-exits',      pctE(s.count_exits));
+        setText('ks-sub-exits',      subE(s.count_exits));
+        setText('ks-pct-guru',       monitoringPct(s.pct_guru, s.guru_total));
+        setText('ks-sub-guru',       `${s.guru_hadir ?? 0} / ${s.guru_total ?? 0} guru`);
 
         const chartData = d.chart ?? [];
         hintEl.textContent = chartData.length === 0
@@ -248,8 +245,6 @@ async function loadKepsekMonitoring(period, academicYear = null, dateStart = nul
         clearMonitoring();
         errEl.textContent   = `Gagal memuat data monitoring: ${err.message ?? err}`;
         errEl.style.display = 'block';
-        pctSiswa.textContent = '—';
-        pctGuru.textContent  = '—';
         console.error('[stakeholder monitoring]', err);
     }
 }

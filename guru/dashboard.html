@@ -1160,26 +1160,41 @@
             </div>
 
             <!-- Kartu monitoring -->
-            <div class="stats-row" style="flex-wrap:nowrap;gap:8px">
-                <div class="stat-card" style="min-width:0;flex:1;font-size:13px">
-                    <span class="stat-value" id="ks-pct-siswa" style="font-size:1.3rem">—</span>
-                    <div class="stat-label">Kehadiran Siswa</div>
-                    <div id="ks-detail-siswa" style="font-size:12px;color:var(--color-text-muted);margin-top:2px"></div>
-                    <div id="ks-rincian-absensi" style="font-size:12px;color:var(--color-text-muted);margin-top:4px"></div>
-                    <div id="ks-rincian-absensi-hint" style="font-size:11px;color:var(--color-text-muted);margin-top:2px"></div>
+            <div class="stats-row" style="flex-wrap:wrap;gap:8px">
+                <div class="stat-card" style="min-width:0;flex:1 1 120px;font-size:13px">
+                    <span class="stat-value" id="ks-pct-hadir" style="font-size:1.3rem">—</span>
+                    <div class="stat-label">Siswa Hadir</div>
+                    <div id="ks-sub-hadir" style="font-size:11px;color:var(--color-text-muted);margin-top:2px"></div>
                 </div>
-                <div class="stat-card" style="min-width:0;flex:1;font-size:13px">
+                <div class="stat-card" style="min-width:0;flex:1 1 120px;font-size:13px">
+                    <span class="stat-value" id="ks-pct-sakit" style="font-size:1.3rem">—</span>
+                    <div class="stat-label">Siswa Sakit</div>
+                    <div id="ks-sub-sakit" style="font-size:11px;color:var(--color-text-muted);margin-top:2px"></div>
+                </div>
+                <div class="stat-card" style="min-width:0;flex:1 1 120px;font-size:13px">
+                    <span class="stat-value" id="ks-pct-izin-siswa" style="font-size:1.3rem">—</span>
+                    <div class="stat-label">Siswa Izin</div>
+                    <div id="ks-sub-izin-siswa" style="font-size:11px;color:var(--color-text-muted);margin-top:2px"></div>
+                </div>
+                <div class="stat-card" style="min-width:0;flex:1 1 120px;font-size:13px">
+                    <span class="stat-value" id="ks-pct-alpa" style="font-size:1.3rem">—</span>
+                    <div class="stat-label">Siswa Alpa</div>
+                    <div id="ks-sub-alpa" style="font-size:11px;color:var(--color-text-muted);margin-top:2px"></div>
+                </div>
+                <div class="stat-card" style="min-width:0;flex:1 1 120px;font-size:13px">
+                    <span class="stat-value" id="ks-pct-late" style="font-size:1.3rem">—</span>
+                    <div class="stat-label">Siswa Terlambat</div>
+                    <div id="ks-sub-late" style="font-size:11px;color:var(--color-text-muted);margin-top:2px"></div>
+                </div>
+                <div class="stat-card" style="min-width:0;flex:1 1 120px;font-size:13px">
+                    <span class="stat-value" id="ks-pct-exits" style="font-size:1.3rem">—</span>
+                    <div class="stat-label">Izin Keluar</div>
+                    <div id="ks-sub-exits" style="font-size:11px;color:var(--color-text-muted);margin-top:2px"></div>
+                </div>
+                <div class="stat-card" style="min-width:0;flex:1 1 120px;font-size:13px">
                     <span class="stat-value" id="ks-pct-guru" style="font-size:1.3rem">—</span>
-                    <div class="stat-label">Kehadiran Guru di Kelas</div>
-                    <div id="ks-detail-guru" style="font-size:12px;color:var(--color-text-muted);margin-top:2px"></div>
-                </div>
-                <div class="stat-card" style="min-width:0;flex:1;font-size:13px">
-                    <span class="stat-value" id="ks-count-late" style="font-size:1.3rem">—</span>
-                    <div class="stat-label">Keterlambatan Siswa</div>
-                </div>
-                <div class="stat-card" style="min-width:0;flex:1;font-size:13px">
-                    <span class="stat-value" id="ks-count-exits" style="font-size:1.3rem">—</span>
-                    <div class="stat-label">Izin Keluar Siswa</div>
+                    <div class="stat-label">Guru di Kelas</div>
+                    <div id="ks-sub-guru" style="font-size:11px;color:var(--color-text-muted);margin-top:2px"></div>
                 </div>
             </div>
 

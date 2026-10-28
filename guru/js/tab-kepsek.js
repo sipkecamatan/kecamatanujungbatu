@@ -106,23 +106,14 @@ function _fmtChartLabel(dateStr, byMonth) {
 }
 
 async function loadKepsekMonitoring(period, { config, ayLalu = null, dateStart = null, dateEnd = null } = {}) {
-    const seq            = ++_ksMonitoringSeq;
-    const errEl          = document.getElementById('ks-monitoring-error');
-    const pctSiswa       = document.getElementById('ks-pct-siswa');
-    const pctGuru        = document.getElementById('ks-pct-guru');
-    const detSiswa       = document.getElementById('ks-detail-siswa');
-    const rincianAbsensi = document.getElementById('ks-rincian-absensi');
-    const rincianHint    = document.getElementById('ks-rincian-absensi-hint');
-    const detGuru        = document.getElementById('ks-detail-guru');
-    const hintEl         = document.getElementById('ks-chart-hint');
-    const countLate      = document.getElementById('ks-count-late');
-    const countExits     = document.getElementById('ks-count-exits');
+    const seq    = ++_ksMonitoringSeq;
+    const errEl  = document.getElementById('ks-monitoring-error');
+    const hintEl = document.getElementById('ks-chart-hint');
 
-    pctSiswa.textContent = '…'; pctGuru.textContent = '…';
-    detSiswa.textContent = ''; rincianAbsensi.textContent = ''; rincianHint.textContent = '';
-    detGuru.textContent  = ''; hintEl.textContent = '';
-    if (countLate)  countLate.textContent  = '…';
-    if (countExits) countExits.textContent = '…';
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    ['ks-pct-hadir','ks-pct-sakit','ks-pct-izin-siswa','ks-pct-alpa','ks-pct-late','ks-pct-exits','ks-pct-guru'].forEach(id => setText(id, '…'));
+    ['ks-sub-hadir','ks-sub-sakit','ks-sub-izin-siswa','ks-sub-alpa','ks-sub-late','ks-sub-exits','ks-sub-guru'].forEach(id => setText(id, ''));
+    hintEl.textContent = '';
     errEl.style.display = 'none';
     if (_ksChart) { _ksChart.destroy(); _ksChart = null; }
 
@@ -131,23 +122,29 @@ async function loadKepsekMonitoring(period, { config, ayLalu = null, dateStart =
         if (seq !== _ksMonitoringSeq) return;
         const s = d.summary ?? {};
 
-        pctSiswa.textContent = (s.pct_siswa != null && !isNaN(s.pct_siswa)) ? s.pct_siswa + '%' : '0%';
-        pctGuru.textContent  = (s.pct_guru  != null && !isNaN(s.pct_guru))  ? s.pct_guru  + '%' : '0%';
-        if (countLate)  countLate.textContent  = s.count_late  != null ? s.count_late  + ' siswa' : '—';
-        if (countExits) countExits.textContent = s.count_exits != null ? s.count_exits + ' siswa' : '—';
-        detSiswa.textContent = `${s.siswa_hadir ?? 0} / ${s.siswa_total ?? 0} siswa hadir`;
-        detGuru.textContent  = `${s.guru_hadir  ?? 0} / ${s.guru_total  ?? 0} guru hadir`;
+        const r     = s.rincian_absensi ?? {};
+        const baris = Number(r.baris ?? 0);
+        const total = Number(s.siswa_total ?? 0);
 
-        const rincian    = s.rincian_absensi ?? {};
-        const barisAbsensi = Number(rincian.baris ?? 0);
-        if (barisAbsensi > 0) {
-            const persen = k => `${(100 * Number(rincian[k] ?? 0) / barisAbsensi).toFixed(1)}% (${Number(rincian[k] ?? 0)})`;
-            rincianAbsensi.textContent = `Hadir ${persen('hadir')} · Sakit ${persen('sakit')} · Izin ${persen('izin')} · Alpa ${persen('alpa')}`;
-            rincianHint.textContent    = `dari ${barisAbsensi} catatan absensi (siswa x sesi) pada periode ini`;
-        } else {
-            rincianAbsensi.textContent = 'Belum ada catatan absensi pada periode ini';
-            rincianHint.textContent    = '';
-        }
+        const pctR = (k) => baris > 0 ? Math.round(100 * Number(r[k] ?? 0) / baris) + '%' : '—';
+        const subR = (k) => baris > 0 ? `${r[k] ?? 0} dari ${baris}` : '';
+        const pctE = (n) => total > 0 && n != null ? Math.round(100 * Number(n) / total) + '%' : '—';
+        const subE = (n) => n != null ? `${n} kejadian` : '';
+
+        setText('ks-pct-hadir',      pctR('hadir'));
+        setText('ks-sub-hadir',      subR('hadir'));
+        setText('ks-pct-sakit',      pctR('sakit'));
+        setText('ks-sub-sakit',      subR('sakit'));
+        setText('ks-pct-izin-siswa', pctR('izin'));
+        setText('ks-sub-izin-siswa', subR('izin'));
+        setText('ks-pct-alpa',       pctR('alpa'));
+        setText('ks-sub-alpa',       subR('alpa'));
+        setText('ks-pct-late',       pctE(s.count_late));
+        setText('ks-sub-late',       subE(s.count_late));
+        setText('ks-pct-exits',      pctE(s.count_exits));
+        setText('ks-sub-exits',      subE(s.count_exits));
+        setText('ks-pct-guru',       (s.pct_guru != null && !isNaN(s.pct_guru)) ? s.pct_guru + '%' : '—');
+        setText('ks-sub-guru',       `${s.guru_hadir ?? 0} / ${s.guru_total ?? 0} guru`);
 
         const chartData = d.chart ?? [];
         hintEl.textContent = chartData.length === 0
@@ -173,10 +170,7 @@ async function loadKepsekMonitoring(period, { config, ayLalu = null, dateStart =
         if (seq !== _ksMonitoringSeq) return;
         errEl.textContent   = `Gagal memuat data: ${fe(err)}`;
         errEl.style.display = 'block';
-        pctSiswa.textContent = '—'; pctGuru.textContent = '—';
-        rincianAbsensi.textContent = ''; rincianHint.textContent = '';
-        if (countLate)  countLate.textContent  = '—';
-        if (countExits) countExits.textContent = '—';
+        ['ks-pct-hadir','ks-pct-sakit','ks-pct-izin-siswa','ks-pct-alpa','ks-pct-late','ks-pct-exits','ks-pct-guru'].forEach(id => setText(id, '—'));
         hintEl.textContent = '';
         if (_ksChart) { _ksChart.destroy(); _ksChart = null; }
         console.error('[kepsek monitoring]', err);
