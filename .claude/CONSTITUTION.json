@@ -434,7 +434,8 @@
     "excel_semua_data": "Excel unduhan di semua tab (Wali, Waka, Kaprodi, BK, TU) mengambil SEMUA data tanpa filter tanggal/status/kelas — bukan data yang sedang ditampilkan di layar",
     "hooks_jq": "jq tidak tersedia di mesin Windows ini — pakai node untuk parsing stdin di hook commands",
     "hooks_settings_watcher": "settings.json baru tidak aktif sampai sesi di-restart atau buka /hooks di UI Claude Code",
-    "rincian_absensi_raw": "fn_kepsek_monitoring mengembalikan rincian_absensi berisi raw count (baris, hadir, sakit, izin, alpa) — BUKAN field _pct; klien wajib hitung sendiri: pct = Math.round(100 * r.hadir / r.baris)"
+    "rincian_absensi_raw": "fn_kepsek_monitoring mengembalikan rincian_absensi berisi raw count (baris, hadir, sakit, izin, alpa) — BUKAN field _pct; klien wajib hitung sendiri: pct = Math.round(100 * r.hadir / r.baris)",
+    "period_server_bukan_klien": "periode preset (hari_ini, 7_hari, minggu_lalu, bulan_lalu) wajib dikirim langsung ke fn_kepsek_monitoring — jangan konversi ke rentang di sisi klien; server pakai now() AT TIME ZONE Asia/Jakarta sehingga tanggal selalu konsisten lintas portal"
   },
   "open_tasks": [
     {
@@ -472,8 +473,8 @@
   ],
   "state": {
     "last_updated": "2026-10-28",
-    "last_session_commit": "ba07e2f",
+    "last_session_commit": "pending",
     "migrasi_terpasang_sampai": "20261028010000",
-    "main_sha": "ba07e2f"
+    "main_sha": "pending"
   }
 }

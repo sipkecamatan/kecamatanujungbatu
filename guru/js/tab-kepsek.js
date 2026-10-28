@@ -102,24 +102,6 @@ function _fmtChartLabel(dateStr, byMonth) {
         : d.getDate() + ' ' + BULAN_ID[d.getMonth()];
 }
 
-function _kepsekLocalRange(period) {
-    const today = new Date();
-    const shift = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
-    const todayStr = localDateStr(today);
-    if (period === 'hari_ini')    return { start: todayStr, end: todayStr };
-    if (period === '7_hari')      return { start: localDateStr(shift(today, -6)), end: todayStr };
-    if (period === 'minggu_lalu') {
-        const daysSinceMonday = (today.getDay() + 6) % 7;
-        const thisMonday = shift(today, -daysSinceMonday);
-        return { start: localDateStr(shift(thisMonday, -7)), end: localDateStr(shift(thisMonday, -1)) };
-    }
-    if (period === 'bulan_lalu') {
-        const firstThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        return { start: localDateStr(new Date(today.getFullYear(), today.getMonth() - 1, 1)), end: localDateStr(shift(firstThisMonth, -1)) };
-    }
-    return null;
-}
-
 async function loadKepsekMonitoring(period, { config, ayLalu = null, dateStart = null, dateEnd = null } = {}) {
     const seq            = ++_ksMonitoringSeq;
     const errEl          = document.getElementById('ks-monitoring-error');
@@ -142,11 +124,7 @@ async function loadKepsekMonitoring(period, { config, ayLalu = null, dateStart =
     if (_ksChart) { _ksChart.destroy(); _ksChart = null; }
 
     try {
-        let _period = period, _dateStart = dateStart, _dateEnd = dateEnd;
-        const localRange = _kepsekLocalRange(period);
-        if (localRange) { _period = 'rentang'; _dateStart = localRange.start; _dateEnd = localRange.end; }
-
-        const d = await getKepsekMonitoring(_period, ayLalu, _dateStart, _dateEnd);
+        const d = await getKepsekMonitoring(period, ayLalu, dateStart, dateEnd);
         if (seq !== _ksMonitoringSeq) return;
         const s = d.summary ?? {};
 
