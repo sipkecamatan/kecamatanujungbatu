@@ -207,44 +207,121 @@ function _buildChartCaption(period, d) {
     // ── Analisis data ────────────────────────────────────────────────────────
     const vals    = key => data.map(p => p[key]).filter(v => v != null && !isNaN(v));
     const first   = key => vals(key)[0];
-    const last    = key => { const v = vals(key); return v[v.length - 1]; };
-    const avg     = key => { const v = vals(key); return v.length ? Math.round(v.reduce((a,b)=>a+b,0)/v.length) : null; };
-    const minVal  = key => Math.min(...vals(key));
-    const maxVal  = key => Math.max(...vals(key));
-    const total   = key => data.reduce((s, p) => s + (p[key] ?? 0), 0);
-    const STABIL  = 3;
+    const last   = key => { const v = vals(key); return v[v.length - 1]; };
+    const avgV   = key => { const v = vals(key); return v.length ? Math.round(v.reduce((a,b)=>a+b,0)/v.length) : null; };
+    const minV   = key => Math.min(...vals(key));
+    const maxV   = key => Math.max(...vals(key));
+    const total  = key => data.reduce((s, p) => s + (p[key] ?? 0), 0);
+    const STABIL = 3;
 
-    function kalimatTren(label, key) {
-        const v = vals(key);
-        if (!v.length) return null;
-        const f = first(key), l = last(key), mn = minVal(key), mx = maxVal(key);
-        if (v.length === 1) return `${label} ${f}%.`;
-        if (mx - mn > 20)   return `${label} berfluktuasi antara ${mn}% dan ${mx}%.`;
-        const delta = l - f;
-        if (Math.abs(delta) < STABIL) return `${label} stabil di sekitar ${avg(key)}%.`;
-        return `${label} ${delta > 0 ? 'naik' : 'turun'} dari ${f}% menjadi ${l}%.`;
+    function insightHadir() {
+        const v = vals('pct_hadir'); if (!v.length) return null;
+        const f = first('pct_hadir'), l = last('pct_hadir'), a = avgV('pct_hadir');
+        const mn = minV('pct_hadir'), mx = maxV('pct_hadir'), delta = l - f;
+        if (v.length === 1) {
+            const absen = 100 - f;
+            return absen <= 0 ? `Kehadiran siswa ${f}% — seluruh siswa hadir.`
+                 : `Kehadiran siswa ${f}% — sekitar 1 dari ${Math.round(100/absen)} siswa tidak hadir.`;
+        }
+        if (mx - mn > 20) return `Kehadiran siswa tidak merata, antara ${mn}% dan ${mx}% — perlu ditelusuri hari-hari dengan angka rendah.`;
+        if (Math.abs(delta) >= STABIL) {
+            return delta > 0
+                ? `Kehadiran siswa membaik dari ${f}% menjadi ${l}% — tren positif.`
+                : `Kehadiran siswa turun dari ${f}% menjadi ${l}% — perlu ditelusuri penyebabnya.`;
+        }
+        if (a >= 90) return `Kehadiran siswa baik, konsisten di atas 90%.`;
+        const absen = 100 - a;
+        const dari = Math.round(100 / absen);
+        return a >= 80
+            ? `Kehadiran siswa ${a}% — rata-rata 1 dari ${dari} siswa tidak hadir setiap hari.`
+            : `Kehadiran siswa ${a}% — di bawah 80%, perlu penanganan segera.`;
+    }
+
+    function insightAlpa() {
+        const v = vals('pct_alpa'); if (!v.length) return null;
+        const f = first('pct_alpa'), l = last('pct_alpa'), a = avgV('pct_alpa');
+        const mn = minV('pct_alpa'), mx = maxV('pct_alpa'), delta = l - f;
+        if (v.length === 1) {
+            return f < 3 ? `Alpa ${f}% — terkendali.`
+                 : f < 7 ? `Alpa ${f}% — perlu dipantau wali kelas.`
+                 :         `Alpa ${f}% — siswa tidak hadir tanpa keterangan, perlu tindak lanjut BK.`;
+        }
+        if (mx - mn > 20) return `Alpa berfluktuasi antara ${mn}% dan ${mx}% — perlu ditelusuri faktor penyebabnya.`;
+        if (Math.abs(delta) >= STABIL) {
+            return delta > 0
+                ? `Alpa naik dari ${f}% menjadi ${l}% — ketidakhadiran tanpa keterangan meningkat, perlu penanganan.`
+                : `Alpa turun dari ${f}% menjadi ${l}% — perbaikan kedisiplinan siswa.`;
+        }
+        return a < 3 ? `Alpa terkendali di sekitar ${a}%.`
+             : a < 7 ? `Alpa ${a}% — perlu dipantau wali kelas dan BK.`
+             :         `Alpa ${a}% — cukup tinggi, perlu tindak lanjut segera.`;
+    }
+
+    function insightSakitIzin() {
+        const vs = vals('pct_sakit'), vi = vals('pct_izin');
+        const parts = [];
+        const tren = (v, f, l, a) => {
+            const delta = l - f;
+            if (Math.abs(delta) >= STABIL) return delta > 0 ? `naik dari ${f}% menjadi ${l}%` : `turun dari ${f}% menjadi ${l}%`;
+            return `stabil di ${a}%`;
+        };
+        if (vs.length) {
+            const f = first('pct_sakit'), l = last('pct_sakit'), a = avgV('pct_sakit');
+            const t = vs.length === 1 ? `${f}%` : tren(vs, f, l, a);
+            parts.push(`Sakit ${t}${a >= 10 && vs.length > 1 ? ' — perlu perhatian kondisi kesehatan siswa' : ''}.`);
+        }
+        if (vi.length) {
+            const f = first('pct_izin'), l = last('pct_izin'), a = avgV('pct_izin');
+            const t = vi.length === 1 ? `${f}%` : tren(vi, f, l, a);
+            parts.push(`Izin ${t}.`);
+        }
+        return parts.join(' ') || null;
+    }
+
+    function insightGuru() {
+        const v = vals('pct_guru'); if (!v.length) return null;
+        const f = first('pct_guru'), l = last('pct_guru'), a = avgV('pct_guru');
+        const mn = minV('pct_guru'), mx = maxV('pct_guru'), delta = l - f;
+        if (v.length === 1) {
+            return f >= 90 ? `Guru di kelas ${f}% — pengisian absensi terlaksana dengan baik.`
+                 : f >= 70 ? `Guru di kelas ${f}% — perlu ditingkatkan.`
+                 :           `Guru di kelas ${f}% — kepatuhan pengisian absensi rendah, perlu pembinaan.`;
+        }
+        if (mx - mn > 20) return `Pengisian absensi guru tidak merata, antara ${mn}% dan ${mx}% — ada hari-hari dengan kepatuhan rendah yang perlu ditelusuri.`;
+        if (Math.abs(delta) >= STABIL) {
+            return delta > 0
+                ? `Guru di kelas naik dari ${f}% menjadi ${l}% — kepatuhan pengisian absensi membaik.`
+                : `Guru di kelas turun dari ${f}% menjadi ${l}% — perlu dorongan pengisian absensi.`;
+        }
+        return a >= 90 ? `Guru di kelas konsisten di atas 90% — pengisian absensi terlaksana dengan baik.`
+             : a >= 70 ? `Guru di kelas rata-rata ${a}% — masih ada ruang peningkatan kepatuhan.`
+             :           `Guru di kelas rata-rata ${a}% — kepatuhan pengisian absensi perlu ditingkatkan.`;
+    }
+
+    function insightLateExit() {
+        const totLate = total('count_late'), totExits = total('count_exits');
+        const hari = data.length;
+        const periodeKata = period === 'hari_ini' ? 'Hari ini' : 'Sepanjang periode';
+        if (totLate === 0 && totExits === 0)
+            return `${periodeKata} tidak ada keterlambatan maupun izin keluar.`;
+        const lateStr  = totLate  === 0 ? null
+            : hari > 1 ? `${totLate} keterlambatan (rata-rata ${(totLate/hari).toFixed(1)}/hari)`
+            :            `${totLate} keterlambatan`;
+        const exitStr  = totExits === 0 ? null
+            : hari > 1 ? `${totExits} izin keluar (rata-rata ${(totExits/hari).toFixed(1)}/hari)`
+            :            `${totExits} izin keluar`;
+        const angka = [lateStr, exitStr].filter(Boolean).join(' dan ');
+        const sinyal = totLate >= 10 || totExits >= 10 ? ' — perlu evaluasi kebijakan disiplin.' : '.';
+        return `${periodeKata} tercatat ${angka}${sinyal}`;
     }
 
     const parts = [
-        kalimatTren('Kehadiran siswa', 'pct_hadir'),
-        kalimatTren('Alpa',            'pct_alpa'),
-        kalimatTren('Sakit',           'pct_sakit'),
-        kalimatTren('Izin',            'pct_izin'),
-        kalimatTren('Guru di kelas',   'pct_guru'),
+        insightHadir(),
+        insightAlpa(),
+        insightSakitIzin(),
+        insightGuru(),
+        insightLateExit(),
     ].filter(Boolean);
-
-    const totLate  = total('count_late');
-    const totExits = total('count_exits');
-    const periodeKata = period === 'hari_ini' ? 'Hari ini' : 'Sepanjang periode';
-    if (totLate === 0 && totExits === 0) {
-        parts.push(`${periodeKata} tidak ada keterlambatan maupun izin keluar.`);
-    } else if (totLate === 0) {
-        parts.push(`${periodeKata} tidak ada keterlambatan, izin keluar ${totExits} kejadian.`);
-    } else if (totExits === 0) {
-        parts.push(`${periodeKata} tercatat ${totLate} keterlambatan, tidak ada izin keluar.`);
-    } else {
-        parts.push(`${periodeKata} tercatat ${totLate} keterlambatan dan ${totExits} izin keluar.`);
-    }
 
     return `<strong>${title}</strong><br>${parts.join(' ')}`;
 }
