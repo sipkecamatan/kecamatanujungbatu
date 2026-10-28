@@ -748,46 +748,63 @@ async function loadGuruRecap() {
             <div id="guru-rekap-accordion"></div>`;
 
         document.getElementById('guru-recap-export').addEventListener('click', async () => {
-            const summaryRows = _guruRekapRows;
-            if (!summaryRows.length) return;
+            const btn   = document.getElementById('guru-recap-export');
+            const start = document.getElementById('guru-recap-start').value;
+            const end   = document.getElementById('guru-recap-end').value;
+            btn.disabled = true;
+            btn.textContent = 'Menyiapkan…';
 
-            const classId   = document.getElementById('guru-recap-class').value;
-            const start     = document.getElementById('guru-recap-start').value;
-            const end       = document.getElementById('guru-recap-end').value;
+            try {
+                const PRIO        = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
+                const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
 
-            const detail = await getClassAttendanceByDate(classId, config.current_academic_year, start || null, end || null, currentUser.user_id);
+                const classes = await getMyClasses(currentUser.user_id, config.current_academic_year, config.current_semester);
+                if (!classes.length) return;
 
-            // Kumpulkan tanggal unik, urut asc
-            const dateSet = new Set(detail.map(r => r.session_date));
-            const dates   = [...dateSet].sort();
+                const wb = XLSX.utils.book_new();
+                const usedNames = new Set();
 
-            // Peta: student_id → tanggal → status (ambil satu per tanggal, prioritas A>S>I>H)
-            const PRIO = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
-            const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
-            const pivot = {};
-            for (const r of detail) {
-                if (!pivot[r.student_id]) pivot[r.student_id] = {};
-                const prev = pivot[r.student_id][r.session_date];
-                if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
-                    pivot[r.student_id][r.session_date] = r.status;
+                await Promise.all(classes.map(async (cls) => {
+                    const [summary, detail] = await Promise.all([
+                        getAttendanceSummaryByStudents(cls.class_id, config.current_academic_year, start || null, end || null, currentUser.user_id),
+                        getClassAttendanceByDate(cls.class_id, config.current_academic_year, start || null, end || null, currentUser.user_id),
+                    ]);
+
+                    const dateSet = new Set(detail.map(r => r.session_date));
+                    const dates   = [...dateSet].sort();
+
+                    const pivot = {};
+                    for (const r of detail) {
+                        if (!pivot[r.student_id]) pivot[r.student_id] = {};
+                        const prev = pivot[r.student_id][r.session_date];
+                        if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
+                            pivot[r.student_id][r.session_date] = r.status;
+                    }
+
+                    const roster   = [...summary].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+                    const header   = ['No', 'Nama', ...dates, 'Persentase'];
+                    const dataRows = roster.map((s, idx) => {
+                        const tot = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
+                        const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) + '%' : '—';
+                        return [idx + 1, s.full_name, ...dates.map(d => STATUS_HURUF[pivot[s.student_id]?.[d]] ?? ''), pct];
+                    });
+
+                    // Nama sheet = nama kelas, maks 31 karakter, unik
+                    let sheetName = (cls.name ?? cls.class_id).slice(0, 31);
+                    for (let n = 2; usedNames.has(sheetName.toLowerCase()); n++) {
+                        const suffix = ` (${n})`;
+                        sheetName = (cls.name ?? cls.class_id).slice(0, 31 - suffix.length) + suffix;
+                    }
+                    usedNames.add(sheetName.toLowerCase());
+
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...dataRows]), sheetName);
+                }));
+
+                XLSX.writeFile(wb, `kehadiran_semua_kelas_${start || 'awal'}_${end || 'akhir'}.xlsx`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Unduh Excel';
             }
-
-            // Siswa urut A-Z
-            const roster = [...summaryRows].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
-
-            // Header
-            const header = ['No', 'Nama', ...dates, 'Persentase'];
-            const dataRows = roster.map((s, idx) => {
-                const tot = s.HADIR + s.IZIN + s.SAKIT + s.ALPA;
-                const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) + '%' : '—';
-                const dateCells = dates.map(d => STATUS_HURUF[pivot[s.student_id]?.[d]] ?? '');
-                return [idx + 1, s.full_name, ...dateCells, pct];
-            });
-
-            const ws = XLSX.utils.aoa_to_sheet([header, ...dataRows]);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Rekap Kehadiran');
-            XLSX.writeFile(wb, `kehadiran_${_guruRekapClassName ?? 'kelas'}_${start}_${end}.xlsx`);
         });
 
         renderGuruRekapPage();
