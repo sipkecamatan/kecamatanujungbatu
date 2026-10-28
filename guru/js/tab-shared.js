@@ -88,3 +88,58 @@ export function fmt(d) {
     if (!d) return '—';
     return new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+export function localDateStr(d = new Date()) {
+    return d.toLocaleDateString('sv-SE');
+}
+
+export function buildAttStatCards(rows, getTot = r => r.HADIR + r.IZIN + r.SAKIT + r.ALPA) {
+    const tot  = rows.reduce((s, r) => s + getTot(r), 0);
+    const h    = rows.reduce((s, r) => s + r.HADIR, 0);
+    const i    = rows.reduce((s, r) => s + r.IZIN, 0);
+    const sk   = rows.reduce((s, r) => s + r.SAKIT, 0);
+    const a    = rows.reduce((s, r) => s + r.ALPA, 0);
+    const pctH = tot > 0 ? Math.round(h  / tot * 100) : 0;
+    const pctI = tot > 0 ? Math.round(i  / tot * 100) : 0;
+    const pctS = tot > 0 ? Math.round(sk / tot * 100) : 0;
+    const pctA = tot > 0 ? Math.round(a  / tot * 100) : 0;
+    const muted = 'var(--color-text-muted)';
+    const colH = tot === 0 ? muted : pctH >= 80 ? 'var(--color-success)' : pctH >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
+    const colI = tot === 0 ? muted : 'var(--color-warning,#f59e0b)';
+    const colS = tot === 0 ? muted : 'var(--color-primary)';
+    const colA = tot === 0 ? muted : 'var(--color-danger)';
+    const lbl  = 'font-size:11px;color:var(--color-text-muted);margin-top:2px';
+    return `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+        <div style="background:var(--color-bg);border:0.5px solid var(--color-border);border-radius:var(--radius);padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:500;color:${colH}">${pctH}%</div>
+            <div style="${lbl}">Hadir</div>
+        </div>
+        <div style="background:var(--color-bg);border:0.5px solid var(--color-border);border-radius:var(--radius);padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:500;color:${colI}">${pctI}%</div>
+            <div style="${lbl}">Izin</div>
+        </div>
+        <div style="background:var(--color-bg);border:0.5px solid var(--color-border);border-radius:var(--radius);padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:500;color:${colS}">${pctS}%</div>
+            <div style="${lbl}">Sakit</div>
+        </div>
+        <div style="background:var(--color-bg);border:0.5px solid var(--color-border);border-radius:var(--radius);padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:500;color:${colA}">${pctA}%</div>
+            <div style="${lbl}">Alpa</div>
+        </div>
+    </div>`;
+}
+
+export function wireSimpleAccordion(cardId) {
+    const card = document.getElementById(cardId);
+    if (!card || card.dataset.accWired) return;
+    const header = card.querySelector('.kp-acc-header');
+    const body   = card.querySelector('.kp-acc-body');
+    if (!header || !body) return;
+    card.dataset.accWired = '1';
+    header.addEventListener('click', () => {
+        const open = card.classList.contains('open');
+        card.classList.toggle('open', !open);
+        body.style.display = open ? 'none' : 'block';
+    });
+}
