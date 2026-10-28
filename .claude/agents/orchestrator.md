@@ -11,12 +11,13 @@ SESSION START:
   2. SCOPE GUARD   → tetapkan batas file yang boleh diubah
 
 DURING WORK:
-  3. IMPLEMENTER   → tulis kode dalam constraint + scope
+  3. IMPLEMENTER        → tulis kode dalam constraint + scope
 
 SESSION END (sebelum commit):
-  4. CONSISTENCY CHECKER → verifikasi komponen berpasangan masih sinkron
-  5. REGRESSION GUARD    → jalankan test relevan, pastikan tidak ada yang rusak
-  6. KNOWLEDGE CAPTURE   → update CONSTITUTION dengan keputusan baru sesi ini
+  4. CONSISTENCY CHECKER   → verifikasi komponen berpasangan masih sinkron
+  5. DATA TRUTH VERIFIER   → verifikasi angka di layar = angka di database (independen)
+  6. REGRESSION GUARD      → jalankan test relevan, pastikan tidak ada yang rusak
+  7. KNOWLEDGE CAPTURE     → update CONSTITUTION dengan keputusan baru sesi ini
 
 COMMIT:
   7. git status — pastikan tidak ada docs/ yang ikut
@@ -29,6 +30,7 @@ COMMIT:
 - Jika ARCHITECT menemukan constraint dilanggar → berhenti, lapor Romo
 - Jika SCOPE GUARD mendeteksi Implementer keluar scope → berhenti, lapor Romo
 - Jika CONSISTENCY CHECKER menemukan ketidaksesuaian → berhenti, kembalikan ke Implementer
+- Jika DATA TRUTH VERIFIER menemukan angka tidak cocok → berhenti, kembalikan ke Implementer
 - Jika REGRESSION GUARD menemukan test gagal → berhenti, kembalikan ke Implementer
 - Jika KNOWLEDGE CAPTURE belum selesai → tidak ada commit
 

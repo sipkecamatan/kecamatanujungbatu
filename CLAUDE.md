@@ -21,6 +21,7 @@ Jalankan `.claude/protocols/session-end.md` — Orchestrator koordinasi Consiste
     scope-guard.md           ← tetapkan batas file yang boleh diubah
     implementer.md           ← tulis kode dalam constraint + scope
     consistency-checker.md   ← verifikasi komponen berpasangan masih sinkron
+    data-truth-verifier.md   ← verifikasi angka di layar = angka di database (independen)
     regression-guard.md      ← jalankan test relevan berdasarkan file yang diubah
     knowledge-capture.md     ← update CONSTITUTION dengan keputusan baru sesi
     ui-role-auditor.md       ← audit tampilan dari perspektif setiap role pengguna
