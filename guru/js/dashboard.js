@@ -766,8 +766,8 @@ async function loadGuruRecap() {
 
                 await Promise.all(classes.map(async (cls) => {
                     const [summary, detail] = await Promise.all([
-                        getAttendanceSummaryByStudents(cls.class_id, config.current_academic_year, start || null, end || null, currentUser.user_id),
-                        getClassAttendanceByDate(cls.class_id, config.current_academic_year, start || null, end || null, currentUser.user_id),
+                        getAttendanceSummaryByStudents(cls.class_id, config.current_academic_year, null, null, currentUser.user_id),
+                        getClassAttendanceByDate(cls.class_id, config.current_academic_year, null, null, currentUser.user_id),
                     ]);
 
                     const dateSet = new Set(detail.map(r => r.session_date));
