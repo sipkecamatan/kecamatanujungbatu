@@ -1653,8 +1653,8 @@ async function initWaliTab() {
             const academicYear = config.current_academic_year;
 
             const [students, detail] = await Promise.all([
-                getWaliAttendanceSummary(classId, academicYear, dateStart, dateEnd, config.current_semester),
-                getClassAttendanceByDate(classId, academicYear, dateStart, dateEnd, null),
+                getWaliAttendanceSummary(classId, academicYear, null, null, config.current_semester),
+                getClassAttendanceByDate(classId, academicYear, null, null, null),
             ]);
 
             // Tanggal unik urut asc
