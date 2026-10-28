@@ -111,6 +111,86 @@
     "Ringkasan harian (cabang codex/ringkasan-harian) dipasang ke produksi — ada risiko kunci baris"
   ],
 
+  "ui_map": {
+    "_sumber": "guru/dashboard.html, student/dashboard.html, parent/portal.html, tu/portal.html, stakeholder/dashboard.html, kecamatan/index.html",
+    "_catatan": "Setiap entry = tab yang terlihat oleh role itu. Section = section-card dalam tab tersebut.",
+
+    "guru": {
+      "Tab Guru (Beranda)": ["Jadwal Mengajar (hari ini / minggu ini)", "Rekap Kehadiran Siswa (filter kelas + tanggal)"],
+      "Tab Jurnal Mengajar": ["Progress Mengajar", "Tulis Catatan", "Riwayat Jurnal", "Panel Penilaian (Perencanaan/Pelaksanaan/Rekap/Nilai Rapor)"],
+      "Tab Piket": ["Input piket (diisi JS — perlu cek tab-piket.js)"],
+      "Tab Observasi Siswa": ["Tulis Catatan Siswa", "Riwayat Catatan Saya"],
+      "Tab Forum Sekolah": ["Daftar posting", "Buat Posting", "Detail posting + komentar"],
+      "Tab Kasus": ["Daftar Kasus", "Detail Kasus", "Timeline Kasus", "Tindakan", "Buat Kasus Baru"]
+    },
+
+    "guru_wali": {
+      "Tab Wali Kelas": ["Rekap Kehadiran Kelas Walian", "Pembinaan Siswa Walian", "Keterlambatan Siswa Walian", "Izin Keluar Siswa Walian"],
+      "_mewarisi": "Semua tab Guru"
+    },
+
+    "guru_piket": {
+      "Tab Piket": ["Input keterlambatan siswa", "Input izin keluar siswa"]
+    },
+
+    "bk": {
+      "Tab BK": ["Rekap Kehadiran (fokus rendah)", "Pembinaan Siswa — BK", "Detail kasus + tindakan BK"],
+      "_mewarisi": "Tab Forum Sekolah, Tab Kasus"
+    },
+
+    "kaprodi": {
+      "Tab Kaprodi": ["Rekap Kehadiran per Kelas Prodi", "Rekap Absensi PKL", "Rekap Nilai per Kelas", "Monitoring Observasi PKL", "Pembinaan Siswa Prodi", "Eskalasi Kasus", "Kasus PKL"]
+    },
+
+    "waka_kesiswaan": {
+      "Tab Waka Kesiswaan": ["Rekap Kehadiran Seluruh Sekolah", "Keterlambatan Seluruh Sekolah", "Pembinaan Siswa — Kesiswaan", "Detail kasus + tindakan Waka"]
+    },
+
+    "waka_kurikulum": {
+      "Tab Waka Kurikulum": ["Sesi Belum Diisi — Hari Ini", "Sesi Belum Diisi — Rentang Waktu"]
+    },
+
+    "waka_humas": {
+      "Tab Waka Humas": ["Daftar Siswa PKL", "Rekap Absensi PKL", "Mitra DUDI", "Observasi dari DUDI", "Kasus PKL"]
+    },
+
+    "kepsek": {
+      "Tab Kepsek": ["Grafik kehadiran sekolah", "Ringkasan Pembinaan", "Status Berbagi Data ke Wilayah", "Panel Admin Sekolah"]
+    },
+
+    "tu": {
+      "Portal TU": ["Jadwal Guru Piket", "Rekap Keterlambatan", "Rekap Izin Keluar", "Rekap Kehadiran (Alpa/Izin/Sakit)", "Forum Sekolah"]
+    },
+
+    "siswa": {
+      "Tab Jadwal Hari Ini": ["Jadwal Pelajaran"],
+      "Tab Kehadiran": ["Rekap Kehadiran", "Riwayat Keterlambatan", "Riwayat Izin Keluar"],
+      "Tab Observasi": ["Catatan dari Guru", "Kasus Tentang Saya"],
+      "Tab PKL": ["Status PKL", "Riwayat Absensi PKL"],
+      "Tab Forum Kelas": ["Daftar posting kelas"],
+      "Tab Nilai": ["Nilai per mata pelajaran"]
+    },
+
+    "orang_tua": {
+      "Portal Orang Tua": ["Informasi PKL (jika anaknya PKL)", "Jadwal Pelajaran", "Kehadiran + Rekap", "Riwayat Keterlambatan", "Riwayat Izin Keluar", "Catatan Guru", "Riwayat Kasus", "Nilai", "Forum Sekolah", "Form Izin Ketidakhadiran"]
+    },
+
+    "stakeholder": {
+      "Dashboard Stakeholder": ["Ringkasan Sekolah", "Monitoring Kehadiran", "Grafik tren kehadiran"]
+    },
+
+    "pegawai_kecamatan": {
+      "Dashboard Kecamatan": ["Subtotal per jenjang", "Daftar Sekolah (datar + pencarian)", "Tren mingguan", "Cara membaca angka", "Ganti kata sandi"]
+    },
+
+    "pegawai_kabupaten": { "_sama_dengan": "pegawai_kecamatan tapi scope kabupaten" },
+    "pegawai_provinsi": { "_sama_dengan": "pegawai_kecamatan tapi scope provinsi" },
+
+    "dudi": {
+      "Portal DUDI": ["Daftar siswa PKL di tempat ini", "Input kehadiran PKL", "Input penilaian siswa PKL", "Observasi siswa"]
+    }
+  },
+
   "test_accounts": {
     "_catatan": "Password TIDAK disimpan di sini — ada di pengelola kata sandi Romo. Akun uji ada di sekolah uji (smauji1 dst.)",
     "guru": "akun guru aktif di sekolah uji",

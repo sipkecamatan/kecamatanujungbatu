@@ -111,8 +111,8 @@ Contoh trigger:
 ### Untuk setiap role yang diaudit:
 
 1. **Baca persona role** dari daftar di atas — pahami konteks dan prioritasnya
-2. **Identifikasi semua tab dan section** yang dimiliki role tersebut
-3. **Untuk setiap section dalam setiap tab**, periksa tiga dimensi:
+2. **Baca `ui_map` di CONSTITUTION.json** untuk daftar tab dan section yang dimiliki role tersebut — jangan menebak
+3. **Untuk setiap section dalam setiap tab** yang terdaftar di `ui_map`, periksa tiga dimensi:
 
    **A. Keterbacaan**
    - Apakah tujuan section ini jelas tanpa membaca panduan?
