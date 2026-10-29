@@ -823,12 +823,42 @@ export async function initObsTab({ currentUser, config, jabatan, LC }) {
     _LC          = LC;
 
     await initObsForm();
+    _initObsHistoryCollapse();
     const moreBtn = document.getElementById('obs-history-more');
     if (moreBtn && moreBtn.dataset.wired !== '1') {
         moreBtn.dataset.wired = '1';
         moreBtn.addEventListener('click', loadMoreObsHistory);
     }
     await loadObsHistory();
+}
+
+function _initObsHistoryCollapse() {
+    const listEl  = document.getElementById('obs-history-list');
+    const moreWrap = document.getElementById('obs-history-more')?.parentElement;
+    const h3 = listEl?.closest('.section-card')?.querySelector('h3');
+    if (!h3 || h3.dataset.collapseWired) return;
+    h3.dataset.collapseWired = '1';
+
+    // Chevron di sebelah kanan judul
+    const chevron = document.createElement('span');
+    chevron.style.cssText = 'font-size:10px;color:var(--color-text-muted);transition:transform .18s;float:right;margin-top:2px';
+    chevron.textContent = '▶';
+    h3.style.cursor = 'pointer';
+    h3.appendChild(chevron);
+
+    // Konten tersembunyi secara default
+    const collapseEls = [listEl, document.getElementById('obs-history-kelas-filter'), moreWrap].filter(Boolean);
+    collapseEls.forEach(el => { el.style.display = 'none'; });
+    let terbuka = false;
+
+    h3.addEventListener('click', () => {
+        terbuka = !terbuka;
+        const filterEl = document.getElementById('obs-history-kelas-filter');
+        [listEl, filterEl, moreWrap].filter(Boolean).forEach(el => {
+            el.style.display = terbuka ? '' : 'none';
+        });
+        chevron.style.transform = terbuka ? 'rotate(90deg)' : '';
+    });
 }
 
 function setObsHistoryNotice(listEl, message, className = 'status-warn') {
@@ -956,26 +986,23 @@ function renderObsKelasFilter(rows, listEl, classMap) {
     if (!wrapper) {
         wrapper = document.createElement('div');
         wrapper.id = wrapperId;
-        wrapper.style.cssText = 'margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center';
+        wrapper.style.cssText = 'margin-bottom:16px';
         listEl.before(wrapper);
     }
 
-    const chips = [{ label: 'Semua Kelas', value: '' }, ...kelasList.map(k => ({ label: k, value: k }))];
-    wrapper.innerHTML = chips.map(c => {
-        const isActive = c.value === _obsHistoryKelasFilter;
-        const style = isActive
-            ? 'background:var(--color-primary);color:#fff;border-color:var(--color-primary)'
-            : 'background:var(--color-bg-alt);color:var(--color-text-muted);border-color:var(--color-border)';
-        return `<button type="button" data-obs-kelas="${esc(c.value)}"
-            style="font-size:12px;font-weight:500;padding:3px 10px;border-radius:20px;border:1px solid;cursor:pointer;${style}">${esc(c.label)}</button>`;
-    }).join('');
+    // Render dropdown identik pola obs-class-filter di section Tulis Catatan
+    wrapper.innerHTML = `<label for="obs-history-kelas" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Filter Kelas</label>
+        <select id="obs-history-kelas" class="input" style="max-width:280px">
+            <option value="">— Semua Kelas —</option>
+            ${kelasList.map(k => `<option value="${esc(k)}"${k === _obsHistoryKelasFilter ? ' selected' : ''}>${esc(k)}</option>`).join('')}
+        </select>`;
 
     if (!wrapper._kelasTerpasang) {
         wrapper._kelasTerpasang = true;
-        wrapper.addEventListener('click', (e) => {
-            const chip = e.target.closest('[data-obs-kelas]');
-            if (!chip) return;
-            _obsHistoryKelasFilter = chip.dataset.obsKelas;
+        wrapper.addEventListener('change', (e) => {
+            const sel = e.target.closest('#obs-history-kelas');
+            if (!sel) return;
+            _obsHistoryKelasFilter = sel.value;
             _obsHistoryPage = 0;
             renderObsHistory(_obsHistoryRows, listEl);
         });
