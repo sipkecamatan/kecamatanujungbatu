@@ -1469,8 +1469,8 @@
                         <h3 style="margin:0">Daftar Kasus</h3>
                         <button class="btn btn-primary btn-sm" id="kasus-new-btn">+ Buat Kasus</button>
                     </div>
-                    <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap">
-                        <select class="input" id="kasus-filter-status" style="width:auto; font-size:13px">
+                    <div style="display:flex; gap:8px; margin-bottom:8px">
+                        <select class="input" id="kasus-filter-status" style="flex:1; font-size:13px">
                             <option value="">Semua Status</option>
                             <option value="OPEN">Buka</option>
                             <option value="UNDER_REVIEW">Ditinjau</option>
@@ -1478,22 +1478,22 @@
                             <option value="MONITORING">Monitoring</option>
                             <option value="CLOSED">Tutup</option>
                         </select>
-                        <select class="input" id="kasus-filter-track" style="width:auto; font-size:13px">
+                        <select class="input" id="kasus-filter-track" style="flex:1; font-size:13px">
                             <option value="">Semua Jalur</option>
                             <option value="SEKOLAH">Sekolah</option>
                             <option value="PKL">PKL</option>
                         </select>
                     </div>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center">
-                        <div style="position:relative; display:inline-block">
-                            <button class="btn btn-secondary btn-sm" id="kasus-template-btn">↓ Unduh Template ▾</button>
+                    <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center">
+                        <div style="position:relative; flex:1">
+                            <button class="btn btn-secondary btn-sm" id="kasus-template-btn" style="width:100%">↓ Unduh Template ▾</button>
                             <div id="kasus-template-menu" style="display:none; position:absolute; top:100%; left:0; z-index:100; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius); min-width:210px; box-shadow:0 4px 12px rgba(0,0,0,0.15)">
                                 <a href="assets/templates/surat-panggilan-ortu.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Panggilan Orang Tua</a>
                                 <a href="assets/templates/surat-pernyataan-siswa.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Pernyataan Siswa</a>
                                 <a href="assets/templates/berita-acara-pembinaan.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Berita Acara Pembinaan</a>
                             </div>
                         </div>
-                        <button class="btn btn-secondary btn-sm" id="kasus-rekap-btn">↓ Unduh Rekap</button>
+                        <button class="btn btn-secondary btn-sm" id="kasus-rekap-btn" style="flex:1">↓ Unduh Rekap</button>
                     </div>
                     <div id="kasus-list-content"><p class="hint">Memuat kasus…</p></div>
                 </div>
