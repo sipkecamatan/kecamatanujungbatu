@@ -71,19 +71,7 @@
 
       <section class="card" id="grafik-card" hidden>
         <div class="card-head"><h2>Tren Kehadiran</h2></div>
-        <div id="grafik-period-toggle" class="ks-period-toggle" role="group" aria-label="Pilih periode">
-          <button class="btn ks-period-btn" data-period="tahun_ajaran_lalu" type="button">Tahun Lalu</button>
-          <button class="btn ks-period-btn" data-period="bulan_lalu"        type="button">Bulan Lalu</button>
-          <button class="btn ks-period-btn" data-period="minggu_lalu"       type="button">Minggu Lalu</button>
-          <button class="btn ks-period-btn" data-period="hari_ini"          type="button">Hari Ini</button>
-          <button class="btn ks-period-btn active" data-period="7_hari"     type="button">7 Hari</button>
-        </div>
-        <p class="muted small" style="text-align:center;margin:.25rem 0">atau pilih rentang bebas</p>
-        <div class="grafik-rentang">
-          <label>Dari <input id="grafik-dari" type="date" /></label>
-          <label>s/d  <input id="grafik-sampai" type="date" /></label>
-          <button id="grafik-terapkan" class="btn" type="button">Tampilkan</button>
-        </div>
+        <div id="grafik-tiles" class="grafik-tiles"></div>
         <p id="grafik-error" class="error" hidden></p>
         <div class="grafik-wrap">
           <canvas id="grafik-chart" aria-label="Grafik tren kehadiran wilayah"></canvas>

@@ -87,12 +87,11 @@ tbody tr.row-jenjang { cursor: pointer; }
 .pw-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
 
 /* Grafik tren kehadiran wilayah */
-.ks-period-toggle { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.ks-period-btn { min-height: 36px; padding: .35rem .75rem; font-size: .88rem; border-color: var(--primary); color: var(--primary); }
-.ks-period-btn.active { background: var(--primary); color: var(--primary-fg); font-weight: 600; }
-.ks-period-btn:disabled { opacity: .4; cursor: not-allowed; }
-.grafik-rentang { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; font-size: .88rem; }
-.grafik-rentang input[type="date"] { width: auto; padding: .4rem .55rem; font-size: .88rem; }
+.grafik-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.grafik-tile { background: var(--muted-bg); border-radius: 10px; padding: 10px 12px; }
+.grafik-tile-v { font-size: 1.4rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.grafik-tile-k { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+.grafik-tile-s { font-size: .75rem; color: var(--muted); }
 .grafik-hint { margin: 10px 0 0; line-height: 1.6; }
 .grafik-wrap { position: relative; height: 280px; margin-top: 12px; }
 .grafik-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }

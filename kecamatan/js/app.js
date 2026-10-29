@@ -296,51 +296,33 @@ async function _loadMonitoring(period, ayLalu = null, dateStart = null, dateEnd 
   hintEl.innerHTML = _buildChartCaption(period, data);
   _renderGrafik(data.chart ?? [], data.by_month);
 
-  // Nonaktifkan Tahun Lalu bila data tidak tersedia
-  const btnTahunLalu = document.querySelector('.ks-period-btn[data-period="tahun_ajaran_lalu"]');
-  if (btnTahunLalu) {
-    const prevAyEnd = _prevAcademicYear() + '-06-30';
-    const noData = !data.data_earliest || data.data_earliest > prevAyEnd;
-    btnTahunLalu.disabled      = noData;
-    btnTahunLalu.style.opacity = noData ? '0.4' : '';
-  }
+}
+function _renderGrafikTiles(o) {
+  const box = $('grafik-tiles');
+  if (!box) return;
+  box.replaceChildren();
+  const t = o.total;
+  const ap = o.ambang_piket;
+  const tile = (label, val, sub) => {
+    const d = document.createElement('div');
+    d.className = 'grafik-tile';
+    d.innerHTML = `<div class="grafik-tile-v">${val}</div><div class="grafik-tile-k">${label}</div>${sub ? `<div class="grafik-tile-s">${sub}</div>` : ''}`;
+    return d;
+  };
+  box.append(
+    tile('Sekolah', o.jumlah_sekolah_dibagikan, 'membagikan data'),
+    t ? tile('Siswa aktif', t.siswa_aktif, 'seluruh sekolah') : tile('Siswa aktif', '—', '≥ 3 sekolah'),
+    t ? tile('Orang tua aktif', t.orang_tua_aktif, 'akun terdaftar') : tile('Orang tua aktif', '—', '≥ 3 sekolah'),
+    t ? tile('Cakupan input', pct(t.cakupan_pct), 'sesi tercatat') : tile('Cakupan input', '—', '≥ 3 sekolah'),
+    t ? tile('Hadir', pct(t.kehadiran_pct), 'dari absensi tercatat') : tile('Hadir', '—', 'data belum memadai'),
+    t ? tile('Sakit', String(statusValue(t, 'sakit_pct')), '') : tile('Sakit', '—', ''),
+    t ? tile('Izin', String(statusValue(t, 'izin_pct')), '') : tile('Izin', '—', ''),
+    t ? tile('Alpa', String(statusValue(t, 'alpa_pct')), '') : tile('Alpa', '—', ''),
+    t ? tile('Terlambat', piket(t.terlambat, ap), 'catatan piket') : tile('Terlambat', '—', '≥ 3 sekolah'),
+    t ? tile('Izin keluar', piket(t.izin_keluar, ap), 'catatan piket') : tile('Izin keluar', '—', '≥ 3 sekolah'),
+  );
 }
 
-function _prevAcademicYear() {
-  const y = new Date().getFullYear();
-  const m = new Date().getMonth(); // 0-based
-  const base = m >= 6 ? y : y - 1;
-  return `${base - 1}/${base}`;
-}
-
-function _wireGrafikControls() {
-  const iso = (d) => d.toISOString().slice(0, 10);
-  $('grafik-dari').value   = iso(new Date(Date.now() - 6 * 86400000));
-  $('grafik-sampai').value = iso(new Date());
-
-  document.getElementById('grafik-period-toggle').addEventListener('click', e => {
-    const btn = e.target.closest('.ks-period-btn');
-    if (!btn || btn.disabled) return;
-    document.querySelectorAll('.ks-period-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const period = btn.dataset.period;
-    const ayLalu = period === 'tahun_ajaran_lalu' ? _prevAcademicYear() : null;
-    _loadMonitoring(period, ayLalu);
-  });
-
-  $('grafik-terapkan').addEventListener('click', () => {
-    const start = $('grafik-dari').value;
-    const end   = $('grafik-sampai').value;
-    if (!start || !end) return;
-    if (start > end) {
-      $('grafik-error').textContent = 'Tanggal awal tidak boleh setelah tanggal akhir.';
-      $('grafik-error').hidden = false;
-      return;
-    }
-    document.querySelectorAll('.ks-period-btn').forEach(b => b.classList.remove('active'));
-    _loadMonitoring('rentang', null, start, end);
-  });
-}
 const statusValue = nilaiStatus;
 function statusCell(row, key) {
   const value = statusValue(row, key);
@@ -418,6 +400,7 @@ async function loadOverview() {
   }
   state.overview = data;
   render();
+  if (data?.jumlah_sekolah_dibagikan) _loadMonitoring('rentang', null, r.dari, r.sampai);
 }
 
 // ── Unduh CSV ────────────────────────────────────────────────────
@@ -562,8 +545,9 @@ function render() {
     }, j === 'SEMUA' ? 'Semua' : j));
   }
 
-  // Grafik tren — tampil bila ada sekolah yang berbagi data
+  // Grafik tren — tampil bila ada sekolah yang berbagi data; tile diisi dari data overview
   $('grafik-card').hidden = !o.jumlah_sekolah_dibagikan;
+  if (o.jumlah_sekolah_dibagikan) _renderGrafikTiles(o);
 
   renderSchoolList(o);
   $('sekolah-card').hidden = false;
@@ -761,17 +745,11 @@ $('pw-form').addEventListener('submit', async (e) => {
   }
 });
 
-let _grafikWired = false;
 async function enterApp() {
   showView('app');
   const { data } = await supabase.auth.getSession();
   if (perluGantiSandi(data.session?.user)) { bukaGantiWajib(); return; }
   await loadOverview();
-  if (!_grafikWired) {
-    _grafikWired = true;
-    _wireGrafikControls();
-    _loadMonitoring('7_hari');
-  }
 }
 
 aturLipat();
