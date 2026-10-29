@@ -430,6 +430,19 @@
         "tenant-isolation.mjs",
         "wizard-reset-guard.mjs"
       ]
+    },
+    "kecamatan/js/app.js": {
+      "dipakai_oleh": [
+        "kecamatan/index.html",
+        "kabupaten/index.html",
+        "provinsi/index.html"
+      ],
+      "berpasangan_dengan": [
+        "supabase/migrations/*_fn_region_overview_range*",
+        "supabase/migrations/*_fn_region_monitoring*",
+        "supabase/migrations/*_fn_region_school_trend_range*"
+      ],
+      "catatan": "satu file JS dipakai bersama tiga tingkat; perubahan HTML grafik-card harus diterapkan ke ketiga index.html; grafik ikut periode overview (tidak ada kontrol terpisah)"
     }
   },
   "jebakan_teknis": {
@@ -450,7 +463,8 @@
     "period_server_bukan_klien": "periode preset (hari_ini, 7_hari, minggu_lalu, bulan_lalu) wajib dikirim langsung ke fn_kepsek_monitoring — jangan konversi ke rentang di sisi klien; server pakai now() AT TIME ZONE Asia/Jakarta sehingga tanggal selalu konsisten lintas portal",
     "migration_jangan_rollback": "file di supabase/migrations/ TIDAK BOLEH diakhiri ROLLBACK — BEGIN/ROLLBACK hanya untuk SQL debug ad-hoc. Supabase menjalankan migration via psql tanpa membungkusnya, sehingga ROLLBACK di akhir file membatalkan seluruh isi migration; Supabase tetap mencatat migration sebagai 'applied' di migration history sehingga db push berikutnya tidak akan re-apply. Jika terlanjur, buat migration baru dengan nama timestamp lebih besar",
     "scope_creep_ui": "Implementer cenderung merapikan CSS/layout sambil lalu saat mengerjakan logika — ini melanggar Scope Guard. Setiap perubahan visual yang tidak diminta harus dianggap bug, bukan perbaikan.",
-    "responsivitas_hp": "Perubahan HTML (struktur DOM) sama berbahayanya dengan perubahan CSS untuk tampilan HP — menambah kolom tabel, wrapper div, atau urutan elemen bisa merusak layout 360px tanpa menyentuh CSS."
+    "responsivitas_hp": "Perubahan HTML (struktur DOM) sama berbahayanya dengan perubahan CSS untuk tampilan HP — menambah kolom tabel, wrapper div, atau urutan elemen bisa merusak layout 360px tanpa menyentuh CSS.",
+    "grafik_ikut_overview": "Dashboard wilayah: grafik Tren Kehadiran tidak boleh punya kontrol periode sendiri — selalu ikut periode overview di topbar. _loadMonitoring dipanggil dari loadOverview() dengan rentang dari hitungRentang(). Tombol periode terpisah di grafik card menyebabkan inkonsistensi 'diatas 30 hari, grafik 7 hari'."
   },
   "open_tasks": [
     {
@@ -488,8 +502,8 @@
   ],
   "state": {
     "last_updated": "2026-10-29",
-    "last_session_commit": "857f249",
+    "last_session_commit": "e74e73e",
     "migrasi_terpasang_sampai": "20261029000000",
-    "main_sha": "52d7ce0"
+    "main_sha": "e74e73e"
   }
 }
