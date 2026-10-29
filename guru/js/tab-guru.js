@@ -955,7 +955,9 @@ const OBS_VIS_LABEL = {
 };
 
 // Kelas aktif yang dipilih guru di filter riwayat catatan ('' = semua kelas)
-let _obsHistoryKelasFilter = '';
+let _obsHistoryKelasFilter    = '';
+// Sentimen aktif ('' = semua, 'NEGATIF' = perlu perhatian, 'POSITIF' = positif)
+let _obsHistorySentimenFilter = '';
 
 function buildObsStudentClassMap() {
     const map = new Map();
@@ -986,23 +988,36 @@ function renderObsKelasFilter(rows, listEl, classMap) {
     if (!wrapper) {
         wrapper = document.createElement('div');
         wrapper.id = wrapperId;
-        wrapper.style.cssText = 'margin-bottom:16px';
+        wrapper.style.cssText = 'margin-bottom:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end';
         listEl.before(wrapper);
     }
 
-    // Render dropdown identik pola obs-class-filter di section Tulis Catatan
-    wrapper.innerHTML = `<label for="obs-history-kelas" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Filter Kelas</label>
-        <select id="obs-history-kelas" class="input" style="max-width:280px">
-            <option value="">— Semua Kelas —</option>
-            ${kelasList.map(k => `<option value="${esc(k)}"${k === _obsHistoryKelasFilter ? ' selected' : ''}>${esc(k)}</option>`).join('')}
-        </select>`;
+    // Dua dropdown sebaris: kelas (kiri) + sentimen (kanan)
+    wrapper.innerHTML = `
+        <div>
+            <label for="obs-history-kelas" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Filter Kelas</label>
+            <select id="obs-history-kelas" class="input" style="max-width:280px">
+                <option value="">— Semua Kelas —</option>
+                ${kelasList.map(k => `<option value="${esc(k)}"${k === _obsHistoryKelasFilter ? ' selected' : ''}>${esc(k)}</option>`).join('')}
+            </select>
+        </div>
+        <div>
+            <label for="obs-history-sentimen" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Sentimen</label>
+            <select id="obs-history-sentimen" class="input" style="max-width:220px">
+                <option value=""${_obsHistorySentimenFilter === '' ? ' selected' : ''}>— Semua —</option>
+                <option value="NEGATIF"${_obsHistorySentimenFilter === 'NEGATIF' ? ' selected' : ''}>Perlu Perhatian</option>
+                <option value="POSITIF"${_obsHistorySentimenFilter === 'POSITIF' ? ' selected' : ''}>Positif</option>
+            </select>
+        </div>`;
 
     if (!wrapper._kelasTerpasang) {
         wrapper._kelasTerpasang = true;
         wrapper.addEventListener('change', (e) => {
-            const sel = e.target.closest('#obs-history-kelas');
-            if (!sel) return;
-            _obsHistoryKelasFilter = sel.value;
+            if (e.target.id === 'obs-history-kelas') {
+                _obsHistoryKelasFilter = e.target.value;
+            } else if (e.target.id === 'obs-history-sentimen') {
+                _obsHistorySentimenFilter = e.target.value;
+            } else return;
             _obsHistoryPage = 0;
             renderObsHistory(_obsHistoryRows, listEl);
         });
@@ -1055,9 +1070,14 @@ function renderObsHistory(rows, listEl) {
 
     renderObsKelasFilter(rows, listEl, classMap);
 
-    const filtered = _obsHistoryKelasFilter
+    let filtered = _obsHistoryKelasFilter
         ? rows.filter(r => classMap.get(r.student_id) === _obsHistoryKelasFilter)
         : rows;
+    if (_obsHistorySentimenFilter) {
+        filtered = filtered.filter(r => _obsHistorySentimenFilter === 'POSITIF'
+            ? r.sentiment !== 'NEGATIF'
+            : r.sentiment === 'NEGATIF');
+    }
 
     if (!filtered.length) {
         listEl.innerHTML = rows.length
