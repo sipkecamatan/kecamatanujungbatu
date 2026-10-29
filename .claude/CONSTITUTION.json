@@ -443,6 +443,22 @@
         "supabase/migrations/*_fn_region_school_trend_range*"
       ],
       "catatan": "satu file JS dipakai bersama tiga tingkat; perubahan HTML grafik-card harus diterapkan ke ketiga index.html; grafik ikut periode overview (tidak ada kontrol terpisah)"
+    },
+    "guru/js/tab-guru.js": {
+      "bergantung_pada": [
+        "guru/js/api.js",
+        "guru/js/tab-shared.js",
+        "guru/js/offline.js",
+        "guru/dashboard.js (_currentUser)"
+      ],
+      "dipakai_oleh": [
+        "guru/dashboard.js (initKasusTab, loadTabContent)"
+      ],
+      "risiko": "_currentUser bisa null jika dashboard.js belum selesai init saat tab-guru.js dipanggil — ensureStudentPool crash di baris 685",
+      "test_relevan": [
+        "tenant-isolation.mjs"
+      ],
+      "catatan": "Perubahan api.js, tab-shared.js, atau dashboard.js WAJIB diuji dampaknya ke tab-guru.js"
     }
   },
   "jebakan_teknis": {
@@ -509,8 +525,8 @@
   ],
   "state": {
     "last_updated": "2026-10-29",
-    "last_session_commit": "4aed59b",
+    "last_session_commit": "ed74551",
     "migrasi_terpasang_sampai": "20261029000000",
-    "main_sha": "4aed59b"
+    "main_sha": "ed74551"
   }
 }
