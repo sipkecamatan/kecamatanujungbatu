@@ -427,10 +427,12 @@ async function unduhExcel() {
   btn.textContent = 'Mengambil data\u2026';
 
   try {
-    const kini = iso(new Date());
+    const kini = new Date();
+    const awal = new Date(kini); awal.setDate(awal.getDate() - 365);
+    const kiniStr = iso(kini), awalStr = iso(awal);
     const { data, error } = await supabase.rpc('fn_region_overview_range', {
-      p_from: '2020-01-01',
-      p_to: kini,
+      p_from: awalStr,
+      p_to: kiniStr,
     });
     if (error) throw error;
 
@@ -440,7 +442,7 @@ async function unduhExcel() {
     XLSX.utils.book_append_sheet(wb, ws, 'Data Wilayah');
 
     const nama = 'SIP-' + String(namaWilayah(o) || 'wilayah').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-               + `-semua-data-sd-${kini}.xlsx`;
+               + `-semua-data-sd-${kiniStr}.xlsx`;
     XLSX.writeFile(wb, nama);
     simpanTerakhirUnduh();
     perbaruiPengingat();
