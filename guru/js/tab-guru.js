@@ -921,45 +921,161 @@ const OBS_VIS_LABEL = {
     PRIVATE:       '🔒 Catatan pribadi',
 };
 
-function renderObsHistory(rows, listEl) {
-    if (!rows.length) {
-        listEl.innerHTML = '<p class="hint">Belum ada catatan yang ditulis.</p>';
+// Kelas aktif yang dipilih guru di filter riwayat catatan ('' = semua kelas)
+let _obsHistoryKelasFilter = '';
+
+function buildObsStudentClassMap() {
+    const map = new Map();
+    for (const s of myStudents) {
+        if (s.student_id && s.class_name) map.set(s.student_id, s.class_name);
+    }
+    return map;
+}
+
+function renderObsKelasFilter(rows, listEl, classMap) {
+    const wrapperId = 'obs-history-kelas-filter';
+    let wrapper = document.getElementById(wrapperId);
+
+    // Kumpulkan kelas unik dari baris riwayat, urutkan
+    const kelasSet = new Set();
+    for (const r of rows) {
+        const kn = classMap.get(r.student_id);
+        if (kn) kelasSet.add(kn);
+    }
+    const kelasList = [...kelasSet].sort();
+
+    // Jika hanya satu kelas atau tidak ada data kelas, sembunyikan filter
+    if (kelasList.length <= 1) {
+        if (wrapper) wrapper.remove();
         return;
     }
-    listEl.innerHTML = rows.map(r => {
-        const nama      = r.student?.full_name ?? '—';
-        const nis       = r.student?.nis ? ` · ${r.student.nis}` : '';
-        const dim       = DIMENSION_LABELS_OBS[r.dimension] ?? r.dimension;
-        const sent      = SENTIMENT_LABELS[r.sentiment]  ?? r.sentiment;
-        const sentColor = SENTIMENT_COLOR[r.sentiment]   ?? 'inherit';
-        const vis       = r.visibility ?? 'SISWA_DAN_ORTU';
-        const visLabel  = OBS_VIS_LABEL[vis] ?? vis;
-        const visColor  = 'var(--color-primary)';
-        const isVoid    = !!r.is_void;
-        const voidStyle = isVoid ? 'opacity:0.55;' : '';
-        return `
-        <div data-obs-id="${esc(r.observation_id)}" data-obs-vis="${esc(vis)}"
-             data-student-id="${esc(r.student_id ?? '')}"
-             data-author-id="${esc(r.author_user_id ?? '')}"
-             data-student-name="${esc(r.student?.full_name ?? '')}"
-             style="border-bottom:0.5px solid var(--color-border);padding:10px 0;font-size:13px;${voidStyle}">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:4px">
-                <strong>${esc(nama)}<span style="font-weight:400;color:var(--color-text-muted)">${esc(nis)}</span></strong>
-                <span style="font-size:11px;color:var(--color-text-muted)">${fmt(r.observed_at)}</span>
+
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = wrapperId;
+        wrapper.style.cssText = 'margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center';
+        listEl.before(wrapper);
+    }
+
+    const chips = [{ label: 'Semua Kelas', value: '' }, ...kelasList.map(k => ({ label: k, value: k }))];
+    wrapper.innerHTML = chips.map(c => {
+        const isActive = c.value === _obsHistoryKelasFilter;
+        const style = isActive
+            ? 'background:var(--color-primary);color:#fff;border-color:var(--color-primary)'
+            : 'background:var(--color-bg-alt);color:var(--color-text-muted);border-color:var(--color-border)';
+        return `<button type="button" data-obs-kelas="${esc(c.value)}"
+            style="font-size:12px;font-weight:500;padding:3px 10px;border-radius:20px;border:1px solid;cursor:pointer;${style}">${esc(c.label)}</button>`;
+    }).join('');
+
+    if (!wrapper._kelasTerpasang) {
+        wrapper._kelasTerpasang = true;
+        wrapper.addEventListener('click', (e) => {
+            const chip = e.target.closest('[data-obs-kelas]');
+            if (!chip) return;
+            _obsHistoryKelasFilter = chip.dataset.obsKelas;
+            renderObsHistory(_obsHistoryRows, listEl);
+        });
+    }
+}
+
+function buildObsKartu(r, classMap) {
+    const nama      = r.student?.full_name ?? '—';
+    const nis       = r.student?.nis ? ` · ${r.student.nis}` : '';
+    const kelas     = classMap.get(r.student_id) ?? '';
+    const dim       = DIMENSION_LABELS_OBS[r.dimension] ?? r.dimension;
+    const vis       = r.visibility ?? 'SISWA_DAN_ORTU';
+    const visLabel  = OBS_VIS_LABEL[vis] ?? vis;
+    const visColor  = 'var(--color-primary)';
+    const isVoid    = !!r.is_void;
+    const voidOpacity = isVoid ? 'opacity:0.55;' : '';
+    const kelasLabel  = kelas ? `<span style="font-size:11px;color:var(--color-text-muted)">${esc(kelas)}</span>` : '';
+    const voidBadge   = isVoid ? `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-danger);padding:6px 0 2px">
+        <span>⊘ ${r.voided_by && r.voided_by === r.author_user_id ? 'Dibatalkan oleh Anda' : 'Disembunyikan'}</span>
+        ${r.void_reason ? `<span style="color:var(--color-text-muted)">— ${esc(r.void_reason)}</span>` : ''}
+    </div>` : '';
+
+    return `<div data-obs-id="${esc(r.observation_id)}" data-obs-vis="${esc(vis)}"
+         data-student-id="${esc(r.student_id ?? '')}"
+         data-author-id="${esc(r.author_user_id ?? '')}"
+         data-student-name="${esc(r.student?.full_name ?? '')}"
+         style="border-bottom:0.5px solid var(--color-border);font-size:13px;${voidOpacity}">
+        <!-- Header kartu (selalu tampil, klik untuk buka/tutup) -->
+        <div data-obs-toggle style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;padding:10px 0 10px;cursor:pointer;user-select:none">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:4px;margin-bottom:3px">
+                    <strong style="font-size:13px">${esc(nama)}</strong>
+                    <span style="font-weight:400;color:var(--color-text-muted);font-size:12px">${esc(nis)}</span>
+                    ${kelasLabel}
+                    <span style="margin-left:auto;font-size:11px;color:var(--color-text-muted);white-space:nowrap">${fmt(r.observed_at)}</span>
+                </div>
+                <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+                    <span style="font-size:11px;padding:2px 7px;border-radius:4px;background:var(--color-bg-alt)">${esc(dim)}</span>
+                    <span style="font-size:11px;padding:2px 7px;border-radius:4px;color:${visColor};background:var(--color-bg-alt)">${visLabel}</span>
+                </div>
             </div>
-            ${isVoid ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:11px;color:var(--color-danger)">
-                <span>⊘ ${r.voided_by && r.voided_by === r.author_user_id ? 'Dibatalkan oleh Anda' : 'Disembunyikan'}</span>
-                ${r.void_reason ? `<span style="color:var(--color-text-muted)">— ${esc(r.void_reason)}</span>` : ''}
-            </div>` : ''}
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center">
-                <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--color-bg-alt)">${esc(dim)}</span>
-                <span style="font-size:11px;padding:2px 8px;border-radius:20px;color:${sentColor};background:var(--color-bg-alt)">${esc(sent)}</span>
-                <span style="font-size:11px;padding:2px 8px;border-radius:20px;color:${visColor};background:var(--color-bg-alt)">${visLabel}</span>
-            </div>
+            <span data-obs-chevron style="font-size:10px;color:var(--color-text-muted);margin-top:3px;flex-shrink:0;transition:transform .18s">▼</span>
+        </div>
+        <!-- Body kartu (tersembunyi saat collapsed) -->
+        <div data-obs-body style="display:none;padding-bottom:10px">
+            ${voidBadge}
             <p style="margin:0 0 6px;white-space:pre-wrap;color:var(--color-text)">${esc(r.content)}</p>
             ${isVoid ? '' : `<button type="button" class="btn btn-sm btn-danger-outline" data-void-obs="${esc(r.observation_id)}">Batalkan catatan</button>`}
+        </div>
+    </div>`;
+}
+
+function renderObsHistory(rows, listEl) {
+    const classMap = buildObsStudentClassMap();
+
+    renderObsKelasFilter(rows, listEl, classMap);
+
+    const filtered = _obsHistoryKelasFilter
+        ? rows.filter(r => classMap.get(r.student_id) === _obsHistoryKelasFilter)
+        : rows;
+
+    if (!filtered.length) {
+        listEl.innerHTML = rows.length
+            ? '<p class="hint">Tidak ada catatan untuk kelas ini.</p>'
+            : '<p class="hint">Belum ada catatan yang ditulis.</p>';
+        return;
+    }
+
+    // Pisahkan: perlu perhatian (NEGATIF) lebih dulu, lalu positif & netral
+    const perluPerhatian = filtered.filter(r => r.sentiment === 'NEGATIF');
+    const lainnya        = filtered.filter(r => r.sentiment !== 'NEGATIF');
+
+    function grupHeader(label, color, count) {
+        return `<div style="display:flex;align-items:center;gap:7px;padding:8px 0 5px;border-top:0.5px solid var(--color-border)">
+            <span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block"></span>
+            <span style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:${color}">${label}</span>
+            <span style="font-size:11px;color:var(--color-text-muted)">${count} catatan</span>
         </div>`;
-    }).join('');
+    }
+
+    let html = '';
+    if (perluPerhatian.length) {
+        html += grupHeader('Perlu Perhatian', 'var(--color-danger)', perluPerhatian.length);
+        html += perluPerhatian.map(r => buildObsKartu(r, classMap)).join('');
+    }
+    if (lainnya.length) {
+        html += grupHeader('Positif', 'var(--color-success)', lainnya.length);
+        html += lainnya.map(r => buildObsKartu(r, classMap)).join('');
+    }
+    listEl.innerHTML = html;
+
+    // Toggle collapse per kartu
+    listEl.querySelectorAll('[data-obs-toggle]').forEach(hdr => {
+        hdr.addEventListener('click', (e) => {
+            if (e.target.closest('[data-void-obs]') || e.target.closest('.obs-void-form')) return;
+            const kartu   = hdr.closest('[data-obs-id]');
+            const body    = kartu?.querySelector('[data-obs-body]');
+            const chevron = kartu?.querySelector('[data-obs-chevron]');
+            if (!body) return;
+            const terbuka = body.style.display !== 'none';
+            body.style.display    = terbuka ? 'none' : 'block';
+            if (chevron) chevron.style.transform = terbuka ? '' : 'rotate(180deg)';
+        });
+    });
 
     if (!listEl._voidTerpasang) {
         listEl._voidTerpasang = true;
