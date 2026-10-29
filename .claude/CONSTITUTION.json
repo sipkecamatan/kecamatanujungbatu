@@ -464,7 +464,8 @@
     "migration_jangan_rollback": "file di supabase/migrations/ TIDAK BOLEH diakhiri ROLLBACK — BEGIN/ROLLBACK hanya untuk SQL debug ad-hoc. Supabase menjalankan migration via psql tanpa membungkusnya, sehingga ROLLBACK di akhir file membatalkan seluruh isi migration; Supabase tetap mencatat migration sebagai 'applied' di migration history sehingga db push berikutnya tidak akan re-apply. Jika terlanjur, buat migration baru dengan nama timestamp lebih besar",
     "scope_creep_ui": "Implementer cenderung merapikan CSS/layout sambil lalu saat mengerjakan logika — ini melanggar Scope Guard. Setiap perubahan visual yang tidak diminta harus dianggap bug, bukan perbaikan.",
     "responsivitas_hp": "Perubahan HTML (struktur DOM) sama berbahayanya dengan perubahan CSS untuk tampilan HP — menambah kolom tabel, wrapper div, atau urutan elemen bisa merusak layout 360px tanpa menyentuh CSS.",
-    "grafik_ikut_overview": "Dashboard wilayah: grafik Tren Kehadiran tidak boleh punya kontrol periode sendiri — selalu ikut periode overview di topbar. _loadMonitoring dipanggil dari loadOverview() dengan rentang dari hitungRentang(). Tombol periode terpisah di grafik card menyebabkan inkonsistensi 'diatas 30 hari, grafik 7 hari'."
+    "grafik_ikut_overview": "Dashboard wilayah: grafik Tren Kehadiran tidak boleh punya kontrol periode sendiri — selalu ikut periode overview di topbar. _loadMonitoring dipanggil dari loadOverview() dengan rentang dari hitungRentang(). Tombol periode terpisah di grafik card menyebabkan inkonsistensi 'diatas 30 hari, grafik 7 hari'.",
+    "narasi_netral": "Narasi _buildChartCaption di semua dashboard (kepsek, stakeholder, wilayah) harus deskriptif-faktual saja: angka, arah tren, rentang variasi. DILARANG: saran tindakan ('perlu dipantau', 'perlu ditelusuri', 'perlu evaluasi'), sebutan pihak ('wali kelas', 'BK'), penilaian subjektif ('cukup tinggi', 'rendah'). Keputusan tindak lanjut adalah hak pembaca, bukan tugas narasi."
   },
   "open_tasks": [
     {
@@ -502,8 +503,8 @@
   ],
   "state": {
     "last_updated": "2026-10-29",
-    "last_session_commit": "e48a1d3",
+    "last_session_commit": "a455735",
     "migrasi_terpasang_sampai": "20261029000000",
-    "main_sha": "e48a1d3"
+    "main_sha": "a455735"
   }
 }
