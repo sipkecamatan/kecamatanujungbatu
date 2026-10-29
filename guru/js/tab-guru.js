@@ -988,27 +988,29 @@ function renderObsKelasFilter(rows, listEl, classMap) {
     if (!wrapper) {
         wrapper = document.createElement('div');
         wrapper.id = wrapperId;
-        wrapper.style.cssText = 'margin-bottom:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end';
+        wrapper.className = 'section-card';
+        wrapper.style.cssText = 'margin-bottom:16px';
         listEl.before(wrapper);
     }
 
-    // Dua dropdown sebaris: kelas (kiri) + sentimen (kanan)
-    wrapper.innerHTML = `
-        <div>
-            <label for="obs-history-kelas" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Filter Kelas</label>
-            <select id="obs-history-kelas" class="input" style="max-width:280px">
+    // Pola identik selector konteks Penilaian: section-card > flex row > .field > .label + .input
+    wrapper.innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="field" style="flex:1;min-width:160px">
+            <label class="label">Filter Kelas</label>
+            <select id="obs-history-kelas" class="input">
                 <option value="">— Semua Kelas —</option>
                 ${kelasList.map(k => `<option value="${esc(k)}"${k === _obsHistoryKelasFilter ? ' selected' : ''}>${esc(k)}</option>`).join('')}
             </select>
         </div>
-        <div>
-            <label for="obs-history-sentimen" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Sentimen</label>
-            <select id="obs-history-sentimen" class="input" style="max-width:220px">
+        <div class="field" style="flex:1;min-width:160px">
+            <label class="label">Sentimen</label>
+            <select id="obs-history-sentimen" class="input">
                 <option value=""${_obsHistorySentimenFilter === '' ? ' selected' : ''}>— Semua —</option>
                 <option value="NEGATIF"${_obsHistorySentimenFilter === 'NEGATIF' ? ' selected' : ''}>Perlu Perhatian</option>
                 <option value="POSITIF"${_obsHistorySentimenFilter === 'POSITIF' ? ' selected' : ''}>Positif</option>
             </select>
-        </div>`;
+        </div>
+    </div>`;
 
     if (!wrapper._kelasTerpasang) {
         wrapper._kelasTerpasang = true;
