@@ -68,7 +68,7 @@ import { initKepsekTab } from './tab-kepsek.js';
 import { initWakaKurTab } from './tab-waka-kurikulum.js';
 import { initForumTab } from './tab-forum.js';
 import {
-    initGuruTab, initObsTab,
+    initGuruTab, initObsTab, setGuruContext,
     updateSyncBanner, runFlush, ensureStudentPool,
     myStudents as _myStudents, isBroadObserver as _isBroadObserver,
     setOnSyncCallback,
@@ -591,10 +591,10 @@ async function loadTabContent(key) {
             case 'waka_humas':  await initWakaHumasTab({ currentUser }); break;
             case 'kepsek':      await initKepsekTab({ currentUser, config }); break;
 
-            case 'kasus':       await initKasusTab(); break;
+            case 'kasus':       setGuruContext({ currentUser, config, jabatan, LC }); await initKasusTab(); break;
             case 'piket':       await initPiketTab({ currentUser }); break;
             case 'jurnal':      await initJurnalTab(); break;
-            case 'observasi':   await initObsTab({ currentUser, config, jabatan, LC }); break;
+            case 'observasi':   setGuruContext({ currentUser, config, jabatan, LC }); await initObsTab({ currentUser, config, jabatan, LC }); break;
             case 'forum':       await initForumTab({ currentUser, config }); break;
         }
     } catch (err) {
@@ -685,7 +685,7 @@ async function initKasusTab() {
     if (_kasusTabBusy) return;
     _kasusTabBusy = true;
     try {
-        await ensureStudentPool(currentUser);
+        await ensureStudentPool();
     } catch (err) {
         showKasusLoadError(err, kasusCtxDefault, () => initKasusTab());
         return;

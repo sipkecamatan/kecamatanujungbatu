@@ -53,6 +53,13 @@ export function setOnSyncCallback(fn) { _onSyncCb = fn; }
 
 // ── Tab Guru ─────────────────────────────────────────────────
 
+export function setGuruContext({ currentUser, config, jabatan, LC }) {
+    if (currentUser !== undefined) _currentUser = currentUser;
+    if (config      !== undefined) _config      = config;
+    if (jabatan     !== undefined) _jabatan     = jabatan;
+    if (LC          !== undefined) _LC          = LC;
+}
+
 export async function initGuruTab({ currentUser, config, jabatan, LC }) {
     _currentUser = currentUser;
     _config      = config;
@@ -679,15 +686,14 @@ export async function runFlush() {
 
 // ── Student pool ──────────────────────────────────────────────
 
-export async function ensureStudentPool(user) {
+export async function ensureStudentPool() {
     if (_studentPoolInit) return;
-    const u = user ?? _currentUser;
     isBroadObserver = _jabatan.some(j => ['bk', 'waka_kesiswaan', 'kepsek'].includes(j));
-    const stuCacheKey = `mystudents-${u.user_id}`;
+    const stuCacheKey = `mystudents-${_currentUser.user_id}`;
     myStudents = _LC.get(stuCacheKey) ?? [];
     try {
         const fresh = await getMyStudents(
-            u.user_id,
+            _currentUser.user_id,
             _config.current_academic_year,
             _config.current_semester
         );
