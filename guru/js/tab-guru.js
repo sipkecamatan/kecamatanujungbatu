@@ -1024,6 +1024,9 @@ function renderObsKelasFilter(rows, listEl, classMap) {
             renderObsHistory(_obsHistoryRows, listEl);
         });
     }
+
+    // Ikut sembunyikan jika section sedang collapsed (filter dibuat setelah collapse di-wire)
+    if (listEl.style.display === 'none') wrapper.style.display = 'none';
 }
 
 function buildObsKartu(r, classMap) {
