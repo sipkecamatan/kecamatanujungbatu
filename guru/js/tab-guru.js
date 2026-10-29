@@ -36,10 +36,12 @@ let _attSavedFlag       = false;
 
 // obs
 let _obsFormInit = false;
-const OBS_HISTORY_PAGE_SIZE = 100;
+const OBS_HISTORY_PAGE_SIZE    = 100;
+const OBS_HISTORY_DISPLAY_SIZE = 10;
 let _obsHistoryRows  = [];
 let _obsHistoryTotal = 0;
 let _obsHistoryBusy  = false;
+let _obsHistoryPage  = 0;   // halaman display saat ini (0-based)
 
 // student pool
 export let myStudents      = [];
@@ -899,6 +901,7 @@ async function loadMoreObsHistory() {
             rows: _obsHistoryRows,
             total: _obsHistoryTotal,
         });
+        _obsHistoryPage = 0;
         renderObsHistory(_obsHistoryRows, listEl);
         updateObsHistoryMore();
     } catch (err) {
@@ -973,6 +976,7 @@ function renderObsKelasFilter(rows, listEl, classMap) {
             const chip = e.target.closest('[data-obs-kelas]');
             if (!chip) return;
             _obsHistoryKelasFilter = chip.dataset.obsKelas;
+            _obsHistoryPage = 0;
             renderObsHistory(_obsHistoryRows, listEl);
         });
     }
@@ -1040,9 +1044,19 @@ function renderObsHistory(rows, listEl) {
         return;
     }
 
-    // Pisahkan: perlu perhatian (NEGATIF) lebih dulu, lalu positif & netral
-    const perluPerhatian = filtered.filter(r => r.sentiment === 'NEGATIF');
-    const lainnya        = filtered.filter(r => r.sentiment !== 'NEGATIF');
+    // Pagination: ambil slice 10 dari seluruh filtered (urutan: NEGATIF dulu, lalu lainnya)
+    const ordered        = [
+        ...filtered.filter(r => r.sentiment === 'NEGATIF'),
+        ...filtered.filter(r => r.sentiment !== 'NEGATIF'),
+    ];
+    const totalHalaman   = Math.ceil(ordered.length / OBS_HISTORY_DISPLAY_SIZE);
+    _obsHistoryPage      = Math.min(_obsHistoryPage, Math.max(0, totalHalaman - 1));
+    const start          = _obsHistoryPage * OBS_HISTORY_DISPLAY_SIZE;
+    const halaman        = ordered.slice(start, start + OBS_HISTORY_DISPLAY_SIZE);
+
+    // Pisahkan slice halaman ini ke grup sentimen
+    const perluPerhatian = halaman.filter(r => r.sentiment === 'NEGATIF');
+    const lainnya        = halaman.filter(r => r.sentiment !== 'NEGATIF');
 
     function grupHeader(label, color, count) {
         return `<div style="display:flex;align-items:center;gap:7px;padding:8px 0 5px;border-top:0.5px solid var(--color-border)">
@@ -1061,7 +1075,27 @@ function renderObsHistory(rows, listEl) {
         html += grupHeader('Positif', 'var(--color-success)', lainnya.length);
         html += lainnya.map(r => buildObsKartu(r, classMap)).join('');
     }
+
+    // Navigasi halaman ← →
+    if (totalHalaman > 1) {
+        const prevDis = _obsHistoryPage === 0 ? 'opacity:.35;cursor:default;pointer-events:none' : 'cursor:pointer';
+        const nextDis = _obsHistoryPage >= totalHalaman - 1 ? 'opacity:.35;cursor:default;pointer-events:none' : 'cursor:pointer';
+        html += `<div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:14px 0 2px">
+            <button type="button" data-obs-prev style="background:none;border:1px solid var(--color-border);border-radius:6px;padding:4px 12px;font-size:16px;color:var(--color-text);${prevDis}">&#8592;</button>
+            <span style="font-size:12px;color:var(--color-text-muted);min-width:48px;text-align:center">${_obsHistoryPage + 1} / ${totalHalaman}</span>
+            <button type="button" data-obs-next style="background:none;border:1px solid var(--color-border);border-radius:6px;padding:4px 12px;font-size:16px;color:var(--color-text);${nextDis}">&#8594;</button>
+        </div>`;
+    }
+
     listEl.innerHTML = html;
+
+    // Navigasi halaman
+    listEl.querySelector('[data-obs-prev]')?.addEventListener('click', () => {
+        if (_obsHistoryPage > 0) { _obsHistoryPage--; renderObsHistory(_obsHistoryRows, listEl); }
+    });
+    listEl.querySelector('[data-obs-next]')?.addEventListener('click', () => {
+        if (_obsHistoryPage < totalHalaman - 1) { _obsHistoryPage++; renderObsHistory(_obsHistoryRows, listEl); }
+    });
 
     // Toggle collapse per kartu
     listEl.querySelectorAll('[data-obs-toggle]').forEach(hdr => {
