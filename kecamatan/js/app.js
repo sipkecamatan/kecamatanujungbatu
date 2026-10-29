@@ -297,32 +297,6 @@ async function _loadMonitoring(period, ayLalu = null, dateStart = null, dateEnd 
   _renderGrafik(data.chart ?? [], data.by_month);
 
 }
-function _renderGrafikTiles(o) {
-  const box = $('grafik-tiles');
-  if (!box) return;
-  box.replaceChildren();
-  const t = o.total;
-  const ap = o.ambang_piket;
-  const tile = (label, val, sub) => {
-    const d = document.createElement('div');
-    d.className = 'grafik-tile';
-    d.innerHTML = `<div class="grafik-tile-v">${val}</div><div class="grafik-tile-k">${label}</div>${sub ? `<div class="grafik-tile-s">${sub}</div>` : ''}`;
-    return d;
-  };
-  box.append(
-    tile('Sekolah', o.jumlah_sekolah_dibagikan, 'membagikan data'),
-    t ? tile('Siswa aktif', t.siswa_aktif, 'seluruh sekolah') : tile('Siswa aktif', '—', '≥ 3 sekolah'),
-    t ? tile('Orang tua aktif', t.orang_tua_aktif, 'akun terdaftar') : tile('Orang tua aktif', '—', '≥ 3 sekolah'),
-    t ? tile('Cakupan input', pct(t.cakupan_pct), 'sesi tercatat') : tile('Cakupan input', '—', '≥ 3 sekolah'),
-    t ? tile('Hadir', pct(t.kehadiran_pct), 'dari absensi tercatat') : tile('Hadir', '—', 'data belum memadai'),
-    t ? tile('Sakit', String(statusValue(t, 'sakit_pct')), '') : tile('Sakit', '—', ''),
-    t ? tile('Izin', String(statusValue(t, 'izin_pct')), '') : tile('Izin', '—', ''),
-    t ? tile('Alpa', String(statusValue(t, 'alpa_pct')), '') : tile('Alpa', '—', ''),
-    t ? tile('Terlambat', piket(t.terlambat, ap), 'catatan piket') : tile('Terlambat', '—', '≥ 3 sekolah'),
-    t ? tile('Izin keluar', piket(t.izin_keluar, ap), 'catatan piket') : tile('Izin keluar', '—', '≥ 3 sekolah'),
-  );
-}
-
 const statusValue = nilaiStatus;
 function statusCell(row, key) {
   const value = statusValue(row, key);
@@ -547,7 +521,6 @@ function render() {
 
   // Grafik tren — tampil bila ada sekolah yang berbagi data; tile diisi dari data overview
   $('grafik-card').hidden = !o.jumlah_sekolah_dibagikan;
-  if (o.jumlah_sekolah_dibagikan) _renderGrafikTiles(o);
 
   renderSchoolList(o);
   $('sekolah-card').hidden = false;
