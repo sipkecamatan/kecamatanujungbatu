@@ -374,29 +374,24 @@ async function loadOverview() {
 
 // ── Unduh CSV ────────────────────────────────────────────────────
 // Sel yang diawali = + - @ atau tab dipaksa menjadi teks agar tidak dibaca sebagai rumus.
-function selCsv(v) {
-  let s = v == null ? '' : String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
-  return /[",\n\r;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-}
-const barisCsv = (arr) => arr.map(selCsv).join(',');
-const piketCsv = (v, ambang) => (v == null ? `< ${ambang ?? 5}` : v);
+const piketXl = (v, ambang) => (v == null ? `< ${ambang ?? 5}` : v);
+const statusXl = (obj, k) => obj[k] == null ? '' : obj[k];
 
-function bangunCsv(o) {
+function bangunBaris(o) {
   const dibuat = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
   const baris = [
     ['SIP - Dashboard Wilayah'],
     ['Wilayah', namaWilayah(o)],
-    ['Periode', `${o.dari} s.d. ${o.sampai} (${o.jendela_hari} hari)`],
+    ['Periode data', `${o.dari} s.d. ${o.sampai} (${o.jendela_hari} hari)`],
     ['Diunduh', dibuat],
     ['Catatan', `Angka agregat dari sekolah yang disetujui kepala sekolah; satuan absensi adalah catatan siswa x sesi. Tidak memuat nama atau identitas siswa. Total tampil bila minimal 3 sekolah; status absensi 1-4 ditulis "< 5"; persentase kosong bila cakupan input di bawah ${o.ambang_cakupan_pct}%.`],
     [],
+    ['TOTAL'],
   ];
-  baris.push(['TOTAL']);
   if (o.total) {
     baris.push(['Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Hadir (%)', 'Sakit (%)', 'Izin (%)', 'Alpa (%)', 'Terlambat', 'Izin keluar']);
-    baris.push([o.total.siswa_aktif, o.total.orang_tua_aktif, o.total.cakupan_pct ?? '', statusCsv(o.total, 'kehadiran_pct'), statusCsv(o.total, 'sakit_pct'), statusCsv(o.total, 'izin_pct'), statusCsv(o.total, 'alpa_pct'),
-                piketCsv(o.total.terlambat, o.ambang_piket), piketCsv(o.total.izin_keluar, o.ambang_piket)]);
+    baris.push([o.total.siswa_aktif, o.total.orang_tua_aktif, o.total.cakupan_pct ?? '', statusXl(o.total, 'kehadiran_pct'), statusXl(o.total, 'sakit_pct'), statusXl(o.total, 'izin_pct'), statusXl(o.total, 'alpa_pct'),
+                piketXl(o.total.terlambat, o.ambang_piket), piketXl(o.total.izin_keluar, o.ambang_piket)]);
   } else {
     baris.push(['Tidak ditampilkan: kurang dari 3 sekolah membagikan data']);
   }
@@ -404,8 +399,8 @@ function bangunCsv(o) {
   if (o.per_jenjang && o.per_jenjang.length) {
     baris.push(['Jenjang', 'Sekolah', 'Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Hadir (%)', 'Sakit (%)', 'Izin (%)', 'Alpa (%)', 'Terlambat', 'Izin keluar']);
     for (const j of o.per_jenjang) {
-      baris.push([j.jenjang, j.jumlah_sekolah, j.siswa_aktif, j.orang_tua_aktif, j.cakupan_pct ?? '', statusCsv(j, 'kehadiran_pct'), statusCsv(j, 'sakit_pct'), statusCsv(j, 'izin_pct'), statusCsv(j, 'alpa_pct'),
-                  piketCsv(j.terlambat, o.ambang_piket), piketCsv(j.izin_keluar, o.ambang_piket)]);
+      baris.push([j.jenjang, j.jumlah_sekolah, j.siswa_aktif, j.orang_tua_aktif, j.cakupan_pct ?? '', statusXl(j, 'kehadiran_pct'), statusXl(j, 'sakit_pct'), statusXl(j, 'izin_pct'), statusXl(j, 'alpa_pct'),
+                  piketXl(j.terlambat, o.ambang_piket), piketXl(j.izin_keluar, o.ambang_piket)]);
     }
   } else {
     baris.push(['Tidak ditampilkan: tidak ada jenjang dengan minimal 2 sekolah yang membagikan data']);
@@ -414,25 +409,47 @@ function bangunCsv(o) {
     baris.push([], ['SEKOLAH'],
       ['Sekolah', 'Jenjang', 'Siswa aktif', 'Orang tua aktif', 'Cakupan input (%)', 'Hadir (%)', 'Sakit (%)', 'Izin (%)', 'Alpa (%)', 'Terlambat', 'Izin keluar', 'Status data']);
     for (const s of urutkanSekolah(o.sekolah, 'nama-asc')) {
-      baris.push([s.nama, s.jenjang ?? '', s.siswa_aktif, s.orang_tua_aktif, s.cakupan_pct ?? '', statusCsv(s, 'kehadiran_pct'), statusCsv(s, 'sakit_pct'), statusCsv(s, 'izin_pct'), statusCsv(s, 'alpa_pct'),
-                  piketCsv(s.terlambat, o.ambang_piket), piketCsv(s.izin_keluar, o.ambang_piket),
+      baris.push([s.nama, s.jenjang ?? '', s.siswa_aktif, s.orang_tua_aktif, s.cakupan_pct ?? '', statusXl(s, 'kehadiran_pct'), statusXl(s, 'sakit_pct'), statusXl(s, 'izin_pct'), statusXl(s, 'alpa_pct'),
+                  piketXl(s.terlambat, o.ambang_piket), piketXl(s.izin_keluar, o.ambang_piket),
                   (STATUS[s.status] || STATUS.TIDAK_ADA_JADWAL).label]);
     }
   }
-  return '\uFEFF' + baris.map(barisCsv).join('\r\n') + '\r\n';
+  return baris;
 }
 
-function unduhCsv() {
-  const o = state.overview;
-  if (!o) return;
-  const nama = 'SIP-' + String(namaWilayah(o) || 'wilayah').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-             + `-${o.dari}_${o.sampai}.csv`;
-  const url = URL.createObjectURL(new Blob([bangunCsv(o)], { type: 'text/csv;charset=utf-8' }));
-  const a = el('a', { href: url, download: nama });
-  document.body.append(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  simpanTerakhirUnduh();
-  perbaruiPengingat();
+async function unduhExcel() {
+  const oLayar = state.overview;
+  if (!oLayar) return;
+
+  const btn = $('unduh-btn');
+  const labelAsal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Mengambil data\u2026';
+
+  try {
+    const kini = iso(new Date());
+    const { data, error } = await supabase.rpc('fn_region_overview_range', {
+      p_from: '2020-01-01',
+      p_to: kini,
+    });
+    if (error) throw error;
+
+    const o = data ?? oLayar;
+    const ws = XLSX.utils.aoa_to_sheet(bangunBaris(o));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data Wilayah');
+
+    const nama = 'SIP-' + String(namaWilayah(o) || 'wilayah').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+               + `-semua-data-sd-${kini}.xlsx`;
+    XLSX.writeFile(wb, nama);
+    simpanTerakhirUnduh();
+    perbaruiPengingat();
+  } catch (err) {
+    alert('Gagal mengunduh data: ' + (err.message || err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = labelAsal;
+  }
 }
 
 function perbaruiPengingat() {
@@ -617,8 +634,8 @@ $('logout-btn').addEventListener('click', async () => {
   state.overview = null;
   showView('login');
 });
-$('unduh-btn').addEventListener('click', unduhCsv);
-$('pengingat-unduh').addEventListener('click', unduhCsv);
+$('unduh-btn').addEventListener('click', unduhExcel);
+$('pengingat-unduh').addEventListener('click', unduhExcel);
 $('pengingat-nanti').addEventListener('click', () => { state.pengingatDitunda = true; perbaruiPengingat(); });
 $('sekolah-search').addEventListener('input', (e) => {
   state.kataSekolah = e.target.value;

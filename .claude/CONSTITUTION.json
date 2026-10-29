@@ -499,6 +499,12 @@
       "id": "T005",
       "task": "10 catatan UX tab Jurnal Mengajar",
       "status": "ditunda Romo"
+    },
+    {
+      "id": "T006",
+      "task": "Tile 'Guru di Kelas' di dashboard kepsek — ganti label dan sub-label",
+      "status": "terbuka",
+      "catatan": "Saat ini: 98.4% / 'Guru di Kelas' / '60 / 61 guru'. Angka 98.4% dan label menyesatkan karena dihitung dari guru yang pernah isi absen minimal 1x dalam periode, bukan konsistensi harian. Usulan: angka besar '60 / 61', label 'Guru Isi Absen', sub-label dinamis: '1 guru belum isi sama sekali' / 'Semua guru sudah isi absen'. Menggambarkan antusiasme guru menjalankan absensi di kelas."
     }
   ],
   "state": {
