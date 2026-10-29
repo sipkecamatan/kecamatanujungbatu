@@ -685,7 +685,7 @@ async function initKasusTab() {
     if (_kasusTabBusy) return;
     _kasusTabBusy = true;
     try {
-        await ensureStudentPool();
+        await ensureStudentPool(currentUser);
     } catch (err) {
         showKasusLoadError(err, kasusCtxDefault, () => initKasusTab());
         return;

@@ -679,14 +679,15 @@ export async function runFlush() {
 
 // ── Student pool ──────────────────────────────────────────────
 
-export async function ensureStudentPool() {
+export async function ensureStudentPool(user) {
     if (_studentPoolInit) return;
+    const u = user ?? _currentUser;
     isBroadObserver = _jabatan.some(j => ['bk', 'waka_kesiswaan', 'kepsek'].includes(j));
-    const stuCacheKey = `mystudents-${_currentUser.user_id}`;
+    const stuCacheKey = `mystudents-${u.user_id}`;
     myStudents = _LC.get(stuCacheKey) ?? [];
     try {
         const fresh = await getMyStudents(
-            _currentUser.user_id,
+            u.user_id,
             _config.current_academic_year,
             _config.current_semester
         );
