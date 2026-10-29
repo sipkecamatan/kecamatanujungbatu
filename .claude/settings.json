@@ -1,11 +1,23 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"require('fs').writeFileSync('D:/ribuan_pengguna/CLAUDE/SIP Kecamatan/.claude/.session-marker','0','utf8')\"",
+            "shell": "bash",
+            "statusMessage": "Reset session marker..."
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node -e \"console.log(JSON.stringify({systemMessage:'[SESSION END] Ada file yang diubah? Jalankan session-end.md sebelum commit: Consistency Checker → Data Truth Verifier → Regression Guard → Knowledge Capture'}))\"",
+            "command": "node -e \"console.log(JSON.stringify({systemMessage:'[SESSION END] Ada file yang diubah? Jalankan session-end.md sebelum commit: Consistency Checker \u2192 Data Truth Verifier \u2192 Regression Guard \u2192 Knowledge Capture'}))\"",
             "shell": "bash",
             "statusMessage": "Menampilkan reminder session-end..."
           }
@@ -21,6 +33,29 @@
             "command": "node -e \"let b='';process.stdin.on('data',c=>b+=c);process.stdin.on('end',()=>{const d=JSON.parse(b);const cmd=d.tool_input&&d.tool_input.command||'';if(cmd.includes('git commit')){console.log(JSON.stringify({systemMessage:'[GIT PUSH] Ingat: git push dilakukan ROMO, bukan Claude. Jalankan: git push'}));}})\"",
             "shell": "bash",
             "statusMessage": "Memeriksa apakah perlu reminder git push..."
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require('fs');let b='';process.stdin.on('data',c=>b+=c);process.stdin.on('end',()=>{const d=JSON.parse(b);const fp=(d.tool_input&&d.tool_input.file_path)||'';if(fp.includes('CONSTITUTION')){fs.writeFileSync('D:/ribuan_pengguna/CLAUDE/SIP Kecamatan/.claude/.session-marker','1','utf8');}})\"",
+            "shell": "bash"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require('fs');let b='';process.stdin.on('data',c=>b+=c);process.stdin.on('end',()=>{let m='0';try{m=fs.readFileSync('D:/ribuan_pengguna/CLAUDE/SIP Kecamatan/.claude/.session-marker','utf8').trim();}catch(e){}if(m!=='1'){console.log(JSON.stringify({continue:false,stopReason:'[SCOPE GUARD] CONSTITUTION.json belum dibaca di sesi ini. Baca dulu: .claude/CONSTITUTION.json, lalu jalankan session-start sebelum mengubah file apapun.'}));}})\"",
+            "shell": "bash",
+            "statusMessage": "Memeriksa apakah CONSTITUTION sudah dibaca..."
           }
         ]
       }
