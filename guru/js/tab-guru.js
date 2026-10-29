@@ -984,15 +984,12 @@ function renderObsKelasFilter(rows, listEl, classMap) {
 
 function buildObsKartu(r, classMap) {
     const nama      = r.student?.full_name ?? '—';
-    const nis       = r.student?.nis ? ` · ${r.student.nis}` : '';
-    const kelas     = classMap.get(r.student_id) ?? '';
     const dim       = DIMENSION_LABELS_OBS[r.dimension] ?? r.dimension;
     const vis       = r.visibility ?? 'SISWA_DAN_ORTU';
     const visLabel  = OBS_VIS_LABEL[vis] ?? vis;
     const visColor  = 'var(--color-primary)';
     const isVoid    = !!r.is_void;
     const voidOpacity = isVoid ? 'opacity:0.55;' : '';
-    const kelasLabel  = kelas ? `<span style="font-size:11px;color:var(--color-text-muted)">${esc(kelas)}</span>` : '';
     const voidBadge   = isVoid ? `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-danger);padding:6px 0 2px">
         <span>⊘ ${r.voided_by && r.voided_by === r.author_user_id ? 'Dibatalkan oleh Anda' : 'Disembunyikan'}</span>
         ${r.void_reason ? `<span style="color:var(--color-text-muted)">— ${esc(r.void_reason)}</span>` : ''}
@@ -1007,9 +1004,7 @@ function buildObsKartu(r, classMap) {
         <div data-obs-toggle style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;padding:10px 0 10px;cursor:pointer;user-select:none">
             <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:4px;margin-bottom:3px">
-                    <strong style="font-size:13px">${esc(nama)}</strong>
-                    <span style="font-weight:400;color:var(--color-text-muted);font-size:12px">${esc(nis)}</span>
-                    ${kelasLabel}
+                    <strong>${esc(nama)}</strong>
                     <span style="margin-left:auto;font-size:11px;color:var(--color-text-muted);white-space:nowrap">${fmt(r.observed_at)}</span>
                 </div>
                 <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
