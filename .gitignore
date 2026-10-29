@@ -17,3 +17,4 @@ backup_*.sql
 
 # Catatan kerja dan handoff: lokal saja (repo publik)
 docs/
+.claude/.session-marker
