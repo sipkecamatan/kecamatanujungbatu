@@ -269,18 +269,18 @@ function _buildChartCaption(period, d) {
             return absen <= 0 ? `Kehadiran siswa ${f}% — seluruh siswa hadir.`
                  : `Kehadiran siswa ${f}% — sekitar 1 dari ${Math.round(100/absen)} siswa tidak hadir.`;
         }
-        if (mx - mn > 20) return `Kehadiran siswa tidak merata, antara ${mn}% dan ${mx}% — perlu ditelusuri hari-hari dengan angka rendah.`;
+        if (mx - mn > 20) return `Kehadiran siswa tidak merata, antara ${mn}% dan ${mx}% sepanjang periode.`;
         if (Math.abs(delta) >= STABIL) {
             return delta > 0
-                ? `Kehadiran siswa membaik dari ${f}% menjadi ${l}% — tren positif.`
-                : `Kehadiran siswa turun dari ${f}% menjadi ${l}% — perlu ditelusuri penyebabnya.`;
+                ? `Kehadiran siswa membaik dari ${f}% menjadi ${l}%.`
+                : `Kehadiran siswa turun dari ${f}% menjadi ${l}%.`;
         }
-        if (a >= 90) return `Kehadiran siswa baik, konsisten di atas 90%.`;
+        if (a >= 90) return `Kehadiran siswa konsisten di atas 90%.`;
         const absen = 100 - a;
         const dari = Math.round(100 / absen);
         return a >= 80
             ? `Kehadiran siswa ${a}% — rata-rata 1 dari ${dari} siswa tidak hadir setiap hari.`
-            : `Kehadiran siswa ${a}% — di bawah 80%, perlu penanganan segera.`;
+            : `Kehadiran siswa ${a}% — rata-rata ${absen}% siswa tidak hadir setiap hari.`;
     }
 
     function insightAlpa() {
@@ -288,19 +288,17 @@ function _buildChartCaption(period, d) {
         const f = first('pct_alpa'), l = last('pct_alpa'), a = avgV('pct_alpa');
         const mn = minV('pct_alpa'), mx = maxV('pct_alpa'), delta = l - f;
         if (v.length === 1) {
-            return f < 3 ? `Alpa ${f}% — terkendali.`
-                 : f < 7 ? `Alpa ${f}% — perlu dipantau wali kelas.`
-                 :         `Alpa ${f}% — siswa tidak hadir tanpa keterangan, perlu tindak lanjut BK.`;
+            return f < 3 ? `Alpa ${f}%.`
+                 : f < 7 ? `Alpa ${f}%.`
+                 :         `Alpa ${f}%.`;
         }
-        if (mx - mn > 20) return `Alpa berfluktuasi antara ${mn}% dan ${mx}% — perlu ditelusuri faktor penyebabnya.`;
+        if (mx - mn > 20) return `Alpa berfluktuasi antara ${mn}% dan ${mx}% sepanjang periode.`;
         if (Math.abs(delta) >= STABIL) {
             return delta > 0
-                ? `Alpa naik dari ${f}% menjadi ${l}% — ketidakhadiran tanpa keterangan meningkat, perlu penanganan.`
-                : `Alpa turun dari ${f}% menjadi ${l}% — perbaikan kedisiplinan siswa.`;
+                ? `Alpa naik dari ${f}% menjadi ${l}%.`
+                : `Alpa turun dari ${f}% menjadi ${l}%.`;
         }
-        return a < 3 ? `Alpa terkendali di sekitar ${a}%.`
-             : a < 7 ? `Alpa ${a}% — perlu dipantau wali kelas dan BK.`
-             :         `Alpa ${a}% — cukup tinggi, perlu tindak lanjut segera.`;
+        return `Alpa stabil di sekitar ${a}%.`;
     }
 
     function insightSakitIzin() {
@@ -314,7 +312,7 @@ function _buildChartCaption(period, d) {
         if (vs.length) {
             const f = first('pct_sakit'), l = last('pct_sakit'), a = avgV('pct_sakit');
             const t = vs.length === 1 ? `${f}%` : tren(vs, f, l, a);
-            parts.push(`Sakit ${t}${a >= 10 && vs.length > 1 ? ' — perlu perhatian kondisi kesehatan siswa' : ''}.`);
+            parts.push(`Sakit ${t}.`);
         }
         if (vi.length) {
             const f = first('pct_izin'), l = last('pct_izin'), a = avgV('pct_izin');
@@ -329,19 +327,15 @@ function _buildChartCaption(period, d) {
         const f = first('pct_guru'), l = last('pct_guru'), a = avgV('pct_guru');
         const mn = minV('pct_guru'), mx = maxV('pct_guru'), delta = l - f;
         if (v.length === 1) {
-            return f >= 90 ? `Guru di kelas ${f}% — pengisian absensi terlaksana dengan baik.`
-                 : f >= 70 ? `Guru di kelas ${f}% — perlu ditingkatkan.`
-                 :           `Guru di kelas ${f}% — kepatuhan pengisian absensi rendah, perlu pembinaan.`;
+            return `Guru di kelas ${f}%.`;
         }
-        if (mx - mn > 20) return `Pengisian absensi guru tidak merata, antara ${mn}% dan ${mx}% — ada hari-hari dengan kepatuhan rendah yang perlu ditelusuri.`;
+        if (mx - mn > 20) return `Pengisian absensi guru tidak merata, antara ${mn}% dan ${mx}% sepanjang periode.`;
         if (Math.abs(delta) >= STABIL) {
             return delta > 0
-                ? `Guru di kelas naik dari ${f}% menjadi ${l}% — kepatuhan pengisian absensi membaik.`
-                : `Guru di kelas turun dari ${f}% menjadi ${l}% — perlu dorongan pengisian absensi.`;
+                ? `Guru di kelas naik dari ${f}% menjadi ${l}%.`
+                : `Guru di kelas turun dari ${f}% menjadi ${l}%.`;
         }
-        return a >= 90 ? `Guru di kelas konsisten di atas 90% — pengisian absensi terlaksana dengan baik.`
-             : a >= 70 ? `Guru di kelas rata-rata ${a}% — masih ada ruang peningkatan kepatuhan.`
-             :           `Guru di kelas rata-rata ${a}% — kepatuhan pengisian absensi perlu ditingkatkan.`;
+        return `Guru di kelas rata-rata ${a}%.`;
     }
 
     function insightLateExit() {
@@ -357,8 +351,7 @@ function _buildChartCaption(period, d) {
             : hari > 1 ? `${totExits} izin keluar (rata-rata ${(totExits/hari).toFixed(1)}/hari)`
             :            `${totExits} izin keluar`;
         const angka = [lateStr, exitStr].filter(Boolean).join(' dan ');
-        const sinyal = totLate >= 10 || totExits >= 10 ? ' — perlu evaluasi kebijakan disiplin.' : '.';
-        return `${periodeKata} tercatat ${angka}${sinyal}`;
+        return `${periodeKata} tercatat ${angka}.`;
     }
 
     const parts = [
