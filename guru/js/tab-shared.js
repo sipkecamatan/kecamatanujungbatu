@@ -116,12 +116,12 @@ export function buildAttStatCards(rows, getTot = r => r.HADIR + r.IZIN + r.SAKIT
             <div style="${lbl}">Hadir</div>
         </div>
         <div style="background:var(--color-bg);border:0.5px solid var(--color-border);border-radius:var(--radius);padding:10px;text-align:center">
-            <div style="font-size:20px;font-weight:500;color:${colI}">${pctI}%</div>
-            <div style="${lbl}">Izin</div>
-        </div>
-        <div style="background:var(--color-bg);border:0.5px solid var(--color-border);border-radius:var(--radius);padding:10px;text-align:center">
             <div style="font-size:20px;font-weight:500;color:${colS}">${pctS}%</div>
             <div style="${lbl}">Sakit</div>
+        </div>
+        <div style="background:var(--color-bg);border:0.5px solid var(--color-border);border-radius:var(--radius);padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:500;color:${colI}">${pctI}%</div>
+            <div style="${lbl}">Izin</div>
         </div>
         <div style="background:var(--color-bg);border:0.5px solid var(--color-border);border-radius:var(--radius);padding:10px;text-align:center">
             <div style="font-size:20px;font-weight:500;color:${colA}">${pctA}%</div>
