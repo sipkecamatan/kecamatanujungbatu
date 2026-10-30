@@ -444,6 +444,24 @@
       ],
       "catatan": "satu file JS dipakai bersama tiga tingkat; perubahan HTML grafik-card harus diterapkan ke ketiga index.html; grafik ikut periode overview (tidak ada kontrol terpisah)"
     },
+    "guru/js/tab-wali.js": {
+      "bergantung_pada": [
+        "guru/js/api.js (getWaliAttendanceSummary, getClassAttendanceByDate)",
+        "guru/js/tab-shared.js (buildPertemuanMeta, buildAttStatCards)"
+      ],
+      "excel_sheets": [
+        "RINGKASAN KELAS (dashboard + tren + siswa perlu perhatian)",
+        "ABSENSI SISWA (matriks siswa x pertemuan, dibatasi rentang tanggal)",
+        "REKAP PER SISWA (aggregate + detail ketidakhadiran)",
+        "STATUS PERTEMUAN (daftar pertemuan tercatat)"
+      ],
+      "catatan": "Pertemuan belum diinput guru tidak muncul di data — tidak dihitung alpa. Excel menggunakan filter dateStart/dateEnd yang dipilih pengguna (bukan null/null). Sheet REKAP SISWA x MAPEL ditunda sampai fn_class_attendance_detail mengembalikan kolom mata_pelajaran.",
+      "open_task": "Tambah sheet REKAP SISWA x MAPEL setelah migrasi SQL menambah mata_pelajaran ke fn_class_attendance_detail",
+      "test_relevan": [
+        "wali-attendance-sql.mjs",
+        "wali-kelas.mjs"
+      ]
+    },
     "guru/js/tab-guru.js": {
       "bergantung_pada": [
         "guru/js/api.js",
@@ -472,7 +490,7 @@
     "koordinat_klik": "kerangka tangkapan layar 1568 lebar; skala = 1568 / innerWidth; setelah reload tunggu >=4 dtk",
     "postgrest_404": "404 pada RPC sering berarti galat tipe runtime (enum vs text) bukan tidak ditemukan",
     "excel_pivot_guru": "Excel rekap absensi harus pivot per block_group_id (bukan session_date) — dua pertemuan sehari harus jadi dua kolom terpisah; pakai buildPertemuanMeta dari tab-shared.js",
-    "excel_semua_data": "Excel unduhan di semua tab (Wali, Waka, Kaprodi, BK, TU) mengambil SEMUA data tanpa filter tanggal/status/kelas — bukan data yang sedang ditampilkan di layar",
+    "excel_semua_data": "Excel unduhan di tab Waka, Kaprodi, BK, TU mengambil SEMUA data tanpa filter tanggal — bukan data yang sedang ditampilkan di layar. PENGECUALIAN: tab Wali (per 2026-10-30) sudah menggunakan filter dateStart/dateEnd yang dipilih pengguna.",
     "hooks_jq": "jq tidak tersedia di mesin Windows ini — pakai node untuk parsing stdin di hook commands",
     "hooks_settings_watcher": "settings.json baru tidak aktif sampai sesi di-restart atau buka /hooks di UI Claude Code",
     "hooks_pretooluse_format": "PreToolUse hook HARUS output {hookSpecificOutput:{hookEventName:'PreToolUse',permissionDecision:'deny',permissionDecisionReason:'...'}} — format lama {continue:false,stopReason} tidak dikenali Claude Code dan hook DIAM SAJA tanpa memblokir apapun",
