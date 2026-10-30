@@ -131,8 +131,11 @@ export function jabatanLabel(key) {
 // ─── JADWAL GURU ────────────────────────────────────────────
 
 export async function getSchoolConfig() {
-    const { data } = await supabase.from('school_config').select('current_academic_year, current_semester').single();
-    return data;
+    const { data } = await supabase.from('school_config')
+        .select('current_academic_year, current_semester, schools!inner(jenjang)')
+        .single();
+    if (!data) return data;
+    return { ...data, jenjang: data.schools?.jenjang ?? null };
 }
 
 /**

@@ -77,8 +77,8 @@ async function loadBkAttendanceRecap({ config }) {
             </div>`;
         };
 
-        if (!programs.length) {
-            // SMA/SMP: tidak ada program keahlian — tampilkan semua kelas flat + tombol ↓ Excel per kelas
+        if (config.jenjang !== 'SMK') {
+            // SMA/SMP: kelas flat tanpa accordion prodi + tombol ↓ Excel per kelas
             const renderFlat = (r, idx) => {
                 const tot  = r.HADIR + r.IZIN + r.SAKIT + r.ALPA;
                 const pct  = tot > 0 ? Math.round(r.HADIR / tot * 100) : null;

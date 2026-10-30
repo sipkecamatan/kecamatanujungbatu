@@ -320,7 +320,9 @@ async function ensureJenjang() {
         const { data: sch } = await supabase.from('schools').select('jenjang')
             .eq('school_id', cfg.school_id).maybeSingle();
         jenjangSekolah = sch?.jenjang ?? null;
-        if (sch?.jenjang === 'SMP') {
+        if (sch?.jenjang === 'SMP' || sch?.jenjang === 'SMA') {
+            // SMP dan SMA tidak punya program keahlian — buat program "UMUM" sebagai
+            // placeholder wajib (classes.program_id NOT NULL) lalu lewati langkah 3.
             const ada = await getPrograms();
             if (!ada.some(p => p.code === 'UMUM')) await addProgram({ code: 'UMUM', name: 'Umum' });
             skippedSteps.add(3);
@@ -743,8 +745,8 @@ function parseForumCsv(csvText, requiredHeaders) {
  * Return: { success, skipped, errors: [{row, reason}] }
  */
 async function importForumBk(csvText) {
-    // SMP: templat tidak memuat kode_program; disuntik otomatis (UMUM).
-    if (jenjangSekolah === 'SMP') csvText = injectColumn(csvText, 'kode_program', 'UMUM', true);
+    // SMP dan SMA: templat tidak memuat kode_program; disuntik otomatis (UMUM).
+    if (jenjangSekolah === 'SMP' || jenjangSekolah === 'SMA') csvText = injectColumn(csvText, 'kode_program', 'UMUM', true);
     const { lines, headers } = parseForumCsv(csvText, ['nama_kelas', 'kode_program', 'nip_bk']);
     const idxKelas   = headers.indexOf('nama_kelas');
     const idxProgram = headers.indexOf('kode_program');
@@ -2621,9 +2623,9 @@ function dropProgramColumns(sheet) {
     return { ...sheet, headers: pick(sheet.headers), exampleRows: (sheet.exampleRows ?? []).map(pick), guide };
 }
 
-/** Untuk SMP: sisipkan kode_program=UMUM bila berkas tidak memuat kolomnya. */
+/** Untuk SMP/SMA: sisipkan kode_program=UMUM bila berkas tidak memuat kolomnya. */
 function prepareCsvUntukJenjang(step, csv) {
-    if (jenjangSekolah === 'SMP' && (step === 4 || step === 6)) {
+    if ((jenjangSekolah === 'SMP' || jenjangSekolah === 'SMA') && (step === 4 || step === 6)) {
         return injectColumn(csv, 'kode_program', 'UMUM', true);
     }
     return csv;
@@ -2639,7 +2641,7 @@ function templateDef(step) {
         guide: (sheet.guide ?? []).map((row) =>
             row.map((c) => (typeof c === 'string' ? adaptTemplateGuideCell(c, jenjangSekolah) : c))),
     });
-    const final = (sheet) => (jenjangSekolah === 'SMP' ? dropProgramColumns(sheet) : sheet);
+    const final = (sheet) => (jenjangSekolah === 'SMP' || jenjangSekolah === 'SMA' ? dropProgramColumns(sheet) : sheet);
     if (base.sheets) {
         return { ...base, sheets: Object.fromEntries(
             Object.entries(base.sheets).map(([key, v]) => [key, final(adaptSheet(v))])) };
