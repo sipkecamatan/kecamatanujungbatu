@@ -78,7 +78,7 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
                 monthlyMap[mon] = m;
             });
             const wb = XLSX.utils.book_new();
-            for (const { name, ws } of _buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, className, academicYear }))
+            for (const { name, ws } of buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, className, academicYear }))
                 XLSX.utils.book_append_sheet(wb, ws, name);
             XLSX.writeFile(wb, `rekap_wali_${className.replace(/\s+/g, '_')}_${academicYear}.xlsx`);
         } catch (err) {
@@ -216,7 +216,7 @@ async function _initWaliKasusSection({ currentUser, config, makeKasusCtx, showKa
  * Sumber data: fn_class_schedule_full — mengembalikan SEMUA sesi terjadwal × siswa.
  * status=null → belum diinput; status=text → sudah diinput.
  */
-function _buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, className, academicYear }) {
+export function buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, className, academicYear }) {
     const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
     const ALPA_MIN     = 2;
     const HADIR_MIN    = 0.75;
