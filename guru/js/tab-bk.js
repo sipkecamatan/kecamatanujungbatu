@@ -11,6 +11,7 @@ import {
     getClassStudents, getClassAttendanceByDate,
 } from './api.js';
 import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta } from './tab-shared.js';
+import { downloadProdiExcel } from './tab-kaprodi.js';
 
 /* global XLSX */
 
@@ -98,16 +99,29 @@ async function loadBkAttendanceRecap({ config }) {
                 }).join('');
 
             return `
-            <details class="att-accordion" style="margin-bottom:8px">
+            <details class="att-accordion" style="margin-bottom:8px" data-program-id="${esc(prog.program_id)}">
                 <summary class="att-accordion-summary">
                     <span class="att-acc-name">${esc(prog.name)}</span>
                     <span class="att-acc-names">${prog.classes.length} kelas</span>
+                    <button class="btn btn-secondary btn-sm bk-prodi-excel-btn"
+                        data-program-id="${esc(prog.program_id)}"
+                        data-program-name="${esc(prog.name)}"
+                        style="font-size:11px;padding:2px 8px;margin-left:8px;flex-shrink:0">↓ Excel</button>
                 </summary>
                 <div style="padding:4px 0">${classRows}</div>
             </details>`;
         }).join('');
 
         container.innerHTML = html;
+
+        // Wire tombol Excel per prodi — stopPropagation agar tidak toggle accordion
+        container.querySelectorAll('.bk-prodi-excel-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const { programId, programName } = btn.dataset;
+                downloadProdiExcel({ programId, prodiLabel: programName, config, btn });
+            });
+        });
 
     } catch (err) {
         container.innerHTML = `<div class="alert alert-danger">${esc(fe(err))}</div>`;
