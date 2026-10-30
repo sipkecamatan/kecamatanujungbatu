@@ -305,7 +305,10 @@ async function downloadBkAttExcel({ config }) {
             }
         }
         rows.push(null);
-        rows.push([cc('Data detail kehadiran per kelas tersedia melalui tombol ↓ Excel pada tiap kelas di atas.', ST.italic9)]);
+        const detailNote = config.jenjang === 'SMK'
+            ? 'Data detail kehadiran per kelas tersedia melalui tombol ↓ Excel pada tiap prodi di atas.'
+            : 'Data detail kehadiran per kelas tersedia melalui tombol ↓ Excel pada tiap kelas di atas.';
+        rows.push([cc(detailNote, ST.italic9)]);
 
         const ws = {};
         let maxC = 0;
