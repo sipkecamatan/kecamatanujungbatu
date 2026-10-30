@@ -469,11 +469,20 @@
         "guru/js/tab-wali.js (buildWaliSheetsMonthly — fungsi builder sheet wali dipakai ulang)",
         "guru/js/api.js (getWaliAttendanceSummary, getClassScheduleFull, getClassesByProgram)"
       ],
+      "diekspor_ke": [
+        "guru/js/tab-waka-kesiswaan.js (downloadProdiExcel, MONTHS_RANGE)"
+      ],
       "excel_sheets": [
         "RINGKASAN (semua siswa prodi digabung, format identik wali)",
         "[NamaKelas] Okt 26 … [NamaKelas] Jun 27 (9 sheet per kelas, tanpa RINGKASAN per kelas)"
       ],
-      "catatan": "Nama sheet = prefix nama kelas (max 24 char) + spasi + nama bulan, total ≤ 31 char. Jika tab-wali.js diubah format sheetnya, kaprodi ikut terdampak karena pakai buildWaliSheetsMonthly yang sama."
+      "catatan": "Nama sheet = prefix nama kelas (max 24 char) + spasi + nama bulan, total ≤ 31 char. Jika tab-wali.js diubah format sheetnya, kaprodi ikut terdampak karena pakai buildWaliSheetsMonthly yang sama. downloadProdiExcel dipakai ulang oleh tab-waka-kesiswaan.js untuk tombol ↓ Excel per prodi di accordion."
+    },
+    "guru/js/tab-waka-kesiswaan.js (Excel prodi)": {
+      "bergantung_pada": [
+        "guru/js/tab-kaprodi.js (downloadProdiExcel — tombol ↓ Excel per prodi di accordion)"
+      ],
+      "catatan": "Tombol ↓ Excel muncul di header accordion tiap prodi setelah loadWkAttendanceRecap. stopPropagation mencegah toggle accordion saat klik tombol."
     },
     "guru/js/tab-guru.js": {
       "bergantung_pada": [
@@ -558,8 +567,8 @@
   ],
   "state": {
     "last_updated": "2026-10-30",
-    "last_session_commit": "072a9f3",
+    "last_session_commit": "pending",
     "migrasi_terpasang_sampai": "20261030030000",
-    "main_sha": "072a9f3"
+    "main_sha": "pending"
   }
 }

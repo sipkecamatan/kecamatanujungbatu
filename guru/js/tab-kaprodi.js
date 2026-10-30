@@ -320,7 +320,7 @@ async function loadKpClsRecap({ config }) {
 
 // ─── Download Excel Rekap Kelas ───────────────────────────────
 
-const MONTHS_RANGE = [
+export const MONTHS_RANGE = [
     ['2026-10-01','2026-10-31'],['2026-11-01','2026-11-30'],
     ['2026-12-01','2026-12-31'],['2027-01-01','2027-01-31'],
     ['2027-02-01','2027-02-28'],['2027-03-01','2027-03-31'],
@@ -328,18 +328,19 @@ const MONTHS_RANGE = [
     ['2027-06-01','2027-06-30'],
 ];
 
-async function downloadKpClsExcel({ config }) {
-    const btn = document.getElementById('kp-cls-export-btn');
-    btn.disabled = true;
-    btn.textContent = 'Menyiapkan…';
+/**
+ * Bangun dan unduh workbook Excel satu prodi.
+ * Bisa dipanggil dari tab Kaprodi maupun tab Waka Kesiswaan.
+ */
+export async function downloadProdiExcel({ programId, prodiLabel, config, btn }) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Menyiapkan…'; }
     try {
-        const classes = await getClassesByProgram(kpProgramId);
+        const classes = await getClassesByProgram(programId);
         if (!classes.length) { alert('Belum ada kelas di program ini.'); return; }
 
         const academicYear = config.current_academic_year;
         const sorted = [...classes].sort((a, b) => a.name.localeCompare(b.name, 'id'));
 
-        // Ambil semua data paralel per kelas: rekap tahunan + jadwal + 9 rekap bulanan
         const clsData = await Promise.all(sorted.map(async c => {
             const [students, scheduleRows, ...monthlyRekaps] = await Promise.all([
                 getWaliAttendanceSummary(c.class_id, academicYear, null, null, config.current_semester),
@@ -361,10 +362,8 @@ async function downloadKpClsExcel({ config }) {
 
         const wb = XLSX.utils.book_new();
 
-        // Sheet 1: RINGKASAN prodi — gabung semua siswa & jadwal semua kelas
         const allStudents     = clsData.flatMap(d => d.students);
         const allScheduleRows = clsData.flatMap(d => d.scheduleRows);
-        // monthlyMap gabungan: per bulan, merge semua Map per kelas
         const combinedMonthly = {};
         for (const [ds] of MONTHS_RANGE) {
             const mon = ds.slice(0, 7);
@@ -380,32 +379,35 @@ async function downloadKpClsExcel({ config }) {
         }));
         const prodiSheets = buildWaliSheetsMonthly({
             students: allStudents, scheduleRows: allScheduleRows,
-            monthlyMap: combinedMonthly, className: 'Semua Kelas Prodi', academicYear,
+            monthlyMap: combinedMonthly, className: prodiLabel, academicYear,
             classGroups,
         });
         XLSX.utils.book_append_sheet(wb, prodiSheets[0].ws, 'RINGKASAN');
 
-        // Sheet per kelas: hanya sheet bulanan (Okt 26 … Jun 27), prefix nama kelas
         for (const { cls, students, scheduleRows, monthlyMap } of clsData) {
             if (!students.length) continue;
             const sheets = buildWaliSheetsMonthly({
                 students, scheduleRows, monthlyMap, className: cls.name, academicYear,
             });
-            // Prefix: nama kelas dipotong agar total nama sheet ≤ 31 karakter
-            // sheet[1..] = bulan; nama bulan "Okt 26" = 6 karakter → prefix max 24 karakter
             const prefix = cls.name.slice(0, 24);
             for (const { name, ws } of sheets.slice(1))
                 XLSX.utils.book_append_sheet(wb, ws, `${prefix} ${name}`.slice(0, 31));
         }
 
         if (!wb.SheetNames.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
-        XLSX.writeFile(wb, `rekap_kaprodi_${academicYear}.xlsx`);
+        const safeName = prodiLabel.replace(/\s+/g, '_').slice(0, 40);
+        XLSX.writeFile(wb, `rekap_prodi_${safeName}_${academicYear}.xlsx`);
     } catch (err) {
         alert('Gagal mengunduh: ' + fe(err));
     } finally {
-        btn.disabled = false;
-        btn.textContent = 'Unduh Excel';
+        if (btn) { btn.disabled = false; btn.textContent = '↓ Excel'; }
     }
+}
+
+async function downloadKpClsExcel({ config }) {
+    const btn = document.getElementById('kp-cls-export-btn');
+    await downloadProdiExcel({ programId: kpProgramId, prodiLabel: 'Prodi', config, btn });
+    if (btn) btn.textContent = 'Unduh Excel';
 }
 
 // ─── Observasi dari DUDI ──────────────────────────────────────

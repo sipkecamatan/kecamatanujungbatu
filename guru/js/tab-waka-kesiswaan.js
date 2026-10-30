@@ -12,6 +12,7 @@ import {
     getLateArrivalsByRange, getCoachingCasesCount,
 } from './api.js';
 import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta } from './tab-shared.js';
+import { downloadProdiExcel } from './tab-kaprodi.js';
 
 export let wkKasusCtx = null;
 let _wkAttendanceRequestSeq = 0;
@@ -144,14 +145,27 @@ async function loadWkAttendanceRecap({ config }) {
             }).join('');
 
             return `
-            <details class="att-accordion" style="margin-bottom:8px">
+            <details class="att-accordion" style="margin-bottom:8px" data-program-id="${esc(prog.program_id)}">
                 <summary class="att-accordion-summary">
                     <span class="att-acc-name">${esc(prog.name)}</span>
                     <span class="att-acc-names">${rows.length} kelas</span>
+                    <button class="btn btn-secondary btn-sm wk-prodi-excel-btn"
+                        data-program-id="${esc(prog.program_id)}"
+                        data-program-name="${esc(prog.name)}"
+                        style="font-size:11px;padding:2px 8px;margin-left:8px;flex-shrink:0">↓ Excel</button>
                 </summary>
                 <div style="padding:4px 0">${classRows}</div>
             </details>`;
         }).join('');
+
+        // Wire tombol Excel per prodi — stopPropagation agar tidak toggle accordion
+        container.querySelectorAll('.wk-prodi-excel-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const { programId, programName } = btn.dataset;
+                downloadProdiExcel({ programId, prodiLabel: programName, config, btn });
+            });
+        });
 
         document.getElementById('wk-att-export-btn').style.display = '';
 
