@@ -544,8 +544,8 @@
   ],
   "state": {
     "last_updated": "2026-10-30",
-    "last_session_commit": "a493dff",
+    "last_session_commit": "f932867",
     "migrasi_terpasang_sampai": "20261030000000",
-    "main_sha": "a493dff"
+    "main_sha": "f932867"
   }
 }
