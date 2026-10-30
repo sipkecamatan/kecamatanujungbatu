@@ -446,15 +446,16 @@
     },
     "guru/js/tab-wali.js": {
       "bergantung_pada": [
-        "guru/js/api.js (getWaliAttendanceSummary, getClassAttendanceByDate)",
+        "guru/js/api.js (getWaliAttendanceSummary, getClassScheduleFull)",
         "guru/js/tab-shared.js (buildAttStatCards)",
-        "guru/dashboard.html (xlsx-js-style@1.2.0 via jsdelivr — wajib setelah ganti dari SheetJS)"
+        "guru/dashboard.html (xlsx-js-style@1.2.0 via jsdelivr — wajib setelah ganti dari SheetJS)",
+        "fn_class_schedule_full (SQL) — mengembalikan SEMUA sesi × siswa termasuk belum diinput (status=NULL)"
       ],
       "excel_sheets": [
         "RINGKASAN (agregat tahun ajaran + tren per bulan + siswa perlu perhatian)",
-        "Okt 26 … Jun 27 (9 sheet per bulan: No|Nama|H|S|I|A|%|tanggal×mapel)"
+        "Okt 26 … Jun 27 (9 sheet per bulan: No|Nama|H|S|I|A|%|tanggal×mapel×guru)"
       ],
-      "catatan": "Pertemuan belum diinput tidak muncul — tidak dihitung alpa. Excel selalu unduh full tahun ajaran (null/null, tidak terikat filter layar). Kolom per-pertemuan: header baris-1=tanggal (merge lintas mapel), baris-2=subject_label. Warna sel via xlsx-js-style drop-in XLSX. Freeze pane 2 kolom + 5 baris.",
+      "catatan": "Sumber data diganti ke fn_class_schedule_full (bukan fn_class_attendance_detail) agar sesi belum diinput tampil sebagai sel abu-abu '—'. Kolom per-pertemuan: header baris-1=tanggal (merge), baris-2=subject_label, baris-3=nama guru. Sel abu-abu = status NULL = belum diinput guru (tidak dihitung alpa). Excel selalu unduh full tahun ajaran (null/null). Freeze pane 2 kolom + 6 baris.",
       "test_relevan": [
         "wali-attendance-sql.mjs",
         "wali-kelas.mjs"
@@ -498,7 +499,8 @@
     "scope_creep_ui": "Implementer cenderung merapikan CSS/layout sambil lalu saat mengerjakan logika — ini melanggar Scope Guard. Setiap perubahan visual yang tidak diminta harus dianggap bug, bukan perbaikan.",
     "responsivitas_hp": "Perubahan HTML (struktur DOM) sama berbahayanya dengan perubahan CSS untuk tampilan HP — menambah kolom tabel, wrapper div, atau urutan elemen bisa merusak layout 360px tanpa menyentuh CSS.",
     "grafik_ikut_overview": "Dashboard wilayah: grafik Tren Kehadiran tidak boleh punya kontrol periode sendiri — selalu ikut periode overview di topbar. _loadMonitoring dipanggil dari loadOverview() dengan rentang dari hitungRentang(). Tombol periode terpisah di grafik card menyebabkan inkonsistensi 'diatas 30 hari, grafik 7 hari'.",
-    "narasi_netral": "Narasi _buildChartCaption di semua dashboard (kepsek, stakeholder, wilayah) harus deskriptif-faktual saja: angka, arah tren, rentang variasi. DILARANG: saran tindakan ('perlu dipantau', 'perlu ditelusuri', 'perlu evaluasi'), sebutan pihak ('wali kelas', 'BK'), penilaian subjektif ('cukup tinggi', 'rendah'). Keputusan tindak lanjut adalah hak pembaca, bukan tugas narasi."
+    "narasi_netral": "Narasi _buildChartCaption di semua dashboard (kepsek, stakeholder, wilayah) harus deskriptif-faktual saja: angka, arah tren, rentang variasi. DILARANG: saran tindakan ('perlu dipantau', 'perlu ditelusuri', 'perlu evaluasi'), sebutan pihak ('wali kelas', 'BK'), penilaian subjektif ('cukup tinggi', 'rendah'). Keputusan tindak lanjut adalah hak pembaca, bukan tugas narasi.",
+    "cte_is_not_distinct_from": "CTE + LEFT JOIN IS NOT DISTINCT FROM tidak andal untuk mendeteksi keberadaan baris di dalam SECURITY DEFINER function — hasilnya semua status NULL secara diam-diam walau data attendance sudah ada. Solusi: ganti dengan window function COUNT(att.status) OVER (PARTITION BY block_group_id) > 0. Jika > 0 berarti ada record di block itu. Jebakan ini ditemukan di fn_class_schedule_full (migration 20261030020000 vs 20261030030000)."
   },
   "open_tasks": [
     {
@@ -542,8 +544,8 @@
   ],
   "state": {
     "last_updated": "2026-10-30",
-    "last_session_commit": "b922315",
-    "migrasi_terpasang_sampai": "20261030010000",
-    "main_sha": "b922315"
+    "last_session_commit": "5af08bc",
+    "migrasi_terpasang_sampai": "20261030030000",
+    "main_sha": "5af08bc"
   }
 }
