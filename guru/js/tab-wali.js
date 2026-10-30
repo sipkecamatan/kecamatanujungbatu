@@ -529,6 +529,23 @@ function _buildWaliSheetsMonthly({ students, scheduleRows, className, academicYe
             totRow.push(cc(nInput > 0 ? nInput : '—', nInput > 0 ? ST.total : stBelum));
         }
 
+        // Baris Jumlah H/S/I/A per kolom pertemuan
+        const stJumlahLbl = S(C.greyBg, { ...F.bold, sz: 9 }, AL.left);
+        const mkJumlahRow = (label, stCode, stCell) => {
+            const row = [cc('', stJumlahLbl), cc(label, stJumlahLbl),
+                cc('', stJumlahLbl), cc('', stJumlahLbl),
+                cc('', stJumlahLbl), cc('', stJumlahLbl), cc('', stJumlahLbl)];
+            for (const [bgId] of ptmMon) {
+                const n = Object.values(pivot).filter(b => b[bgId] === stCode).length;
+                row.push(cc(n > 0 ? n : '—', n > 0 ? stCell : stBelum));
+            }
+            return row;
+        };
+        const jumlahH = mkJumlahRow('Jumlah H', 'HADIR', ST.statusH);
+        const jumlahS = mkJumlahRow('Jumlah S', 'SAKIT', ST.statusS);
+        const jumlahI = mkJumlahRow('Jumlah I', 'IZIN',  ST.statusI);
+        const jumlahA = mkJumlahRow('Jumlah A', 'ALPA',  ST.statusA);
+
         const allRows = [
             [cc(`ABSENSI ${MONTH_ID[mo].toUpperCase()} ${yr} — ${className}`, ST.title)],
             [cc('Sel abu-abu (—) = sesi belum diinput guru. Nama guru tertera di baris header ketiga.', ST.italic9)],
@@ -538,6 +555,10 @@ function _buildWaliSheetsMonthly({ students, scheduleRows, className, academicYe
             hdr3,
             ...dataRows,
             totRow,
+            jumlahH,
+            jumlahS,
+            jumlahI,
+            jumlahA,
         ];
 
         const colWidths = [4, 30, 6, 6, 6, 6, 8, ...Array(ptmMon.length).fill(10)];
