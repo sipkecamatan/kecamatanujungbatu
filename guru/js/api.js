@@ -832,7 +832,7 @@ export async function getAttendanceSummaryByStudents(classId, academicYear, date
 export async function getClassAttendanceByDate(classId, academicYear, dateStart, dateEnd, teacherId = null) {
     // Pakai SECURITY DEFINER agar semua peran (Waka, BK, Wali, Kaprodi)
     // bisa melihat semua pertemuan di kelas, bukan hanya yang mereka ajar.
-    // teacherId tidak digunakan (dipertahankan agar pemanggil lama tetap kompatibel).
+    // teacherId diisi hanya oleh tab guru — menyaring ke sesi milik guru itu saja.
     const all = [];
     const pageSize = 1000;
     for (let offset = 0; ; offset += pageSize) {
@@ -840,8 +840,9 @@ export async function getClassAttendanceByDate(classId, academicYear, dateStart,
             .rpc('fn_class_attendance_detail', {
                 p_class_id:      classId,
                 p_academic_year: academicYear,
-                p_date_start:    dateStart ?? null,
-                p_date_end:      dateEnd   ?? null,
+                p_date_start:    dateStart  ?? null,
+                p_date_end:      dateEnd    ?? null,
+                p_teacher_id:    teacherId  ?? null,
             })
             .range(offset, offset + pageSize - 1);
         if (error) throw error;
