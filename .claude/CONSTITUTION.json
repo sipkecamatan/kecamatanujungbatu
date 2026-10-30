@@ -486,11 +486,9 @@
     },
     "guru/js/tab-waka-kesiswaan.js (Excel sekolah)": {
       "bergantung_pada": [
-        "guru/js/tab-wali.js (buildWaliSheetsMonthly — sheet RINGKASAN semua siswa per kelas)",
-        "guru/js/tab-kaprodi.js (MONTHS_RANGE)",
-        "guru/js/api.js (getClassesByProgram, getWaliAttendanceSummary, getClassScheduleFull)"
+        "guru/js/api.js (getClassesByProgram, getWaliAttendanceSummary — tahunan saja, 1 call per kelas)"
       ],
-      "catatan": "Tombol 'Unduh Excel' di header Rekap Kehadiran. Sheet RINGKASAN = format wali (buildWaliSheetsMonthly sheet[0]) dengan classGroups. Sheet per kelas = agregat tahunan saja (No|Nama|NIS|H|S|I|A|%) tanpa kolom per-pertemuan."
+      "catatan": "Tombol 'Unduh Excel' di header Rekap Kehadiran. RINGKASAN = Nama|NIS|Kelas|H|S|I|A|% semua siswa diurutkan per kelas. Sheet per kelas = No|Nama|NIS|H|S|I|A|%. Sengaja tidak pakai buildWaliSheetsMonthly agar hanya 1 API call per kelas (bukan 10) — sekolah bisa punya 30+ kelas."
     },
     "guru/js/tab-guru.js": {
       "bergantung_pada": [
@@ -575,8 +573,8 @@
   ],
   "state": {
     "last_updated": "2026-10-30",
-    "last_session_commit": "948800a",
+    "last_session_commit": "pending",
     "migrasi_terpasang_sampai": "20261030030000",
-    "main_sha": "948800a"
+    "main_sha": "pending"
   }
 }
