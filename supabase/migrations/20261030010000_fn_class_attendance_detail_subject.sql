@@ -1,4 +1,6 @@
 -- EXCEL-02: tambah subject_label ke fn_class_attendance_detail
+-- DROP dulu diperlukan karena RETURNS TABLE berubah (PostgreSQL melarang CREATE OR REPLACE jika row type berbeda).
+DROP FUNCTION IF EXISTS public.fn_class_attendance_detail(uuid, text, date, date);
 -- Dibutuhkan untuk kolom "Mapel" di Excel wali kelas (1 sheet per bulan).
 -- subject_label sudah ada di teaching_schedules — tidak perlu JOIN tambahan.
 -- Semua pemanggil lama (getClassAttendanceByDate) tetap kompatibel karena
