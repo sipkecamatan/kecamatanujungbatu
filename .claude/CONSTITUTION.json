@@ -440,8 +440,9 @@
       "wali_restriction": "WALI_KELAS hanya bisa baca kelas waliannya sendiri",
       "dipakai_di": [
         "guru/js/api.js (getWaliAttendanceSummary, getAttendanceRecapPerClass)",
-        "tab-wali.js Excel (9× per bulan)",
-        "tab-kaprodi.js Excel"
+        "tab-wali.js Excel (12× per bulan, Jul–Jun)",
+        "tab-kaprodi.js Excel",
+        "tab-bk.js Excel (12× per bulan, via downloadBkAttExcel)"
       ],
       "test_relevan": [
         "absensi-konsistensi.mjs (F1, C1, C4)"
@@ -499,7 +500,7 @@
       ],
       "excel_sheets": [
         "RINGKASAN (agregat tahun ajaran + tren per bulan + siswa perlu perhatian)",
-        "Okt 26 … Jun 27 (9 sheet per bulan: No|Nama|H|S|I|A|%|tanggal×mapel×guru)"
+        "Jul 26 … Jun 27 (12 sheet per bulan: No|Nama|H|S|I|A|%|tanggal×mapel×guru)"
       ],
       "catatan": "Kolom H/S/I/A per siswa (fixed columns) berasal dari fn_class_attendance_summary dipanggil per bulan (9 panggilan paralel) agar angka konsisten dengan tampilan website — fn_class_schedule_full DISTINCT ON bisa salah bucket bulan. Urutan kolom dan card: H S I A (bukan HISA). Footer per pertemuan: baris Jumlah H/S/I/A di bawah data siswa. Kolom per-pertemuan: header baris-1=tanggal (merge), baris-2=subject_label, baris-3=nama guru. Sel abu-abu = status NULL = belum diinput. Excel full tahun ajaran (null/null). Freeze pane 2 kolom + 6 baris.",
       "test_relevan": [
@@ -513,13 +514,14 @@
         "guru/js/api.js (getWaliAttendanceSummary, getClassScheduleFull, getClassesByProgram)"
       ],
       "diekspor_ke": [
-        "guru/js/tab-waka-kesiswaan.js (downloadProdiExcel, MONTHS_RANGE)"
+        "guru/js/tab-waka-kesiswaan.js (downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE)",
+        "guru/js/tab-bk.js (downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE)"
       ],
       "excel_sheets": [
         "RINGKASAN (semua siswa prodi digabung, format identik wali)",
-        "[NamaKelas] Okt 26 … [NamaKelas] Jun 27 (9 sheet per kelas, tanpa RINGKASAN per kelas)"
+        "[NamaKelas] Jul 26 … [NamaKelas] Jun 27 (12 sheet per kelas, tanpa RINGKASAN per kelas)"
       ],
-      "catatan": "Nama sheet = prefix nama kelas (max 24 char) + spasi + nama bulan, total ≤ 31 char. Jika tab-wali.js diubah format sheetnya, kaprodi ikut terdampak karena pakai buildWaliSheetsMonthly yang sama. downloadProdiExcel dipakai ulang oleh tab-waka-kesiswaan.js dan tab-bk.js untuk tombol ↓ Excel per prodi di accordion."
+      "catatan": "Nama sheet = prefix nama kelas (max 24 char) + spasi + nama bulan, total ≤ 31 char. Jika tab-wali.js diubah format sheetnya, kaprodi ikut terdampak karena pakai buildWaliSheetsMonthly yang sama. downloadProdiExcel dipakai ulang oleh tab-waka-kesiswaan.js dan tab-bk.js untuk tombol ↓ Excel per prodi di accordion. MONTHS_RANGE adalah satu-satunya sumber kebenaran rentang bulan (Jul–Jun, 12 bulan) — wali dan waka mengambil dari sini."
     },
     "guru/js/tab-waka-kesiswaan.js (Excel prodi)": {
       "bergantung_pada": [
@@ -527,11 +529,16 @@
       ],
       "catatan": "Tombol ↓ Excel muncul di header accordion tiap prodi setelah loadWkAttendanceRecap. stopPropagation mencegah toggle accordion saat klik tombol."
     },
-    "guru/js/tab-bk.js (Excel prodi)": {
+    "guru/js/tab-bk.js (Excel)": {
       "bergantung_pada": [
-        "guru/js/tab-kaprodi.js (downloadProdiExcel — tombol ↓ Excel per prodi di accordion)"
+        "guru/js/tab-kaprodi.js (downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE)",
+        "guru/js/api.js (getPrograms, getClassesByProgram, getWaliAttendanceSummary, getAttendanceRecapPerClass)"
       ],
-      "catatan": "Pola identik dengan tab-waka-kesiswaan.js. Tombol ↓ Excel di summary accordion tiap prodi. stopPropagation mencegah toggle accordion."
+      "format_per_jenjang": {
+        "SMK": "tombol 'Unduh Excel' → RINGKASAN (identik Waka); tombol ↓ Excel per prodi di accordion → downloadProdiExcel",
+        "SMA_SMP": "tombol 'Unduh Excel' → RINGKASAN (identik Waka); tombol ↓ Excel per kelas di flat list → downloadKelasExcel"
+      },
+      "catatan": "downloadBkAttExcel (tombol utama) pola identik downloadWkAttExcel: RINGKASAN + tren 12 bulan + siswa perlu perhatian. Footer note SMK menyebut 'per prodi', SMA/SMP menyebut 'per kelas'. Perbaikan 31 Okt: sebelumnya flat per-kelas tanpa styling."
     },
     "guru/js/tab-waka-kesiswaan.js + tab-bk.js (flat SMA)": {
       "bergantung_pada": [
@@ -542,7 +549,7 @@
     "guru/js/tab-waka-kesiswaan.js (Excel sekolah)": {
       "bergantung_pada": [
         "guru/js/tab-kaprodi.js (MONTHS_RANGE)",
-        "guru/js/api.js (getClassesByProgram, getWaliAttendanceSummary tahunan per kelas, getAttendanceRecapPerClass × 9 bulan)"
+        "guru/js/api.js (getClassesByProgram, getWaliAttendanceSummary tahunan per kelas, getAttendanceRecapPerClass × 12 bulan)"
       ],
       "catatan": "Tombol 'Unduh Excel' di header Rekap Kehadiran. Hanya 1 sheet RINGKASAN (format mirip Kaprodi: summary tiles + TREN bulanan + Perlu Perhatian dikelompok per kelas). Dibangun MANUAL tanpa buildWaliSheetsMonthly dan tanpa getClassScheduleFull. TREN dari getAttendanceRecapPerClass (class-level, bukan per-siswa) — tidak ada kolom Pertemuan dan Perlu Perhatian per bulan. Total ~39 call (n kelas + 9 bulanan). Baris keterangan di akhir sheet. DOWNLOAD: pakai manual blob (XLSX.write → Blob → createObjectURL → a.click) bukan XLSX.writeFile() — writeFile() memicu Chrome automatic-download blocker ketika sudah ada download lain di sesi yang sama."
     },
@@ -594,8 +601,8 @@
     {
       "id": "T001",
       "task": "Audit + perbaiki alur absensi semua rekap",
-      "status": "SELESAI 28 Okt",
-      "catatan": "tab-guru.js pivot ke block_group_id; fn_attendance_recap_per_class (migrasi 20261028000000) untuk Kaprodi+Waka; tab-bk.js Level 3 dedup per block_group_id; fn_tu_attendance_recap (migrasi 20261028010000) untuk TU; Excel semua tab unduh data lengkap (tanpa filter); BK Excel ditambahkan"
+      "status": "SELESAI 31 Okt (diperluas)",
+      "catatan": "28 Okt: tab-guru.js pivot ke block_group_id; fn_attendance_recap_per_class; tab-bk.js Level 3; fn_tu_attendance_recap; BK Excel ditambahkan. 31 Okt: MONTHS_RANGE diperluas Jul–Jun (12 bulan) di tab-kaprodi.js sebagai sumber tunggal — sebelumnya Okt–Jun sehingga 75% data Jul-Sep hilang dari semua Excel. BK Excel RINGKASAN disamakan pola Waka Kesiswaan. Tes konsistensi absensi-konsistensi.mjs: 8 PASS 0 FAIL."
     },
     {
       "id": "T002",
@@ -632,8 +639,8 @@
   ],
   "state": {
     "last_updated": "2026-10-31",
-    "last_session_commit": "2539b72",
+    "last_session_commit": "9e8a66b",
     "migrasi_terpasang_sampai": "20261030040000",
-    "main_sha": "2539b72"
+    "main_sha": "9e8a66b"
   }
 }
