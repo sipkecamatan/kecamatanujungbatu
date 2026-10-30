@@ -213,7 +213,7 @@ try {
             -- Utamakan WAKA/BK/KEPSEK (schoolwide observer) agar bisa memanggil
             -- fn_attendance_recap_per_class; hindari WALI_KELAS agar
             -- fn_class_attendance_summary tidak menolak kelas yang bukan waliannya.
-            SELECT u.auth_user_id
+            SELECT u.auth_user_id, u.user_id
             FROM users u
             JOIN kandidat k ON k.school_id = u.school_id
             WHERE u.is_active
@@ -234,6 +234,7 @@ try {
             (SELECT school_id::text       FROM kandidat) AS school_id,
             (SELECT n_sesi                FROM kandidat) AS n_sesi,
             (SELECT auth_user_id::text    FROM staff)    AS staff_auth,
+            (SELECT user_id::text         FROM staff)    AS staff_user_id,
             json_agg(DISTINCT st::text) AS student_ids,
             (SELECT json_agg(sid::text) FROM sesi_ids s(sid)) AS schedule_ids
         FROM siswa s(st)
@@ -247,7 +248,7 @@ try {
     } else {
         const {
             block_group_id, class_id, academic_year, school_id,
-            staff_auth, student_ids: rawStudentIds, schedule_ids: rawScheduleIds,
+            staff_auth, staff_user_id, student_ids: rawStudentIds, schedule_ids: rawScheduleIds,
         } = f1PreData;
 
         const studentIds  = Array.isArray(rawStudentIds)  ? rawStudentIds  : JSON.parse(rawStudentIds);
@@ -279,7 +280,7 @@ try {
             for (const sid of scheduleIds) {
                 for (const stuId of studentIds) {
                     valueRows.push(
-                        `('${crypto.randomUUID()}', '${sid}', '${stuId}', '${school_id}', '${statusMap[stuId]}'::attendance_status, false)`
+                        `('${crypto.randomUUID()}', '${sid}', '${stuId}', '${school_id}', '${statusMap[stuId]}'::attendance_status, false, '${staff_user_id}')`
                     );
                 }
             }
@@ -290,7 +291,7 @@ try {
             const txResult = await sql(`
                 BEGIN;
 
-                INSERT INTO attendance(attendance_id, schedule_id, student_id, school_id, status, is_void)
+                INSERT INTO attendance(attendance_id, schedule_id, student_id, school_id, status, is_void, recorded_by_user_id)
                 VALUES ${insertValues};
 
                 ${asAuth(staff_auth)}
@@ -337,7 +338,7 @@ try {
             const tuResult = await sql(`
                 BEGIN;
 
-                INSERT INTO attendance(attendance_id, schedule_id, student_id, school_id, status, is_void)
+                INSERT INTO attendance(attendance_id, schedule_id, student_id, school_id, status, is_void, recorded_by_user_id)
                 VALUES ${insertValues};
 
                 SELECT 'f1_tu_pivot' AS tag,
@@ -397,7 +398,7 @@ try {
             const bkResult = await sql(`
                 BEGIN;
 
-                INSERT INTO attendance(attendance_id, schedule_id, student_id, school_id, status, is_void)
+                INSERT INTO attendance(attendance_id, schedule_id, student_id, school_id, status, is_void, recorded_by_user_id)
                 VALUES ${insertValues};
 
                 -- Simulasi pivot BK Excel: status terburuk per (student_id, block_group_id)
