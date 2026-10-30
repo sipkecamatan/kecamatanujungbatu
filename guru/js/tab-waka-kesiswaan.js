@@ -347,7 +347,16 @@ async function downloadWkAttExcel({ config }) {
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'RINGKASAN');
-        XLSX.writeFile(wb, `rekap_absensi_sekolah_${academicYear}.xlsx`);
+        const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+        const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `rekap_absensi_sekolah_${academicYear}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch (err) {
         alert('Gagal mengunduh: ' + fe(err));
     } finally {
