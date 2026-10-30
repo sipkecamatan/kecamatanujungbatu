@@ -447,16 +447,14 @@
     "guru/js/tab-wali.js": {
       "bergantung_pada": [
         "guru/js/api.js (getWaliAttendanceSummary, getClassAttendanceByDate)",
-        "guru/js/tab-shared.js (buildPertemuanMeta, buildAttStatCards)"
+        "guru/js/tab-shared.js (buildAttStatCards)",
+        "guru/dashboard.html (xlsx-js-style@1.2.0 via jsdelivr — wajib setelah ganti dari SheetJS)"
       ],
       "excel_sheets": [
-        "RINGKASAN KELAS (dashboard + tren + siswa perlu perhatian)",
-        "ABSENSI SISWA (matriks siswa x pertemuan, dibatasi rentang tanggal)",
-        "REKAP PER SISWA (aggregate + detail ketidakhadiran)",
-        "STATUS PERTEMUAN (daftar pertemuan tercatat)"
+        "RINGKASAN (agregat tahun ajaran + tren per bulan + siswa perlu perhatian)",
+        "Okt 26 … Jun 27 (9 sheet per bulan: No|Nama|H|S|I|A|%|tanggal×mapel)"
       ],
-      "catatan": "Pertemuan belum diinput guru tidak muncul di data — tidak dihitung alpa. Excel TIDAK terikat filter tanggal layar — selalu unduh seluruh tahun ajaran (null/null). Sheet per bulan Okt 2026–Jun 2027; Sheet 1 ringkasan. fn_class_attendance_detail kini mengembalikan subject_label. Warna sel aktif setelah dashboard.html diganti ke xlsx-js-style (menunggu persetujuan Romo).",
-      "open_task": "Ganti CDN SheetJS di dashboard.html ke xlsx-js-style@1.2.0 agar warna sel aktif (butuh persetujuan Romo)",
+      "catatan": "Pertemuan belum diinput tidak muncul — tidak dihitung alpa. Excel selalu unduh full tahun ajaran (null/null, tidak terikat filter layar). Kolom per-pertemuan: header baris-1=tanggal (merge lintas mapel), baris-2=subject_label. Warna sel via xlsx-js-style drop-in XLSX. Freeze pane 2 kolom + 5 baris.",
       "test_relevan": [
         "wali-attendance-sql.mjs",
         "wali-kelas.mjs"
@@ -545,7 +543,7 @@
   "state": {
     "last_updated": "2026-10-30",
     "last_session_commit": "2822955",
-    "migrasi_terpasang_sampai": "20261030000000",
+    "migrasi_terpasang_sampai": "20261030010000",
     "main_sha": "2822955"
   }
 }
