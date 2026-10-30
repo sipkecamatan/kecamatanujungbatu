@@ -175,13 +175,16 @@ async function downloadBkAttExcel({ config }) {
         const allClasses = allClassArrays.flat().sort((a, b) => a.name.localeCompare(b.name, 'id'));
         if (!allClasses.length) { alert('Belum ada kelas untuk diunduh.'); return; }
 
-        const [clsResults, ...monthlyRekaps] = await Promise.all([
-            Promise.all(allClasses.map(c =>
-                getWaliAttendanceSummary(c.class_id, academicYear, null, null, config.current_semester)
-                    .then(students => ({ cls: c, students }))
-            )),
-            ...MONTHS_RANGE.map(([ds, de]) => getAttendanceRecapPerClass(ds, de)),
-        ]);
+        // Sekuensial per kelas dan per bulan — mencegah statement timeout
+        const clsResults = [];
+        for (const c of allClasses) {
+            const students = await getWaliAttendanceSummary(c.class_id, academicYear, null, null, config.current_semester);
+            clsResults.push({ cls: c, students });
+        }
+        const monthlyRekaps = [];
+        for (const [ds, de] of MONTHS_RANGE) {
+            monthlyRekaps.push(await getAttendanceRecapPerClass(ds, de));
+        }
 
         const allStudents = clsResults.flatMap(d => d.students);
         if (!allStudents.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
