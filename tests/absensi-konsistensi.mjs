@@ -21,15 +21,24 @@
  *   C5: fn_class_attendance_detail pivot (BK Excel) vs fn_attendance_recap_per_class
  *
  * Cara pakai:
- *   node tests/absensi-konsistensi.mjs
- *   Atau dengan env eksplisit:
- *   SUPABASE_URL=https://xxx.supabase.co SUPABASE_SERVICE_KEY=sbp_... node tests/absensi-konsistensi.mjs
+ *   SIP_MGMT_MODE=cli node tests/absensi-konsistensi.mjs
+ *   Atau dengan Management API token (sbp_...):
+ *   SUPABASE_ACCESS_TOKEN=sbp_... node tests/absensi-konsistensi.mjs
+ *
+ * Mode CLI  : pakai `supabase db query --linked` (login Supabase CLI sudah tertaut).
+ * Mode API  : SUPABASE_ACCESS_TOKEN = management token sbp_... dari
+ *             https://supabase.com/dashboard/account/tokens
  *
  * EXIT CODE: 0 = semua PASS, 1 = ada FAIL, 2 = error setup.
  */
 
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync as tulis } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join as gabung } from 'node:path';
+
 // ── Muat .env ──────────────────────────────────────────────────────────────
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+{
     try {
         const { readFileSync } = await import('node:fs');
         const { fileURLToPath } = await import('node:url');
@@ -44,13 +53,19 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
     } catch { /* env harus disediakan manual */ }
 }
 
-const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
-if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    console.error('FATAL: SUPABASE_URL dan SUPABASE_SERVICE_KEY wajib diisi (atau ada di .env).');
+const MODE_CLI = process.env.SIP_MGMT_MODE === 'cli';
+const TOKEN    = process.env.SUPABASE_ACCESS_TOKEN;
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://lqgzpiohxdzkkmxjtwor.supabase.co';
+const REF      = new URL(SUPABASE_URL).hostname.split('.')[0];
+
+if (!MODE_CLI && !TOKEN) {
+    console.error('FATAL: jalankan salah satu cara berikut:');
+    console.error('  1. SIP_MGMT_MODE=cli node tests/absensi-konsistensi.mjs');
+    console.error('     (perlu login Supabase CLI: supabase login, lalu supabase link)');
+    console.error('  2. SUPABASE_ACCESS_TOKEN=sbp_... node tests/absensi-konsistensi.mjs');
+    console.error('     (ambil token dari https://supabase.com/dashboard/account/tokens)');
     process.exit(2);
 }
-
-const REF = new URL(SUPABASE_URL).hostname.split('.')[0];
 
 // ── Utilitas ───────────────────────────────────────────────────────────────
 let passed = 0, failed = 0;
@@ -63,14 +78,32 @@ function fail(label, detail = '') {
 function head(label) { console.log(`\n── ${label}`); }
 function skip(label) { console.log(`  ⊘ SKIP: ${label}`); }
 
+/** Jalankan SQL lewat CLI Supabase yang sudah login. */
+function sqlCli(query) {
+    const dir    = mkdtempSync(gabung(tmpdir(), 'sip-abs-'));
+    const berkas = gabung(dir, 'q.sql');
+    tulis(berkas, query);
+    try {
+        const r = spawnSync(`supabase db query --linked -o json -f "${berkas}"`,
+            { shell: true, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+        if (r.status !== 0) {
+            const pesan = String(r.stderr || '').split(/\r?\n/)
+                .filter(l => /ERROR|Failed|unexpected/.test(l)).join(' ').slice(0, 400);
+            throw new Error(`CLI ${r.status}: ${pesan || String(r.stderr || '').slice(0, 300)}`);
+        }
+        const teks = String(r.stdout || '');
+        const awal = teks.search(/[\[{]/);
+        if (awal < 0) return [];
+        const j = JSON.parse(teks.slice(awal));
+        return Array.isArray(j) ? j : (j.rows ?? []);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
 /** Jalankan SQL lewat Management API (mendukung multi-statement, transaksi). */
-async function sql(query) {
+async function sqlApi(query) {
     const res = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
         body: JSON.stringify({ query }),
     });
     if (!res.ok) {
@@ -80,18 +113,12 @@ async function sql(query) {
     return res.json();
 }
 
-/**
- * Jalankan satu SQL dan kembalikan baris pertama dari statement terakhir.
- * Berguna untuk query SELECT tunggal.
- */
-async function one(query) {
-    const rows = await sql(query);
-    return Array.isArray(rows) ? rows[0] : (rows?.rows?.[0] ?? rows);
+/** Jalankan SQL — otomatis pilih CLI atau API. */
+async function sql(query) {
+    return MODE_CLI ? sqlCli(query) : sqlApi(query);
 }
 
-/**
- * Jalankan SQL dan kembalikan semua baris.
- */
+/** Jalankan SQL dan kembalikan semua baris. */
 async function many(query) {
     const rows = await sql(query);
     return Array.isArray(rows) ? rows : (rows?.rows ?? []);
