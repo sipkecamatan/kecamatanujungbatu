@@ -6,12 +6,12 @@
  */
 import { supabase } from './api.js';
 import {
-    getPrograms, getAttendanceRecapPerClass,
+    getPrograms, getClassesByProgram, getAttendanceRecapPerClass,
     getWaliAttendanceSummary, getStudentAttendanceSessions,
     getClassStudents, getClassAttendanceByDate,
 } from './api.js';
 import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta } from './tab-shared.js';
-import { downloadProdiExcel, downloadKelasExcel } from './tab-kaprodi.js';
+import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kaprodi.js';
 
 /* global XLSX */
 
@@ -162,56 +162,176 @@ async function downloadBkAttExcel({ config }) {
     btn.textContent = 'Menyiapkan…';
     try {
         const academicYear = config.current_academic_year;
-        const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
-        const PRIO         = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
+        const ALPA_MIN = 2, HADIR_MIN = 0.75;
+        const MONTH_LABEL = {
+            '07':'Juli','08':'Agustus','09':'September',
+            '10':'Oktober','11':'November','12':'Desember',
+            '01':'Januari','02':'Februari','03':'Maret',
+            '04':'April','05':'Mei','06':'Juni',
+        };
 
-        const allRows = await getAttendanceRecapPerClass(null, null);
-        if (!allRows.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
+        const programs = await getPrograms();
+        const allClassArrays = await Promise.all(programs.map(p => getClassesByProgram(p.program_id)));
+        const allClasses = allClassArrays.flat().sort((a, b) => a.name.localeCompare(b.name, 'id'));
+        if (!allClasses.length) { alert('Belum ada kelas untuk diunduh.'); return; }
 
-        const wb = XLSX.utils.book_new();
+        const [clsResults, ...monthlyRekaps] = await Promise.all([
+            Promise.all(allClasses.map(c =>
+                getWaliAttendanceSummary(c.class_id, academicYear, null, null, config.current_semester)
+                    .then(students => ({ cls: c, students }))
+            )),
+            ...MONTHS_RANGE.map(([ds, de]) => getAttendanceRecapPerClass(ds, de)),
+        ]);
 
-        const results = await Promise.all(
-            allRows.map(r => Promise.all([
-                getClassStudents(r.class_id),
-                getClassAttendanceByDate(r.class_id, academicYear, null, null),
-            ]).then(([roster, detail]) => ({ cls: r, roster, detail })))
-        );
+        const allStudents = clsResults.flatMap(d => d.students);
+        if (!allStudents.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
+        let gH = 0, gS = 0, gI = 0, gA = 0;
+        for (const s of allStudents) { gH += s.HADIR ?? 0; gS += s.SAKIT ?? 0; gI += s.IZIN ?? 0; gA += s.ALPA ?? 0; }
+        const gTot = gH + gS + gI + gA;
+        const pctSekolah = gTot > 0 ? Math.round(gH / gTot * 100) + '%' : '—';
 
-        for (const { cls, roster, detail } of results.sort((a, b) => a.cls.name.localeCompare(b.cls.name, 'id'))) {
-            if (!roster.length) continue;
+        const monthlyTotals = monthlyRekaps.map(rows => {
+            let H = 0, S = 0, I = 0, A = 0;
+            for (const r of rows) { H += r.HADIR ?? 0; S += r.SAKIT ?? 0; I += r.IZIN ?? 0; A += r.ALPA ?? 0; }
+            return { H, S, I, A };
+        });
 
-            const pivot = {};
-            for (const r of detail) {
-                if (!r.block_group_id) continue;
-                if (!pivot[r.student_id]) pivot[r.student_id] = {};
-                const prev = pivot[r.student_id][r.block_group_id];
-                if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
-                    pivot[r.student_id][r.block_group_id] = r.status;
-            }
+        const perhatian = clsResults
+            .map(({ cls, students }) => ({
+                clsName: cls.name,
+                rows: students
+                    .map(s => {
+                        const tot = (s.HADIR ?? 0) + (s.SAKIT ?? 0) + (s.IZIN ?? 0) + (s.ALPA ?? 0);
+                        const pct = tot > 0 ? s.HADIR / tot : null;
+                        return { s, tot, pct };
+                    })
+                    .filter(r => (r.s.ALPA ?? 0) >= ALPA_MIN || (r.pct !== null && r.pct < HADIR_MIN))
+                    .sort((a, b) => a.s.full_name.localeCompare(b.s.full_name, 'id')),
+            }))
+            .filter(g => g.rows.length);
 
-            const { sortedIds, labelById } = buildPertemuanMeta(detail);
-            const sorted = [...roster].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
-
-            const header = ['No', 'Nama', 'NIS', ...sortedIds.map(id => labelById.get(id)), 'H', 'I', 'S', 'A', '%Hadir'];
-            const dataRows = sorted.map((s, idx) => {
-                const byBg = pivot[s.student_id] ?? {};
-                let H = 0, I = 0, S = 0, A = 0;
-                for (const st of Object.values(byBg)) {
-                    if (st === 'HADIR') H++; else if (st === 'IZIN') I++;
-                    else if (st === 'SAKIT') S++; else if (st === 'ALPA') A++;
-                }
-                const tot = H + I + S + A;
-                const pct = tot > 0 ? Math.round(H / tot * 100) + '%' : '—';
-                return [idx + 1, s.full_name, s.nis ?? '',
-                    ...sortedIds.map(id => STATUS_HURUF[byBg[id]] ?? ''),
-                    H, I, S, A, pct];
-            });
-
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...dataRows]), cls.name.slice(0, 31));
+        const C = {
+            navyBg:   { patternType: 'solid', fgColor: { rgb: '1E3A5F' } },
+            greenBg:  { patternType: 'solid', fgColor: { rgb: 'D4EDDA' } },
+            yellowBg: { patternType: 'solid', fgColor: { rgb: 'FFF3CD' } },
+            cyanBg:   { patternType: 'solid', fgColor: { rgb: 'CCE5FF' } },
+            redBg:    { patternType: 'solid', fgColor: { rgb: 'F8D7DA' } },
+            orangeBg: { patternType: 'solid', fgColor: { rgb: 'FFEEBA' } },
+            sectionBg:{ patternType: 'solid', fgColor: { rgb: 'E8F0FE' } },
+        };
+        const F = {
+            white: { color: { rgb: 'FFFFFF' } }, navy: { color: { rgb: '1E3A5F' } },
+            green: { color: { rgb: '155724' } }, yellow: { color: { rgb: '856404' } },
+            blue:  { color: { rgb: '004085' } }, red:   { color: { rgb: '721C24' } },
+            grey:  { color: { rgb: '666666' } },
+        };
+        function S(fill, font, al) { const s = {}; if (fill) s.fill = fill; if (font) s.font = { ...font }; if (al) s.alignment = al; return s; }
+        const ST = {
+            hdrMain:  S(C.navyBg,    { ...F.white,  bold: true, sz: 11 }, { horizontal: 'center', wrapText: true }),
+            section:  S(C.sectionBg, { ...F.navy,   bold: true, sz: 11 }, null),
+            statusH:  S(C.greenBg,   { ...F.green,  bold: true }, { horizontal: 'center' }),
+            statusS:  S(C.yellowBg,  { ...F.yellow, bold: true }, { horizontal: 'center' }),
+            statusI:  S(C.cyanBg,    { ...F.blue,   bold: true }, { horizontal: 'center' }),
+            statusA:  S(C.redBg,     { ...F.red,    bold: true }, { horizontal: 'center' }),
+            pctOk:    S(C.greenBg,   F.green,  { horizontal: 'center' }),
+            pctBad:   S(C.redBg,     F.red,    { horizontal: 'center' }),
+            perhatian:S(C.orangeBg,  null,     null),
+            title:    S(null, { ...F.navy, bold: true, sz: 14 }, null),
+            italic9:  S(null, { ...F.grey, italic: true, sz: 9 }, null),
+            num:      S(null, null, { horizontal: 'center' }),
+        };
+        function cc(v, st) {
+            if (v === null || v === undefined) return { v: '', t: 's', s: st ?? {} };
+            return { v, t: typeof v === 'number' ? 'n' : 's', s: st ?? {} };
         }
 
-        if (!wb.SheetNames.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
-        XLSX.writeFile(wb, `rekap_absensi_bk_${academicYear}.xlsx`);
+        const rows = [];
+        rows.push([cc(`LAPORAN KEHADIRAN — Semua Kelas (BK)`, ST.title)]);
+        rows.push([cc(`Tahun Ajaran: ${academicYear}  |  Data seluruh periode aktif`, ST.italic9)]);
+        rows.push(null);
+        rows.push([
+            cc('JUMLAH SISWA', ST.section), cc(allStudents.length, ST.num), null,
+            cc('PERTEMUAN TERCATAT', ST.section), cc('—', ST.num), null,
+            cc('TINGKAT HADIR', ST.section),
+            cc(pctSekolah, gTot > 0 && gH / gTot < HADIR_MIN ? ST.pctBad : ST.pctOk),
+        ]);
+        rows.push([cc('Hadir (H)', null), cc(gH, ST.statusH), null, cc('Sakit (S)', null), cc(gS, ST.statusS), null, cc('Izin (I)', null), cc(gI, ST.statusI)]);
+        rows.push([cc('Alpa (A)', null), cc(gA, ST.statusA)]);
+        rows.push(null);
+
+        rows.push([cc('TREN KEHADIRAN PER BULAN', ST.section)]);
+        rows.push([cc('Bulan', ST.hdrMain), cc('H', ST.hdrMain), cc('S', ST.hdrMain), cc('I', ST.hdrMain), cc('A', ST.hdrMain), cc('% Hadir', ST.hdrMain)]);
+        MONTHS_RANGE.forEach(([ds], i) => {
+            const [yr, mo] = ds.slice(0, 7).split('-');
+            const { H, S, I, A } = monthlyTotals[i];
+            const tot = H + S + I + A;
+            const pct = tot > 0 ? Math.round(H / tot * 100) + '%' : '—';
+            rows.push([
+                cc(`${MONTH_LABEL[mo]} ${yr}`, null),
+                cc(H, ST.statusH), cc(S, ST.statusS), cc(I, ST.statusI), cc(A, ST.statusA),
+                cc(pct, tot > 0 && H / tot < HADIR_MIN ? ST.pctBad : tot > 0 ? ST.pctOk : ST.num),
+            ]);
+        });
+        rows.push(null);
+
+        rows.push([cc('SISWA PERLU PERHATIAN — SELURUH TAHUN AJARAN', ST.section)]);
+        rows.push([cc('Threshold: Alpa ≥ 2 kali ATAU % hadir < 75%. Data tahunan.', ST.italic9)]);
+        rows.push([
+            cc('No', ST.hdrMain), cc('Nama Siswa', ST.hdrMain),
+            cc('H', ST.hdrMain), cc('S', ST.hdrMain), cc('I', ST.hdrMain), cc('A', ST.hdrMain),
+            cc('Total', ST.hdrMain), cc('% Hadir', ST.hdrMain), cc('Catatan', ST.hdrMain),
+        ]);
+        if (!perhatian.length) {
+            rows.push([cc('Tidak ada siswa yang memerlukan perhatian khusus.', null)]);
+        } else {
+            let noP = 0;
+            for (const { clsName, rows: gr } of perhatian) {
+                rows.push([cc(clsName, ST.section)]);
+                for (const { s, tot, pct } of gr) {
+                    noP++;
+                    const cat = [];
+                    if (pct !== null && pct < HADIR_MIN) cat.push(`% hadir ${Math.round(pct * 100)}% < 75%`);
+                    if ((s.ALPA ?? 0) >= ALPA_MIN) cat.push(`alpa ${s.ALPA}x`);
+                    rows.push([
+                        cc(noP, { ...ST.perhatian, ...ST.num }),
+                        cc(s.full_name, ST.perhatian),
+                        cc(s.HADIR ?? 0, ST.statusH), cc(s.SAKIT ?? 0, ST.statusS),
+                        cc(s.IZIN ?? 0, ST.statusI),  cc(s.ALPA ?? 0, ST.statusA),
+                        cc(tot, ST.num),
+                        cc(pct !== null ? Math.round(pct * 100) + '%' : '—', pct !== null && pct < HADIR_MIN ? ST.pctBad : ST.pctOk),
+                        cc(cat.join(', '), ST.perhatian),
+                    ]);
+                }
+            }
+        }
+        rows.push(null);
+        rows.push([cc('Data detail kehadiran per kelas tersedia melalui tombol ↓ Excel pada tiap kelas di atas.', ST.italic9)]);
+
+        const ws = {};
+        let maxC = 0;
+        for (let r = 0; r < rows.length; r++) {
+            const row = rows[r] ?? [];
+            if (row.length > maxC) maxC = row.length;
+            for (let c = 0; c < row.length; c++) {
+                if (row[c] == null) continue;
+                ws[XLSX.utils.encode_cell({ r, c })] = row[c];
+            }
+        }
+        ws['!ref']  = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length - 1, c: maxC - 1 } });
+        ws['!cols'] = [20, 28, 6, 6, 6, 6, 8, 10, 40].map(w => ({ wch: w }));
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'RINGKASAN');
+        const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+        const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `rekap_absensi_bk_${academicYear}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch (err) {
         alert('Gagal mengunduh: ' + fe(err));
     } finally {
