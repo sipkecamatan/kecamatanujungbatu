@@ -53,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node -e \"const fs=require('fs');let b='';process.stdin.on('data',c=>b+=c);process.stdin.on('end',()=>{let m='0';try{m=fs.readFileSync('D:/ribuan_pengguna/CLAUDE/SIP Kecamatan/.claude/.session-marker','utf8').trim();}catch(e){}if(m!=='1'){console.log(JSON.stringify({continue:false,stopReason:'[SCOPE GUARD] CONSTITUTION.json belum dibaca di sesi ini. Baca dulu: .claude/CONSTITUTION.json, lalu jalankan session-start sebelum mengubah file apapun.'}));}})\"",
+            "command": "node -e \"const fs=require('fs');let b='';process.stdin.on('data',c=>b+=c);process.stdin.on('end',()=>{let m='0';try{m=fs.readFileSync('D:/ribuan_pengguna/CLAUDE/SIP Kecamatan/.claude/.session-marker','utf8').trim();}catch(e){}if(m!=='1'){console.log(JSON.stringify({hookSpecificOutput:{hookEventName:'PreToolUse',permissionDecision:'deny',permissionDecisionReason:'[SCOPE GUARD] CONSTITUTION.json belum dibaca di sesi ini. Baca dulu: .claude/CONSTITUTION.json, lalu jalankan session-start sebelum mengubah file apapun.'}}));}})\"",
             "shell": "bash",
             "statusMessage": "Memeriksa apakah CONSTITUTION sudah dibaca..."
           }
