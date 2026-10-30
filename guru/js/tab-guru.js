@@ -136,8 +136,8 @@ function renderGuruRekapPage() {
                 <span style="flex:1;font-size:13px">${esc(s.full_name)}</span>
                 <span style="display:flex;gap:10px;align-items:center;font-size:11px;font-weight:500;flex-shrink:0">
                     <span style="color:var(--color-success)">${s.HADIR}H</span>
-                    <span style="color:var(--color-warning,#f59e0b)">${s.IZIN}I</span>
                     <span style="color:var(--color-primary)">${s.SAKIT}S</span>
+                    <span style="color:var(--color-warning,#f59e0b)">${s.IZIN}I</span>
                     <span style="color:var(--color-danger)">${s.ALPA}A</span>
                     <span style="color:${color};font-weight:700;min-width:36px;text-align:right">${pct !== null ? pct + '%' : '—'}</span>
                 </span>
