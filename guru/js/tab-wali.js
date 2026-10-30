@@ -53,12 +53,32 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
             const className    = document.getElementById('wali-class-title')
                 .textContent.replace('Kelas Walian — ', '').trim();
             // Unduh SELURUH tahun ajaran — tidak terikat filter tanggal di layar
-            const [students, scheduleRows] = await Promise.all([
+            // Rekap per bulan dipanggil terpisah agar angka H/S/I/A konsisten dengan website
+            const MONTHS_RANGE = [
+                ['2026-10-01','2026-10-31'],['2026-11-01','2026-11-30'],
+                ['2026-12-01','2026-12-31'],['2027-01-01','2027-01-31'],
+                ['2027-02-01','2027-02-28'],['2027-03-01','2027-03-31'],
+                ['2027-04-01','2027-04-30'],['2027-05-01','2027-05-31'],
+                ['2027-06-01','2027-06-30'],
+            ];
+            const [students, scheduleRows, ...monthlyRekaps] = await Promise.all([
                 getWaliAttendanceSummary(classId, academicYear, null, null, config.current_semester),
                 getClassScheduleFull(classId, academicYear, null, null),
+                ...MONTHS_RANGE.map(([ds, de]) =>
+                    getWaliAttendanceSummary(classId, academicYear, ds, de, null)
+                ),
             ]);
+            // Map: 'YYYY-MM' → Map<student_id, {H,S,I,A,tot}>
+            const monthlyMap = {};
+            MONTHS_RANGE.forEach(([ds], i) => {
+                const mon = ds.slice(0, 7);
+                const m = new Map();
+                for (const r of monthlyRekaps[i])
+                    m.set(r.student_id, { H: r.HADIR, S: r.SAKIT, I: r.IZIN, A: r.ALPA, tot: r.total });
+                monthlyMap[mon] = m;
+            });
             const wb = XLSX.utils.book_new();
-            for (const { name, ws } of _buildWaliSheetsMonthly({ students, scheduleRows, className, academicYear }))
+            for (const { name, ws } of _buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, className, academicYear }))
                 XLSX.utils.book_append_sheet(wb, ws, name);
             XLSX.writeFile(wb, `rekap_wali_${className.replace(/\s+/g, '_')}_${academicYear}.xlsx`);
         } catch (err) {
@@ -196,7 +216,7 @@ async function _initWaliKasusSection({ currentUser, config, makeKasusCtx, showKa
  * Sumber data: fn_class_schedule_full — mengembalikan SEMUA sesi terjadwal × siswa.
  * status=null → belum diinput; status=text → sudah diinput.
  */
-function _buildWaliSheetsMonthly({ students, scheduleRows, className, academicYear }) {
+function _buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, className, academicYear }) {
     const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
     const ALPA_MIN     = 2;
     const HADIR_MIN    = 0.75;
@@ -480,17 +500,15 @@ function _buildWaliSheetsMonthly({ students, scheduleRows, className, academicYe
             AL.center
         );
 
+        // Rekap bulanan dari fn_class_attendance_summary (sama dengan website)
+        const monRekap = monthlyMap?.[mon] ?? new Map();
+
         // Baris data per siswa
         const dataRows = rekap.map((r, idx) => {
             const byBg = pivot[r.s.student_id] ?? {};
-            let mH = 0, mS = 0, mI = 0, mA = 0;
-            for (const [bgId] of ptmMon) {
-                const st = byBg[bgId];
-                if (st === null || st === undefined) continue; // belum diinput
-                if (st === 'HADIR') mH++; else if (st === 'SAKIT') mS++;
-                else if (st === 'IZIN') mI++; else if (st === 'ALPA') mA++;
-            }
-            const mTot = mH + mS + mI + mA;
+            // H/S/I/A dari fn_class_attendance_summary agar konsisten dengan website
+            const ms   = monRekap.get(r.s.student_id) ?? { H: 0, S: 0, I: 0, A: 0, tot: 0 };
+            const mH = ms.H, mS = ms.S, mI = ms.I, mA = ms.A, mTot = ms.tot;
             const mPct = mTot > 0 ? Math.round(mH / mTot * 100) + '%' : '—';
             const warn = mA >= ALPA_MIN || (mTot > 0 && mH / mTot < HADIR_MIN);
 
