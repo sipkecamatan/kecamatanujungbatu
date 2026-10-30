@@ -489,7 +489,7 @@
         "guru/js/tab-kaprodi.js (MONTHS_RANGE)",
         "guru/js/api.js (getClassesByProgram, getWaliAttendanceSummary tahunan per kelas, getAttendanceRecapPerClass × 9 bulan)"
       ],
-      "catatan": "Tombol 'Unduh Excel' di header Rekap Kehadiran. Hanya 1 sheet RINGKASAN (format mirip Kaprodi: summary tiles + TREN bulanan + Perlu Perhatian dikelompok per kelas). Dibangun MANUAL tanpa buildWaliSheetsMonthly dan tanpa getClassScheduleFull. TREN dari getAttendanceRecapPerClass (class-level, bukan per-siswa) — tidak ada kolom Pertemuan dan Perlu Perhatian per bulan. Total ~39 call (n kelas + 9 bulanan). Baris keterangan di akhir sheet."
+      "catatan": "Tombol 'Unduh Excel' di header Rekap Kehadiran. Hanya 1 sheet RINGKASAN (format mirip Kaprodi: summary tiles + TREN bulanan + Perlu Perhatian dikelompok per kelas). Dibangun MANUAL tanpa buildWaliSheetsMonthly dan tanpa getClassScheduleFull. TREN dari getAttendanceRecapPerClass (class-level, bukan per-siswa) — tidak ada kolom Pertemuan dan Perlu Perhatian per bulan. Total ~39 call (n kelas + 9 bulanan). Baris keterangan di akhir sheet. DOWNLOAD: pakai manual blob (XLSX.write → Blob → createObjectURL → a.click) bukan XLSX.writeFile() — writeFile() memicu Chrome automatic-download blocker ketika sudah ada download lain di sesi yang sama."
     },
     "guru/js/tab-guru.js": {
       "bergantung_pada": [
@@ -574,8 +574,8 @@
   ],
   "state": {
     "last_updated": "2026-10-30",
-    "last_session_commit": "029b5a3",
+    "last_session_commit": "ece2802",
     "migrasi_terpasang_sampai": "20261030030000",
-    "main_sha": "029b5a3"
+    "main_sha": "ece2802"
   }
 }
