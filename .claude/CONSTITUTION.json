@@ -22,7 +22,7 @@
     "Pendaftaran publik MATI (disable_signup) — akun dibuat superadmin/wizard",
     "docs/ TIDAK PERNAH dikomit ke repo (repo publik, berisi data sensitif)",
     "db push dan git push dilakukan Romo, bukan Claude",
-    "Claude tidak membuat akun login atau menyimpan password/token di chat"
+    "Claude tidak membuat akun login di environment production. Untuk environment uji, Claude boleh membuat akun via wizard/superadmin API dengan kredensial yang disimpan di .env lokal (tidak dikomit, tidak ditampilkan di chat)"
   ],
   "architecture": {
     "unit_pertemuan": {
