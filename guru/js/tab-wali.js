@@ -49,23 +49,18 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
         btn.disabled = true;
         btn.textContent = 'Menyiapkan…';
         try {
-            const dateStart    = document.getElementById('wali-date-start').value || null;
-            const dateEnd      = document.getElementById('wali-date-end').value || null;
             const academicYear = config.current_academic_year;
             const className    = document.getElementById('wali-class-title')
                 .textContent.replace('Kelas Walian — ', '').trim();
-
+            // Unduh SELURUH tahun ajaran — tidak terikat filter tanggal di layar
             const [students, detail] = await Promise.all([
-                getWaliAttendanceSummary(classId, academicYear, dateStart, dateEnd, config.current_semester),
-                getClassAttendanceByDate(classId, academicYear, dateStart, dateEnd, null),
+                getWaliAttendanceSummary(classId, academicYear, null, null, config.current_semester),
+                getClassAttendanceByDate(classId, academicYear, null, null, null),
             ]);
-
             const wb = XLSX.utils.book_new();
-            const sheets = _buildWaliSheets({ students, detail, className, dateStart, dateEnd });
-            for (const { name, aoa } of sheets)
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), name);
-
-            XLSX.writeFile(wb, `rekap_wali_${className}_${dateStart ?? 'awal'}_${dateEnd ?? 'akhir'}.xlsx`);
+            for (const { name, ws } of _buildWaliSheetsMonthly({ students, detail, className, academicYear }))
+                XLSX.utils.book_append_sheet(wb, ws, name);
+            XLSX.writeFile(wb, `rekap_wali_${className.replace(/\s+/g, '_')}_${academicYear}.xlsx`);
         } catch (err) {
             alert('Gagal mengunduh: ' + fe(err));
         } finally {
@@ -192,25 +187,20 @@ async function _initWaliKasusSection({ currentUser, config, makeKasusCtx, showKa
 }
 
 /**
- * Bangun semua sheet Excel laporan wali kelas.
- * Mengembalikan array { name, aoa } siap di-append ke workbook XLSX.
+ * Bangun workbook Excel wali kelas:
+ *   Sheet 1  — RINGKASAN    : agregat tahun ajaran + tren bulanan + siswa perlu perhatian
+ *   Sheet 2–10 — Okt–Jun    : 1 sheet per bulan, kolom Nomor|Nama|H|S|I|A|%|tanggal×mapel
  *
- * Sheet 1 — RINGKASAN KELAS  : dashboard angka + tren per tanggal + siswa perlu perhatian
- * Sheet 2 — ABSENSI SISWA    : matriks siswa × pertemuan (H/S/I/A), dibatasi rentang tanggal
- * Sheet 3 — REKAP PER SISWA  : aggregate H/S/I/A + detail ketidakhadiran per siswa
- * Sheet 4 — STATUS PERTEMUAN : daftar semua pertemuan tercatat urut tanggal
- *
- * Pertemuan yang BELUM diinput tidak muncul di data — tidak dihitung alpa.
+ * Warna sel membutuhkan xlsx-js-style (pengganti drop-in XLSX dengan dukungan style).
+ * Pertemuan belum diinput tidak muncul di data — TIDAK dihitung alpa.
  */
-function _buildWaliSheets({ students, detail, className, dateStart, dateEnd }) {
-    const PRIO        = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
+function _buildWaliSheetsMonthly({ students, detail, className, academicYear }) {
+    const PRIO         = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
     const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
-    const ALPA_MIN    = 2;
-    const HADIR_MIN   = 0.75;
+    const ALPA_MIN     = 2;
+    const HADIR_MIN    = 0.75;
 
-    const periodeLabel = [dateStart, dateEnd].filter(Boolean).join(' s/d ') || 'Semua periode';
-
-    // ── Pivot: student_id → block_group_id → status terburuk ─────────────────
+    // Pivot: student_id → block_group_id → status terburuk
     const pivot = {};
     for (const r of detail) {
         if (!r.block_group_id) continue;
@@ -220,186 +210,320 @@ function _buildWaliSheets({ students, detail, className, dateStart, dateEnd }) {
             pivot[r.student_id][r.block_group_id] = r.status;
     }
 
-    // ── Meta pertemuan: urut kronologis, label tanggal ────────────────────────
-    const { sortedIds, labelById } = buildPertemuanMeta(detail);
-
-    // ── Tren per tanggal (untuk sheet Ringkasan) ──────────────────────────────
-    // date → { pertemuan: Set<bgId>, H, S, I, A }
-    const trendMap = new Map();
+    // Index pertemuan: block_group_id → { date, subject }
+    const ptmInfo = new Map();
     for (const r of detail) {
-        if (!r.block_group_id || !r.session_date) continue;
-        if (!trendMap.has(r.session_date))
-            trendMap.set(r.session_date, { ptm: new Set(), H: 0, S: 0, I: 0, A: 0 });
-        const d = trendMap.get(r.session_date);
-        d.ptm.add(r.block_group_id);
-        // hitung status terburuk per (siswa, pertemuan) — pakai pivot yang sudah ada
+        if (!r.block_group_id || ptmInfo.has(r.block_group_id)) continue;
+        ptmInfo.set(r.block_group_id, { date: r.session_date ?? '', subject: r.subject_label ?? '' });
     }
-    // Isi H/S/I/A dari pivot (sudah deduplicated per pertemuan per siswa)
-    for (const [sid, byBg] of Object.entries(pivot)) {
-        for (const [bgId, st] of Object.entries(byBg)) {
-            const date = detail.find(r => r.block_group_id === bgId)?.session_date;
-            if (!date || !trendMap.has(date)) continue;
-            const d = trendMap.get(date);
-            if (st === 'HADIR') d.H++; else if (st === 'SAKIT') d.S++;
-            else if (st === 'IZIN') d.I++; else if (st === 'ALPA') d.A++;
-        }
-    }
+    // Semua pertemuan urut kronologis lalu mapel
+    const allPtm = [...ptmInfo.entries()]
+        .sort(([, a], [, b]) => a.date.localeCompare(b.date) || a.subject.localeCompare(b.subject));
 
-    // ── Rekap per siswa ───────────────────────────────────────────────────────
+    const MONTHS = [
+        '2026-10','2026-11','2026-12',
+        '2027-01','2027-02','2027-03','2027-04','2027-05','2027-06',
+    ];
+    const MONTH_ID = {
+        '01':'Januari','02':'Februari','03':'Maret','04':'April',
+        '05':'Mei','06':'Juni','07':'Juli','08':'Agustus',
+        '09':'September','10':'Oktober','11':'November','12':'Desember',
+    };
+
     const roster = [...students].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
-    const rekapSiswa = roster.map(s => {
+
+    // Rekap per siswa (seluruh tahun ajaran)
+    const rekap = roster.map(s => {
         const byBg = pivot[s.student_id] ?? {};
         let H = 0, S = 0, I = 0, A = 0;
-        const details = [];
-        for (const bgId of sortedIds) {
+        for (const [bgId] of allPtm) {
             const st = byBg[bgId];
             if (!st) continue;
             if (st === 'HADIR') H++; else if (st === 'SAKIT') S++;
             else if (st === 'IZIN') I++; else if (st === 'ALPA') A++;
-            if (st !== 'HADIR') details.push(`${STATUS_HURUF[st]}(${labelById.get(bgId) ?? bgId})`);
         }
         const tot = H + S + I + A;
-        const pct = tot > 0 ? H / tot : null;
-        return { s, H, S, I, A, tot, pct, details };
+        return { s, H, S, I, A, tot, pct: tot > 0 ? H / tot : null };
     });
 
-    // ── Sheet 1: RINGKASAN KELAS ──────────────────────────────────────────────
-    const totalPtm   = sortedIds.length;
-    const totalH     = rekapSiswa.reduce((acc, r) => acc + r.H, 0);
-    const totalSIA   = rekapSiswa.reduce((acc, r) => acc + r.S + r.I + r.A, 0);
-    const totalCatat = totalH + totalSIA;
-    const pctHadir   = totalCatat > 0 ? (totalH / totalCatat * 100).toFixed(1) + '%' : '—';
+    // ── Palet warna ───────────────────────────────────────────────────────────
+    const C = {
+        navyBg:   { patternType: 'solid', fgColor: { rgb: '1E3A5F' } },
+        blueBg:   { patternType: 'solid', fgColor: { rgb: '2E6DA4' } },
+        skyBg:    { patternType: 'solid', fgColor: { rgb: '4A90D9' } },
+        greenBg:  { patternType: 'solid', fgColor: { rgb: 'D4EDDA' } },
+        yellowBg: { patternType: 'solid', fgColor: { rgb: 'FFF3CD' } },
+        cyanBg:   { patternType: 'solid', fgColor: { rgb: 'CCE5FF' } },
+        redBg:    { patternType: 'solid', fgColor: { rgb: 'F8D7DA' } },
+        orangeBg: { patternType: 'solid', fgColor: { rgb: 'FFEEBA' } },
+        greyBg:   { patternType: 'solid', fgColor: { rgb: 'F0F0F0' } },
+        sectionBg:{ patternType: 'solid', fgColor: { rgb: 'E8F0FE' } },
+    };
+    const F = {
+        white:  { color: { rgb: 'FFFFFF' } },
+        navy:   { color: { rgb: '1E3A5F' } },
+        green:  { color: { rgb: '155724' } },
+        yellow: { color: { rgb: '856404' } },
+        blue:   { color: { rgb: '004085' } },
+        red:    { color: { rgb: '721C24' } },
+        grey:   { color: { rgb: '666666' } },
+        bold:   { bold: true },
+    };
+    const AL = { center: { horizontal: 'center' }, left: { horizontal: 'left' }, wrap: { wrapText: true } };
 
-    const s1 = [];
-    s1.push([`LAPORAN KEHADIRAN — ${className}`]);
-    s1.push([`Periode: ${periodeLabel}  |  Laporan untuk wali kelas`]);
-    s1.push([]);
-    s1.push(['JUMLAH SISWA', '', 'PERTEMUAN TERCATAT', '', 'CATATAN S/I/A']);
-    s1.push([roster.length, '', totalPtm, '', totalSIA]);
-    s1.push([]);
-    s1.push(['TINGKAT HADIR KELAS', '', '', '', '']);
-    s1.push([pctHadir]);
-    s1.push([]);
-    s1.push(['TREN KEHADIRAN PER TANGGAL']);
-    s1.push(['Tanggal', 'Pertemuan', 'H', 'S', 'I', 'A', '% Hadir']);
-    let trendH = 0, trendSIA = 0;
-    for (const [date, d] of [...trendMap.entries()].sort()) {
-        const tot = d.H + d.S + d.I + d.A;
-        const pct = tot > 0 ? (d.H / tot * 100).toFixed(1) + '%' : '—';
-        s1.push([date, d.ptm.size, d.H, d.S, d.I, d.A, pct]);
-        trendH += d.H; trendSIA += d.S + d.I + d.A;
+    // Buat style object SheetJS: { fill, font, alignment, border }
+    function S(fill, font, alignment) {
+        const s = {};
+        if (fill) s.fill = fill;
+        if (font) s.font = { ...font };
+        if (alignment) s.alignment = alignment;
+        return s;
     }
-    const trendTot = trendH + trendSIA;
-    s1.push(['TOTAL', totalPtm, trendH, '', '', trendSIA,
-        trendTot > 0 ? (trendH / trendTot * 100).toFixed(1) + '%' : '—']);
-    s1.push([]);
-    s1.push(['SISWA PERLU PERHATIAN  (% hadir < 75% atau alpa >= 2)']);
-    s1.push(['Dihitung dari pertemuan yang sudah diinput. Pertemuan belum diinput TIDAK dihitung alpa.']);
-    s1.push(['No', 'Nama Siswa', 'H', 'S', 'I', 'A', 'Total', '% Hadir', 'Catatan']);
-    let noPerhatian = 0;
-    for (const r of rekapSiswa) {
-        if (r.A < ALPA_MIN && (r.pct === null || r.pct >= HADIR_MIN)) continue;
-        noPerhatian++;
-        const catatan = [];
-        if (r.pct !== null && r.pct < HADIR_MIN)
-            catatan.push(`% hadir ${Math.round(r.pct * 100)}% < 75%`);
-        if (r.A >= ALPA_MIN) catatan.push(`alpa ${r.A}x`);
-        s1.push([noPerhatian, r.s.full_name, r.H, r.S, r.I, r.A, r.tot,
-            r.pct !== null ? Math.round(r.pct * 100) + '%' : '—',
-            catatan.join(', ')]);
-    }
-    if (noPerhatian === 0)
-        s1.push(['', 'Tidak ada siswa yang memerlukan perhatian khusus.']);
+    const ST = {
+        hdrMain:    S(C.navyBg,    { ...F.white, ...F.bold, sz: 11 }, { ...AL.center, ...AL.wrap }),
+        hdrDate:    S(C.blueBg,    { ...F.white, ...F.bold, sz: 10 }, AL.center),
+        hdrSubject: S(C.skyBg,     { ...F.white, ...F.bold, sz: 9  }, { ...AL.center, ...AL.wrap }),
+        statusH:    S(C.greenBg,   { ...F.green, ...F.bold },          AL.center),
+        statusS:    S(C.yellowBg,  { ...F.yellow,...F.bold },          AL.center),
+        statusI:    S(C.cyanBg,    { ...F.blue,  ...F.bold },          AL.center),
+        statusA:    S(C.redBg,     { ...F.red,   ...F.bold },          AL.center),
+        pctOk:      S(C.greenBg,   F.green,                            AL.center),
+        pctBad:     S(C.redBg,     F.red,                              AL.center),
+        pctWarn:    S(C.yellowBg,  F.yellow,                           AL.center),
+        perhatian:  S(C.orangeBg,  null,                               null),
+        total:      S(C.greyBg,    F.bold,                             null),
+        section:    S(C.sectionBg, { ...F.navy, ...F.bold, sz: 11 },   null),
+        title:      S(null,        { ...F.navy, ...F.bold, sz: 14 },   null),
+        italic9:    S(null,        { ...F.grey, italic: true, sz: 9 }, null),
+        number:     S(null,        null,                                AL.center),
+    };
 
-    // ── Sheet 2: ABSENSI SISWA ────────────────────────────────────────────────
-    const s2 = [];
-    s2.push([`ABSENSI SISWA — ${className}`]);
-    s2.push([`Periode: ${periodeLabel}  |  Hanya pertemuan yang sudah diinput guru  |  H=Hadir S=Sakit I=Izin A=Alpa`]);
-    s2.push([]);
-    s2.push(['No', 'Nama Siswa', ...sortedIds.map(id => labelById.get(id)), 'H', 'S', 'I', 'A', '% Hadir']);
-    for (let i = 0; i < roster.length; i++) {
-        const r = rekapSiswa[i];
-        const byBg = pivot[r.s.student_id] ?? {};
-        s2.push([
-            i + 1,
-            r.s.full_name,
-            ...sortedIds.map(id => STATUS_HURUF[byBg[id]] ?? ''),
-            r.H, r.S, r.I, r.A,
-            r.pct !== null ? Math.round(r.pct * 100) + '%' : '—',
-        ]);
-    }
-    // Baris rekap bawah
-    s2.push([]);
-    const recapLabels = [['Hadir (H)', 'HADIR'], ['Sakit (S)', 'SAKIT'], ['Izin (I)', 'IZIN'], ['Alpa (A)', 'ALPA']];
-    for (const [lbl, key] of recapLabels) {
-        s2.push([lbl, '',
-            ...sortedIds.map(id =>
-                Object.values(pivot).filter(byBg => byBg[id] === key).length
-            )]);
+    // Buat cell object untuk SheetJS
+    function cc(v, st) {
+        if (v === null || v === undefined) return { v: '', t: 's', s: st ?? {} };
+        return { v, t: typeof v === 'number' ? 'n' : 's', s: st ?? {} };
     }
 
-    // ── Sheet 3: REKAP PER SISWA ──────────────────────────────────────────────
-    const s3 = [];
-    s3.push([`REKAP PER SISWA — ${className}`]);
-    s3.push([`Periode: ${periodeLabel}`]);
-    s3.push([]);
-    s3.push(['No', 'Nama Siswa', 'H', 'S', 'I', 'A', 'Total', '% Hadir', 'Detail S/I/A']);
-    for (let i = 0; i < roster.length; i++) {
-        const r = rekapSiswa[i];
-        s3.push([
-            i + 1,
-            r.s.full_name,
-            r.H, r.S, r.I, r.A, r.tot,
-            r.pct !== null ? Math.round(r.pct * 100) + '%' : '—',
-            r.details.join('  |  ') || '-',
-        ]);
-    }
-    // Total kelas
-    const gH = rekapSiswa.reduce((a, r) => a + r.H, 0);
-    const gS = rekapSiswa.reduce((a, r) => a + r.S, 0);
-    const gI = rekapSiswa.reduce((a, r) => a + r.I, 0);
-    const gA = rekapSiswa.reduce((a, r) => a + r.A, 0);
-    const gTot = gH + gS + gI + gA;
-    s3.push(['', 'TOTAL KELAS', gH, gS, gI, gA, gTot,
-        gTot > 0 ? Math.round(gH / gTot * 100) + '%' : '—', '']);
-
-    // ── Sheet 4: STATUS PERTEMUAN ─────────────────────────────────────────────
-    const s4 = [];
-    s4.push([`STATUS PERTEMUAN — ${className}`]);
-    s4.push([`Periode: ${periodeLabel}  |  Hanya pertemuan yang sudah diinput (data belum diinput tidak muncul)`]);
-    s4.push([]);
-    s4.push(['No', 'ID Pertemuan', 'Tanggal', 'Jumlah Siswa Tercatat', 'H', 'S', 'I', 'A']);
-    let noRow = 0;
-    for (const bgId of sortedIds) {
-        noRow++;
-        const date = detail.find(r => r.block_group_id === bgId)?.session_date ?? '—';
-        const rows = detail.filter(r => r.block_group_id === bgId);
-        // ambil status terburuk per siswa untuk pertemuan ini
-        const perSiswa = {};
-        for (const r of rows) {
-            const prev = perSiswa[r.student_id];
-            if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
-                perSiswa[r.student_id] = r.status;
+    // Bangun worksheet dari array baris (setiap baris = array cell object atau null)
+    function buildWs(rows, colWidths, merges) {
+        const ws = {};
+        let maxC = 0;
+        for (let r = 0; r < rows.length; r++) {
+            const row = rows[r] ?? [];
+            if (row.length > maxC) maxC = row.length;
+            for (let c = 0; c < row.length; c++) {
+                if (row[c] == null) continue;
+                ws[XLSX.utils.encode_cell({ r, c })] = row[c];
+            }
         }
-        const vals = Object.values(perSiswa);
-        s4.push([
-            noRow,
-            bgId,
-            date,
-            vals.length,
-            vals.filter(v => v === 'HADIR').length,
-            vals.filter(v => v === 'SAKIT').length,
-            vals.filter(v => v === 'IZIN').length,
-            vals.filter(v => v === 'ALPA').length,
-        ]);
+        ws['!ref']  = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length - 1, c: maxC - 1 } });
+        if (colWidths) ws['!cols']   = colWidths.map(w => ({ wch: w }));
+        if (merges)    ws['!merges'] = merges;
+        return ws;
     }
 
-    return [
-        { name: 'RINGKASAN KELAS',  aoa: s1 },
-        { name: 'ABSENSI SISWA',    aoa: s2 },
-        { name: 'REKAP PER SISWA',  aoa: s3 },
-        { name: 'STATUS PERTEMUAN', aoa: s4 },
-    ];
+    // ── SHEET 1: RINGKASAN ────────────────────────────────────────────────────
+    const gH = rekap.reduce((a, r) => a + r.H, 0);
+    const gS = rekap.reduce((a, r) => a + r.S, 0);
+    const gI = rekap.reduce((a, r) => a + r.I, 0);
+    const gA = rekap.reduce((a, r) => a + r.A, 0);
+    const gTot = gH + gS + gI + gA;
+    const pctKelas = gTot > 0 ? Math.round(gH / gTot * 100) + '%' : '—';
+
+    const r1 = [];
+    r1.push([cc(`LAPORAN KEHADIRAN — ${className}`, ST.title)]);
+    r1.push([cc(`Tahun Ajaran: ${academicYear}  |  Data seluruh periode aktif`, ST.italic9)]);
+    r1.push(null);
+    r1.push([
+        cc('JUMLAH SISWA',      ST.section), cc(roster.length, ST.number), null,
+        cc('PERTEMUAN TERCATAT',ST.section), cc(allPtm.length, ST.number), null,
+        cc('TINGKAT HADIR KELAS',ST.section), cc(pctKelas, gTot > 0 && gH/gTot < HADIR_MIN ? ST.pctBad : ST.pctOk),
+    ]);
+    r1.push([
+        cc('Hadir (H)', null), cc(gH, ST.statusH), null,
+        cc('Sakit (S)', null), cc(gS, ST.statusS), null,
+        cc('Izin (I)',  null), cc(gI, ST.statusI),
+    ]);
+    r1.push([cc('Alpa (A)', null), cc(gA, ST.statusA)]);
+    r1.push(null);
+
+    // Tren bulanan
+    r1.push([cc('TREN KEHADIRAN PER BULAN', ST.section)]);
+    r1.push([
+        cc('Bulan',    ST.hdrMain), cc('Pertemuan', ST.hdrMain),
+        cc('H',        ST.hdrMain), cc('S',         ST.hdrMain),
+        cc('I',        ST.hdrMain), cc('A',         ST.hdrMain),
+        cc('% Hadir',  ST.hdrMain), cc('Siswa Perlu Perhatian', ST.hdrMain),
+    ]);
+    for (const mon of MONTHS) {
+        const [yr, mo] = mon.split('-');
+        const ptmMon = allPtm.filter(([, i]) => i.date.startsWith(mon));
+        let mH = 0, mS = 0, mI = 0, mA = 0;
+        for (const r of rekap) {
+            const byBg = pivot[r.s.student_id] ?? {};
+            for (const [bgId] of ptmMon) {
+                const st = byBg[bgId]; if (!st) continue;
+                if (st === 'HADIR') mH++; else if (st === 'SAKIT') mS++;
+                else if (st === 'IZIN') mI++; else if (st === 'ALPA') mA++;
+            }
+        }
+        const mTot = mH + mS + mI + mA;
+        const mPct = mTot > 0 ? Math.round(mH / mTot * 100) + '%' : '—';
+        let nPerhatian = 0;
+        for (const r of rekap) {
+            const byBg = pivot[r.s.student_id] ?? {};
+            let sisH = 0, sisTot = 0, sisA = 0;
+            for (const [bgId] of ptmMon) {
+                const st = byBg[bgId]; if (!st) continue;
+                sisTot++; if (st === 'HADIR') sisH++; else if (st === 'ALPA') sisA++;
+            }
+            if (sisA >= ALPA_MIN || (sisTot > 0 && sisH / sisTot < HADIR_MIN)) nPerhatian++;
+        }
+        r1.push([
+            cc(`${MONTH_ID[mo]} ${yr}`, null),
+            cc(ptmMon.length, ST.number),
+            cc(mH, ST.statusH), cc(mS, ST.statusS), cc(mI, ST.statusI), cc(mA, ST.statusA),
+            cc(mPct, mTot > 0 && mH/mTot < HADIR_MIN ? ST.pctBad : mTot > 0 ? ST.pctOk : ST.number),
+            cc(nPerhatian > 0 ? nPerhatian + ' siswa' : '—', nPerhatian > 0 ? ST.pctWarn : ST.number),
+        ]);
+    }
+    r1.push(null);
+
+    // Siswa perlu perhatian (seluruh tahun)
+    r1.push([cc('SISWA PERLU PERHATIAN — SELURUH TAHUN AJARAN', ST.section)]);
+    r1.push([cc('Threshold: Alpa ≥ 2 kali ATAU % hadir < 75%. Pertemuan belum diinput tidak dihitung alpa.', ST.italic9)]);
+    r1.push([
+        cc('No',         ST.hdrMain), cc('Nama Siswa', ST.hdrMain),
+        cc('H',          ST.hdrMain), cc('S',          ST.hdrMain),
+        cc('I',          ST.hdrMain), cc('A',          ST.hdrMain),
+        cc('Total',      ST.hdrMain), cc('% Hadir',    ST.hdrMain),
+        cc('Catatan',    ST.hdrMain),
+    ]);
+    let noP = 0;
+    for (const r of rekap) {
+        if (r.A < ALPA_MIN && (r.pct === null || r.pct >= HADIR_MIN)) continue;
+        noP++;
+        const cat = [];
+        if (r.pct !== null && r.pct < HADIR_MIN) cat.push(`% hadir ${Math.round(r.pct * 100)}% < 75%`);
+        if (r.A >= ALPA_MIN) cat.push(`alpa ${r.A}x`);
+        r1.push([
+            cc(noP,          { ...ST.perhatian, ...ST.number }),
+            cc(r.s.full_name, ST.perhatian),
+            cc(r.H, ST.statusH), cc(r.S, ST.statusS),
+            cc(r.I, ST.statusI), cc(r.A, ST.statusA),
+            cc(r.tot,        { ...ST.perhatian, ...ST.number }),
+            cc(r.pct !== null ? Math.round(r.pct * 100) + '%' : '—',
+               r.pct !== null && r.pct < HADIR_MIN ? ST.pctBad : ST.pctOk),
+            cc(cat.join(', '), ST.perhatian),
+        ]);
+    }
+    if (noP === 0)
+        r1.push([null, cc('Tidak ada siswa yang memerlukan perhatian khusus.', { s: { font: { color: { rgb: '155724' }, italic: true } } })]);
+
+    const ws1 = buildWs(r1, [4, 30, 6, 6, 6, 6, 8, 14, 40], null);
+
+    // ── SHEET 2–10: PER BULAN ─────────────────────────────────────────────────
+    const monthSheets = MONTHS.map(mon => {
+        const [yr, mo] = mon.split('-');
+        const sheetName = `${MONTH_ID[mo].substring(0, 3)} ${yr.slice(2)}`;   // "Okt 26"
+
+        const ptmMon = allPtm.filter(([, i]) => i.date.startsWith(mon));
+
+        // Kelompok pertemuan per tanggal (untuk header baris 1 yang di-merge)
+        const dateMap = new Map(); // date → [bgId,...]
+        for (const [bgId, i] of ptmMon) {
+            if (!dateMap.has(i.date)) dateMap.set(i.date, []);
+            dateMap.get(i.date).push(bgId);
+        }
+        const sortedDates = [...dateMap.keys()].sort();
+
+        const FIXED = 7; // No, Nama, H, S, I, A, %
+
+        // Baris header-1: kolom tetap + label tanggal (akan di-merge per tanggal)
+        const hdr1 = [
+            cc('No',          ST.hdrMain), cc('Nama Siswa', ST.hdrMain),
+            cc('Hadir',       ST.statusH), cc('Sakit',      ST.statusS),
+            cc('Izin',        ST.statusI), cc('Alpa',       ST.statusA),
+            cc('% Hadir',     ST.hdrMain),
+        ];
+        // Baris header-2: label mapel per pertemuan
+        const hdr2 = Array(FIXED).fill(null);
+        const merges = [];
+        let colIdx = FIXED;
+
+        for (const date of sortedDates) {
+            const bgIds = dateMap.get(date);
+            const dd = date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2'); // "dd/mm"
+            hdr1.push(cc(dd, ST.hdrDate));
+            for (let k = 1; k < bgIds.length; k++) hdr1.push(null); // placeholder merge
+            for (const bgId of bgIds)
+                hdr2.push(cc(ptmInfo.get(bgId)?.subject ?? '—', ST.hdrSubject));
+            if (bgIds.length > 1)
+                merges.push({ s: { r: 3, c: colIdx }, e: { r: 3, c: colIdx + bgIds.length - 1 } });
+            colIdx += bgIds.length;
+        }
+
+        // Baris data per siswa
+        const dataRows = rekap.map((r, idx) => {
+            const byBg = pivot[r.s.student_id] ?? {};
+            let mH = 0, mS = 0, mI = 0, mA = 0;
+            for (const [bgId] of ptmMon) {
+                const st = byBg[bgId]; if (!st) continue;
+                if (st === 'HADIR') mH++; else if (st === 'SAKIT') mS++;
+                else if (st === 'IZIN') mI++; else if (st === 'ALPA') mA++;
+            }
+            const mTot = mH + mS + mI + mA;
+            const mPct = mTot > 0 ? Math.round(mH / mTot * 100) + '%' : '—';
+            const warn = mA >= ALPA_MIN || (mTot > 0 && mH / mTot < HADIR_MIN);
+
+            const row = [
+                cc(idx + 1,      warn ? { ...ST.perhatian, ...ST.number } : ST.number),
+                cc(r.s.full_name, warn ? ST.perhatian : null),
+                cc(mH, ST.statusH), cc(mS, ST.statusS),
+                cc(mI, ST.statusI), cc(mA, ST.statusA),
+                cc(mPct, mTot > 0 && mH / mTot < HADIR_MIN ? ST.pctBad
+                    : mTot > 0 ? ST.pctOk : ST.number),
+            ];
+            for (const [bgId] of ptmMon) {
+                const st = byBg[bgId];
+                row.push(st ? cc(STATUS_HURUF[st], { HADIR: ST.statusH, SAKIT: ST.statusS, IZIN: ST.statusI, ALPA: ST.statusA }[st])
+                            : cc('', null));
+            }
+            return row;
+        });
+
+        // Baris total bawah
+        const totRow = [
+            cc('', ST.total), cc('TOTAL KELAS', ST.total),
+            cc(dataRows.reduce((a, r) => a + (r[2]?.v ?? 0), 0), { ...ST.total, ...ST.statusH }),
+            cc(dataRows.reduce((a, r) => a + (r[3]?.v ?? 0), 0), { ...ST.total, ...ST.statusS }),
+            cc(dataRows.reduce((a, r) => a + (r[4]?.v ?? 0), 0), { ...ST.total, ...ST.statusI }),
+            cc(dataRows.reduce((a, r) => a + (r[5]?.v ?? 0), 0), { ...ST.total, ...ST.statusA }),
+            cc('', ST.total),
+        ];
+        for (const [bgId] of ptmMon)
+            totRow.push(cc(Object.values(pivot).filter(b => b[bgId]).length, ST.total));
+
+        const allRows = [
+            [cc(`ABSENSI ${MONTH_ID[mo].toUpperCase()} ${yr} — ${className}`, ST.title)],
+            [cc('Pertemuan yang belum diinput guru tidak muncul dan tidak dihitung sebagai alpa', ST.italic9)],
+            null,
+            hdr1,
+            hdr2,
+            ...dataRows,
+            totRow,
+        ];
+
+        const colWidths = [4, 30, 6, 6, 6, 6, 8, ...Array(ptmMon.length).fill(10)];
+        const ws = buildWs(allRows, colWidths, merges);
+
+        // Freeze pane: bekukan 2 kolom kiri + 5 baris atas (title+sub+blank+hdr1+hdr2)
+        ws['!freeze'] = { xSplit: 2, ySplit: 5 };
+
+        return { name: sheetName, ws };
+    });
+
+    return [{ name: 'RINGKASAN', ws: ws1 }, ...monthSheets];
 }
 
 async function loadWaliSummary({ currentUser, config }) {

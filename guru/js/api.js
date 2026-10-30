@@ -854,6 +854,7 @@ export async function getClassAttendanceByDate(classId, academicYear, dateStart,
         block_group_id: r.block_group_id,
         session_date:   r.session_date,
         status:         r.status,
+        subject_label:  r.subject_label ?? '',
     }));
 }
 
