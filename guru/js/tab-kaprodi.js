@@ -374,9 +374,14 @@ async function downloadKpClsExcel({ config }) {
                     m.set(sid, v);
             combinedMonthly[mon] = m;
         }
+        const classGroups = clsData.map(d => ({
+            name: d.cls.name,
+            studentIds: new Set(d.students.map(s => s.student_id)),
+        }));
         const prodiSheets = buildWaliSheetsMonthly({
             students: allStudents, scheduleRows: allScheduleRows,
             monthlyMap: combinedMonthly, className: 'Semua Kelas Prodi', academicYear,
+            classGroups,
         });
         XLSX.utils.book_append_sheet(wb, prodiSheets[0].ws, 'RINGKASAN');
 

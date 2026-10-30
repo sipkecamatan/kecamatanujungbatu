@@ -216,7 +216,7 @@ async function _initWaliKasusSection({ currentUser, config, makeKasusCtx, showKa
  * Sumber data: fn_class_schedule_full — mengembalikan SEMUA sesi terjadwal × siswa.
  * status=null → belum diinput; status=text → sudah diinput.
  */
-export function buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, className, academicYear }) {
+export function buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, className, academicYear, classGroups = null }) {
     const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
     const ALPA_MIN     = 2;
     const HADIR_MIN    = 0.75;
@@ -425,23 +425,43 @@ export function buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, cla
         cc('Catatan',    ST.hdrMain),
     ]);
     let noP = 0;
-    for (const r of rekap) {
-        if (r.A < ALPA_MIN && (r.pct === null || r.pct >= HADIR_MIN)) continue;
+
+    const pushPerhatianRow = (r) => {
         noP++;
         const cat = [];
         if (r.pct !== null && r.pct < HADIR_MIN) cat.push(`% hadir ${Math.round(r.pct * 100)}% < 75%`);
         if (r.A >= ALPA_MIN) cat.push(`alpa ${r.A}x`);
         r1.push([
-            cc(noP,          { ...ST.perhatian, ...ST.number }),
-            cc(r.s.full_name, ST.perhatian),
+            cc(noP,           { ...ST.perhatian, ...ST.number }),
+            cc(r.s.full_name,  ST.perhatian),
             cc(r.H, ST.statusH), cc(r.S, ST.statusS),
             cc(r.I, ST.statusI), cc(r.A, ST.statusA),
-            cc(r.tot,        { ...ST.perhatian, ...ST.number }),
+            cc(r.tot,         { ...ST.perhatian, ...ST.number }),
             cc(r.pct !== null ? Math.round(r.pct * 100) + '%' : '—',
                r.pct !== null && r.pct < HADIR_MIN ? ST.pctBad : ST.pctOk),
             cc(cat.join(', '), ST.perhatian),
         ]);
+    };
+
+    if (classGroups) {
+        // Tampilkan per kelas dengan header kelas
+        const rekapById = new Map(rekap.map(r => [r.s.student_id, r]));
+        for (const grp of classGroups) {
+            const grpPerhatian = [...grp.studentIds]
+                .map(id => rekapById.get(id))
+                .filter(r => r && (r.A >= ALPA_MIN || (r.pct !== null && r.pct < HADIR_MIN)))
+                .sort((a, b) => a.s.full_name.localeCompare(b.s.full_name, 'id'));
+            if (!grpPerhatian.length) continue;
+            r1.push([cc(grp.name, ST.section)]);
+            for (const r of grpPerhatian) pushPerhatianRow(r);
+        }
+    } else {
+        for (const r of rekap) {
+            if (r.A < ALPA_MIN && (r.pct === null || r.pct >= HADIR_MIN)) continue;
+            pushPerhatianRow(r);
+        }
     }
+
     if (noP === 0)
         r1.push([null, cc('Tidak ada siswa yang memerlukan perhatian khusus.', { s: { font: { color: { rgb: '155724' }, italic: true } } })]);
 
