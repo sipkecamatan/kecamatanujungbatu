@@ -336,7 +336,7 @@ async function downloadKpClsExcel({ config }) {
         const results = await Promise.all(
             classes.map(c => Promise.all([
                 getClassStudents(c.class_id),
-                getClassAttendanceByDate(c.class_id, academicYear, dateStart, dateEnd),
+                getClassAttendanceByDate(c.class_id, academicYear, null, null),
             ]).then(([roster, detail]) => ({ cls: c, roster, detail })))
         );
 
