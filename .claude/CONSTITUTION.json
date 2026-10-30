@@ -543,7 +543,8 @@
     "responsivitas_hp": "Perubahan HTML (struktur DOM) sama berbahayanya dengan perubahan CSS untuk tampilan HP — menambah kolom tabel, wrapper div, atau urutan elemen bisa merusak layout 360px tanpa menyentuh CSS.",
     "grafik_ikut_overview": "Dashboard wilayah: grafik Tren Kehadiran tidak boleh punya kontrol periode sendiri — selalu ikut periode overview di topbar. _loadMonitoring dipanggil dari loadOverview() dengan rentang dari hitungRentang(). Tombol periode terpisah di grafik card menyebabkan inkonsistensi 'diatas 30 hari, grafik 7 hari'.",
     "narasi_netral": "Narasi _buildChartCaption di semua dashboard (kepsek, stakeholder, wilayah) harus deskriptif-faktual saja: angka, arah tren, rentang variasi. DILARANG: saran tindakan ('perlu dipantau', 'perlu ditelusuri', 'perlu evaluasi'), sebutan pihak ('wali kelas', 'BK'), penilaian subjektif ('cukup tinggi', 'rendah'). Keputusan tindak lanjut adalah hak pembaca, bukan tugas narasi.",
-    "cte_is_not_distinct_from": "CTE + LEFT JOIN IS NOT DISTINCT FROM tidak andal untuk mendeteksi keberadaan baris di dalam SECURITY DEFINER function — hasilnya semua status NULL secara diam-diam walau data attendance sudah ada. Solusi: ganti dengan window function COUNT(att.status) OVER (PARTITION BY block_group_id) > 0. Jika > 0 berarti ada record di block itu. Jebakan ini ditemukan di fn_class_schedule_full (migration 20261030020000 vs 20261030030000)."
+    "cte_is_not_distinct_from": "CTE + LEFT JOIN IS NOT DISTINCT FROM tidak andal untuk mendeteksi keberadaan baris di dalam SECURITY DEFINER function — hasilnya semua status NULL secara diam-diam walau data attendance sudah ada. Solusi: ganti dengan window function COUNT(att.status) OVER (PARTITION BY block_group_id) > 0. Jika > 0 berarti ada record di block itu. Jebakan ini ditemukan di fn_class_schedule_full (migration 20261030020000 vs 20261030030000).",
+    "injeksi_absensi_per_block": "Skrip injeksi absensi WAJIB assign satu status per (siswa × block_group_id), lalu salin status itu ke SEMUA schedule_id dalam block tersebut — persis seperti saveAttendanceBatch di produksi. Jangan assign status random per schedule_id: hasilnya satu block bisa punya status HADIR di JP1 dan ALPA di JP2 untuk siswa yang sama (status campuran). Dampak: fn_class_attendance_summary (Excel Wali) double-count → H+A+I+S > total, angka tidak bisa dipercaya. fn_attendance_recap_per_class (Excel Waka/BK) tetap benar karena pakai status terburuk. Ditemukan 30 Okt 2026 saat verifikasi SMA Uji 1."
   },
   "open_tasks": [
     {
@@ -587,8 +588,8 @@
   ],
   "state": {
     "last_updated": "2026-10-30",
-    "last_session_commit": "e94c7f4",
+    "last_session_commit": "a53356b",
     "migrasi_terpasang_sampai": "20261030030000",
-    "main_sha": "e94c7f4"
+    "main_sha": "a53356b"
   }
 }
