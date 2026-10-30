@@ -420,6 +420,48 @@
       "sumber_data": "fn_portal_attendance (RPC SECURITY DEFINER)",
       "catatan": "pivot block_group_id + EKSKUL→HADIR; CAMPURAN tidak terjadi di jalur normal karena saveAttendanceBatch kirim records identik ke semua schedule_id dalam satu block_group"
     },
+    "fn_portal_attendance": {
+      "return_type": "JSONB (bukan TABLE) — array schedule objects, masing-masing berisi attendance[0].status",
+      "dipanggil_sebagai": "SISWA atau ORTU (fn_portal_can_read_student cek role)",
+      "dipakai_di": [
+        "parent/js/api.js (fetchAttendance)",
+        "student/js/api.js (getMyAttendance)",
+        "shared/attendance-pivot.js (pivotAttendanceBlocks)"
+      ],
+      "pivot_konsistensi": "untuk membandingkan dengan fn_class_attendance_summary: parse JSONB → group per block_group_id → status terburuk (PRIO: ALPA<SAKIT<IZIN<HADIR) → hitung H/S/I/A",
+      "test_relevan": [
+        "absensi-konsistensi.mjs (C3)"
+      ]
+    },
+    "fn_class_attendance_summary": {
+      "parameter": "p_class_id uuid, p_academic_year text, p_date_start date, p_date_end date, p_teacher_id uuid, p_semester semester",
+      "return": "TABLE (student_id, full_name, nis, hadir, alpa, izin, sakit, total)",
+      "auth_required": "role GURU/WALI_KELAS/BK/KAPRODI/KEPSEK/WAKA_* (tidak bisa dipanggil TU/SISWA/ORTU)",
+      "wali_restriction": "WALI_KELAS hanya bisa baca kelas waliannya sendiri",
+      "dipakai_di": [
+        "guru/js/api.js (getWaliAttendanceSummary, getAttendanceRecapPerClass)",
+        "tab-wali.js Excel (9× per bulan)",
+        "tab-kaprodi.js Excel"
+      ],
+      "test_relevan": [
+        "absensi-konsistensi.mjs (F1, C1, C4)"
+      ]
+    },
+    "fn_attendance_recap_per_class": {
+      "parameter": "p_date_start date, p_date_end date",
+      "return": "TABLE (class_id, name, hadir, alpa, izin, sakit, total)",
+      "auth_required": "ADMINISTRATIVE atau fn_is_schoolwide_observer() (BK/KEPSEK/WAKA_*) atau KAPRODI untuk kelasnya sendiri",
+      "pivot_logic": "status terburuk per (siswa × block_group_id) — identik dengan fn_tu_attendance_recap dan pivot Excel",
+      "dipakai_di": [
+        "guru/js/api.js (getAttendanceRecapPerClass)",
+        "tab-waka-kesiswaan.js",
+        "tab-kaprodi.js",
+        "tab-bk.js"
+      ],
+      "test_relevan": [
+        "absensi-konsistensi.mjs (C1, C2, C5)"
+      ]
+    },
     "RLS_policy": {
       "test_relevan": [
         "tenant-isolation.mjs",
@@ -544,7 +586,9 @@
     "grafik_ikut_overview": "Dashboard wilayah: grafik Tren Kehadiran tidak boleh punya kontrol periode sendiri — selalu ikut periode overview di topbar. _loadMonitoring dipanggil dari loadOverview() dengan rentang dari hitungRentang(). Tombol periode terpisah di grafik card menyebabkan inkonsistensi 'diatas 30 hari, grafik 7 hari'.",
     "narasi_netral": "Narasi _buildChartCaption di semua dashboard (kepsek, stakeholder, wilayah) harus deskriptif-faktual saja: angka, arah tren, rentang variasi. DILARANG: saran tindakan ('perlu dipantau', 'perlu ditelusuri', 'perlu evaluasi'), sebutan pihak ('wali kelas', 'BK'), penilaian subjektif ('cukup tinggi', 'rendah'). Keputusan tindak lanjut adalah hak pembaca, bukan tugas narasi.",
     "cte_is_not_distinct_from": "CTE + LEFT JOIN IS NOT DISTINCT FROM tidak andal untuk mendeteksi keberadaan baris di dalam SECURITY DEFINER function — hasilnya semua status NULL secara diam-diam walau data attendance sudah ada. Solusi: ganti dengan window function COUNT(att.status) OVER (PARTITION BY block_group_id) > 0. Jika > 0 berarti ada record di block itu. Jebakan ini ditemukan di fn_class_schedule_full (migration 20261030020000 vs 20261030030000).",
-    "injeksi_absensi_per_block": "Skrip injeksi absensi WAJIB assign satu status per (siswa × block_group_id), lalu salin status itu ke SEMUA schedule_id dalam block tersebut — persis seperti saveAttendanceBatch di produksi. Jangan assign status random per schedule_id: hasilnya satu block bisa punya status HADIR di JP1 dan ALPA di JP2 untuk siswa yang sama (status campuran). Dampak: fn_class_attendance_summary (Excel Wali) double-count → H+A+I+S > total, angka tidak bisa dipercaya. fn_attendance_recap_per_class (Excel Waka/BK) tetap benar karena pakai status terburuk. Ditemukan 30 Okt 2026 saat verifikasi SMA Uji 1."
+    "injeksi_absensi_per_block": "Skrip injeksi absensi WAJIB assign satu status per (siswa × block_group_id), lalu salin status itu ke SEMUA schedule_id dalam block tersebut — persis seperti saveAttendanceBatch di produksi. Jangan assign status random per schedule_id: hasilnya satu block bisa punya status HADIR di JP1 dan ALPA di JP2 untuk siswa yang sama (status campuran). Dampak: fn_class_attendance_summary (Excel Wali) double-count → H+A+I+S > total, angka tidak bisa dipercaya. fn_attendance_recap_per_class (Excel Waka/BK) tetap benar karena pakai status terburuk. Ditemukan 30 Okt 2026 saat verifikasi SMA Uji 1.",
+    "mgmt_api_multistatement": "Management API /database/query mengembalikan hasil dari SELECT terakhir sebelum ROLLBACK — bukan dari ROLLBACK itu sendiri. Pola BEGIN; SET LOCAL ROLE authenticated; SELECT set_config(...); SELECT ... FROM fn_...; ROLLBACK; akan mengembalikan baris dari SELECT fn terakhir. Dikonfirmasi dari pola asUser() di tenant-isolation.mjs dan dipakai di absensi-konsistensi.mjs.",
+    "fn_portal_attendance_jsonb": "fn_portal_attendance mengembalikan JSONB (satu nilai), bukan TABLE. Untuk menghitung H/S/I/A: parse JSONB → group per block_group_id → ambil status terburuk (ALPA<SAKIT<IZIN<HADIR) → hitung. Tidak bisa di-SUM langsung seperti fn_class_attendance_summary. Juga harus dipanggil sebagai SISWA atau ORTU (fn_portal_can_read_student), bukan staff."
   },
   "open_tasks": [
     {
@@ -587,9 +631,9 @@
     }
   ],
   "state": {
-    "last_updated": "2026-10-30",
-    "last_session_commit": "00c89a3",
+    "last_updated": "2026-10-31",
+    "last_session_commit": "TBD_setelah_commit",
     "migrasi_terpasang_sampai": "20261030040000",
-    "main_sha": "00c89a3"
+    "main_sha": "TBD_setelah_commit"
   }
 }
