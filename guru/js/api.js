@@ -1821,7 +1821,7 @@ export async function deleteExit(exitId) {
     if (error) throw error;
 }
 
-export async function getWaliLateArrivals(classId, dateStart, dateEnd) {
+export async function getWaliLateArrivals(dateStart, dateEnd) {
     const { data, error } = await supabase
         .from('late_arrivals')
         .select(`
@@ -1844,7 +1844,7 @@ export async function getWaliLateArrivals(classId, dateStart, dateEnd) {
     }));
 }
 
-export async function getWaliExits(classId, dateStart, dateEnd) {
+export async function getWaliExits(dateStart, dateEnd) {
     const { data, error } = await supabase
         .from('student_exits')
         .select(`

@@ -111,7 +111,7 @@ async function loadWaliLate({ currentUser }) {
     if (!dateStart || !dateEnd) { el.innerHTML = '<p class="hint">Pilih rentang tanggal lalu klik Filter.</p>'; return; }
     el.innerHTML = '<p class="hint">Memuat…</p>';
     try {
-        const rows = await getWaliLateArrivals(classId, dateStart, dateEnd);
+        const rows = await getWaliLateArrivals(dateStart, dateEnd);
         if (!rows.length) { el.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>'; return; }
         el.innerHTML = `
             <div style="overflow-x:auto">
@@ -144,7 +144,7 @@ async function loadWaliExit({ currentUser }) {
     if (!dateStart || !dateEnd) { el.innerHTML = '<p class="hint">Pilih rentang tanggal lalu klik Filter.</p>'; return; }
     el.innerHTML = '<p class="hint">Memuat…</p>';
     try {
-        const rows = await getWaliExits(classId, dateStart, dateEnd);
+        const rows = await getWaliExits(dateStart, dateEnd);
         if (!rows.length) { el.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>'; return; }
         el.innerHTML = `
             <div style="overflow-x:auto">
