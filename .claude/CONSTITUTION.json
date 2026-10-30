@@ -526,8 +526,8 @@
   ],
   "state": {
     "last_updated": "2026-10-30",
-    "last_session_commit": "535bada",
+    "last_session_commit": "a9b5d4d",
     "migrasi_terpasang_sampai": "20261029000000",
-    "main_sha": "535bada"
+    "main_sha": "a9b5d4d"
   }
 }
