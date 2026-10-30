@@ -54,7 +54,7 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
             const academicYear = config.current_academic_year;
 
             const [students, detail] = await Promise.all([
-                getWaliAttendanceSummary(classId, academicYear, null, null, config.current_semester),
+                getWaliAttendanceSummary(classId, academicYear, null, null, null),
                 getClassAttendanceByDate(classId, academicYear, null, null, null),
             ]);
 
