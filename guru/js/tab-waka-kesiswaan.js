@@ -5,14 +5,15 @@
  *
  * kasusEngine diteruskan dari dashboard.js.
  */
-import { supabase } from './api.js';
 import {
+    supabase,
     getPrograms, getAttendanceRecapPerClass,
-    getClassStudents, getClassAttendanceByDate,
+    getClassesByProgram, getWaliAttendanceSummary, getClassScheduleFull,
     getLateArrivalsByRange, getCoachingCasesCount,
 } from './api.js';
-import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta } from './tab-shared.js';
-import { downloadProdiExcel } from './tab-kaprodi.js';
+import { esc, fe, wireSimpleAccordion, localDateStr } from './tab-shared.js';
+import { downloadProdiExcel, MONTHS_RANGE } from './tab-kaprodi.js';
+import { buildWaliSheetsMonthly } from './tab-wali.js';
 
 export let wkKasusCtx = null;
 let _wkAttendanceRequestSeq = 0;
@@ -181,58 +182,73 @@ async function downloadWkAttExcel({ config }) {
     btn.textContent = 'Menyiapkan…';
     try {
         const academicYear = config.current_academic_year;
-        const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
-        const PRIO         = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
 
-        const allRows = await getAttendanceRecapPerClass(null, null);
-        if (!allRows.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
+        const programs = await getPrograms();
+        const allClassArrays = await Promise.all(programs.map(p => getClassesByProgram(p.program_id)));
+        const allClasses = allClassArrays.flat().sort((a, b) => a.name.localeCompare(b.name, 'id'));
+        if (!allClasses.length) { alert('Belum ada kelas untuk diunduh.'); return; }
+
+        const clsData = await Promise.all(allClasses.map(async c => {
+            const [students, scheduleRows, ...monthlyRekaps] = await Promise.all([
+                getWaliAttendanceSummary(c.class_id, academicYear, null, null, config.current_semester),
+                getClassScheduleFull(c.class_id, academicYear, null, null),
+                ...MONTHS_RANGE.map(([ds, de]) =>
+                    getWaliAttendanceSummary(c.class_id, academicYear, ds, de, null)
+                ),
+            ]);
+            const monthlyMap = {};
+            MONTHS_RANGE.forEach(([ds], i) => {
+                const mon = ds.slice(0, 7);
+                const m = new Map();
+                for (const r of monthlyRekaps[i])
+                    m.set(r.student_id, { H: r.HADIR, S: r.SAKIT, I: r.IZIN, A: r.ALPA, tot: r.total });
+                monthlyMap[mon] = m;
+            });
+            return { cls: c, students, scheduleRows, monthlyMap };
+        }));
 
         const wb = XLSX.utils.book_new();
 
-        // Fetch semua kelas paralel
-        const results = await Promise.all(
-            allRows.map(r => Promise.all([
-                getClassStudents(r.class_id),
-                getClassAttendanceByDate(r.class_id, academicYear, null, null),
-            ]).then(([roster, detail]) => ({ cls: r, roster, detail })))
-        );
+        // Sheet RINGKASAN — semua siswa, dikelompokkan per kelas
+        const allStudents     = clsData.flatMap(d => d.students);
+        const allScheduleRows = clsData.flatMap(d => d.scheduleRows);
+        const combinedMonthly = {};
+        for (const [ds] of MONTHS_RANGE) {
+            const mon = ds.slice(0, 7);
+            const m = new Map();
+            for (const d of clsData)
+                for (const [sid, v] of (d.monthlyMap[mon] ?? new Map()))
+                    m.set(sid, v);
+            combinedMonthly[mon] = m;
+        }
+        const classGroups = clsData
+            .filter(d => d.students.length)
+            .map(d => ({ name: d.cls.name, studentIds: new Set(d.students.map(s => s.student_id)) }));
 
-        for (const { cls, roster, detail } of results.sort((a, b) => a.cls.name.localeCompare(b.cls.name, 'id'))) {
-            if (!roster.length) continue;
-
-            // Pivot per pertemuan (block_group_id), ambil status terburuk
-            const pivot = {};
-            for (const r of detail) {
-                if (!r.block_group_id) continue;
-                if (!pivot[r.student_id]) pivot[r.student_id] = {};
-                const prev = pivot[r.student_id][r.block_group_id];
-                if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
-                    pivot[r.student_id][r.block_group_id] = r.status;
-            }
-
-            const { sortedIds, labelById } = buildPertemuanMeta(detail);
-            const sorted = [...roster].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
-
-            const header = ['No', 'Nama', 'NIS', ...sortedIds.map(id => labelById.get(id)), 'H', 'I', 'S', 'A', '%Hadir'];
-            const dataRows = sorted.map((s, idx) => {
-                const byBg = pivot[s.student_id] ?? {};
-                let H = 0, I = 0, S = 0, A = 0;
-                for (const st of Object.values(byBg)) {
-                    if (st === 'HADIR') H++; else if (st === 'IZIN') I++;
-                    else if (st === 'SAKIT') S++; else if (st === 'ALPA') A++;
-                }
-                const tot = H + I + S + A;
-                const pct = tot > 0 ? Math.round(H / tot * 100) + '%' : '—';
-                return [idx + 1, s.full_name, s.nis ?? '',
-                    ...sortedIds.map(id => STATUS_HURUF[byBg[id]] ?? ''),
-                    H, I, S, A, pct];
+        if (allStudents.length) {
+            const sheets = buildWaliSheetsMonthly({
+                students: allStudents, scheduleRows: allScheduleRows,
+                monthlyMap: combinedMonthly, className: 'Semua Kelas', academicYear,
+                classGroups,
             });
+            XLSX.utils.book_append_sheet(wb, sheets[0].ws, 'RINGKASAN');
+        }
 
+        // Sheet per kelas — agregat tahunan saja (No|Nama|NIS|H|S|I|A|%)
+        for (const { cls, students } of clsData) {
+            if (!students.length) continue;
+            const sorted = [...students].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+            const header = ['No', 'Nama', 'NIS', 'H', 'S', 'I', 'A', '%Hadir'];
+            const dataRows = sorted.map((s, idx) => {
+                const tot = s.HADIR + s.SAKIT + s.IZIN + s.ALPA;
+                const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) + '%' : '—';
+                return [idx + 1, s.full_name, s.nis ?? '', s.HADIR, s.SAKIT, s.IZIN, s.ALPA, pct];
+            });
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...dataRows]), cls.name.slice(0, 31));
         }
 
         if (!wb.SheetNames.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
-        XLSX.writeFile(wb, `rekap_absensi_semua_kelas_${academicYear}.xlsx`);
+        XLSX.writeFile(wb, `rekap_absensi_sekolah_${academicYear}.xlsx`);
     } catch (err) {
         alert('Gagal mengunduh: ' + fe(err));
     } finally {
