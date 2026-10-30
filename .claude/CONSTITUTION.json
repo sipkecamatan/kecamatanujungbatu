@@ -455,7 +455,7 @@
         "RINGKASAN (agregat tahun ajaran + tren per bulan + siswa perlu perhatian)",
         "Okt 26 … Jun 27 (9 sheet per bulan: No|Nama|H|S|I|A|%|tanggal×mapel×guru)"
       ],
-      "catatan": "Sumber data diganti ke fn_class_schedule_full (bukan fn_class_attendance_detail) agar sesi belum diinput tampil sebagai sel abu-abu '—'. Kolom per-pertemuan: header baris-1=tanggal (merge), baris-2=subject_label, baris-3=nama guru. Sel abu-abu = status NULL = belum diinput guru (tidak dihitung alpa). Excel selalu unduh full tahun ajaran (null/null). Freeze pane 2 kolom + 6 baris.",
+      "catatan": "Kolom H/S/I/A per siswa (fixed columns) berasal dari fn_class_attendance_summary dipanggil per bulan (9 panggilan paralel) agar angka konsisten dengan tampilan website — fn_class_schedule_full DISTINCT ON bisa salah bucket bulan. Urutan kolom dan card: H S I A (bukan HISA). Footer per pertemuan: baris Jumlah H/S/I/A di bawah data siswa. Kolom per-pertemuan: header baris-1=tanggal (merge), baris-2=subject_label, baris-3=nama guru. Sel abu-abu = status NULL = belum diinput. Excel full tahun ajaran (null/null). Freeze pane 2 kolom + 6 baris.",
       "test_relevan": [
         "wali-attendance-sql.mjs",
         "wali-kelas.mjs"
@@ -544,8 +544,8 @@
   ],
   "state": {
     "last_updated": "2026-10-30",
-    "last_session_commit": "5af08bc",
+    "last_session_commit": "2b0134f",
     "migrasi_terpasang_sampai": "20261030030000",
-    "main_sha": "5af08bc"
+    "main_sha": "2b0134f"
   }
 }
