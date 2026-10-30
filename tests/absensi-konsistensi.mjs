@@ -250,8 +250,8 @@ try {
             staff_auth, student_ids: rawStudentIds, schedule_ids: rawScheduleIds,
         } = f1PreData;
 
-        const studentIds = JSON.parse(rawStudentIds);
-        const scheduleIds = JSON.parse(rawScheduleIds);
+        const studentIds  = Array.isArray(rawStudentIds)  ? rawStudentIds  : JSON.parse(rawStudentIds);
+        const scheduleIds = Array.isArray(rawScheduleIds) ? rawScheduleIds : JSON.parse(rawScheduleIds);
         const n = studentIds.length;
 
         if (n < 6) {
@@ -725,15 +725,17 @@ try {
         }
 
         // ── C4: fn_class_attendance_summary bulanan (Wali Excel) vs tahunan ──
-        head('FASE 2 C4 — fn_class_attendance_summary bulanan × 9 bulan vs full-tahun (Wali Excel)');
+        head('FASE 2 C4 — fn_class_attendance_summary bulanan × 12 bulan vs full-tahun (Wali Excel)');
 
-        // Tahun ajaran SIP: Okt–Jun (9 bulan)
+        // Tahun ajaran Indonesia: Jul–Jun (12 bulan). MONTHS_RANGE di tab-wali.js
+        // wajib mencakup Jul–Jun agar sheet bulanan Excel sesuai total tahunan.
         const MONTHS = [
-            ['2026-10-01', '2026-10-31'], ['2026-11-01', '2026-11-30'],
-            ['2026-12-01', '2026-12-31'], ['2027-01-01', '2027-01-31'],
-            ['2027-02-01', '2027-02-28'], ['2027-03-01', '2027-03-31'],
-            ['2027-04-01', '2027-04-30'], ['2027-05-01', '2027-05-31'],
-            ['2027-06-01', '2027-06-30'],
+            ['2026-07-01', '2026-07-31'], ['2026-08-01', '2026-08-31'],
+            ['2026-09-01', '2026-09-30'], ['2026-10-01', '2026-10-31'],
+            ['2026-11-01', '2026-11-30'], ['2026-12-01', '2026-12-31'],
+            ['2027-01-01', '2027-01-31'], ['2027-02-01', '2027-02-28'],
+            ['2027-03-01', '2027-03-31'], ['2027-04-01', '2027-04-30'],
+            ['2027-05-01', '2027-05-31'], ['2027-06-01', '2027-06-30'],
         ];
 
         const [monthlyResults, yearlyResult] = await Promise.all([
@@ -779,11 +781,11 @@ try {
         } else {
             const okC4 = JSON.stringify(monthlySum) === JSON.stringify(yearly);
             if (okC4) {
-                pass(`C4 — SUM 9 bulan = tahunan: A=${yearly.A} S=${yearly.S} I=${yearly.I} H=${yearly.H} total=${yearly.total}`);
+                pass(`C4 — SUM 12 bulan = tahunan: A=${yearly.A} S=${yearly.S} I=${yearly.I} H=${yearly.H} total=${yearly.total}`);
             } else {
                 fail(
-                    'C4 — SUM 9 bulan TIDAK sama dengan full-tahun (Wali Excel akan beda dengan rekap layar)',
-                    `9 bulan: A=${monthlySum.A} S=${monthlySum.S} I=${monthlySum.I} H=${monthlySum.H} total=${monthlySum.total} | tahunan: A=${yearly.A} S=${yearly.S} I=${yearly.I} H=${yearly.H} total=${yearly.total}`
+                    'C4 — SUM 12 bulan TIDAK sama dengan full-tahun (Wali Excel akan beda dengan rekap layar)',
+                    `12 bulan: A=${monthlySum.A} S=${monthlySum.S} I=${monthlySum.I} H=${monthlySum.H} total=${monthlySum.total} | tahunan: A=${yearly.A} S=${yearly.S} I=${yearly.I} H=${yearly.H} total=${yearly.total}`
                 );
             }
         }

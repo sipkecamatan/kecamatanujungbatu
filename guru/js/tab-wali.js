@@ -55,11 +55,12 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
             // Unduh SELURUH tahun ajaran — tidak terikat filter tanggal di layar
             // Rekap per bulan dipanggil terpisah agar angka H/S/I/A konsisten dengan website
             const MONTHS_RANGE = [
-                ['2026-10-01','2026-10-31'],['2026-11-01','2026-11-30'],
-                ['2026-12-01','2026-12-31'],['2027-01-01','2027-01-31'],
-                ['2027-02-01','2027-02-28'],['2027-03-01','2027-03-31'],
-                ['2027-04-01','2027-04-30'],['2027-05-01','2027-05-31'],
-                ['2027-06-01','2027-06-30'],
+                ['2026-07-01','2026-07-31'],['2026-08-01','2026-08-31'],
+                ['2026-09-01','2026-09-30'],['2026-10-01','2026-10-31'],
+                ['2026-11-01','2026-11-30'],['2026-12-01','2026-12-31'],
+                ['2027-01-01','2027-01-31'],['2027-02-01','2027-02-28'],
+                ['2027-03-01','2027-03-31'],['2027-04-01','2027-04-30'],
+                ['2027-05-01','2027-05-31'],['2027-06-01','2027-06-30'],
             ];
             const [students, scheduleRows, ...monthlyRekaps] = await Promise.all([
                 getWaliAttendanceSummary(classId, academicYear, null, null, config.current_semester),
@@ -244,6 +245,7 @@ export function buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, cla
         .sort(([, a], [, b]) => a.date.localeCompare(b.date) || a.subject.localeCompare(b.subject));
 
     const MONTHS = [
+        '2026-07','2026-08','2026-09',
         '2026-10','2026-11','2026-12',
         '2027-01','2027-02','2027-03','2027-04','2027-05','2027-06',
     ];
