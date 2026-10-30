@@ -12,7 +12,8 @@ import {
     getLateArrivalsByRange, getCoachingCasesCount,
 } from './api.js';
 import { esc, fe, wireSimpleAccordion, localDateStr } from './tab-shared.js';
-import { downloadProdiExcel } from './tab-kaprodi.js';
+import { downloadProdiExcel, MONTHS_RANGE } from './tab-kaprodi.js';
+import { buildWaliSheetsMonthly } from './tab-wali.js';
 
 export let wkKasusCtx = null;
 let _wkAttendanceRequestSeq = 0;
@@ -188,42 +189,58 @@ async function downloadWkAttExcel({ config }) {
         if (!allClasses.length) { alert('Belum ada kelas untuk diunduh.'); return; }
 
         const clsData = await Promise.all(allClasses.map(async c => {
-            const students = await getWaliAttendanceSummary(c.class_id, academicYear, null, null, config.current_semester);
-            return { cls: c, students };
+            const [students, ...monthlyRekaps] = await Promise.all([
+                getWaliAttendanceSummary(c.class_id, academicYear, null, null, config.current_semester),
+                ...MONTHS_RANGE.map(([ds, de]) =>
+                    getWaliAttendanceSummary(c.class_id, academicYear, ds, de, null)
+                ),
+            ]);
+            const monthlyMap = {};
+            MONTHS_RANGE.forEach(([ds], i) => {
+                const mon = ds.slice(0, 7);
+                const m = new Map();
+                for (const r of monthlyRekaps[i])
+                    m.set(r.student_id, { H: r.HADIR, S: r.SAKIT, I: r.IZIN, A: r.ALPA, tot: r.total });
+                monthlyMap[mon] = m;
+            });
+            return { cls: c, students, monthlyMap };
         }));
 
+        const allStudents     = clsData.flatMap(d => d.students);
+        if (!allStudents.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
+
+        const combinedMonthly = {};
+        for (const [ds] of MONTHS_RANGE) {
+            const mon = ds.slice(0, 7);
+            const m = new Map();
+            for (const d of clsData)
+                for (const [sid, v] of (d.monthlyMap[mon] ?? new Map()))
+                    m.set(sid, v);
+            combinedMonthly[mon] = m;
+        }
+        const classGroups = clsData
+            .filter(d => d.students.length)
+            .map(d => ({ name: d.cls.name, studentIds: new Set(d.students.map(s => s.student_id)) }));
+
+        const sheets = buildWaliSheetsMonthly({
+            students: allStudents, scheduleRows: [],
+            monthlyMap: combinedMonthly, className: 'Semua Kelas', academicYear,
+            classGroups,
+        });
+
         const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, sheets[0].ws, 'RINGKASAN');
 
-        // Sheet RINGKASAN — semua siswa, dikelompokkan per kelas
-        const ringkasanRows = [];
-        for (const { cls, students } of clsData) {
-            if (!students.length) continue;
-            const sorted = [...students].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
-            for (const s of sorted) {
-                const tot = s.HADIR + s.SAKIT + s.IZIN + s.ALPA;
-                const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) + '%' : '—';
-                ringkasanRows.push([s.full_name, s.nis ?? '', cls.name, s.HADIR, s.SAKIT, s.IZIN, s.ALPA, pct]);
-            }
-        }
-        if (ringkasanRows.length) {
-            const header = ['Nama', 'NIS', 'Kelas', 'H', 'S', 'I', 'A', '%Hadir'];
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...ringkasanRows]), 'RINGKASAN');
-        }
+        // Tambah baris keterangan di bawah data — baris kosong lalu catatan
+        const ws = sheets[0].ws;
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        const noteRow = range.e.r + 2; // 1 baris kosong setelah data
+        ws[XLSX.utils.encode_cell({ r: noteRow, c: 0 })] = {
+            v: 'Data detail kehadiran per kelas tersedia melalui tombol ↓ Excel pada dropdown prodi di atas.',
+            t: 's',
+        };
+        ws['!ref'] = XLSX.utils.encode_range({ s: range.s, e: { r: noteRow, c: range.e.c } });
 
-        // Sheet per kelas — agregat tahunan (No|Nama|NIS|H|S|I|A|%)
-        for (const { cls, students } of clsData) {
-            if (!students.length) continue;
-            const sorted = [...students].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
-            const header = ['No', 'Nama', 'NIS', 'H', 'S', 'I', 'A', '%Hadir'];
-            const dataRows = sorted.map((s, idx) => {
-                const tot = s.HADIR + s.SAKIT + s.IZIN + s.ALPA;
-                const pct = tot > 0 ? Math.round(s.HADIR / tot * 100) + '%' : '—';
-                return [idx + 1, s.full_name, s.nis ?? '', s.HADIR, s.SAKIT, s.IZIN, s.ALPA, pct];
-            });
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...dataRows]), cls.name.slice(0, 31));
-        }
-
-        if (!wb.SheetNames.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
         XLSX.writeFile(wb, `rekap_absensi_sekolah_${academicYear}.xlsx`);
     } catch (err) {
         alert('Gagal mengunduh: ' + fe(err));
