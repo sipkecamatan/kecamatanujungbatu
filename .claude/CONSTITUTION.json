@@ -490,6 +490,12 @@
       ],
       "catatan": "Pola identik dengan tab-waka-kesiswaan.js. Tombol ↓ Excel di summary accordion tiap prodi. stopPropagation mencegah toggle accordion."
     },
+    "guru/js/tab-waka-kesiswaan.js + tab-bk.js (flat SMA)": {
+      "bergantung_pada": [
+        "guru/js/tab-kaprodi.js (downloadKelasExcel — tombol ↓ Excel per kelas di flat list)"
+      ],
+      "catatan": "Jika programs kosong (SMA/SMP), tampilkan kelas flat tanpa accordion. Setiap baris kelas punya tombol ↓ Excel yang memanggil downloadKelasExcel (format wali penuh: RINGKASAN + 9 sheet bulanan). Jalur accordion SMK tidak disentuh."
+    },
     "guru/js/tab-waka-kesiswaan.js (Excel sekolah)": {
       "bergantung_pada": [
         "guru/js/tab-kaprodi.js (MONTHS_RANGE)",
@@ -580,7 +586,7 @@
   ],
   "state": {
     "last_updated": "2026-10-30",
-    "last_session_commit": "c81738a",
+    "last_session_commit": "pending",
     "migrasi_terpasang_sampai": "20261030030000",
     "main_sha": "c81738a"
   }

@@ -11,7 +11,7 @@ import {
     getClassStudents, getClassAttendanceByDate,
 } from './api.js';
 import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta } from './tab-shared.js';
-import { downloadProdiExcel } from './tab-kaprodi.js';
+import { downloadProdiExcel, downloadKelasExcel } from './tab-kaprodi.js';
 
 /* global XLSX */
 
@@ -59,69 +59,97 @@ async function loadBkAttendanceRecap({ config }) {
             return;
         }
 
-        const classMap = new Map(rows.map(r => [r.class_id, r]));
-        const progMap  = new Map();
-        for (const prog of programs) progMap.set(prog.program_id, { ...prog, classes: [] });
-
-        const { data: classProgData, error: cpErr } = await supabase
-            .from('classes')
-            .select('class_id, program_id')
-            .in('class_id', rows.map(r => r.class_id));
-        if (cpErr) throw cpErr;
-
-        for (const cp of classProgData ?? []) {
-            const prog = progMap.get(cp.program_id);
-            const cls  = classMap.get(cp.class_id);
-            if (prog && cls) prog.classes.push(cls);
-        }
-
-        const activeProgs = [...progMap.values()].filter(p => p.classes.length > 0);
-
-        const html = activeProgs.map(prog => {
-            const classRows = prog.classes
-                .sort((a, b) => a.name.localeCompare(b.name, 'id'))
-                .map((r, idx) => {
-                    const tot  = r.HADIR + r.IZIN + r.SAKIT + r.ALPA;
-                    const pct  = tot > 0 ? Math.round(r.HADIR / tot * 100) : null;
-                    const color = pct === null ? 'var(--color-text-muted)' : pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
-                    return `
-                    <div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--color-border,#e5e7eb)">
-                        <span style="min-width:24px;font-size:11px;color:var(--color-text-muted);text-align:right;flex-shrink:0">${idx + 1}</span>
-                        <span style="flex:1;font-size:13px">${esc(r.name)}</span>
-                        <span style="display:flex;gap:10px;align-items:center;font-size:11px;font-weight:500;flex-shrink:0">
-                            <span style="color:var(--color-success)">${r.HADIR}H</span>
-                            <span style="color:var(--color-primary)">${r.SAKIT}S</span>
-                            <span style="color:var(--color-warning,#f59e0b)">${r.IZIN}I</span>
-                            <span style="color:var(--color-danger)">${r.ALPA}A</span>
-                            <span style="color:${color};font-weight:700;min-width:36px;text-align:right">${pct !== null ? pct + '%' : '—'}</span>
-                        </span>
-                    </div>`;
-                }).join('');
-
+        const renderClsRow = (r, idx) => {
+            const tot  = r.HADIR + r.IZIN + r.SAKIT + r.ALPA;
+            const pct  = tot > 0 ? Math.round(r.HADIR / tot * 100) : null;
+            const color = pct === null ? 'var(--color-text-muted)' : pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
             return `
-            <details class="att-accordion" style="margin-bottom:8px" data-program-id="${esc(prog.program_id)}">
-                <summary class="att-accordion-summary">
-                    <span class="att-acc-name">${esc(prog.name)}</span>
-                    <span class="att-acc-names">${prog.classes.length} kelas</span>
-                    <button class="btn btn-secondary btn-sm bk-prodi-excel-btn"
-                        data-program-id="${esc(prog.program_id)}"
-                        data-program-name="${esc(prog.name)}"
-                        style="font-size:11px;padding:2px 8px;margin-left:8px;flex-shrink:0">↓ Excel</button>
-                </summary>
-                <div style="padding:4px 0">${classRows}</div>
-            </details>`;
-        }).join('');
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--color-border,#e5e7eb)">
+                <span style="min-width:24px;font-size:11px;color:var(--color-text-muted);text-align:right;flex-shrink:0">${idx + 1}</span>
+                <span style="flex:1;font-size:13px">${esc(r.name)}</span>
+                <span style="display:flex;gap:10px;align-items:center;font-size:11px;font-weight:500;flex-shrink:0">
+                    <span style="color:var(--color-success)">${r.HADIR}H</span>
+                    <span style="color:var(--color-primary)">${r.SAKIT}S</span>
+                    <span style="color:var(--color-warning,#f59e0b)">${r.IZIN}I</span>
+                    <span style="color:var(--color-danger)">${r.ALPA}A</span>
+                    <span style="color:${color};font-weight:700;min-width:36px;text-align:right">${pct !== null ? pct + '%' : '—'}</span>
+                </span>
+            </div>`;
+        };
 
-        container.innerHTML = html;
-
-        // Wire tombol Excel per prodi — stopPropagation agar tidak toggle accordion
-        container.querySelectorAll('.bk-prodi-excel-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const { programId, programName } = btn.dataset;
-                downloadProdiExcel({ programId, prodiLabel: programName, config, btn });
+        if (!programs.length) {
+            // SMA/SMP: tidak ada program keahlian — tampilkan semua kelas flat + tombol ↓ Excel per kelas
+            const renderFlat = (r, idx) => {
+                const tot  = r.HADIR + r.IZIN + r.SAKIT + r.ALPA;
+                const pct  = tot > 0 ? Math.round(r.HADIR / tot * 100) : null;
+                const color = pct === null ? 'var(--color-text-muted)' : pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
+                return `
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--color-border,#e5e7eb)">
+                    <span style="min-width:24px;font-size:11px;color:var(--color-text-muted);text-align:right;flex-shrink:0">${idx + 1}</span>
+                    <span style="flex:1;font-size:13px">${esc(r.name)}</span>
+                    <span style="display:flex;gap:10px;align-items:center;font-size:11px;font-weight:500;flex-shrink:0">
+                        <span style="color:var(--color-success)">${r.HADIR}H</span>
+                        <span style="color:var(--color-primary)">${r.SAKIT}S</span>
+                        <span style="color:var(--color-warning,#f59e0b)">${r.IZIN}I</span>
+                        <span style="color:var(--color-danger)">${r.ALPA}A</span>
+                        <span style="color:${color};font-weight:700;min-width:36px;text-align:right">${pct !== null ? pct + '%' : '—'}</span>
+                    </span>
+                    <button class="btn btn-secondary btn-sm bk-kls-excel-btn"
+                        data-class-id="${esc(r.class_id)}" data-class-name="${esc(r.name)}"
+                        style="font-size:11px;padding:2px 8px;flex-shrink:0">↓ Excel</button>
+                </div>`;
+            };
+            const sorted = [...rows].sort((a, b) => a.name.localeCompare(b.name, 'id'));
+            container.innerHTML = `<div style="padding:4px 0">${sorted.map(renderFlat).join('')}</div>`;
+            container.querySelectorAll('.bk-kls-excel-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const { classId, className: classLabel } = btn.dataset;
+                    downloadKelasExcel({ classId, classLabel, config, btn });
+                });
             });
-        });
+        } else {
+            const classMap = new Map(rows.map(r => [r.class_id, r]));
+            const progMap  = new Map();
+            for (const prog of programs) progMap.set(prog.program_id, { ...prog, classes: [] });
+
+            const { data: classProgData, error: cpErr } = await supabase
+                .from('classes')
+                .select('class_id, program_id')
+                .in('class_id', rows.map(r => r.class_id));
+            if (cpErr) throw cpErr;
+
+            for (const cp of classProgData ?? []) {
+                const prog = progMap.get(cp.program_id);
+                const cls  = classMap.get(cp.class_id);
+                if (prog && cls) prog.classes.push(cls);
+            }
+
+            const activeProgs = [...progMap.values()].filter(p => p.classes.length > 0);
+            container.innerHTML = activeProgs.map(prog => {
+                const clsSorted = prog.classes.sort((a, b) => a.name.localeCompare(b.name, 'id'));
+                return `
+                <details class="att-accordion" style="margin-bottom:8px" data-program-id="${esc(prog.program_id)}">
+                    <summary class="att-accordion-summary">
+                        <span class="att-acc-name">${esc(prog.name)}</span>
+                        <span class="att-acc-names">${clsSorted.length} kelas</span>
+                        <button class="btn btn-secondary btn-sm bk-prodi-excel-btn"
+                            data-program-id="${esc(prog.program_id)}"
+                            data-program-name="${esc(prog.name)}"
+                            style="font-size:11px;padding:2px 8px;margin-left:8px;flex-shrink:0">↓ Excel</button>
+                    </summary>
+                    <div style="padding:4px 0">${clsSorted.map(renderClsRow).join('')}</div>
+                </details>`;
+            }).join('');
+
+            // Wire tombol Excel per prodi — stopPropagation agar tidak toggle accordion
+            container.querySelectorAll('.bk-prodi-excel-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const { programId, programName } = btn.dataset;
+                    downloadProdiExcel({ programId, prodiLabel: programName, config, btn });
+                });
+            });
+        }
 
     } catch (err) {
         container.innerHTML = `<div class="alert alert-danger">${esc(fe(err))}</div>`;

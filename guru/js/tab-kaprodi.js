@@ -332,6 +332,49 @@ export const MONTHS_RANGE = [
  * Bangun dan unduh workbook Excel satu prodi.
  * Bisa dipanggil dari tab Kaprodi maupun tab Waka Kesiswaan.
  */
+export async function downloadKelasExcel({ classId, classLabel, config, btn }) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Menyiapkan…'; }
+    try {
+        const academicYear = config.current_academic_year;
+        const [students, scheduleRows, ...monthlyRekaps] = await Promise.all([
+            getWaliAttendanceSummary(classId, academicYear, null, null, config.current_semester),
+            getClassScheduleFull(classId, academicYear, null, null),
+            ...MONTHS_RANGE.map(([ds, de]) =>
+                getWaliAttendanceSummary(classId, academicYear, ds, de, null)
+            ),
+        ]);
+        if (!students.length) { alert('Belum ada data kehadiran untuk kelas ini.'); return; }
+
+        const monthlyMap = {};
+        MONTHS_RANGE.forEach(([ds], i) => {
+            const mon = ds.slice(0, 7);
+            const m = new Map();
+            for (const r of monthlyRekaps[i])
+                m.set(r.student_id, { H: r.HADIR, S: r.SAKIT, I: r.IZIN, A: r.ALPA, tot: r.total });
+            monthlyMap[mon] = m;
+        });
+
+        const sheets = buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, className: classLabel, academicYear });
+        const wb     = XLSX.utils.book_new();
+        const prefix = classLabel.slice(0, 24);
+        for (const { name, ws } of sheets)
+            XLSX.utils.book_append_sheet(wb, ws, name === 'RINGKASAN' ? 'RINGKASAN' : `${prefix} ${name}`.slice(0, 31));
+
+        const safeName = classLabel.replace(/\s+/g, '_').slice(0, 40);
+        const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+        const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = `rekap_kelas_${safeName}_${academicYear}.xlsx`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (err) {
+        alert('Gagal mengunduh: ' + fe(err));
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '↓ Excel'; }
+    }
+}
+
 export async function downloadProdiExcel({ programId, prodiLabel, config, btn }) {
     if (btn) { btn.disabled = true; btn.textContent = 'Menyiapkan…'; }
     try {
