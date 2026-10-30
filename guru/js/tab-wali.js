@@ -7,10 +7,10 @@
  */
 import {
     getWaliKelasInfo, getWaliAttendanceSummary, getWaliCoachingStudents,
-    getWaliLateArrivals, getWaliExits, getClassAttendanceByDate,
+    getWaliLateArrivals, getWaliExits, getClassScheduleFull,
 } from './api.js';
 import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
-import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, buildPertemuanMeta } from './tab-shared.js';
+import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr } from './tab-shared.js';
 
 /* global XLSX */
 
@@ -53,12 +53,12 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
             const className    = document.getElementById('wali-class-title')
                 .textContent.replace('Kelas Walian — ', '').trim();
             // Unduh SELURUH tahun ajaran — tidak terikat filter tanggal di layar
-            const [students, detail] = await Promise.all([
+            const [students, scheduleRows] = await Promise.all([
                 getWaliAttendanceSummary(classId, academicYear, null, null, config.current_semester),
-                getClassAttendanceByDate(classId, academicYear, null, null, null),
+                getClassScheduleFull(classId, academicYear, null, null),
             ]);
             const wb = XLSX.utils.book_new();
-            for (const { name, ws } of _buildWaliSheetsMonthly({ students, detail, className, academicYear }))
+            for (const { name, ws } of _buildWaliSheetsMonthly({ students, scheduleRows, className, academicYear }))
                 XLSX.utils.book_append_sheet(wb, ws, name);
             XLSX.writeFile(wb, `rekap_wali_${className.replace(/\s+/g, '_')}_${academicYear}.xlsx`);
         } catch (err) {
@@ -189,32 +189,35 @@ async function _initWaliKasusSection({ currentUser, config, makeKasusCtx, showKa
 /**
  * Bangun workbook Excel wali kelas:
  *   Sheet 1  — RINGKASAN    : agregat tahun ajaran + tren bulanan + siswa perlu perhatian
- *   Sheet 2–10 — Okt–Jun    : 1 sheet per bulan, kolom Nomor|Nama|H|S|I|A|%|tanggal×mapel
+ *   Sheet 2–10 — Okt–Jun    : 1 sheet per bulan
+ *     Kolom: No|Nama|H|S|I|A|% + per pertemuan (header: tanggal/mapel/guru)
+ *     Sel "—" abu-abu = sesi belum diinput guru (tidak dihitung alpa/hadir)
  *
- * Warna sel membutuhkan xlsx-js-style (pengganti drop-in XLSX dengan dukungan style).
- * Pertemuan belum diinput tidak muncul di data — TIDAK dihitung alpa.
+ * Sumber data: fn_class_schedule_full — mengembalikan SEMUA sesi terjadwal × siswa.
+ * status=null → belum diinput; status=text → sudah diinput.
  */
-function _buildWaliSheetsMonthly({ students, detail, className, academicYear }) {
-    const PRIO         = { ALPA: 0, SAKIT: 1, IZIN: 2, HADIR: 3 };
+function _buildWaliSheetsMonthly({ students, scheduleRows, className, academicYear }) {
     const STATUS_HURUF = { HADIR: 'H', SAKIT: 'S', IZIN: 'I', ALPA: 'A' };
     const ALPA_MIN     = 2;
     const HADIR_MIN    = 0.75;
 
-    // Pivot: student_id → block_group_id → status terburuk
+    // Pivot: student_id → block_group_id → status (null = belum diinput)
     const pivot = {};
-    for (const r of detail) {
-        if (!r.block_group_id) continue;
+    for (const r of scheduleRows) {
+        if (!r.block_group_id || !r.student_id) continue;
         if (!pivot[r.student_id]) pivot[r.student_id] = {};
-        const prev = pivot[r.student_id][r.block_group_id];
-        if (prev === undefined || (PRIO[r.status] ?? 99) < (PRIO[prev] ?? 99))
-            pivot[r.student_id][r.block_group_id] = r.status;
+        pivot[r.student_id][r.block_group_id] = r.status; // null tetap disimpan
     }
 
-    // Index pertemuan: block_group_id → { date, subject }
+    // Index pertemuan: block_group_id → { date, subject, teacher }
     const ptmInfo = new Map();
-    for (const r of detail) {
+    for (const r of scheduleRows) {
         if (!r.block_group_id || ptmInfo.has(r.block_group_id)) continue;
-        ptmInfo.set(r.block_group_id, { date: r.session_date ?? '', subject: r.subject_label ?? '' });
+        ptmInfo.set(r.block_group_id, {
+            date:    r.session_date   ?? '',
+            subject: r.subject_label  ?? '',
+            teacher: r.teacher_name   ?? '',
+        });
     }
     // Semua pertemuan urut kronologis lalu mapel
     const allPtm = [...ptmInfo.entries()]
@@ -232,13 +235,13 @@ function _buildWaliSheetsMonthly({ students, detail, className, academicYear }) 
 
     const roster = [...students].sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
 
-    // Rekap per siswa (seluruh tahun ajaran)
+    // Rekap per siswa (seluruh tahun ajaran) — hanya hitung sesi yang sudah diinput (status !== null)
     const rekap = roster.map(s => {
         const byBg = pivot[s.student_id] ?? {};
         let H = 0, S = 0, I = 0, A = 0;
         for (const [bgId] of allPtm) {
             const st = byBg[bgId];
-            if (!st) continue;
+            if (st === null || st === undefined) continue; // belum diinput → skip
             if (st === 'HADIR') H++; else if (st === 'SAKIT') S++;
             else if (st === 'IZIN') I++; else if (st === 'ALPA') A++;
         }
@@ -362,7 +365,8 @@ function _buildWaliSheetsMonthly({ students, detail, className, academicYear }) 
         for (const r of rekap) {
             const byBg = pivot[r.s.student_id] ?? {};
             for (const [bgId] of ptmMon) {
-                const st = byBg[bgId]; if (!st) continue;
+                const st = byBg[bgId];
+                if (st === null || st === undefined) continue; // belum diinput
                 if (st === 'HADIR') mH++; else if (st === 'SAKIT') mS++;
                 else if (st === 'IZIN') mI++; else if (st === 'ALPA') mA++;
             }
@@ -374,7 +378,8 @@ function _buildWaliSheetsMonthly({ students, detail, className, academicYear }) 
             const byBg = pivot[r.s.student_id] ?? {};
             let sisH = 0, sisTot = 0, sisA = 0;
             for (const [bgId] of ptmMon) {
-                const st = byBg[bgId]; if (!st) continue;
+                const st = byBg[bgId];
+                if (st === null || st === undefined) continue; // belum diinput
                 sisTot++; if (st === 'HADIR') sisH++; else if (st === 'ALPA') sisA++;
             }
             if (sisA >= ALPA_MIN || (sisTot > 0 && sisH / sisTot < HADIR_MIN)) nPerhatian++;
@@ -441,13 +446,15 @@ function _buildWaliSheetsMonthly({ students, detail, className, academicYear }) 
 
         // Baris header-1: kolom tetap + label tanggal (akan di-merge per tanggal)
         const hdr1 = [
-            cc('No',          ST.hdrMain), cc('Nama Siswa', ST.hdrMain),
-            cc('Hadir',       ST.statusH), cc('Sakit',      ST.statusS),
-            cc('Izin',        ST.statusI), cc('Alpa',       ST.statusA),
-            cc('% Hadir',     ST.hdrMain),
+            cc('No',       ST.hdrMain), cc('Nama Siswa', ST.hdrMain),
+            cc('Hadir',    ST.statusH), cc('Sakit',      ST.statusS),
+            cc('Izin',     ST.statusI), cc('Alpa',       ST.statusA),
+            cc('% Hadir',  ST.hdrMain),
         ];
-        // Baris header-2: label mapel per pertemuan
+        // Baris header-2: mapel per pertemuan
         const hdr2 = Array(FIXED).fill(null);
+        // Baris header-3: nama guru per pertemuan
+        const hdr3 = Array(FIXED).fill(null);
         const merges = [];
         let colIdx = FIXED;
 
@@ -456,19 +463,30 @@ function _buildWaliSheetsMonthly({ students, detail, className, academicYear }) 
             const dd = date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2'); // "dd/mm"
             hdr1.push(cc(dd, ST.hdrDate));
             for (let k = 1; k < bgIds.length; k++) hdr1.push(null); // placeholder merge
-            for (const bgId of bgIds)
-                hdr2.push(cc(ptmInfo.get(bgId)?.subject ?? '—', ST.hdrSubject));
+            for (const bgId of bgIds) {
+                const info = ptmInfo.get(bgId);
+                hdr2.push(cc(info?.subject || '—', ST.hdrSubject));
+                hdr3.push(cc(info?.teacher || '—', ST.hdrSubject));
+            }
             if (bgIds.length > 1)
                 merges.push({ s: { r: 3, c: colIdx }, e: { r: 3, c: colIdx + bgIds.length - 1 } });
             colIdx += bgIds.length;
         }
+
+        // Style untuk sel belum diinput
+        const stBelum = S(
+            { patternType: 'solid', fgColor: { rgb: 'DDDDDD' } },
+            { color: { rgb: '888888' } },
+            AL.center
+        );
 
         // Baris data per siswa
         const dataRows = rekap.map((r, idx) => {
             const byBg = pivot[r.s.student_id] ?? {};
             let mH = 0, mS = 0, mI = 0, mA = 0;
             for (const [bgId] of ptmMon) {
-                const st = byBg[bgId]; if (!st) continue;
+                const st = byBg[bgId];
+                if (st === null || st === undefined) continue; // belum diinput
                 if (st === 'HADIR') mH++; else if (st === 'SAKIT') mS++;
                 else if (st === 'IZIN') mI++; else if (st === 'ALPA') mA++;
             }
@@ -477,8 +495,8 @@ function _buildWaliSheetsMonthly({ students, detail, className, academicYear }) 
             const warn = mA >= ALPA_MIN || (mTot > 0 && mH / mTot < HADIR_MIN);
 
             const row = [
-                cc(idx + 1,      warn ? { ...ST.perhatian, ...ST.number } : ST.number),
-                cc(r.s.full_name, warn ? ST.perhatian : null),
+                cc(idx + 1,       warn ? { ...ST.perhatian, ...ST.number } : ST.number),
+                cc(r.s.full_name,  warn ? ST.perhatian : null),
                 cc(mH, ST.statusH), cc(mS, ST.statusS),
                 cc(mI, ST.statusI), cc(mA, ST.statusA),
                 cc(mPct, mTot > 0 && mH / mTot < HADIR_MIN ? ST.pctBad
@@ -486,13 +504,17 @@ function _buildWaliSheetsMonthly({ students, detail, className, academicYear }) 
             ];
             for (const [bgId] of ptmMon) {
                 const st = byBg[bgId];
-                row.push(st ? cc(STATUS_HURUF[st], { HADIR: ST.statusH, SAKIT: ST.statusS, IZIN: ST.statusI, ALPA: ST.statusA }[st])
-                            : cc('', null));
+                if (st === null || st === undefined) {
+                    row.push(cc('—', stBelum)); // belum diinput
+                } else {
+                    row.push(cc(STATUS_HURUF[st] ?? st,
+                        { HADIR: ST.statusH, SAKIT: ST.statusS, IZIN: ST.statusI, ALPA: ST.statusA }[st] ?? ST.number));
+                }
             }
             return row;
         });
 
-        // Baris total bawah
+        // Baris total — hitung hanya dari sesi yang sudah diinput
         const totRow = [
             cc('', ST.total), cc('TOTAL KELAS', ST.total),
             cc(dataRows.reduce((a, r) => a + (r[2]?.v ?? 0), 0), { ...ST.total, ...ST.statusH }),
@@ -501,15 +523,19 @@ function _buildWaliSheetsMonthly({ students, detail, className, academicYear }) 
             cc(dataRows.reduce((a, r) => a + (r[5]?.v ?? 0), 0), { ...ST.total, ...ST.statusA }),
             cc('', ST.total),
         ];
-        for (const [bgId] of ptmMon)
-            totRow.push(cc(Object.values(pivot).filter(b => b[bgId]).length, ST.total));
+        for (const [bgId] of ptmMon) {
+            // Hitung berapa siswa yang sudah punya status (diinput) di pertemuan ini
+            const nInput = Object.values(pivot).filter(b => b[bgId] !== undefined && b[bgId] !== null).length;
+            totRow.push(cc(nInput > 0 ? nInput : '—', nInput > 0 ? ST.total : stBelum));
+        }
 
         const allRows = [
             [cc(`ABSENSI ${MONTH_ID[mo].toUpperCase()} ${yr} — ${className}`, ST.title)],
-            [cc('Pertemuan yang belum diinput guru tidak muncul dan tidak dihitung sebagai alpa', ST.italic9)],
+            [cc('Sel abu-abu (—) = sesi belum diinput guru. Nama guru tertera di baris header ketiga.', ST.italic9)],
             null,
             hdr1,
             hdr2,
+            hdr3,
             ...dataRows,
             totRow,
         ];
@@ -517,8 +543,8 @@ function _buildWaliSheetsMonthly({ students, detail, className, academicYear }) 
         const colWidths = [4, 30, 6, 6, 6, 6, 8, ...Array(ptmMon.length).fill(10)];
         const ws = buildWs(allRows, colWidths, merges);
 
-        // Freeze pane: bekukan 2 kolom kiri + 5 baris atas (title+sub+blank+hdr1+hdr2)
-        ws['!freeze'] = { xSplit: 2, ySplit: 5 };
+        // Freeze pane: bekukan 2 kolom kiri + 6 baris atas (title+sub+blank+hdr1+hdr2+hdr3)
+        ws['!freeze'] = { xSplit: 2, ySplit: 6 };
 
         return { name: sheetName, ws };
     });

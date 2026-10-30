@@ -829,6 +829,37 @@ export async function getAttendanceSummaryByStudents(classId, academicYear, date
  * Mengembalikan { student_id, block_group_id, session_date, status } per baris.
  * Satu pertemuan (block_group_id) = satu satuan kehadiran; bisa ada beberapa pertemuan per tanggal.
  */
+/**
+ * Semua sesi terjadwal × semua siswa untuk satu kelas — untuk Excel wali kelas.
+ * status = null  → sesi belum diinput guru (tampil "—" di Excel).
+ * status = text  → status terburuk; 'HADIR' jika sesi diinput tapi siswa tidak tercatat.
+ */
+export async function getClassScheduleFull(classId, academicYear, dateStart, dateEnd) {
+    const all = [];
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase
+            .rpc('fn_class_schedule_full', {
+                p_class_id:      classId,
+                p_academic_year: academicYear,
+                p_date_start:    dateStart ?? null,
+                p_date_end:      dateEnd   ?? null,
+            })
+            .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        all.push(...(data ?? []));
+        if ((data ?? []).length < pageSize) break;
+    }
+    return all.map(r => ({
+        block_group_id: r.block_group_id,
+        session_date:   r.session_date,
+        subject_label:  r.subject_label ?? '',
+        teacher_name:   r.teacher_name  ?? '',
+        student_id:     r.student_id,
+        status:         r.status ?? null,   // null = belum diinput
+    }));
+}
+
 export async function getClassAttendanceByDate(classId, academicYear, dateStart, dateEnd, teacherId = null) {
     // Pakai SECURITY DEFINER agar semua peran (Waka, BK, Wali, Kaprodi)
     // bisa melihat semua pertemuan di kelas, bukan hanya yang mereka ajar.
