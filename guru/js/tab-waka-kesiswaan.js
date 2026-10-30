@@ -8,11 +8,11 @@
 import {
     supabase,
     getPrograms, getAttendanceRecapPerClass,
-    getClassesByProgram, getWaliAttendanceSummary,
+    getClassesByProgram, getWaliAttendanceSummary, getClassScheduleFull,
     getLateArrivalsByRange, getCoachingCasesCount,
 } from './api.js';
 import { esc, fe, wireSimpleAccordion, localDateStr } from './tab-shared.js';
-import { downloadProdiExcel, MONTHS_RANGE } from './tab-kaprodi.js';
+import { downloadProdiExcel } from './tab-kaprodi.js';
 import { buildWaliSheetsMonthly } from './tab-wali.js';
 
 export let wkKasusCtx = null;
@@ -189,42 +189,24 @@ async function downloadWkAttExcel({ config }) {
         if (!allClasses.length) { alert('Belum ada kelas untuk diunduh.'); return; }
 
         const clsData = await Promise.all(allClasses.map(async c => {
-            const [students, ...monthlyRekaps] = await Promise.all([
+            const [students, scheduleRows] = await Promise.all([
                 getWaliAttendanceSummary(c.class_id, academicYear, null, null, config.current_semester),
-                ...MONTHS_RANGE.map(([ds, de]) =>
-                    getWaliAttendanceSummary(c.class_id, academicYear, ds, de, null)
-                ),
+                getClassScheduleFull(c.class_id, academicYear, null, null),
             ]);
-            const monthlyMap = {};
-            MONTHS_RANGE.forEach(([ds], i) => {
-                const mon = ds.slice(0, 7);
-                const m = new Map();
-                for (const r of monthlyRekaps[i])
-                    m.set(r.student_id, { H: r.HADIR, S: r.SAKIT, I: r.IZIN, A: r.ALPA, tot: r.total });
-                monthlyMap[mon] = m;
-            });
-            return { cls: c, students, monthlyMap };
+            return { cls: c, students, scheduleRows };
         }));
 
         const allStudents     = clsData.flatMap(d => d.students);
+        const allScheduleRows = clsData.flatMap(d => d.scheduleRows);
         if (!allStudents.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
 
-        const combinedMonthly = {};
-        for (const [ds] of MONTHS_RANGE) {
-            const mon = ds.slice(0, 7);
-            const m = new Map();
-            for (const d of clsData)
-                for (const [sid, v] of (d.monthlyMap[mon] ?? new Map()))
-                    m.set(sid, v);
-            combinedMonthly[mon] = m;
-        }
         const classGroups = clsData
             .filter(d => d.students.length)
             .map(d => ({ name: d.cls.name, studentIds: new Set(d.students.map(s => s.student_id)) }));
 
         const sheets = buildWaliSheetsMonthly({
-            students: allStudents, scheduleRows: [],
-            monthlyMap: combinedMonthly, className: 'Semua Kelas', academicYear,
+            students: allStudents, scheduleRows: allScheduleRows,
+            monthlyMap: {}, className: 'Semua Kelas', academicYear,
             classGroups,
         });
 

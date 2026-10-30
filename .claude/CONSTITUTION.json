@@ -486,11 +486,10 @@
     },
     "guru/js/tab-waka-kesiswaan.js (Excel sekolah)": {
       "bergantung_pada": [
-        "guru/js/tab-wali.js (buildWaliSheetsMonthly — sheet[0] RINGKASAN saja, scheduleRows:[])",
-        "guru/js/tab-kaprodi.js (MONTHS_RANGE)",
-        "guru/js/api.js (getClassesByProgram, getWaliAttendanceSummary — tahunan + 9 bulanan per kelas)"
+        "guru/js/tab-wali.js (buildWaliSheetsMonthly — sheet[0] RINGKASAN saja)",
+        "guru/js/api.js (getClassesByProgram, getWaliAttendanceSummary tahunan, getClassScheduleFull — 2 call per kelas)"
       ],
-      "catatan": "Tombol 'Unduh Excel' di header Rekap Kehadiran. Hanya 1 sheet RINGKASAN (format identik Kaprodi: tren bulanan + Perlu Perhatian per kelas). Tidak ada sheet per kelas — detail per kelas ada di tombol ↓ Excel dropdown prodi. Baris keterangan ditambahkan di bawah data RINGKASAN. scheduleRows:[] karena sheet[0] tidak memakainya."
+      "catatan": "Tombol 'Unduh Excel' di header Rekap Kehadiran. Hanya 1 sheet RINGKASAN (format identik Kaprodi: tren bulanan + Perlu Perhatian per kelas). Tidak ada sheet per kelas — detail per kelas ada di tombol Excel dropdown prodi. Baris keterangan di bawah data. monthlyMap:{} karena sheet[0] TIDAK memakai monthlyMap — semua dihitung dari scheduleRows via pivot. 9 monthly calls tidak diperlukan (hanya untuk sheet 2..n)."
     },
     "guru/js/tab-guru.js": {
       "bergantung_pada": [
@@ -575,8 +574,8 @@
   ],
   "state": {
     "last_updated": "2026-10-30",
-    "last_session_commit": "ef26521",
+    "last_session_commit": "pending",
     "migrasi_terpasang_sampai": "20261030030000",
-    "main_sha": "ef26521"
+    "main_sha": "pending"
   }
 }
