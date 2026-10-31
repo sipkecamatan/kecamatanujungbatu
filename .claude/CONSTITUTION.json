@@ -658,9 +658,9 @@
   ],
   "state": {
     "last_updated": "2026-10-31",
-    "last_session_commit": "TBD",
+    "last_session_commit": "4cca9ec",
     "migrasi_terpasang_sampai": "20261031040000",
-    "main_sha": "TBD",
+    "main_sha": "4cca9ec",
     "_catatan_push": "Romo belum push semua commit sesi 31 Okt. db push belum — migrations 20261031000000..20261031040000 belum terpasang di live. Migration 010000 + 020000 perlu dijalankan MANUAL di SQL editor (ALTER TYPE + DROP FUNCTION) sebelum db push."
   }
 }
