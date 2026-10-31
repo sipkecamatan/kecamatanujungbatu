@@ -67,7 +67,8 @@
       ],
       "deteksi": "jenjang-labels.js — hide menu+baris ringkasan per jenjang; config.jenjang (dari getSchoolConfig → join schools) untuk switch logika frontend",
       "wizard_skip": "SMP dan SMA skip langkah Program Keahlian + DUDI; wizard buat program UMUM otomatis untuk SMP/SMA (classes.program_id NOT NULL)",
-      "flat_vs_accordion": "Waka Kesiswaan dan BK: SMK = accordion per prodi; SMA/SMP = flat list kelas + tombol ↓ Excel per kelas. Switch via config.jenjang !== 'SMK'"
+      "flat_vs_accordion": "Waka Kesiswaan dan BK: SMK = accordion per prodi; SMA/SMP = flat list kelas + tombol ↓ Excel per kelas. Switch via config.jenjang !== 'SMK'",
+      "waka_smp": "SMP menggunakan role WAKASEK (bukan WAKA_KESISWAAN/WAKA_KURIKULUM/WAKA_HUMAS). Satu orang merangkap semua fungsi waka. fn_is_waka_*() dan fn_is_schoolwide_observer() sudah diupdate untuk menerima WAKASEK. Keputusan 31 Okt 2026."
     },
     "frontend": {
       "stack": "Vanilla JS di GitHub Pages — tidak ada framework baru tanpa persetujuan Romo",
@@ -188,6 +189,16 @@
       ]
     },
     "waka_kesiswaan": {
+      "Tab Waka Kesiswaan": [
+        "Rekap Kehadiran Seluruh Sekolah",
+        "Keterlambatan Seluruh Sekolah",
+        "Pembinaan Siswa — Kesiswaan",
+        "Detail kasus + tindakan Waka"
+      ]
+    },
+    "wakasek": {
+      "_catatan": "WAKASEK = role SMP saja. Merangkap fungsi Waka Kesiswaan + Kurikulum + Humas dalam satu jabatan. Tab UI identik dengan waka_kesiswaan karena SMP tidak punya prodi/PKL.",
+      "_mewarisi": "Tab Waka Kesiswaan (semua akses waka_kesiswaan, waka_kurikulum, waka_humas tapi Tab Waka Humas/PKL disembunyikan karena tidak relevan SMP)",
       "Tab Waka Kesiswaan": [
         "Rekap Kehadiran Seluruh Sekolah",
         "Keterlambatan Seluruh Sekolah",
@@ -316,7 +327,8 @@
     "pegawai_kecamatan": "pegawai.ujungbatu@contoh.test",
     "pegawai_kabupaten": "akun pegawai kabupaten aktif",
     "pegawai_provinsi": "akun pegawai provinsi aktif",
-    "superadmin": "akun superadmin — hanya Romo yang tahu"
+    "superadmin": "akun superadmin — hanya Romo yang tahu",
+    "wakasek": "akun WAKASEK SMP — Syahrul Ramadhan (199005272016031912) di smpsmpuji (atau sekolah nyata)"
   },
   "dependency_map": {
     "nilai-rapor.js": {
@@ -600,6 +612,12 @@
   },
   "open_tasks": [
     {
+      "id": "T007",
+      "task": "fn_get_escalation_candidates — tambahkan WAKASEK",
+      "status": "ditunda (kompleks, 200+ baris)",
+      "catatan": "Syahrul Ramadhan (WAKASEK) tidak akan muncul sebagai kandidat eskalasi lewat jalur 'Waka Kesiswaan' karena is_waka_kesiswaan=false. Fungsi belum disentuh di migration 20261031010000. Perlu audit apakah SMP menggunakan eskalasi kasus; jika iya, WAKASEK harus masuk ke IN list dalam fungsi ini."
+    },
+    {
       "id": "T001",
       "task": "Audit + perbaiki alur absensi semua rekap",
       "status": "SELESAI 31 Okt (diperluas)",
@@ -640,8 +658,9 @@
   ],
   "state": {
     "last_updated": "2026-10-31",
-    "last_session_commit": "9e8a66b",
-    "migrasi_terpasang_sampai": "20261030040000",
-    "main_sha": "9e8a66b"
+    "last_session_commit": "20cd580",
+    "migrasi_terpasang_sampai": "20261031010000",
+    "main_sha": "20cd580",
+    "_catatan_push": "Romo belum push: 731d47b (fix data waka→guru), 20cd580 (feat WAKASEK). db push juga belum — migration 20261031000000 + 20261031010000 belum terpasang di live."
   }
 }
