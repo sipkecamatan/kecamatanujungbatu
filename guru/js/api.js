@@ -109,8 +109,9 @@ export function getJabatan(u) {
     if (u.role_type === 'WALI_KELAS' || u.wali_kelas_class_id) j.push('wali_kelas');
     if (u.role_type === 'BK'         || u.is_bk)               j.push('bk');
     if (u.role_type === 'KAPRODI'    || u.kaprodi_program_id)   j.push('kaprodi');
-    if (u.role_type === 'WAKA_KESISWAAN' || u.role_type === 'WAKASEK' || u.is_waka_kesiswaan) j.push('waka_kesiswaan');
-    if (u.role_type === 'WAKA_KURIKULUM' || u.role_type === 'WAKASEK' || u.is_waka_kurikulum) j.push('waka_kurikulum');
+    if (u.role_type === 'WAKA_KESISWAAN' || u.is_waka_kesiswaan) j.push('waka_kesiswaan');
+    if (u.role_type === 'WAKA_KURIKULUM' || u.is_waka_kurikulum) j.push('waka_kurikulum');
+    if (u.role_type === 'WAKASEK') j.push('wakasek');
     if (u.role_type === 'KEPSEK'     || u.is_kepsek)            j.push('kepsek');
     if (u.role_type === 'WAKA_HUMAS' || u.is_waka_humas)                                     j.push('waka_humas');
     return j;
@@ -123,6 +124,7 @@ export function jabatanLabel(key) {
         kaprodi:       'Kaprodi',
         waka_kesiswaan:'Waka Kesiswaan',
         waka_kurikulum:'Waka Kurikulum',
+        wakasek:       'Wakasek',
         kepsek:        'Kepala Sekolah',
         waka_humas:    'Waka Humas',
     }[key] ?? key;

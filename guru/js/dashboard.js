@@ -487,14 +487,14 @@ function showPWAInstallInstructions() {
 // ─── Tab navigation ──────────────────────────────────────────
 const TAB_SHORT = {
     guru: 'Beranda', wali_kelas: 'Wali', bk: 'BK', kaprodi: 'Prodi',
-    waka_kesiswaan: 'Kesiswaan', waka_kurikulum: 'Kurikulum', waka_humas: 'Humas',
+    waka_kesiswaan: 'Kesiswaan', waka_kurikulum: 'Kurikulum', wakasek: 'Wakasek', waka_humas: 'Humas',
     kepsek: 'Kepsek',
     kasus: 'Pembinaan', jurnal: 'Jurnal', observasi: 'Catatan', forum: 'Forum',
     perangkat_ajar: 'Perangkat', piket: 'Piket',
 };
 const TAB_ICON = {
     guru: 'ti-home', wali_kelas: 'ti-users', bk: 'ti-heart-handshake', kaprodi: 'ti-building',
-    waka_kesiswaan: 'ti-school', waka_kurikulum: 'ti-book', waka_humas: 'ti-briefcase',
+    waka_kesiswaan: 'ti-school', waka_kurikulum: 'ti-book', wakasek: 'ti-school', waka_humas: 'ti-briefcase',
     kepsek: 'ti-chart-line',
     kasus: 'ti-alert-triangle', jurnal: 'ti-notebook', observasi: 'ti-notes', forum: 'ti-messages',
     perangkat_ajar: 'ti-book-2', piket: 'ti-clipboard-list',
@@ -588,6 +588,23 @@ async function loadTabContent(key) {
             case 'kaprodi':     await initKaprodiTab({ currentUser, config, kasusEngine: { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } }); break;
             case 'waka_kesiswaan': await initWakaKesiswaanTab({ config, kasusEngine: { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } }); break;
             case 'waka_kurikulum': await initWakaKurTab({ config }); break;
+            case 'wakasek': {
+                // Pindahkan konten dari tab-waka_kesiswaan dan tab-waka_kurikulum
+                // ke tab-wakasek (sekali saja — idempoten via pengecekan children.length).
+                const dest = document.querySelector('#tab-wakasek .page-body');
+                if (!dest.children.length) {
+                    const src1 = document.querySelector('#tab-waka_kesiswaan .page-body');
+                    const src2 = document.querySelector('#tab-waka_kurikulum .page-body');
+                    while (src1.firstChild) dest.appendChild(src1.firstChild);
+                    const hr = document.createElement('hr');
+                    hr.style.cssText = 'border:none;border-top:1px solid var(--color-border);margin:8px 0 16px';
+                    dest.appendChild(hr);
+                    while (src2.firstChild) dest.appendChild(src2.firstChild);
+                }
+                await initWakaKesiswaanTab({ config, kasusEngine: { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } });
+                await initWakaKurTab({ config });
+                break;
+            }
             case 'waka_humas':  await initWakaHumasTab({ currentUser }); break;
             case 'kepsek':      await initKepsekTab({ currentUser, config }); break;
 

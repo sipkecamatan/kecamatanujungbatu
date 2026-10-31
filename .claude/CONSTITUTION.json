@@ -197,13 +197,14 @@
       ]
     },
     "wakasek": {
-      "_catatan": "WAKASEK = role SMP saja. Merangkap fungsi Waka Kesiswaan + Kurikulum + Humas dalam satu jabatan. Tab UI identik dengan waka_kesiswaan karena SMP tidak punya prodi/PKL.",
-      "_mewarisi": "Tab Waka Kesiswaan (semua akses waka_kesiswaan, waka_kurikulum, waka_humas tapi Tab Waka Humas/PKL disembunyikan karena tidak relevan SMP)",
-      "Tab Waka Kesiswaan": [
+      "_catatan": "WAKASEK = role SMP saja. Satu tab 'Wakasek' menggabungkan konten Kesiswaan + Kurikulum via DOM-move (loadTabContent case 'wakasek'). getJabatan() push 'wakasek' (bukan waka_kesiswaan/waka_kurikulum). Diimplementasi 31 Okt 2026.",
+      "Tab Wakasek": [
         "Rekap Kehadiran Seluruh Sekolah",
         "Keterlambatan Seluruh Sekolah",
         "Pembinaan Siswa — Kesiswaan",
-        "Detail kasus + tindakan Waka"
+        "Detail kasus + tindakan Waka",
+        "Sesi Belum Diisi — Hari Ini",
+        "Sesi Belum Diisi — Rentang Waktu"
       ]
     },
     "waka_kurikulum": {
@@ -658,9 +659,9 @@
   ],
   "state": {
     "last_updated": "2026-10-31",
-    "last_session_commit": "4cca9ec",
+    "last_session_commit": "PLACEHOLDER_SHA",
     "migrasi_terpasang_sampai": "20261031040000",
-    "main_sha": "4cca9ec",
+    "main_sha": "PLACEHOLDER_SHA",
     "_catatan_push": "Romo belum push semua commit sesi 31 Okt. db push belum — migrations 20261031000000..20261031040000 belum terpasang di live. Migration 010000 + 020000 perlu dijalankan MANUAL di SQL editor (ALTER TYPE + DROP FUNCTION) sebelum db push."
   }
 }
