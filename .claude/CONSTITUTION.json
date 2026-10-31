@@ -614,8 +614,8 @@
     {
       "id": "T007",
       "task": "fn_get_escalation_candidates — tambahkan WAKASEK",
-      "status": "ditunda (kompleks, 200+ baris)",
-      "catatan": "Syahrul Ramadhan (WAKASEK) tidak akan muncul sebagai kandidat eskalasi lewat jalur 'Waka Kesiswaan' karena is_waka_kesiswaan=false. Fungsi belum disentuh di migration 20261031010000. Perlu audit apakah SMP menggunakan eskalasi kasus; jika iya, WAKASEK harus masuk ke IN list dalam fungsi ini."
+      "status": "SELESAI 31 Okt",
+      "catatan": "migration 20261031040000: kandidat-6 SEKOLAH track ditambah OR u.role_type = 'WAKASEK'. PKL track tidak berubah (WAKASEK tidak merangkap humas). Kepsek tetap AND FALSE per kebijakan 18 Okt."
     },
     {
       "id": "T001",
@@ -658,9 +658,9 @@
   ],
   "state": {
     "last_updated": "2026-10-31",
-    "last_session_commit": "20cd580",
-    "migrasi_terpasang_sampai": "20261031010000",
-    "main_sha": "20cd580",
-    "_catatan_push": "Romo belum push: 731d47b (fix data waka→guru), 20cd580 (feat WAKASEK). db push juga belum — migration 20261031000000 + 20261031010000 belum terpasang di live."
+    "last_session_commit": "TBD",
+    "migrasi_terpasang_sampai": "20261031040000",
+    "main_sha": "TBD",
+    "_catatan_push": "Romo belum push semua commit sesi 31 Okt. db push belum — migrations 20261031000000..20261031040000 belum terpasang di live. Migration 010000 + 020000 perlu dijalankan MANUAL di SQL editor (ALTER TYPE + DROP FUNCTION) sebelum db push."
   }
 }

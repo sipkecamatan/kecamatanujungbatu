@@ -894,7 +894,7 @@ async function renderClassesPanel() {
 
 function buildJabatan(u, classMap = new Map(), progMap = new Map()) {
     const j = [];
-    if (u.role_type === 'GURU' || u.teacher_code) j.push('Guru');
+    if (u.role_type === 'GURU' || u.role_type === 'WAKASEK' || u.teacher_code) j.push('Guru');
     if (u.wali_kelas_class_id) {
         const kelas = classMap.get(u.wali_kelas_class_id);
         j.push(kelas ? `Wali Kelas ${kelas}` : 'Wali Kelas');
@@ -913,6 +913,7 @@ function buildJabatan(u, classMap = new Map(), progMap = new Map()) {
     if (u.role_type === 'WAKA_KURIKULUM' && !j.includes('Waka Kurikulum')) j.push('Waka Kurikulum');
     if (u.role_type === 'WAKA_KESISWAAN' && !j.includes('Waka Kesiswaan')) j.push('Waka Kesiswaan');
     if (u.role_type === 'WAKA_HUMAS' && !j.includes('Waka Humas')) j.push('Waka Humas');
+    if (u.role_type === 'WAKASEK') j.push('Wakasek');
     return esc(j.join(', ') || u.role_type);
 }
 
