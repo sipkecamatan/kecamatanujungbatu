@@ -42,7 +42,7 @@ let _forumCommentBusy = false;    // audit Forum A-09: kunci kirim komentar
 let _forumIdemKey     = null;
 
 function isForumModerator() {
-    return ['KEPSEK', 'WAKA_KESISWAAN', 'ADMINISTRATIVE'].includes(currentUser?.role_type)
+    return ['KEPSEK', 'WAKA_KESISWAAN', 'WAKASEK', 'ADMINISTRATIVE'].includes(currentUser?.role_type)
         || currentUser?.is_kepsek === true
         || currentUser?.is_waka_kesiswaan === true;
 }
@@ -375,7 +375,7 @@ function buildRecipientGroupButtons() {
     const isKepsek  = scope?.is_kepsek || scope?.role_type === 'KEPSEK';
     const isWaka    = scope?.is_waka_kurikulum || scope?.is_waka_kesiswaan
                    || scope?.is_waka_humas
-                   || ['WAKA_KURIKULUM','WAKA_KESISWAAN','WAKA_HUMAS'].includes(scope?.role_type);
+                   || ['WAKA_KURIKULUM','WAKA_KESISWAAN','WAKA_HUMAS','WAKASEK'].includes(scope?.role_type);
     const isKaprodi = !!scope?.kaprodi_program_id || scope?.role_type === 'KAPRODI';
     const isTU      = scope?.role_type === 'TU';
     const isAdmin   = scope?.role_type === 'ADMINISTRATIVE';

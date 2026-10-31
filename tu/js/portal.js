@@ -568,7 +568,7 @@ let _forumPrograms    = [];
 let _forumClasses     = [];
 
 function isForumModerator() {
-    return ['KEPSEK', 'WAKA_KESISWAAN', 'ADMINISTRATIVE'].includes(currentUser?.role_type)
+    return ['KEPSEK', 'WAKA_KESISWAAN', 'WAKASEK', 'ADMINISTRATIVE'].includes(currentUser?.role_type)
         || currentUser?.is_kepsek === true
         || currentUser?.is_waka_kesiswaan === true;
 }

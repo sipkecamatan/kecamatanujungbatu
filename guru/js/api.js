@@ -18,7 +18,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 // Semua role_type yang boleh masuk portal ini
-export const GURU_ROLES = ['GURU','WALI_KELAS','BK','KAPRODI','KEPSEK','WAKA_KURIKULUM','WAKA_KESISWAAN','WAKA_HUMAS'];
+export const GURU_ROLES = ['GURU','WALI_KELAS','BK','KAPRODI','KEPSEK','WAKA_KURIKULUM','WAKA_KESISWAAN','WAKA_HUMAS','WAKASEK'];
 
 export async function loginWithIdentifier(identifier, password, schoolId = null) {
     const { data: email, error: resolveErr } = await supabase
@@ -109,10 +109,10 @@ export function getJabatan(u) {
     if (u.role_type === 'WALI_KELAS' || u.wali_kelas_class_id) j.push('wali_kelas');
     if (u.role_type === 'BK'         || u.is_bk)               j.push('bk');
     if (u.role_type === 'KAPRODI'    || u.kaprodi_program_id)   j.push('kaprodi');
-    if (u.role_type === 'WAKA_KESISWAAN' || u.is_waka_kesiswaan) j.push('waka_kesiswaan');
-    if (u.role_type === 'WAKA_KURIKULUM' || u.is_waka_kurikulum) j.push('waka_kurikulum');
+    if (u.role_type === 'WAKA_KESISWAAN' || u.role_type === 'WAKASEK' || u.is_waka_kesiswaan) j.push('waka_kesiswaan');
+    if (u.role_type === 'WAKA_KURIKULUM' || u.role_type === 'WAKASEK' || u.is_waka_kurikulum) j.push('waka_kurikulum');
     if (u.role_type === 'KEPSEK'     || u.is_kepsek)            j.push('kepsek');
-    if (u.role_type === 'WAKA_HUMAS' || u.is_waka_humas)        j.push('waka_humas');
+    if (u.role_type === 'WAKA_HUMAS' || u.role_type === 'WAKASEK' || u.is_waka_humas)        j.push('waka_humas');
     return j;
 }
 
@@ -1288,7 +1288,7 @@ export async function removeCaseAudienceMember({ caseId, userId }) {
 }
 
 export async function searchInternalUsers(query) {
-    const INTERNAL_ROLES = ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_HUMAS'];   // Kepsek dikeluarkan dari Pembinaan Siswa (18 Okt 2026)
+    const INTERNAL_ROLES = ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_HUMAS','WAKASEK'];   // Kepsek dikeluarkan dari Pembinaan Siswa (18 Okt 2026)
     const { data, error } = await supabase
         .from('v_users_staff_directory')
         .select('user_id, full_name, role_type')

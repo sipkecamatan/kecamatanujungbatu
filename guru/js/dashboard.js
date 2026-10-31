@@ -627,8 +627,8 @@ const CASE_TRACK_LABEL = { SEKOLAH: 'Sekolah', PKL: 'PKL' };
 // Eskalasi antar-internal bebas; server hanya mengunci: target wajib peran
 // internal kasus, & DUDI hanya → KAPRODI (mig 20260703250000).
 const ESCALATION_CHAIN = {
-    SEKOLAH: ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN'],
-    PKL:     ['DUDI','KAPRODI','WAKA_KESISWAAN'],
+    SEKOLAH: ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKASEK'],
+    PKL:     ['DUDI','KAPRODI','WAKA_KESISWAAN','WAKASEK'],
 };
 // Satu langkah mundur yang diizinkan (server menegakkan aturan yang sama).
 const STATUS_BACK_ONE = { UNDER_REVIEW: 'OPEN', INTERVENTION: 'UNDER_REVIEW', MONITORING: 'INTERVENTION' };
@@ -985,7 +985,7 @@ function renderKasusList(ctx = kasusCtxDefault) {
     }
 
     // Badge "Pembaca": kasus yang terlihat hanya karena Anda ditandai (bukan pembuat, penangan, Kepsek, atau Waka Kesiswaan).
-    const pengawas = currentUser.role_type === 'WAKA_KESISWAAN';   // Kepala Sekolah dikeluarkan dari Pembinaan Siswa (18 Okt 2026)
+    const pengawas = currentUser.role_type === 'WAKA_KESISWAAN' || currentUser.role_type === 'WAKASEK';   // Kepala Sekolah dikeluarkan dari Pembinaan Siswa (18 Okt 2026)
     const sebagaiPembaca = r => !pengawas && r.created_by_user_id !== currentUser.user_id && r.current_handler_user_id !== currentUser.user_id;
 
     contentEl.innerHTML = ctx.allCases.map(r => `
@@ -1124,7 +1124,7 @@ function renderKasusEvents(events, ctx = kasusCtxDefault) {
 
 const _labelHubunganKasus = new Map();
 const VIEWER_ROLE_LABEL = { WALI_KELAS: 'Wali Kelas', BK: 'Guru BK', GURU: 'Guru', KAPRODI: 'Kaprodi', ORTU: 'Orang tua', SISWA: 'Siswa', TU: 'Tata Usaha',
-    WAKA_KESISWAAN: 'Waka Kesiswaan', WAKA_KURIKULUM: 'Waka Kurikulum', WAKA_HUMAS: 'Waka Humas', KEPSEK: 'Kepala Sekolah' };
+    WAKA_KESISWAAN: 'Waka Kesiswaan', WAKA_KURIKULUM: 'Waka Kurikulum', WAKA_HUMAS: 'Waka Humas', WAKASEK: 'Wakil Kepala Sekolah', KEPSEK: 'Kepala Sekolah' };
 
 /**
  * Panel "Pembaca Kasus": siapa yang boleh membaca kasus ini selain pembuat, penangan, dan Waka Kesiswaan.
@@ -1135,7 +1135,7 @@ async function renderKasusViewers(kasus, ctx, seq) {
     const me        = currentUser.user_id;
     const isCreator = kasus.created_by_user_id === me;
     const isHandler = kasus.current_handler_user_id === me;
-    const isOversight = currentUser.role_type === 'WAKA_KESISWAAN' && !isCreator && !isHandler;
+    const isOversight = (currentUser.role_type === 'WAKA_KESISWAAN' || currentUser.role_type === 'WAKASEK') && !isCreator && !isHandler;
     const isReaderOnly = !isCreator && !isHandler && !isOversight;
     const header = kEl(ctx, 'detail-header');
     let box = kEl(ctx, 'viewers-block');
@@ -1250,7 +1250,7 @@ async function renderKasusViewers(kasus, ctx, seq) {
 }
 
 // Selaras dengan fn_validate_escalation; DUDI bukan penerima eskalasi internal.
-const INTERNAL_CASE_ROLES = ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_KURIKULUM','WAKA_HUMAS'];   // Kepsek dikeluarkan (18 Okt 2026)
+const INTERNAL_CASE_ROLES = ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_KURIKULUM','WAKA_HUMAS','WAKASEK'];   // Kepsek dikeluarkan (18 Okt 2026)
 
 async function renderKasusActions(kasus, ctx = kasusCtxDefault, seq = ctx.detailSeq) {
     const isCurrent = () => ctx.currentId === kasus.case_id && ctx.detailSeq === seq;
@@ -1265,7 +1265,7 @@ async function renderKasusActions(kasus, ctx = kasusCtxDefault, seq = ctx.detail
 
     const isHandler = kasus.current_handler_user_id === currentUser.user_id;
     // Kasus CLOSED hanya dapat dibuka kembali oleh Waka Kesiswaan (ke Pemantauan, bercatatan); Kepala Sekolah dikeluarkan dari Pembinaan Siswa.
-    const bisaBukaKembali = kasus.status === 'CLOSED' && currentUser.role_type === 'WAKA_KESISWAAN';
+    const bisaBukaKembali = kasus.status === 'CLOSED' && (currentUser.role_type === 'WAKA_KESISWAAN' || currentUser.role_type === 'WAKASEK');
     const commentBlock = kEl(ctx, 'comment-block');
     if (kasus.status === 'CLOSED' && !bisaBukaKembali) {
         actionsEl.style.display = 'none';
