@@ -178,7 +178,7 @@ async function loadSiswaPerhatian() {
             const panelId = `perhatian-panel-${cls.class_id}`;
             const btnId   = `perhatian-btn-${cls.class_id}`;
             return `<div style="border:1px solid var(--color-border);border-radius:8px;margin-bottom:8px;overflow:hidden">
-                <button id="${btnId}" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--color-surface);border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--color-text)" onclick="(function(){var p=document.getElementById('${panelId}');var b=document.getElementById('${btnId}');var open=p.style.display!=='none';p.style.display=open?'none':'block';b.querySelector('.perhatian-caret').textContent=open?'▶':'▼';})()">
+                <button id="${btnId}" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--color-surface);border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--color-text);text-align:left" onclick="(function(){var p=document.getElementById('${panelId}');var b=document.getElementById('${btnId}');var open=p.style.display!=='none';p.style.display=open?'none':'block';b.querySelector('.perhatian-caret').textContent=open?'▶':'▼';})()">
                     <span>${esc(cls.name)}</span>
                     <span style="display:flex;gap:12px;align-items:center;font-size:12px;font-weight:400">
                         <span style="color:var(--color-danger)">${cls.perhatian.length} siswa perlu perhatian</span>
