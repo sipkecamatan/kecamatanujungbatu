@@ -18,7 +18,7 @@ export let wkKasusCtx = null;
 let _wkAttendanceRequestSeq = 0;
 let _wkLateRequestSeq       = 0;
 
-export async function initWakaKesiswaanTab({ config, kasusEngine }) {
+export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser }) {
     const { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } = kasusEngine;
 
     wireSimpleAccordion('wk-att-card');
@@ -28,7 +28,7 @@ export async function initWakaKesiswaanTab({ config, kasusEngine }) {
     document.getElementById('wk-att-start').value = firstOfMonth;
     document.getElementById('wk-att-end').value   = today;
     document.getElementById('wk-att-filter-btn').onclick  = () => loadWkAttendanceRecap({ config });
-    document.getElementById('wk-att-export-btn').onclick  = () => downloadWkAttExcel({ config });
+    document.getElementById('wk-att-export-btn').onclick  = () => downloadWkAttExcel({ config, currentUser });
 
     document.getElementById('wk-late-start').value = firstOfMonth;
     document.getElementById('wk-late-end').value   = today;
@@ -227,7 +227,7 @@ async function loadWkAttendanceRecap({ config }) {
     }
 }
 
-async function downloadWkAttExcel({ config }) {
+async function downloadWkAttExcel({ config, currentUser }) {
     const btn = document.getElementById('wk-att-export-btn');
     btn.disabled = true;
     btn.textContent = 'Menyiapkan…';
@@ -411,7 +411,7 @@ async function downloadWkAttExcel({ config }) {
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href     = url;
-        a.download = `rekap_absensi_sekolah_${academicYear}.xlsx`;
+        a.download = `${currentUser?.role_type === 'WAKASEK' ? 'rekap_absen_wakasek_smp' : 'rekap_absen_waka_kesiswaan'}_${academicYear}.xlsx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

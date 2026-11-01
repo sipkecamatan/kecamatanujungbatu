@@ -352,7 +352,7 @@ async function downloadBkAttExcel({ config }) {
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href     = url;
-        a.download = `rekap_absensi_bk_${academicYear}.xlsx`;
+        a.download = `rekap_absen_BK_${academicYear}.xlsx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

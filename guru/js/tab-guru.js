@@ -303,7 +303,7 @@ async function loadGuruRecap() {
                 }
 
                 const ay = (_config.current_academic_year ?? '').replace('/', '-');
-                const filename = `kehadiran_guru_${ay}.xlsx`;
+                const filename = `rekap_absen_guru_mapel_${ay}.xlsx`;
                 const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
                 const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 const url  = URL.createObjectURL(blob);

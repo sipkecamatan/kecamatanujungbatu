@@ -586,7 +586,7 @@ async function loadTabContent(key) {
             case 'wali_kelas':  await initWaliTab({ currentUser, config, kasusEngine: { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList, showKasusLoadError } }); break;
             case 'bk':          await initBkTab({ config, kasusEngine: { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } }); break;
             case 'kaprodi':     await initKaprodiTab({ currentUser, config, kasusEngine: { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } }); break;
-            case 'waka_kesiswaan': await initWakaKesiswaanTab({ config, kasusEngine: { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } }); break;
+            case 'waka_kesiswaan': await initWakaKesiswaanTab({ config, currentUser, kasusEngine: { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } }); break;
             case 'waka_kurikulum': await initWakaKurTab({ config }); break;
             case 'wakasek': {
                 // Pindahkan konten dari tab-waka_kesiswaan dan tab-waka_kurikulum
@@ -601,7 +601,7 @@ async function loadTabContent(key) {
                     dest.appendChild(hr);
                     while (src2.firstChild) dest.appendChild(src2.firstChild);
                 }
-                await initWakaKesiswaanTab({ config, kasusEngine: { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } });
+                await initWakaKesiswaanTab({ config, currentUser, kasusEngine: { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } });
                 await initWakaKurTab({ config });
                 break;
             }

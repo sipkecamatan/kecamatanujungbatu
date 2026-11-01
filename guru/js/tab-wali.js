@@ -85,7 +85,7 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
             const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
             const url = URL.createObjectURL(new Blob([buf], { type: 'application/octet-stream' }));
             const a   = Object.assign(document.createElement('a'), {
-                href: url, download: `rekap_wali_${className.replace(/\s+/g, '_')}_${ay}.xlsx`,
+                href: url, download: `rekap_absen_wali_kelas_${className.replace(/\s+/g, '_')}_${ay}.xlsx`,
             });
             document.body.appendChild(a); a.click();
             setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);

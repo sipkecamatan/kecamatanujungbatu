@@ -388,7 +388,7 @@ export async function downloadKelasExcel({ classId, classLabel, config, btn }) {
         const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
-        a.href = url; a.download = `rekap_kelas_${safeName}_${academicYear}.xlsx`;
+        a.href = url; a.download = `rekap_absen_kaprodi_${safeName}_${academicYear}.xlsx`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch (err) {
@@ -462,7 +462,7 @@ export async function downloadProdiExcel({ programId, prodiLabel, config, btn })
 
         if (!wb.SheetNames.length) { alert('Belum ada data kehadiran untuk diunduh.'); return; }
         const safeName = prodiLabel.replace(/\s+/g, '_').slice(0, 40);
-        XLSX.writeFile(wb, `rekap_prodi_${safeName}_${academicYear}.xlsx`);
+        XLSX.writeFile(wb, `rekap_absen_kaprodi_${safeName}_${academicYear}.xlsx`);
     } catch (err) {
         alert('Gagal mengunduh: ' + fe(err));
     } finally {
