@@ -418,40 +418,49 @@ function buildGuruExcel({ namaGuru, periodeLabel, academicYear, classDataList })
     }
     r1.push(null);
 
-    // Siswa perlu perhatian (semua kelas)
+    // Siswa perlu perhatian — dipisah per kelas
     r1.push([cc('SISWA PERLU PERHATIAN — SELURUH KELAS', ST.section)]);
     r1.push([cc('Threshold: Alpa ≥ 2 kali ATAU % hadir < 75%. Pertemuan belum diinput tidak dihitung.', ST.italic9)]);
-    r1.push([
-        cc('No',      ST.hdrMain), cc('Kelas',    ST.hdrMain), cc('Nama Siswa', ST.hdrMain),
-        cc('H',       ST.hdrMain), cc('S',        ST.hdrMain), cc('I',          ST.hdrMain),
-        cc('A',       ST.hdrMain), cc('Total',    ST.hdrMain), cc('% Hadir',    ST.hdrMain),
+    const hdrPerhatian = [
+        cc('No', ST.hdrMain), cc('Kelas', ST.hdrMain), cc('Nama Siswa', ST.hdrMain),
+        cc('H',  ST.hdrMain), cc('S',     ST.hdrMain), cc('I',          ST.hdrMain),
+        cc('A',  ST.hdrMain), cc('Total', ST.hdrMain), cc('% Hadir',    ST.hdrMain),
         cc('Catatan', ST.hdrMain),
-    ]);
-    let noP = 0;
+    ];
+    const r1Merges = [];
+    let hasPerhatian = false;
     for (const cls of processedClasses) {
-        for (const r of cls.rekapSiswa) {
-            if (r.A < ALPA_MIN && (r.pct === null || r.pct >= HADIR_MIN)) continue;
-            noP++;
+        const siswaPerhatian = cls.rekapSiswa.filter(r => r.A >= ALPA_MIN || (r.pct !== null && r.pct < HADIR_MIN));
+        if (!siswaPerhatian.length) continue;
+        hasPerhatian = true;
+        // Sub-header kelas (merge 10 kolom)
+        const subHdrRowIdx = r1.length;
+        r1.push([cc(cls.name, ST.section), null, null, null, null, null, null, null, null, null]);
+        r1Merges.push({ s: { r: subHdrRowIdx, c: 0 }, e: { r: subHdrRowIdx, c: 9 } });
+        r1.push(hdrPerhatian);
+        let noK = 0;
+        for (const r of siswaPerhatian) {
+            noK++;
             const cat = [];
             if (r.pct !== null && r.pct < HADIR_MIN) cat.push(`% hadir ${Math.round(r.pct * 100)}% < 75%`);
             if (r.A >= ALPA_MIN) cat.push(`alpa ${r.A}x`);
             r1.push([
-                cc(noP,            { ...ST.perhatian, ...ST.number }),
-                cc(cls.name,        ST.perhatian),
-                cc(r.s.full_name,   ST.perhatian),
+                cc(noK,           { ...ST.perhatian, ...ST.number }),
+                cc(cls.name,       ST.perhatian),
+                cc(r.s.full_name,  ST.perhatian),
                 cc(r.H, ST.statusH), cc(r.S, ST.statusS),
                 cc(r.I, ST.statusI), cc(r.A, ST.statusA),
-                cc(r.tot,          { ...ST.perhatian, ...ST.number }),
+                cc(r.tot,         { ...ST.perhatian, ...ST.number }),
                 cc(r.pct !== null ? Math.round(r.pct * 100) + '%' : '—',
                    r.pct !== null && r.pct < HADIR_MIN ? ST.pctBad : ST.pctOk),
-                cc(cat.join(', '),  ST.perhatian),
+                cc(cat.join(', '), ST.perhatian),
             ]);
         }
     }
-    if (noP === 0)
-        r1.push([null, null, cc('Tidak ada siswa yang memerlukan perhatian khusus.', { s: { font: { color: { rgb: '155724' }, italic: true } } })]);
+    if (!hasPerhatian)
+        r1.push([null, null, cc('Tidak ada siswa yang memerlukan perhatian khusus.', ST.italic9)]);
 
-    const ws1 = buildWs(r1, [4, 20, 30, 6, 6, 6, 6, 8, 14, 40], null);
+    const ws1 = buildWs(r1, [4, 20, 30, 6, 6, 6, 6, 8, 14, 40], r1Merges.length ? r1Merges : null);
 
     // ── SHEET PER KELAS ───────────────────────────────────────────────────────
     const stBelum = S(
