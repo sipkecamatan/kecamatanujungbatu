@@ -59,7 +59,10 @@ begin
     (sid, cls, a1, stu, 80), (sid, cls, a2, stu, 60), (sid, cls, a3, stu, 90), (sid, cls, a4, stu, 100),
     (sid, cls, a1, stu2, 50), (sid, cls, a3, stu2, 70);
   -- gangguan yang TIDAK boleh ikut hitung: penilaian sumatif milik guru lain, dan penilaian formatif milik guru ini (nilai 0 untuk stu)
+  -- guru_lain sengaja tidak mengajar kelas ini → bypass trigger penugasan dengan replica role (hanya untuk data uji sintetis)
+  set local session_replication_role = replica;
   insert into assessments (school_id, teacher_id, class_id, subject_id, academic_year, semester, jenis, teknik) values (sid, guru_lain, cls, subj, yr, smi, 'SUMATIF', 'TES') returning id into a_lain;
+  set local session_replication_role = origin;
   insert into assessment_results (school_id, class_id, assessment_id, student_id, nilai) values (sid, cls, a_lain, stu, 0);
   insert into assessments (school_id, teacher_id, class_id, subject_id, academic_year, semester, jenis, teknik) values (sid, guru, cls, subj, yr, smi, 'FORMATIF', 'TES') returning id into a_form;
   insert into assessment_results (school_id, class_id, assessment_id, student_id, nilai) values (sid, cls, a_form, stu, 0);
