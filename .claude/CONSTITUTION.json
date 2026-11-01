@@ -609,7 +609,8 @@
     "cte_is_not_distinct_from": "CTE + LEFT JOIN IS NOT DISTINCT FROM tidak andal untuk mendeteksi keberadaan baris di dalam SECURITY DEFINER function — hasilnya semua status NULL secara diam-diam walau data attendance sudah ada. Solusi: ganti dengan window function COUNT(att.status) OVER (PARTITION BY block_group_id) > 0. Jika > 0 berarti ada record di block itu. Jebakan ini ditemukan di fn_class_schedule_full (migration 20261030020000 vs 20261030030000).",
     "injeksi_absensi_per_block": "Skrip injeksi absensi WAJIB assign satu status per (siswa × block_group_id), lalu salin status itu ke SEMUA schedule_id dalam block tersebut — persis seperti saveAttendanceBatch di produksi. Jangan assign status random per schedule_id: hasilnya satu block bisa punya status HADIR di JP1 dan ALPA di JP2 untuk siswa yang sama (status campuran). Dampak: fn_class_attendance_summary (Excel Wali) double-count → H+A+I+S > total, angka tidak bisa dipercaya. fn_attendance_recap_per_class (Excel Waka/BK) tetap benar karena pakai status terburuk. Ditemukan 30 Okt 2026 saat verifikasi SMA Uji 1.",
     "mgmt_api_multistatement": "Management API /database/query mengembalikan hasil dari SELECT terakhir sebelum ROLLBACK — bukan dari ROLLBACK itu sendiri. Pola BEGIN; SET LOCAL ROLE authenticated; SELECT set_config(...); SELECT ... FROM fn_...; ROLLBACK; akan mengembalikan baris dari SELECT fn terakhir. Dikonfirmasi dari pola asUser() di tenant-isolation.mjs dan dipakai di absensi-konsistensi.mjs.",
-    "fn_portal_attendance_jsonb": "fn_portal_attendance mengembalikan JSONB (satu nilai), bukan TABLE. Untuk menghitung H/S/I/A: parse JSONB → group per block_group_id → ambil status terburuk (ALPA<SAKIT<IZIN<HADIR) → hitung. Tidak bisa di-SUM langsung seperti fn_class_attendance_summary. Juga harus dipanggil sebagai SISWA atau ORTU (fn_portal_can_read_student), bukan staff."
+    "fn_portal_attendance_jsonb": "fn_portal_attendance mengembalikan JSONB (satu nilai), bukan TABLE. Untuk menghitung H/S/I/A: parse JSONB → group per block_group_id → ambil status terburuk (ALPA<SAKIT<IZIN<HADIR) → hitung. Tidak bisa di-SUM langsung seperti fn_class_attendance_summary. Juga harus dipanggil sebagai SISWA atau ORTU (fn_portal_can_read_student), bukan staff.",
+    "create_or_replace_overload": "CREATE OR REPLACE FUNCTION dengan signature berbeda (beda jumlah/tipe parameter) TIDAK mengganti fungsi lama — PostgreSQL membuat overload baru. Hasilnya dua fungsi nama sama, PostgREST error PGRST203 'Could not choose the best candidate function'. Solusi: DROP FUNCTION IF EXISTS dengan signature LAMA dulu, baru CREATE fungsi baru. Ditemukan 1 Nov 2026: migration 20261031010000 menghapus p_semester dari fn_class_attendance_summary → membuat overload duplikat → seluruh Rekap Kehadiran Siswa (Dashboard Guru + Tab Wali Excel) gagal. Diperbaiki di migration 20261101010000."
   },
   "open_tasks": [
     {
@@ -659,9 +660,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "169ae01",
+    "last_session_commit": "PENDING",
     "migrasi_terpasang_sampai": "20261031040000",
-    "main_sha": "169ae01",
-    "_catatan_push": "Migrations 20261031000000..20261031040000 sudah applied di live (1 Nov 2026). Commit sesi 31 Okt + 1 Nov belum di-git push — dilakukan Romo."
+    "main_sha": "606da8a",
+    "_catatan_push": "Migration 20261101010000 belum di-push/apply. Perlu db push + git push oleh Romo sebelum Rekap Kehadiran Siswa bisa dipakai."
   }
 }
