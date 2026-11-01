@@ -577,8 +577,10 @@
                     <div style="display:flex;align-items:center;gap:8px">
                         <label for="bk-att-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
                         <input type="date" id="bk-att-end" class="input" style="flex:1;min-width:0">
-                        <button class="btn btn-secondary btn-sm" id="bk-att-filter-btn">Filter</button>
-                        <button class="btn btn-secondary btn-sm" id="bk-att-export-btn">↓ Unduh Excel</button>
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-secondary btn-sm" id="bk-att-filter-btn" style="flex:1">Filter</button>
+                        <button class="btn btn-secondary btn-sm" id="bk-att-export-btn" style="flex:1">Unduh Excel</button>
                     </div>
                 </div>
                 <div id="bk-att-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
@@ -684,8 +686,10 @@
                 <div class="date-row" style="margin-bottom:12px">
                     <label for="kp-cls-start">Dari:</label><input type="date" id="kp-cls-start" class="input" style="width:auto">
                     <label for="kp-cls-end">s/d:</label><input type="date" id="kp-cls-end" class="input" style="width:auto">
-                    <button class="btn btn-secondary btn-sm" id="kp-cls-filter-btn">Filter</button>
-                    <button class="btn btn-secondary btn-sm" id="kp-cls-export-btn" style="display:none">Unduh Excel</button>
+                    <div class="date-row-actions">
+                        <button class="btn btn-secondary btn-sm" id="kp-cls-filter-btn">Filter</button>
+                        <button class="btn btn-secondary btn-sm" id="kp-cls-export-btn" style="display:none">Unduh Excel</button>
+                    </div>
                 </div>
                 <div id="kp-cls-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
                 </div>
@@ -1003,8 +1007,10 @@
                     <div style="display:flex;align-items:center;gap:8px">
                         <label for="wk-att-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
                         <input type="date" id="wk-att-end" class="input" style="flex:1;min-width:0">
-                        <button class="btn btn-secondary btn-sm" id="wk-att-filter-btn">Filter</button>
-                        <button class="btn btn-secondary btn-sm" id="wk-att-export-btn" style="display:none">Unduh Excel</button>
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-secondary btn-sm" id="wk-att-filter-btn" style="flex:1">Filter</button>
+                        <button class="btn btn-secondary btn-sm" id="wk-att-export-btn" style="flex:1;display:none">Unduh Excel</button>
                     </div>
                 </div>
                 <div id="wk-att-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
