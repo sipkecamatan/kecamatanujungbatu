@@ -155,6 +155,7 @@
     "guru_wali": {
       "Tab Wali Kelas": [
         "Rekap Kehadiran Kelas Walian",
+        "Siswa Perlu Perhatian (flat list 1 kelas, otomatis semester berjalan)",
         "Pembinaan Siswa Walian",
         "Keterlambatan Siswa Walian",
         "Izin Keluar Siswa Walian"
@@ -173,6 +174,7 @@
     "bk": {
       "Tab BK": [
         "Rekap Kehadiran (fokus rendah)",
+        "Siswa Perlu Perhatian (lazy accordion identik Waka)",
         "Pembinaan Siswa — BK",
         "Detail kasus + tindakan BK"
       ],
@@ -181,6 +183,7 @@
     "kaprodi": {
       "Tab Kaprodi": [
         "Rekap Kehadiran per Kelas Prodi",
+        "Siswa Perlu Perhatian (accordion per kelas program, load paralel)",
         "Rekap Absensi PKL",
         "Rekap Nilai per Kelas",
         "Monitoring Observasi PKL",
@@ -192,15 +195,17 @@
     "waka_kesiswaan": {
       "Tab Waka Kesiswaan": [
         "Rekap Kehadiran Seluruh Sekolah",
+        "Siswa Perlu Perhatian (lazy accordion — daftar kelas muncul segera, detail fetch saat expand)",
         "Keterlambatan Seluruh Sekolah",
         "Pembinaan Siswa — Kesiswaan",
         "Detail kasus + tindakan Waka"
       ]
     },
     "wakasek": {
-      "_catatan": "WAKASEK = role SMP saja. Satu tab 'Wakasek' menggabungkan konten Kesiswaan + Kurikulum via DOM-move (loadTabContent case 'wakasek'). getJabatan() push 'wakasek' (bukan waka_kesiswaan/waka_kurikulum). Diimplementasi 31 Okt 2026.",
+      "_catatan": "WAKASEK = role SMP saja. Satu tab 'Wakasek' menggabungkan konten Kesiswaan + Kurikulum via DOM-move (loadTabContent case 'wakasek'). getJabatan() push 'wakasek' (bukan waka_kesiswaan/waka_kurikulum). Diimplementasi 31 Okt 2026. Siswa Perlu Perhatian ikut otomatis dari Waka Kesiswaan via DOM-move — tidak perlu kode terpisah.",
       "Tab Wakasek": [
         "Rekap Kehadiran Seluruh Sekolah",
+        "Siswa Perlu Perhatian (otomatis dari Waka Kesiswaan via DOM-move)",
         "Keterlambatan Seluruh Sekolah",
         "Pembinaan Siswa — Kesiswaan",
         "Detail kasus + tindakan Waka",
@@ -574,6 +579,19 @@
       ],
       "catatan": "Tombol 'Unduh Excel' di header Rekap Kehadiran. Hanya 1 sheet RINGKASAN (format mirip Kaprodi: summary tiles + TREN bulanan + Perlu Perhatian dikelompok per kelas). Dibangun MANUAL tanpa buildWaliSheetsMonthly dan tanpa getClassScheduleFull. TREN dari getAttendanceRecapPerClass (class-level, bukan per-siswa) — tidak ada kolom Pertemuan dan Perlu Perhatian per bulan. Total ~39 call (n kelas + 9 bulanan). Baris keterangan di akhir sheet. DOWNLOAD: pakai manual blob (XLSX.write → Blob → createObjectURL → a.click) bukan XLSX.writeFile() — writeFile() memicu Chrome automatic-download blocker ketika sudah ada download lain di sesi yang sama."
     },
+    "guru/js/tab-shared.js": {
+      "dipakai_oleh": [
+        "guru/js/tab-guru.js",
+        "guru/js/tab-wali.js",
+        "guru/js/tab-kaprodi.js",
+        "guru/js/tab-waka-kesiswaan.js",
+        "guru/js/tab-bk.js",
+        "guru/js/tab-waka-kurikulum.js",
+        "guru/js/tab-kepsek.js"
+      ],
+      "export_perhatian": "filterPerhatian, renderPerhatianFlat, renderPerhatianAccordion, PERHATIAN_ALPA_MIN=2, PERHATIAN_HADIR_MIN=0.75 — satu-satunya sumber threshold; ubah di sini berlaku ke semua tab",
+      "catatan": "Jika threshold Alpa/hadir perlu diubah, cukup ubah PERHATIAN_ALPA_MIN/HADIR_MIN di tab-shared.js saja."
+    },
     "guru/js/tab-guru.js": {
       "bergantung_pada": [
         "guru/js/api.js",
@@ -692,9 +710,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "b79a88e",
+    "last_session_commit": "TBD",
     "migrasi_terpasang_sampai": "20261101040000",
-    "main_sha": "b79a88e",
-    "_catatan_push": "fix(portal): blok CAMPURAN dihitung sebagai status terburuk di kartu siswa/ortu; tambah scripts/portal-konsistensi.mjs + scripts/rekap-konsistensi-role.mjs"
+    "main_sha": "TBD",
+    "_catatan_push": "feat(guru): Siswa Perlu Perhatian di 5 tab (Guru, Wali, Kaprodi, Waka, BK) + helper tab-shared.js"
   }
 }
