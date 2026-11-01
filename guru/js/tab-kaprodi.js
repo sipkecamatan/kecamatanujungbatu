@@ -313,9 +313,8 @@ async function loadKpClsRecap({ config }) {
             class_id: c.class_id, name: c.name, HADIR: 0, IZIN: 0, SAKIT: 0, ALPA: 0, total: 0,
         });
 
-        container.innerHTML = allClsRows
-            .sort((a, b) => a.name.localeCompare(b.name, 'id'))
-            .map((r, idx) => {
+        const sorted = allClsRows.sort((a, b) => a.name.localeCompare(b.name, 'id'));
+        container.innerHTML = sorted.map((r, idx) => {
                 const tot   = r.HADIR + r.IZIN + r.SAKIT + r.ALPA;
                 const pct   = tot > 0 ? Math.round(r.HADIR / tot * 100) : null;
                 const color = pct === null ? 'var(--color-text-muted)' : pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
@@ -330,8 +329,18 @@ async function loadKpClsRecap({ config }) {
                         <span style="color:var(--color-danger)">${r.ALPA}A</span>
                         <span style="color:${color};font-weight:700;min-width:36px;text-align:right">${pct !== null ? pct + '%' : '—'}</span>
                     </span>
+                    <button class="btn btn-secondary btn-sm kp-kls-excel-btn"
+                        data-class-id="${esc(r.class_id)}" data-class-name="${esc(r.name)}"
+                        style="font-size:11px;padding:2px 8px;flex-shrink:0">↓ Excel</button>
                 </div>`;
             }).join('');
+
+        container.querySelectorAll('.kp-kls-excel-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const { classId, className: classLabel } = btn.dataset;
+                downloadKelasExcel({ classId, classLabel, config, btn });
+            });
+        });
 
         document.getElementById('kp-cls-export-btn').style.display = '';
 
