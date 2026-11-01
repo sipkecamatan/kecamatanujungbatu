@@ -438,10 +438,19 @@ async function loadAttendance() {
 
     try {
         const rows = await getMyAttendance(student.student_id, start, end);
-        // Kartu: hitung per blok (satu pertemuan = satu kejadian)
+        // Kartu: hitung per blok (satu pertemuan = satu kejadian).
+        // Blok CAMPURAN (sesi berbeda-beda statusnya) dihitung sebagai status terburuk
+        // agar konsisten dengan fn_class_attendance_summary di sisi guru/wali.
+        const URUTAN_STATUS = { ALPA: 4, SAKIT: 3, IZIN: 2, HADIR: 1 };
         const card = { HADIR:0, IZIN:0, SAKIT:0, ALPA:0 };
         for (const block of rows) {
-            if (card[block.summary_status] !== undefined) card[block.summary_status]++;
+            if (block.summary_status !== 'CAMPURAN') {
+                if (card[block.summary_status] !== undefined) card[block.summary_status]++;
+            } else {
+                const terburuk = block.slots.reduce((w, s) =>
+                    (URUTAN_STATUS[s.status] ?? 0) > (URUTAN_STATUS[w] ?? 0) ? s.status : w, 'HADIR');
+                if (card[terburuk] !== undefined) card[terburuk]++;
+            }
         }
         const pct = rows.length > 0 ? Math.round(card.HADIR / rows.length * 100) : 0;
         document.getElementById('att-hadir').textContent = card.HADIR;

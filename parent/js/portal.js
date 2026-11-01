@@ -408,10 +408,18 @@ async function loadAttendance(studentId, signal = null) {
         const rows = await fetchAttendance(studentId, filterStart.value, filterEnd.value);
         if (signal?.aborted) return false;
 
-        // Card: hitung per blok (satu pertemuan = satu kejadian)
+        // Card: hitung per blok (satu pertemuan = satu kejadian).
+        // Blok CAMPURAN dihitung sebagai status terburuk agar konsisten dengan sisi guru/wali.
+        const URUTAN_STATUS = { ALPA: 4, SAKIT: 3, IZIN: 2, HADIR: 1 };
         const counts = { HADIR: 0, ALPA: 0, IZIN: 0, SAKIT: 0 };
         for (const block of rows) {
-            if (block.summary_status in counts) counts[block.summary_status]++;
+            if (block.summary_status !== 'CAMPURAN') {
+                if (block.summary_status in counts) counts[block.summary_status]++;
+            } else {
+                const terburuk = block.slots.reduce((w, s) =>
+                    (URUTAN_STATUS[s.status] ?? 0) > (URUTAN_STATUS[w] ?? 0) ? s.status : w, 'HADIR');
+                if (terburuk in counts) counts[terburuk]++;
+            }
         }
 
         attSummary.innerHTML = `
