@@ -228,6 +228,8 @@ async function loadGuruRecap() {
                 a.href = url; a.download = filename;
                 document.body.appendChild(a); a.click();
                 setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+            } catch (err) {
+                alert('Gagal mengunduh Excel: ' + (err?.message ?? String(err)));
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Unduh Excel';
@@ -421,7 +423,7 @@ function buildGuruExcel({ namaGuru, periodeLabel, academicYear, classDataList })
     // Siswa perlu perhatian — dipisah per kelas
     r1.push([cc('SISWA PERLU PERHATIAN — SELURUH KELAS', ST.section)]);
     r1.push([cc('Threshold: Alpa ≥ 2 kali ATAU % hadir < 75%. Pertemuan belum diinput tidak dihitung.', ST.italic9)]);
-    const hdrPerhatian = [
+    const mkHdrPerhatian = () => [
         cc('No', ST.hdrMain), cc('Kelas', ST.hdrMain), cc('Nama Siswa', ST.hdrMain),
         cc('H',  ST.hdrMain), cc('S',     ST.hdrMain), cc('I',          ST.hdrMain),
         cc('A',  ST.hdrMain), cc('Total', ST.hdrMain), cc('% Hadir',    ST.hdrMain),
@@ -437,7 +439,7 @@ function buildGuruExcel({ namaGuru, periodeLabel, academicYear, classDataList })
         const subHdrRowIdx = r1.length;
         r1.push([cc(cls.name, ST.section), null, null, null, null, null, null, null, null, null]);
         r1Merges.push({ s: { r: subHdrRowIdx, c: 0 }, e: { r: subHdrRowIdx, c: 9 } });
-        r1.push(hdrPerhatian);
+        r1.push(mkHdrPerhatian());
         let noK = 0;
         for (const r of siswaPerhatian) {
             noK++;
