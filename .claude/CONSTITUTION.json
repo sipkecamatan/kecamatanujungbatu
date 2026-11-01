@@ -449,7 +449,7 @@
         "student/js/api.js (getMyAttendance)",
         "shared/attendance-pivot.js (pivotAttendanceBlocks)"
       ],
-      "pivot_konsistensi": "untuk membandingkan dengan fn_class_attendance_summary: parse JSONB → group per block_group_id → status terburuk (PRIO: ALPA<SAKIT<IZIN<HADIR) → hitung H/S/I/A",
+      "pivot_konsistensi": "untuk membandingkan dengan fn_class_attendance_summary: parse JSONB → group per block_group_id → status terburuk (PRIO: ALPA<SAKIT<IZIN<HADIR) → hitung H/S/I/A. Blok CAMPURAN dihitung sebagai status terburuk di kartu angka (fix b28ab1b Nov 2026).",
       "test_relevan": [
         "absensi-konsistensi.mjs (C3)"
       ]
@@ -634,7 +634,9 @@
     "mgmt_api_security_definer_auth": "Management API /database/query tidak bisa memanggil SECURITY DEFINER function yang bergantung pada auth.uid() meskipun pakai SET LOCAL ROLE authenticated + set_config('request.jwt.claims'). Fungsi yang memanggil auth.uid() untuk cek role akan raise 42501. Solusi: query tabel langsung (attendance JOIN teaching_schedules) dan replika logika fungsi di SQL — ini lebih handal untuk verifier karena tidak bergantung pada permission layer.",
     "mgmt_api_rate_limit": "Management API /database/query punya rate limit — banyak query berturutan (>15 dalam beberapa detik) akan mendapat ThrottlerException: Too Many Requests. Solusi: tambah sleep(3000) antar sekolah, atau kurangi jumlah query paralel.",
     "class_enrollments_bukan_class_members": "Tabel keanggotaan kelas bernama class_enrollments (bukan class_members). JOIN: class_enrollments cm ON cm.student_id = ... AND cm.class_id = ...",
-    "fn_tu_overload_sesi_ini": "fn_tu_attendance_recap punya 2 overload (2 param dan 5 param) karena migration 20261027 + 20261028 signature berbeda. Diperbaiki dengan migration 20261101030000 yang DROP(date,date). Setelah db push verifier mendeteksi PASS."
+    "fn_tu_overload_sesi_ini": "fn_tu_attendance_recap punya 2 overload (2 param dan 5 param) karena migration 20261027 + 20261028 signature berbeda. Diperbaiki dengan migration 20261101030000 yang DROP(date,date). Setelah db push verifier mendeteksi PASS.",
+    "cte_reserved_word_raw": "Nama CTE 'raw' adalah reserved word di PostgreSQL — query gagal dengan 'syntax error at or near raw'. Selalu gunakan nama deskriptif seperti att_raw, data_raw, src_raw.",
+    "blok_campuran_portal": "Blok CAMPURAN (satu siswa × satu block_group_id punya ≥2 status berbeda antar slot) terjadi di dua kasus: (A) dua mapel berbeda masuk satu block_group_id — kemungkinan bug pengelompokan jadwal; (B) satu mapel, guru input status berbeda per sesi — valid by design (siswa hadir sebagian). Dampak: sebelum fix Nov 2026, portal siswa/ortu mengabaikan blok CAMPURAN sehingga angka H/S/I/A lebih kecil dari yang guru/wali lihat. Fix: kartu angka menghitung CAMPURAN sebagai status terburuk dari slot-nya (dashboard.js + portal.js commit b28ab1b). Badge 'Campuran' di tabel detail tetap tampil."
   },
   "open_tasks": [
     {
@@ -676,6 +678,12 @@
       "status": "ditunda Romo"
     },
     {
+      "id": "T008",
+      "task": "Investigasi 153 blok CAMPURAN Kasus A SMK — dua mapel beda dalam satu block_group_id",
+      "status": "terbuka",
+      "catatan": "Dari portal-konsistensi.mjs: SMK punya 153 block_group_id yang berisi jadwal dua mapel berbeda. Kemungkinan bug wizard saat membuat jadwal. Perlu cek apakah ini by design atau perlu diperbaiki di sumber data."
+    },
+    {
       "id": "T006",
       "task": "Tile 'Guru di Kelas' di dashboard kepsek — ganti label dan sub-label",
       "status": "terbuka",
@@ -684,9 +692,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "b28ab1b",
+    "last_session_commit": "PENDING_CONSTITUTION_COMMIT",
     "migrasi_terpasang_sampai": "20261101040000",
-    "main_sha": "b28ab1b",
-    "_catatan_push": "fix(portal): blok CAMPURAN dihitung sebagai status terburuk di kartu siswa/ortu (dashboard.js + portal.js)"
+    "main_sha": "PENDING_CONSTITUTION_COMMIT",
+    "_catatan_push": "fix(portal): blok CAMPURAN dihitung sebagai status terburuk di kartu siswa/ortu; tambah scripts/portal-konsistensi.mjs + scripts/rekap-konsistensi-role.mjs"
   }
 }
