@@ -692,9 +692,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "PENDING_CONSTITUTION_COMMIT",
+    "last_session_commit": "b79a88e",
     "migrasi_terpasang_sampai": "20261101040000",
-    "main_sha": "PENDING_CONSTITUTION_COMMIT",
+    "main_sha": "b79a88e",
     "_catatan_push": "fix(portal): blok CAMPURAN dihitung sebagai status terburuk di kartu siswa/ortu; tambah scripts/portal-konsistensi.mjs + scripts/rekap-konsistensi-role.mjs"
   }
 }
