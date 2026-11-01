@@ -323,7 +323,8 @@ body.has-login-banner .app-header { margin-top: 94px; }
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 640px) {
     .wk-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-    .date-row-actions { display: flex; gap: 8px; }
+    .date-row-actions { display: flex; gap: 8px; grid-column: 1 / -1; }
+    .date-row-actions .btn { flex: 1; }
 }
 /* ── Bottom nav (mobile only) ──────────────────────────────── */
 .bottom-nav { display: none; }
