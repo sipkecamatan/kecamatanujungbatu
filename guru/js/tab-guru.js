@@ -159,13 +159,13 @@ async function loadSiswaPerhatian() {
                 if (r.pct !== null && r.pct < PERHATIAN_HADIR_MIN) cat.push(`hadir ${Math.round(r.pct * 100)}% < 75%`);
                 if (r.A >= PERHATIAN_ALPA_MIN) cat.push(`alpa ${r.A}x`);
                 const pctColor = r.pct !== null && r.pct < PERHATIAN_HADIR_MIN ? 'var(--color-danger)' : 'var(--color-success)';
-                return `<div style="display:flex;align-items:center;gap:8px;padding:5px 4px;border-bottom:1px solid var(--color-border,#e5e7eb)">
+                return `<div style="display:flex;align-items:center;gap:8px;padding:5px 4px;border-bottom:1px solid var(--color-border)">
                     <span style="min-width:20px;font-size:11px;color:var(--color-text-muted);text-align:right;flex-shrink:0">${idx + 1}</span>
                     <span style="flex:1;font-size:13px">${esc(r.full_name ?? '')}</span>
                     <span style="display:flex;gap:8px;align-items:center;font-size:11px;font-weight:500;flex-shrink:0">
                         <span style="color:var(--color-success)">${r.H}H</span>
                         <span style="color:var(--color-primary)">${r.S}S</span>
-                        <span style="color:var(--color-warning,#f59e0b)">${r.I}I</span>
+                        <span style="color:var(--color-warning)">${r.I}I</span>
                         <span style="color:var(--color-danger)">${r.A}A</span>
                         <span style="color:${pctColor};font-weight:700;min-width:36px;text-align:right">${r.pct !== null ? Math.round(r.pct * 100) + '%' : '—'}</span>
                     </span>
@@ -175,8 +175,8 @@ async function loadSiswaPerhatian() {
 
             const panelId = `perhatian-panel-${cls.class_id}`;
             const btnId   = `perhatian-btn-${cls.class_id}`;
-            return `<div style="border:1px solid var(--color-border,#e5e7eb);border-radius:8px;margin-bottom:8px;overflow:hidden">
-                <button id="${btnId}" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--color-surface-2,#f8fafc);border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--color-text)" onclick="(function(){var p=document.getElementById('${panelId}');var b=document.getElementById('${btnId}');var open=p.style.display!=='none';p.style.display=open?'none':'block';b.querySelector('.perhatian-caret').textContent=open?'▶':'▼';})()">
+            return `<div style="border:1px solid var(--color-border);border-radius:8px;margin-bottom:8px;overflow:hidden">
+                <button id="${btnId}" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--color-surface);border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--color-text)" onclick="(function(){var p=document.getElementById('${panelId}');var b=document.getElementById('${btnId}');var open=p.style.display!=='none';p.style.display=open?'none':'block';b.querySelector('.perhatian-caret').textContent=open?'▶':'▼';})()">
                     <span>${esc(cls.name)}</span>
                     <span style="display:flex;gap:12px;align-items:center;font-size:12px;font-weight:400">
                         <span style="color:var(--color-danger)">${cls.perhatian.length} siswa perlu perhatian</span>
@@ -184,7 +184,7 @@ async function loadSiswaPerhatian() {
                         <span class="perhatian-caret" style="color:var(--color-text-muted)">▶</span>
                     </span>
                 </button>
-                <div id="${panelId}" style="display:none;padding:0 4px 4px">${rowsHtml}</div>
+                <div id="${panelId}" style="display:none;padding:0 4px 4px;background:var(--color-surface)">${rowsHtml}</div>
             </div>`;
         }).join('');
     } catch (err) {
