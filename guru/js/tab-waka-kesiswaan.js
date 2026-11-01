@@ -11,7 +11,7 @@ import {
     getClassesByProgram, getWaliAttendanceSummary,
     getLateArrivalsByRange, getCoachingCasesCount,
 } from './api.js';
-import { esc, fe, wireSimpleAccordion, localDateStr } from './tab-shared.js';
+import { esc, fe, wireSimpleAccordion, localDateStr, renderPerhatianAccordion } from './tab-shared.js';
 import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kaprodi.js';
 
 export let wkKasusCtx = null;
@@ -37,6 +37,30 @@ export async function initWakaKesiswaanTab({ config, kasusEngine }) {
     await loadWkAttendanceRecap({ config });
     await loadWkLateRecap({ config });
     await _initWakaKesiswaanKasusSection({ makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList });
+    loadWkPerhatian({ config });
+    const wkRefBtn = document.getElementById('wk-perhatian-refresh');
+    if (wkRefBtn && !wkRefBtn.dataset.bound) {
+        wkRefBtn.dataset.bound = '1';
+        wkRefBtn.addEventListener('click', () => loadWkPerhatian({ config }));
+    }
+}
+
+async function loadWkPerhatian({ config }) {
+    const el = document.getElementById('wk-perhatian-content');
+    if (!el) return;
+    el.innerHTML = '<p class="hint">Memuat…</p>';
+    try {
+        const programs = await getPrograms();
+        const allClassArrays = await Promise.all(programs.map(p => getClassesByProgram(p.program_id)));
+        const allClasses = allClassArrays.flat().sort((a, b) => a.name.localeCompare(b.name, 'id'));
+        if (!allClasses.length) { el.innerHTML = '<p class="hint">Belum ada kelas terdaftar.</p>'; return; }
+        // Opsi B: tampilkan daftar kelas dulu, fetch detail siswa saat expand
+        renderPerhatianAccordion(el, allClasses.map(cls => ({
+            class_id: cls.class_id, name: cls.name, perhatian: null, total: null,
+        })), async (classId) => getWaliAttendanceSummary(classId, config.current_academic_year, null, null, config.current_semester));
+    } catch (err) {
+        el.innerHTML = `<p class="hint" style="color:var(--color-danger)">Gagal memuat: ${esc(String(err?.message ?? err))}</p>`;
+    }
 }
 
 async function _initWakaKesiswaanKasusSection({ makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList }) {

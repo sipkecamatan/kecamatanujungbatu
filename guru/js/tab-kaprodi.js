@@ -17,7 +17,7 @@ import {
     getWaliAttendanceSummary, getClassScheduleFull,
     createPlacement, finishPlacement, bulkImportPkl,
 } from './api.js';
-import { esc, fe, fmt, localDateStr, buildPertemuanMeta } from './tab-shared.js';
+import { esc, fe, fmt, localDateStr, buildPertemuanMeta, filterPerhatian, renderPerhatianAccordion } from './tab-shared.js';
 import { buildWaliSheetsMonthly } from './tab-wali.js';
 
 const DIMENSION_LABELS = {
@@ -94,6 +94,12 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
 
         await Promise.all([loadKpRecap(), loadKpClsRecap({ config }), loadKpObs(), initKpPlacementForm(programId)]);
         await _initKaprodiKasusSection({ makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList });
+        loadKpPerhatian({ programId, config });
+        const kpRefBtn = document.getElementById('kp-perhatian-refresh');
+        if (kpRefBtn && !kpRefBtn.dataset.bound) {
+            kpRefBtn.dataset.bound = '1';
+            kpRefBtn.addEventListener('click', () => loadKpPerhatian({ programId, config }));
+        }
 
         document.querySelectorAll('#kp-accordion .kp-acc-header').forEach(header => {
             const newHeader = header.cloneNode(true);
@@ -153,6 +159,26 @@ async function _initKaprodiKasusSection({ makeKasusCtx, showKasusList, wireKasus
     document.getElementById('kp-kasus-filter-btn')
         ?.addEventListener('click', () => loadKasusList(false, _kpKasusCtx));
     await loadKasusList(false, _kpKasusCtx);
+}
+
+async function loadKpPerhatian({ programId, config }) {
+    const el = document.getElementById('kp-perhatian-content');
+    if (!el) return;
+    el.innerHTML = '<p class="hint">Memuat…</p>';
+    try {
+        const classes = await getClassesByProgram(programId);
+        if (!classes.length) { el.innerHTML = '<p class="hint">Belum ada kelas di program ini.</p>'; return; }
+        const classDataList = await Promise.all(
+            classes.sort((a, b) => a.name.localeCompare(b.name, 'id')).map(async cls => {
+                const rows = await getWaliAttendanceSummary(cls.class_id, config.current_academic_year, null, null, config.current_semester);
+                const perhatian = filterPerhatian(rows);
+                return { class_id: cls.class_id, name: cls.name, perhatian, roster: rows };
+            })
+        );
+        renderPerhatianAccordion(el, classDataList);
+    } catch (err) {
+        el.innerHTML = `<p class="hint" style="color:var(--color-danger)">Gagal memuat: ${esc(String(err?.message ?? err))}</p>`;
+    }
 }
 
 function renderKpSummary() {

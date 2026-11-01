@@ -10,7 +10,7 @@ import {
     getWaliAttendanceSummary, getStudentAttendanceSessions,
     getClassStudents, getClassAttendanceByDate,
 } from './api.js';
-import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta } from './tab-shared.js';
+import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta, renderPerhatianAccordion } from './tab-shared.js';
 import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kaprodi.js';
 
 /* global XLSX */
@@ -29,6 +29,29 @@ export async function initBkTab({ config, kasusEngine }) {
     document.getElementById('bk-att-export-btn').onclick = () => downloadBkAttExcel({ config });
     await loadBkAttendanceRecap({ config });
     await _initBkKasusSection({ makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList });
+    loadBkPerhatian({ config });
+    const bkRefBtn = document.getElementById('bk-perhatian-refresh');
+    if (bkRefBtn && !bkRefBtn.dataset.bound) {
+        bkRefBtn.dataset.bound = '1';
+        bkRefBtn.addEventListener('click', () => loadBkPerhatian({ config }));
+    }
+}
+
+async function loadBkPerhatian({ config }) {
+    const el = document.getElementById('bk-perhatian-content');
+    if (!el) return;
+    el.innerHTML = '<p class="hint">Memuat…</p>';
+    try {
+        const programs = await getPrograms();
+        const allClassArrays = await Promise.all(programs.map(p => getClassesByProgram(p.program_id)));
+        const allClasses = allClassArrays.flat().sort((a, b) => a.name.localeCompare(b.name, 'id'));
+        if (!allClasses.length) { el.innerHTML = '<p class="hint">Belum ada kelas terdaftar.</p>'; return; }
+        renderPerhatianAccordion(el, allClasses.map(cls => ({
+            class_id: cls.class_id, name: cls.name, perhatian: null, total: null,
+        })), async (classId) => getWaliAttendanceSummary(classId, config.current_academic_year, null, null, config.current_semester));
+    } catch (err) {
+        el.innerHTML = `<p class="hint" style="color:var(--color-danger)">Gagal memuat: ${esc(String(err?.message ?? err))}</p>`;
+    }
 }
 
 async function _initBkKasusSection({ makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList }) {

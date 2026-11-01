@@ -10,7 +10,7 @@ import {
     getWaliLateArrivals, getWaliExits, getClassScheduleFull,
 } from './api.js';
 import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
-import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr } from './tab-shared.js';
+import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat } from './tab-shared.js';
 
 /* global XLSX */
 
@@ -109,6 +109,25 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
     document.getElementById('wali-exit-filter-btn').onclick = () => loadWaliExit({ currentUser });
 
     await Promise.all([loadWaliLate({ currentUser }), loadWaliExit({ currentUser })]);
+    await loadWaliPerhatian({ classId, config });
+
+    const refreshBtn = document.getElementById('wali-perhatian-refresh');
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+        refreshBtn.dataset.bound = '1';
+        refreshBtn.addEventListener('click', () => loadWaliPerhatian({ classId, config }));
+    }
+}
+
+async function loadWaliPerhatian({ classId, config }) {
+    const el = document.getElementById('wali-perhatian-content');
+    if (!el) return;
+    el.innerHTML = '<p class="hint">Memuat…</p>';
+    try {
+        const rows = await getWaliAttendanceSummary(classId, config.current_academic_year, null, null, config.current_semester);
+        renderPerhatianFlat(el, filterPerhatian(rows));
+    } catch (err) {
+        el.innerHTML = `<p class="hint" style="color:var(--color-danger)">Gagal memuat: ${esc(String(err?.message ?? err))}</p>`;
+    }
 }
 
 async function loadWaliLate({ currentUser }) {
