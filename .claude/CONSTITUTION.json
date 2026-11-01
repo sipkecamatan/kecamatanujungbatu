@@ -536,18 +536,18 @@
     },
     "guru/js/tab-kaprodi.js (Excel)": {
       "bergantung_pada": [
-        "guru/js/tab-wali.js (buildWaliSheetsMonthly — fungsi builder sheet wali dipakai ulang)",
-        "guru/js/api.js (getWaliAttendanceSummary, getClassScheduleFull, getClassesByProgram)"
+        "guru/js/tab-wali.js (buildWaliSheetsMonthly — dipakai oleh downloadKelasExcel)",
+        "guru/js/api.js (getWaliAttendanceSummary, getClassScheduleFull, getClassesByProgram, getAttendanceRecapPerClass)"
       ],
       "diekspor_ke": [
         "guru/js/tab-waka-kesiswaan.js (downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE)",
         "guru/js/tab-bk.js (downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE)"
       ],
-      "excel_sheets": [
-        "RINGKASAN (semua siswa prodi digabung, format identik wali)",
-        "[NamaKelas] Jul 26 … [NamaKelas] Jun 27 (12 sheet per kelas, tanpa RINGKASAN per kelas)"
-      ],
-      "catatan": "Nama sheet = prefix nama kelas (max 24 char) + spasi + nama bulan, total ≤ 31 char. Jika tab-wali.js diubah format sheetnya, kaprodi ikut terdampak karena pakai buildWaliSheetsMonthly yang sama. downloadProdiExcel dipakai ulang oleh tab-waka-kesiswaan.js dan tab-bk.js untuk tombol ↓ Excel per prodi di accordion. MONTHS_RANGE adalah satu-satunya sumber kebenaran rentang bulan (Jul–Jun, 12 bulan) — wali dan waka mengambil dari sini."
+      "dua_fungsi_unduh": {
+        "downloadProdiExcel": "1 sheet RINGKASAN saja (format identik Waka Kesiswaan): tile H/S/I/A prodi, tren bulanan, Siswa Perlu Perhatian per kelas. Monthly tren pakai getAttendanceRecapPerClass difilter ke classIds prodi. Dipakai: tombol 'Unduh Excel' header kaprodi + tombol ↓ Excel per prodi di accordion Waka/BK. Diubah 1 Nov 2026.",
+        "downloadKelasExcel": "RINGKASAN + 12 sheet bulanan (format wali penuh, pakai buildWaliSheetsMonthly). Dipakai: tombol ↓ Excel per baris kelas di Kaprodi/Waka/BK."
+      },
+      "catatan": "Jika tab-wali.js diubah format sheetnya, downloadKelasExcel ikut terdampak. downloadProdiExcel tidak lagi bergantung buildWaliSheetsMonthly. MONTHS_RANGE adalah satu-satunya sumber kebenaran rentang bulan (Jul–Jun, 12 bulan)."
     },
     "guru/js/tab-waka-kesiswaan.js (Excel prodi)": {
       "bergantung_pada": [
@@ -710,9 +710,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "09ac587",
+    "last_session_commit": "d68ba14",
     "migrasi_terpasang_sampai": "20261101050000",
-    "main_sha": "09ac587",
-    "_catatan_push": "feat(ui): Siswa Perlu Perhatian collapsible default tertutup — semua tab"
+    "main_sha": "d68ba14",
+    "_catatan_push": "fix(excel): kaprodi unduh Excel ringkasan 1 sheet seperti Waka"
   }
 }
