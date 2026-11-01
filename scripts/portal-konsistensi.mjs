@@ -72,7 +72,7 @@ function fmt(r) {
  */
 function portalAggregateCTE(school_id, from, to) {
   return `
-    WITH raw AS (
+    WITH att_raw AS (
       SELECT
         a.student_id,
         ts.block_group_id,
@@ -92,7 +92,7 @@ function portalAggregateCTE(school_id, from, to) {
              THEN MAX(eff_status)
              ELSE 'CAMPURAN'
         END AS summary_status
-      FROM raw
+      FROM att_raw
       GROUP BY student_id, block_group_id
     ),
     per_student AS (
@@ -213,7 +213,7 @@ async function cekSekolah(s) {
   // Ini adalah SUMBER SATU-SATUNYA selisih antara portal dan summary.
   try {
     const rows = await sql(`
-      WITH raw AS (
+      WITH att_raw AS (
         SELECT
           a.student_id,
           ts.block_group_id,
@@ -229,7 +229,7 @@ async function cekSekolah(s) {
         student_id, block_group_id,
         COUNT(DISTINCT eff_status) AS jml_status,
         STRING_AGG(DISTINCT eff_status, '/' ORDER BY eff_status) AS status_list
-      FROM raw
+      FROM att_raw
       GROUP BY student_id, block_group_id
       HAVING COUNT(DISTINCT eff_status) > 1
       LIMIT 20
