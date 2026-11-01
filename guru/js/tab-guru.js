@@ -182,9 +182,7 @@ async function loadGuruRecap() {
             <div id="guru-rekap-accordion"></div>`;
 
         document.getElementById('guru-recap-export').addEventListener('click', async () => {
-            const btn   = document.getElementById('guru-recap-export');
-            const start = document.getElementById('guru-recap-start').value;
-            const end   = document.getElementById('guru-recap-end').value;
+            const btn = document.getElementById('guru-recap-export');
             btn.disabled = true;
             btn.textContent = 'Menyiapkan…';
 
@@ -192,18 +190,18 @@ async function loadGuruRecap() {
                 const classes = await getMyClasses(_currentUser.user_id, _config.current_academic_year, _config.current_semester);
                 if (!classes.length) return;
 
+                // Excel selalu seluruh tahun ajaran — tidak terikat filter layar
                 const classDataList = await Promise.all(classes.map(async cls => {
                     const [summary, detail] = await Promise.all([
-                        getAttendanceSummaryByStudents(cls.class_id, _config.current_academic_year, start || null, end || null, _currentUser.user_id),
-                        getClassAttendanceByDate(cls.class_id, _config.current_academic_year, start || null, end || null, _currentUser.user_id),
+                        getAttendanceSummaryByStudents(cls.class_id, _config.current_academic_year, null, null, _currentUser.user_id),
+                        getClassAttendanceByDate(cls.class_id, _config.current_academic_year, null, null, _currentUser.user_id),
                     ]);
                     return { name: cls.name ?? cls.class_id, summary, detail };
                 }));
 
-                const periodeLabel = (start && end) ? `${start} s.d. ${end}` : 'Seluruh periode aktif';
                 const sheets = buildGuruExcel({
                     namaGuru:     _currentUser.full_name ?? 'Guru',
-                    periodeLabel,
+                    periodeLabel: 'Seluruh periode aktif',
                     academicYear: _config.current_academic_year,
                     classDataList,
                 });
@@ -220,7 +218,8 @@ async function loadGuruRecap() {
                     XLSX.utils.book_append_sheet(wb, ws, sheetName);
                 }
 
-                const filename = `kehadiran_guru_${(start || 'awal').replace(/-/g,'')}_${(end || 'akhir').replace(/-/g,'')}.xlsx`;
+                const ay = (_config.current_academic_year ?? '').replace('/', '-');
+                const filename = `kehadiran_guru_${ay}.xlsx`;
                 const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
                 const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 const url  = URL.createObjectURL(blob);
