@@ -710,9 +710,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "TBD",
+    "last_session_commit": "31e3570",
     "migrasi_terpasang_sampai": "20261101040000",
-    "main_sha": "TBD",
+    "main_sha": "31e3570",
     "_catatan_push": "feat(guru): Siswa Perlu Perhatian di 5 tab (Guru, Wali, Kaprodi, Waka, BK) + helper tab-shared.js"
   }
 }
