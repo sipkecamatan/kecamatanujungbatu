@@ -306,6 +306,28 @@ export function renderPerhatianAccordion(el, classDataList, onExpand = null) {
     });
 }
 
+/**
+ * Buat section-card "Siswa Perlu Perhatian" bisa dilipat.
+ * Header (toggle) diklik → body tampil/sembunyi; default tertutup.
+ * Klik tombol refresh di dalam header tidak memicu toggle.
+ */
+export function wirePerhatianCollapse(cardId, refreshId) {
+    const card = document.getElementById(cardId);
+    if (!card || card.dataset.pphCollWired) return;
+    card.dataset.pphCollWired = '1';
+    const base   = cardId.replace(/-card$/, '');
+    const toggle = document.getElementById(base + '-toggle');
+    const body   = document.getElementById(base + '-body');
+    const caret  = toggle?.querySelector('.pph-sect-caret');
+    if (!toggle || !body) return;
+    toggle.addEventListener('click', (e) => {
+        if (refreshId && e.target.closest('#' + refreshId)) return;
+        const open = body.style.display !== 'none';
+        body.style.display = open ? 'none' : '';
+        if (caret) caret.textContent = open ? '▶' : '▼';
+    });
+}
+
 export function wireSimpleAccordion(cardId) {
     const card = document.getElementById(cardId);
     if (!card || card.dataset.accWired) return;

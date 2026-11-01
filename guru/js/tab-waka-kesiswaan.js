@@ -11,7 +11,7 @@ import {
     getClassesByProgram, getWaliAttendanceSummary,
     getLateArrivalsByRange, getCoachingCasesCount,
 } from './api.js';
-import { esc, fe, wireSimpleAccordion, localDateStr, renderPerhatianAccordion } from './tab-shared.js';
+import { esc, fe, wireSimpleAccordion, localDateStr, renderPerhatianAccordion, wirePerhatianCollapse } from './tab-shared.js';
 import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kaprodi.js';
 
 export let wkKasusCtx = null;
@@ -43,6 +43,7 @@ export async function initWakaKesiswaanTab({ config, kasusEngine }) {
         wkRefBtn.dataset.bound = '1';
         wkRefBtn.addEventListener('click', () => loadWkPerhatian({ config }));
     }
+    wirePerhatianCollapse('wk-perhatian-card', 'wk-perhatian-refresh');
 }
 
 async function loadWkPerhatian({ config }) {

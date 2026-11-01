@@ -10,7 +10,7 @@ import {
     getWaliAttendanceSummary, getStudentAttendanceSessions,
     getClassStudents, getClassAttendanceByDate,
 } from './api.js';
-import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta, renderPerhatianAccordion } from './tab-shared.js';
+import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta, renderPerhatianAccordion, wirePerhatianCollapse } from './tab-shared.js';
 import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kaprodi.js';
 
 /* global XLSX */
@@ -35,6 +35,7 @@ export async function initBkTab({ config, kasusEngine }) {
         bkRefBtn.dataset.bound = '1';
         bkRefBtn.addEventListener('click', () => loadBkPerhatian({ config }));
     }
+    wirePerhatianCollapse('bk-perhatian-card', 'bk-perhatian-refresh');
 }
 
 async function loadBkPerhatian({ config }) {

@@ -589,8 +589,8 @@
         "guru/js/tab-waka-kurikulum.js",
         "guru/js/tab-kepsek.js"
       ],
-      "export_perhatian": "filterPerhatian, renderPerhatianFlat, renderPerhatianAccordion, PERHATIAN_ALPA_MIN=2, PERHATIAN_HADIR_MIN=0.75 — satu-satunya sumber threshold; ubah di sini berlaku ke semua tab",
-      "catatan": "Jika threshold Alpa/hadir perlu diubah, cukup ubah PERHATIAN_ALPA_MIN/HADIR_MIN di tab-shared.js saja."
+      "export_perhatian": "filterPerhatian, renderPerhatianFlat, renderPerhatianAccordion, wirePerhatianCollapse, PERHATIAN_ALPA_MIN=2, PERHATIAN_HADIR_MIN=0.75 — satu-satunya sumber threshold; ubah di sini berlaku ke semua tab",
+      "catatan": "Jika threshold Alpa/hadir perlu diubah, cukup ubah PERHATIAN_ALPA_MIN/HADIR_MIN di tab-shared.js saja. wirePerhatianCollapse membuat section-card Siswa Perlu Perhatian bisa dilipat (default tertutup); dipanggil dari init tiap tab setelah wiring refresh button. Pola: card-id=*-perhatian-card, toggle-id=*-perhatian-toggle, body-id=*-perhatian-body."
     },
     "guru/js/tab-guru.js": {
       "bergantung_pada": [
@@ -710,9 +710,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "5140ff2",
+    "last_session_commit": "TBD",
     "migrasi_terpasang_sampai": "20261101050000",
-    "main_sha": "5140ff2",
-    "_catatan_push": "fix(migration): block_group_id per subject — pisah blok lintas-mapel (migration 20261101050000)"
+    "main_sha": "TBD",
+    "_catatan_push": "feat(ui): Siswa Perlu Perhatian collapsible default tertutup — semua tab"
   }
 }

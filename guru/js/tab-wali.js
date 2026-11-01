@@ -10,7 +10,7 @@ import {
     getWaliLateArrivals, getWaliExits, getClassScheduleFull,
 } from './api.js';
 import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
-import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat } from './tab-shared.js';
+import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat, wirePerhatianCollapse } from './tab-shared.js';
 
 /* global XLSX */
 
@@ -116,6 +116,7 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
         refreshBtn.dataset.bound = '1';
         refreshBtn.addEventListener('click', () => loadWaliPerhatian({ classId, config }));
     }
+    wirePerhatianCollapse('wali-perhatian-card', 'wali-perhatian-refresh');
 }
 
 async function loadWaliPerhatian({ classId, config }) {

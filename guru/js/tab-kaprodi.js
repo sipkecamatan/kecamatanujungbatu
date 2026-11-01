@@ -17,7 +17,7 @@ import {
     getWaliAttendanceSummary, getClassScheduleFull,
     createPlacement, finishPlacement, bulkImportPkl,
 } from './api.js';
-import { esc, fe, fmt, localDateStr, buildPertemuanMeta, filterPerhatian, renderPerhatianAccordion } from './tab-shared.js';
+import { esc, fe, fmt, localDateStr, buildPertemuanMeta, filterPerhatian, renderPerhatianAccordion, wirePerhatianCollapse } from './tab-shared.js';
 import { buildWaliSheetsMonthly } from './tab-wali.js';
 
 const DIMENSION_LABELS = {
@@ -100,6 +100,7 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
             kpRefBtn.dataset.bound = '1';
             kpRefBtn.addEventListener('click', () => loadKpPerhatian({ programId, config }));
         }
+        wirePerhatianCollapse('kp-perhatian-card', 'kp-perhatian-refresh');
 
         document.querySelectorAll('#kp-accordion .kp-acc-header').forEach(header => {
             const newHeader = header.cloneNode(true);

@@ -112,15 +112,17 @@
             </div>
 
             <!-- Siswa Perlu Perhatian -->
-            <div class="section-card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                    <h3 style="margin:0">Siswa Perlu Perhatian</h3>
+            <div class="section-card" id="guru-perhatian-card">
+                <div id="guru-perhatian-toggle" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;cursor:pointer">
+                    <h3 style="margin:0">Siswa Perlu Perhatian <span class="pph-sect-caret" style="font-size:11px;color:var(--color-text-muted);margin-left:4px">▶</span></h3>
                     <button class="btn btn-secondary btn-sm" id="guru-perhatian-refresh" title="Muat ulang">↻</button>
                 </div>
-                <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0 0 12px">
-                    Alpa ≥ 2 kali atau % hadir &lt; 75% · Seluruh kelas diampu · Semester berjalan
-                </p>
-                <div id="guru-perhatian-content"><p class="hint">Memuat…</p></div>
+                <div id="guru-perhatian-body" style="display:none">
+                    <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0 0 12px">
+                        Alpa ≥ 2 kali atau % hadir &lt; 75% · Seluruh kelas diampu · Semester berjalan
+                    </p>
+                    <div id="guru-perhatian-content"><p class="hint">Memuat…</p></div>
+                </div>
             </div>
 
         </div>
@@ -444,14 +446,16 @@
             </div>
 
             <div class="section-card" style="margin-top:16px" id="wali-perhatian-card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                    <h3 style="margin:0">Siswa Perlu Perhatian</h3>
+                <div id="wali-perhatian-toggle" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;cursor:pointer">
+                    <h3 style="margin:0">Siswa Perlu Perhatian <span class="pph-sect-caret" style="font-size:11px;color:var(--color-text-muted);margin-left:4px">▶</span></h3>
                     <button class="btn btn-secondary btn-sm" id="wali-perhatian-refresh" title="Muat ulang">↻</button>
                 </div>
-                <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0 0 12px">
-                    Alpa ≥ 2 kali atau % hadir &lt; 75% · Semester berjalan
-                </p>
-                <div id="wali-perhatian-content"><p class="hint">Memuat…</p></div>
+                <div id="wali-perhatian-body" style="display:none">
+                    <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0 0 12px">
+                        Alpa ≥ 2 kali atau % hadir &lt; 75% · Semester berjalan
+                    </p>
+                    <div id="wali-perhatian-content"><p class="hint">Memuat…</p></div>
+                </div>
             </div>
 
             <div class="section-card" style="margin-top:16px">
@@ -582,14 +586,16 @@
             </div>
 
             <div class="section-card" style="margin-top:16px" id="bk-perhatian-card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                    <h3 style="margin:0">Siswa Perlu Perhatian</h3>
+                <div id="bk-perhatian-toggle" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;cursor:pointer">
+                    <h3 style="margin:0">Siswa Perlu Perhatian <span class="pph-sect-caret" style="font-size:11px;color:var(--color-text-muted);margin-left:4px">▶</span></h3>
                     <button class="btn btn-secondary btn-sm" id="bk-perhatian-refresh" title="Muat ulang">↻</button>
                 </div>
-                <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0 0 12px">
-                    Alpa ≥ 2 kali atau % hadir &lt; 75% · Seluruh kelas · Semester berjalan
-                </p>
-                <div id="bk-perhatian-content"><p class="hint">Memuat…</p></div>
+                <div id="bk-perhatian-body" style="display:none">
+                    <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0 0 12px">
+                        Alpa ≥ 2 kali atau % hadir &lt; 75% · Seluruh kelas · Semester berjalan
+                    </p>
+                    <div id="bk-perhatian-content"><p class="hint">Memuat…</p></div>
+                </div>
             </div>
 
             <div class="section-card" style="margin-top:16px">
@@ -687,14 +693,16 @@
 
             <!-- Siswa Perlu Perhatian — Kaprodi -->
             <div class="section-card kp-acc-item" id="kp-perhatian-card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                    <h3 style="margin:0">Siswa Perlu Perhatian</h3>
+                <div id="kp-perhatian-toggle" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;cursor:pointer">
+                    <h3 style="margin:0">Siswa Perlu Perhatian <span class="pph-sect-caret" style="font-size:11px;color:var(--color-text-muted);margin-left:4px">▶</span></h3>
                     <button class="btn btn-secondary btn-sm" id="kp-perhatian-refresh" title="Muat ulang">↻</button>
                 </div>
-                <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0 0 12px">
-                    Alpa ≥ 2 kali atau % hadir &lt; 75% · Kelas di program ini · Semester berjalan
-                </p>
-                <div id="kp-perhatian-content"><p class="hint">Memuat…</p></div>
+                <div id="kp-perhatian-body" style="display:none">
+                    <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0 0 12px">
+                        Alpa ≥ 2 kali atau % hadir &lt; 75% · Kelas di program ini · Semester berjalan
+                    </p>
+                    <div id="kp-perhatian-content"><p class="hint">Memuat…</p></div>
+                </div>
             </div>
 
             <!-- Mitra DUDI — referensi dipilih di Form Penempatan -->
@@ -1004,14 +1012,16 @@
             </div>
 
             <div class="section-card" style="margin-top:16px" id="wk-perhatian-card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                    <h3 style="margin:0">Siswa Perlu Perhatian</h3>
+                <div id="wk-perhatian-toggle" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;cursor:pointer">
+                    <h3 style="margin:0">Siswa Perlu Perhatian <span class="pph-sect-caret" style="font-size:11px;color:var(--color-text-muted);margin-left:4px">▶</span></h3>
                     <button class="btn btn-secondary btn-sm" id="wk-perhatian-refresh" title="Muat ulang">↻</button>
                 </div>
-                <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0 0 12px">
-                    Alpa ≥ 2 kali atau % hadir &lt; 75% · Seluruh kelas · Semester berjalan
-                </p>
-                <div id="wk-perhatian-content"><p class="hint">Memuat…</p></div>
+                <div id="wk-perhatian-body" style="display:none">
+                    <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0 0 12px">
+                        Alpa ≥ 2 kali atau % hadir &lt; 75% · Seluruh kelas · Semester berjalan
+                    </p>
+                    <div id="wk-perhatian-content"><p class="hint">Memuat…</p></div>
+                </div>
             </div>
 
             <div class="section-card kp-acc-item" id="wk-late-card">
