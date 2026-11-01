@@ -463,7 +463,18 @@ function buildGuruExcel({ namaGuru, periodeLabel, academicYear, classDataList })
 
     const ws1 = buildWs(r1, [4, 20, 30, 6, 6, 6, 6, 8, 14, 40], r1Merges.length ? r1Merges : null);
 
-    // ── SHEET PER KELAS ───────────────────────────────────────────────────────
+    // ── SHEET PER BULAN (Jul 26 – Jun 27) ───────────────────────────────────
+    const MONTHS = [
+        '2026-07','2026-08','2026-09',
+        '2026-10','2026-11','2026-12',
+        '2027-01','2027-02','2027-03','2027-04','2027-05','2027-06',
+    ];
+    const MONTH_ID = {
+        '01':'Januari','02':'Februari','03':'Maret','04':'April',
+        '05':'Mei','06':'Juni','07':'Juli','08':'Agustus',
+        '09':'September','10':'Oktober','11':'November','12':'Desember',
+    };
+
     const stBelum = S(
         { patternType: 'solid', fgColor: { rgb: 'DDDDDD' } },
         { color: { rgb: '888888' } },
@@ -471,107 +482,151 @@ function buildGuruExcel({ namaGuru, periodeLabel, academicYear, classDataList })
     );
     const stJumlahLbl = S(C.greyBg, { ...F.bold, sz: 9 }, AL.left);
 
-    const classSheets = processedClasses.map(cls => {
-        const { name, pivot, sortedBg, bgDate, roster, rekapSiswa } = cls;
+    const FIXED = 7; // No, Nama, H, S, I, A, %
 
-        // Kelompok pertemuan per tanggal (untuk header di-merge)
-        const dateMap = new Map();
-        for (const bgId of sortedBg) {
-            const d = bgDate.get(bgId) ?? '';
-            if (!dateMap.has(d)) dateMap.set(d, []);
-            dateMap.get(d).push(bgId);
-        }
-        const sortedDates = [...dateMap.keys()].sort();
+    const mkHdr1 = () => [
+        cc('No',      ST.hdrMain), cc('Nama Siswa', ST.hdrMain),
+        cc('Hadir',   ST.statusH), cc('Sakit',      ST.statusS),
+        cc('Izin',    ST.statusI), cc('Alpa',       ST.statusA),
+        cc('% Hadir', ST.hdrMain),
+    ];
 
-        const FIXED = 7; // No, Nama, H, S, I, A, %
-        const hdr1  = [
-            cc('No',       ST.hdrMain), cc('Nama Siswa', ST.hdrMain),
-            cc('Hadir',    ST.statusH), cc('Sakit',      ST.statusS),
-            cc('Izin',     ST.statusI), cc('Alpa',       ST.statusA),
-            cc('% Hadir',  ST.hdrMain),
-        ];
-        const merges = [];
-        let colIdx = FIXED;
+    const monthSheets = MONTHS.map(mon => {
+        const [yr, mo] = mon.split('-');
+        const sheetName = `${MONTH_ID[mo].substring(0, 3)} ${yr.slice(2)}`; // "Jul 26"
 
-        for (const date of sortedDates) {
-            const bgIds = dateMap.get(date);
-            const dd = date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2');
-            hdr1.push(cc(dd, ST.hdrDate));
-            for (let k = 1; k < bgIds.length; k++) hdr1.push(null);
-            if (bgIds.length > 1)
-                merges.push({ s: { r: 3, c: colIdx }, e: { r: 3, c: colIdx + bgIds.length - 1 } });
-            colIdx += bgIds.length;
-        }
+        const allRows  = [];
+        const allMerges = [];
 
-        const dataRows = rekapSiswa.map((r, idx) => {
-            const warn = r.A >= ALPA_MIN || (r.pct !== null && r.pct < HADIR_MIN);
-            const pctStr = r.tot > 0 ? Math.round(r.H / r.tot * 100) + '%' : '—';
-            const row = [
-                cc(idx + 1,       warn ? { ...ST.perhatian, ...ST.number } : ST.number),
-                cc(r.s.full_name,  warn ? ST.perhatian : null),
-                cc(r.H, ST.statusH), cc(r.S, ST.statusS),
-                cc(r.I, ST.statusI), cc(r.A, ST.statusA),
-                cc(pctStr, r.tot > 0 && r.H / r.tot < HADIR_MIN ? ST.pctBad : r.tot > 0 ? ST.pctOk : ST.number),
-            ];
-            for (const bgId of sortedBg) {
-                const st = pivot[r.s.student_id]?.[bgId];
-                if (st === null || st === undefined) {
-                    row.push(cc('—', stBelum));
-                } else {
-                    row.push(cc(STATUS_HURUF[st] ?? st,
-                        { HADIR: ST.statusH, SAKIT: ST.statusS, IZIN: ST.statusI, ALPA: ST.statusA }[st] ?? ST.number));
+        allRows.push([cc(`ABSENSI ${MONTH_ID[mo].toUpperCase()} ${yr} — ${namaGuru}`, ST.title)]);
+        allRows.push([cc(`Tahun Ajaran: ${academicYear}  |  Sel abu-abu (—) = sesi belum diinput.`, ST.italic9)]);
+
+        let hasAnyClass = false;
+
+        for (const cls of processedClasses) {
+            const { name: clsName, pivot, bgDate, rekapSiswa } = cls;
+
+            // Sesi bulan ini untuk kelas ini
+            const monthBg = [...bgDate.entries()]
+                .filter(([, date]) => date.startsWith(mon))
+                .sort(([, a], [, b]) => a.localeCompare(b))
+                .map(([id]) => id);
+
+            if (!monthBg.length) continue;
+            hasAnyClass = true;
+
+            // Spacer antar blok kelas
+            if (allRows.length > 2) allRows.push(null);
+
+            // Sub-header kelas (merge seluruh lebar)
+            const clsHdrRowIdx = allRows.length;
+            const totalCols = FIXED + monthBg.length - 1;
+            allRows.push([cc(clsName, ST.section), ...Array(totalCols).fill(null)]);
+            allMerges.push({ s: { r: clsHdrRowIdx, c: 0 }, e: { r: clsHdrRowIdx, c: totalCols } });
+
+            // Header tanggal — merge per tanggal yang sama
+            const dateMap = new Map();
+            for (const bgId of monthBg) {
+                const d = bgDate.get(bgId) ?? '';
+                if (!dateMap.has(d)) dateMap.set(d, []);
+                dateMap.get(d).push(bgId);
+            }
+            const sortedDates = [...dateMap.keys()].sort();
+
+            const hdr1 = mkHdr1();
+            const hdrRowIdx = allRows.length;
+            let colIdx = FIXED;
+            for (const date of sortedDates) {
+                const bgIds = dateMap.get(date);
+                const dd = date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2');
+                hdr1.push(cc(dd, ST.hdrDate));
+                for (let k = 1; k < bgIds.length; k++) hdr1.push(null);
+                if (bgIds.length > 1)
+                    allMerges.push({ s: { r: hdrRowIdx, c: colIdx }, e: { r: hdrRowIdx, c: colIdx + bgIds.length - 1 } });
+                colIdx += bgIds.length;
+            }
+            allRows.push(hdr1);
+
+            // Baris data per siswa (H/S/I/A dihitung dari pivot bulan ini)
+            const dataRows = rekapSiswa.map((r, idx) => {
+                let mH = 0, mS = 0, mI = 0, mA = 0;
+                for (const bgId of monthBg) {
+                    const st = pivot[r.s.student_id]?.[bgId];
+                    if (st === null || st === undefined) continue;
+                    if (st === 'HADIR') mH++; else if (st === 'SAKIT') mS++;
+                    else if (st === 'IZIN') mI++; else if (st === 'ALPA') mA++;
                 }
-            }
-            return row;
-        });
+                const mTot = mH + mS + mI + mA;
+                const mPct = mTot > 0 ? Math.round(mH / mTot * 100) + '%' : '—';
+                const warn = mA >= ALPA_MIN || (mTot > 0 && mH / mTot < HADIR_MIN);
 
-        // Baris TOTAL KELAS
-        const totRow = [
-            cc('', ST.total), cc('TOTAL KELAS', ST.total),
-            cc(dataRows.reduce((a, r) => a + (r[2]?.v ?? 0), 0), { ...ST.total, ...ST.statusH }),
-            cc(dataRows.reduce((a, r) => a + (r[3]?.v ?? 0), 0), { ...ST.total, ...ST.statusS }),
-            cc(dataRows.reduce((a, r) => a + (r[4]?.v ?? 0), 0), { ...ST.total, ...ST.statusI }),
-            cc(dataRows.reduce((a, r) => a + (r[5]?.v ?? 0), 0), { ...ST.total, ...ST.statusA }),
-            cc('', ST.total),
-        ];
-        for (const bgId of sortedBg) {
-            const nInput = Object.values(pivot).filter(b => b[bgId] !== undefined && b[bgId] !== null).length;
-            totRow.push(cc(nInput > 0 ? nInput : '—', nInput > 0 ? ST.total : stBelum));
+                const row = [
+                    cc(idx + 1,       warn ? { ...ST.perhatian, ...ST.number } : ST.number),
+                    cc(r.s.full_name,  warn ? ST.perhatian : null),
+                    cc(mH, ST.statusH), cc(mS, ST.statusS),
+                    cc(mI, ST.statusI), cc(mA, ST.statusA),
+                    cc(mPct, mTot > 0 && mH / mTot < HADIR_MIN ? ST.pctBad
+                        : mTot > 0 ? ST.pctOk : ST.number),
+                ];
+                for (const bgId of monthBg) {
+                    const st = pivot[r.s.student_id]?.[bgId];
+                    if (st === null || st === undefined) {
+                        row.push(cc('—', stBelum));
+                    } else {
+                        row.push(cc(STATUS_HURUF[st] ?? st,
+                            { HADIR: ST.statusH, SAKIT: ST.statusS, IZIN: ST.statusI, ALPA: ST.statusA }[st] ?? ST.number));
+                    }
+                }
+                return row;
+            });
+            allRows.push(...dataRows);
+
+            // Baris TOTAL KELAS
+            const totRow = [
+                cc('', ST.total), cc('TOTAL KELAS', ST.total),
+                cc(dataRows.reduce((a, r) => a + (r[2]?.v ?? 0), 0), { ...ST.total, ...ST.statusH }),
+                cc(dataRows.reduce((a, r) => a + (r[3]?.v ?? 0), 0), { ...ST.total, ...ST.statusS }),
+                cc(dataRows.reduce((a, r) => a + (r[4]?.v ?? 0), 0), { ...ST.total, ...ST.statusI }),
+                cc(dataRows.reduce((a, r) => a + (r[5]?.v ?? 0), 0), { ...ST.total, ...ST.statusA }),
+                cc('', ST.total),
+            ];
+            for (const bgId of monthBg) {
+                const nInput = Object.values(pivot).filter(b => b[bgId] !== undefined && b[bgId] !== null).length;
+                totRow.push(cc(nInput > 0 ? nInput : '—', nInput > 0 ? ST.total : stBelum));
+            }
+            allRows.push(totRow);
+
+            // Baris jumlah H/S/I/A per pertemuan
+            const mkJumlah = (label, stCode, stCell) => {
+                const row = [cc('', stJumlahLbl), cc(label, stJumlahLbl),
+                    cc('', stJumlahLbl), cc('', stJumlahLbl),
+                    cc('', stJumlahLbl), cc('', stJumlahLbl), cc('', stJumlahLbl)];
+                for (const bgId of monthBg) {
+                    const n = Object.values(pivot).filter(b => b[bgId] === stCode).length;
+                    row.push(cc(n > 0 ? n : '—', n > 0 ? stCell : stBelum));
+                }
+                return row;
+            };
+            allRows.push(mkJumlah('Jumlah H', 'HADIR', ST.statusH));
+            allRows.push(mkJumlah('Jumlah S', 'SAKIT', ST.statusS));
+            allRows.push(mkJumlah('Jumlah I', 'IZIN',  ST.statusI));
+            allRows.push(mkJumlah('Jumlah A', 'ALPA',  ST.statusA));
         }
 
-        // Baris jumlah H/S/I/A per pertemuan
-        const mkJumlah = (label, stCode, stCell) => {
-            const row = [cc('', stJumlahLbl), cc(label, stJumlahLbl),
-                cc('', stJumlahLbl), cc('', stJumlahLbl),
-                cc('', stJumlahLbl), cc('', stJumlahLbl), cc('', stJumlahLbl)];
-            for (const bgId of sortedBg) {
-                const n = Object.values(pivot).filter(b => b[bgId] === stCode).length;
-                row.push(cc(n > 0 ? n : '—', n > 0 ? stCell : stBelum));
-            }
-            return row;
-        };
+        if (!hasAnyClass)
+            allRows.push([null, cc('Tidak ada sesi di bulan ini.', ST.italic9)]);
 
-        const allRows = [
-            [cc(`ABSENSI ${name.toUpperCase()} — ${namaGuru}`, ST.title)],
-            [cc(`Tahun Ajaran: ${academicYear}  |  ${periodeLabel}`, ST.italic9)],
-            [cc('Sel abu-abu (—) = sesi belum diinput.', ST.italic9)],
-            hdr1,
-            ...dataRows,
-            totRow,
-            mkJumlah('Jumlah H', 'HADIR', ST.statusH),
-            mkJumlah('Jumlah S', 'SAKIT', ST.statusS),
-            mkJumlah('Jumlah I', 'IZIN',  ST.statusI),
-            mkJumlah('Jumlah A', 'ALPA',  ST.statusA),
-        ];
+        const maxSessions = Math.max(1, ...processedClasses.map(cls =>
+            [...cls.bgDate.values()].filter(d => d.startsWith(mon)).length
+        ));
+        const colWidths = [4, 30, 6, 6, 6, 6, 8, ...Array(maxSessions).fill(9)];
+        const ws = buildWs(allRows, colWidths, allMerges.length ? allMerges : null);
+        ws['!freeze'] = { xSplit: 2, ySplit: 2 };
 
-        const colWidths = [4, 30, 6, 6, 6, 6, 8, ...Array(sortedBg.length).fill(9)];
-        const ws = buildWs(allRows, colWidths, merges);
-        ws['!freeze'] = { xSplit: 2, ySplit: 4 };
-
-        return { name, ws };
+        return { name: sheetName, ws };
     });
 
-    return [{ name: 'RINGKASAN', ws: ws1 }, ...classSheets];
+    return [{ name: 'RINGKASAN', ws: ws1 }, ...monthSheets];
 }
 
 // ── Jadwal ───────────────────────────────────────────────────
