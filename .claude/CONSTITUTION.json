@@ -617,6 +617,12 @@
       "solusi": "Pakai manual blob: XLSX.write({type:\"array\",bookType:\"xlsx\"}) → new Blob([buf]) → URL.createObjectURL → a.click → setTimeout revokeObjectURL",
       "referensi": "tab-waka-kesiswaan.js (contoh kerja), tab-guru.js fix commit b088d96 (1 Nov 2026)",
       "ditemukan": "2026-11-01"
+    },
+    "sheetjs_shared_array_reference": {
+      "masalah": "Array baris (row) yang sama didorong ke worksheet berkali-kali (misal hdrPerhatian di-push untuk setiap kelas) menyebabkan SheetJS gagal tulis workbook tanpa pesan error. Handler tanpa catch block → exception tertelan diam-diam, tombol reset normal tapi file tidak ada.",
+      "solusi": "Gunakan factory function (mkHdrPerhatian()) yang mengembalikan array baru setiap dipanggil. Selalu pasang catch block pada handler unduh Excel untuk menampilkan pesan error.",
+      "referensi": "tab-guru.js commit 1c9a559 (1 Nov 2026)",
+      "ditemukan": "2026-11-01"
     }
   },
   "open_tasks": [
@@ -667,9 +673,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "ca9803c",
+    "last_session_commit": "1c9a559",
     "migrasi_terpasang_sampai": "20261101020000",
-    "main_sha": "ca9803c",
-    "_catatan_push": "Excel guru diperbarui (buildGuruExcel + RINGKASAN). Data absen Bayu Prakoso SMP Uji 1 diinjeksi. Fix 2 bug tenant isolation: REVOKE fn_get_all_grades_summary dari anon + guard withdrawal siswa di fn_can_read_forum_post."
+    "main_sha": "1c9a559",
+    "_catatan_push": "Excel guru: fix shared-ref hdrPerhatian (mkHdrPerhatian factory) + catch block. RINGKASAN: SISWA PERLU PERHATIAN dipisah per kelas dengan sub-header dan penomoran ulang. Fix XLSX.writeFile() Chrome blocker → manual blob. Fix 2 bug tenant isolation. Data absen Bayu Prakoso SMP Uji 1 diinjeksi."
   }
 }
