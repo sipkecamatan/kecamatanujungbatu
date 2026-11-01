@@ -710,9 +710,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "TBD",
+    "last_session_commit": "09ac587",
     "migrasi_terpasang_sampai": "20261101050000",
-    "main_sha": "TBD",
+    "main_sha": "09ac587",
     "_catatan_push": "feat(ui): Siswa Perlu Perhatian collapsible default tertutup — semua tab"
   }
 }
