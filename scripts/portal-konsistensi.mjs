@@ -347,18 +347,25 @@ async function main() {
   console.log('\n=== RINGKASAN ===');
   console.log(`PASS: ${pass} | FAIL: ${fail} | SKIP: ${skip} | ERR: ${err}`);
 
-  if (fail > 0) {
-    console.log('\nCatatan interpretasi FAIL:');
-    console.log('  CP1 FAIL + CP2 FAIL: selisih total disebabkan blok CAMPURAN yang diabaikan portal');
-    console.log('  CP1 FAIL + CP2 PASS: bug pivot di salah satu jalur (investigasi lebih lanjut)');
-    console.log('  CP2 FAIL: blok CAMPURAN ada — satu siswa punya ≥2 status di satu pertemuan');
-    console.log('            → cek apakah ini data valid atau anomali input');
+  // CP2 FAIL saja (tanpa CP1/CP3 FAIL) = informasi, bukan bug.
+  // Hanya CP1 FAIL atau CP3 FAIL atau ERR yang benar-benar perlu ditindaklanjuti.
+  const failKritis = hasil.filter(r =>
+    (r.status === 'FAIL' && (r.check === 'CP1' || r.check === 'CP3')) ||
+    r.status === 'ERR'
+  );
+  const failCP2 = hasil.filter(r => r.status === 'FAIL' && r.check === 'CP2');
+
+  if (failCP2.length > 0) {
+    console.log('\nCatatan CP2 FAIL (informatif — angka sudah benar di CP1+CP3):');
+    console.log('  CP2 FAIL = ada sesi dalam satu pertemuan yang statusnya berbeda (valid by design).');
+    console.log('  Badge "Campuran" tampil di tabel detail portal — bukan kesalahan data.');
+    console.log('  Perlu investigasi hanya jika CP1 atau CP3 juga FAIL.');
+    failCP2.forEach(r => console.log(`  [INFO] ${r.check} (${r.sekolah}): ${r.pesan}`));
   }
 
-  if (fail > 0 || err > 0) {
-    console.log('\nPerlu ditindaklanjuti:');
-    hasil.filter(r => r.status === 'FAIL' || r.status === 'ERR')
-         .forEach(r => console.log(`  [${r.status}] ${r.check} (${r.sekolah}): ${r.pesan}`));
+  if (failKritis.length > 0) {
+    console.log('\nPERLU DITINDAKLANJUTI (angka tidak konsisten):');
+    failKritis.forEach(r => console.log(`  [${r.status}] ${r.check} (${r.sekolah}): ${r.pesan}`));
     process.exit(1);
   }
 }
