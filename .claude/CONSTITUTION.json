@@ -581,7 +581,7 @@
       "test_relevan": [
         "tenant-isolation.mjs"
       ],
-      "catatan": "Perubahan api.js, tab-shared.js, atau dashboard.js WAJIB diuji dampaknya ke tab-guru.js. 1 Nov 2026: Excel guru diperbarui — buildGuruExcel() menghasilkan sheet RINGKASAN + per kelas bergaya referensi wali Oki Saputra (warna H/S/I/A, baris total, freeze pane, siswa perlu perhatian). Filter tanggal start/end kini diteruskan ke API."
+      "catatan": "Perubahan api.js, tab-shared.js, atau dashboard.js WAJIB diuji dampaknya ke tab-guru.js. 1 Nov 2026: Excel guru diperbarui — buildGuruExcel() menghasilkan sheet RINGKASAN + per kelas bergaya referensi wali Oki Saputra (warna H/S/I/A, baris total, freeze pane, siswa perlu perhatian). Filter tanggal start/end kini diteruskan ke API. | 1 Nov fix: XLSX.writeFile→manual blob (Chrome download blocker)"
     }
   },
   "jebakan_teknis": {
@@ -661,9 +661,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "53049ea",
+    "last_session_commit": "b088d96",
     "migrasi_terpasang_sampai": "20261101020000",
-    "main_sha": "53049ea",
+    "main_sha": "b088d96",
     "_catatan_push": "Excel guru diperbarui (buildGuruExcel + RINGKASAN). Data absen Bayu Prakoso SMP Uji 1 diinjeksi. Fix 2 bug tenant isolation: REVOKE fn_get_all_grades_summary dari anon + guard withdrawal siswa di fn_can_read_forum_post."
   }
 }
