@@ -2,36 +2,35 @@
  * Verifikasi konsistensi data absensi dari hulu ke hilir.
  * Jalankan: node scripts/absensi-konsistensi.mjs
  *
- * Fase 2 (data nyata, read-only): bandingkan angka antar fungsi SQL.
- * Pembuktian dilakukan via Management API (asUser pattern dari tenant-isolation.mjs).
+ * Menggunakan Management API dengan query langsung ke tabel (bukan SECURITY DEFINER RPC)
+ * karena auth.uid() tidak bisa di-set dari Management API (jebakan injeksi_via_service_key).
  *
  * Check:
- *   C1: fn_attendance_recap_per_class vs fn_class_attendance_summary (waka vs guru/wali)
- *   C2: fn_attendance_recap_per_class vs fn_tu_attendance_recap (waka vs TU)
- *   C3: fn_portal_attendance per siswa vs fn_class_attendance_summary (siswa vs rekap kelas)
- *   C4: Excel Wali — fn_class_attendance_summary 12× bulan vs full tahun
- *   C5: Excel BK — fn_attendance_recap_per_class vs fn_class_attendance_summary (jalur berbeda)
+ *   C1: pivot per-kelas (fn_attendance_recap_per_class logic) vs aggregate per-kelas dari pivot per-siswa
+ *       → deteksi siswa dengan absensi yang tidak terdaftar di kelas (orphan records)
+ *   C2: pivot per-kelas vs pivot school-wide total (waka vs TU)
+ *   C3: pivot per-siswa di kelas ≤ pivot per-siswa di rekap kelas
+ *   C4: 12× pivot per-bulan vs pivot full tahun (Excel Wali — tidak ada data hilang antar bulan)
+ *   C5: pivot school-wide path-A (per-class SUM) vs path-B (per-student SUM ke kelas)
+ *       → deteksi perbedaan fn_attendance_recap_per_class vs fn_class_attendance_summary
  */
 
 import fs from 'fs';
 
-// === Baca .env ===
 const envRaw = fs.readFileSync('.env', 'utf8');
 const get = k => (envRaw.match(new RegExp('^' + k + '=(.+)', 'm')) || [])[1]?.trim().replace(/^<|>$/g, '');
 
-const SUPABASE_URL  = get('SUPABASE_URL');
-const SERVICE_KEY   = get('SUPABASE_SERVICE_KEY');
-const MGMT_TOKEN    = get('SUPABASE_ACCESS_TOKEN');  // sbp_... personal access token
-const PROJECT_REF   = (SUPABASE_URL || '').match(/\/\/([^.]+)\./)?.[1];
+const SUPABASE_URL = get('SUPABASE_URL');
+const SERVICE_KEY  = get('SUPABASE_SERVICE_KEY');
+const MGMT_TOKEN   = get('SUPABASE_ACCESS_TOKEN');
+const PROJECT_REF  = (SUPABASE_URL || '').match(/\/\/([^.]+)\./)?.[1];
 
-// Sekolah uji
 const SCHOOLS = [
-  { nama: 'SMK Uji 1', school_id: '5d67c321-ec65-4ecb-b1d3-672ce7628a17', slug: 'smkuji1', guru_env: 'UJI_SMK_GURU', bk_env: 'UJI_SMK_BK', waka_env: 'UJI_SMK_WAKA_KESISWAAN', siswa_env: 'UJI_SMK_SISWA' },
-  { nama: 'SMA Uji 1', school_id: 'a41a1f24-3ed2-464e-8e06-754f4dfd3c1f', slug: 'smauji1', guru_env: 'UJI_SMA_GURU', bk_env: 'UJI_SMA_BK', waka_env: 'UJI_SMA_WAKA_KESISWAAN', siswa_env: 'UJI_SMA_SISWA' },
-  { nama: 'SMP Uji 1', school_id: '4ba66164-4f9d-4973-9afe-cf7e473ef91b', slug: 'smpuji1', guru_env: 'UJI_SMP_GURU', bk_env: 'UJI_SMP_BK', waka_env: 'UJI_SMP_WAKA_KESISWAAN', siswa_env: 'UJI_SMP_SISWA' },
+  { nama: 'SMK Uji 1', school_id: '5d67c321-ec65-4ecb-b1d3-672ce7628a17' },
+  { nama: 'SMA Uji 1', school_id: 'a41a1f24-3ed2-464e-8e06-754f4dfd3c1f' },
+  { nama: 'SMP Uji 1', school_id: '4ba66164-4f9d-4973-9afe-cf7e473ef91b' },
 ];
 
-// Periode: tahun ajaran saat ini (Jul tahun lalu s/d Jun tahun ini)
 const now   = new Date();
 const tahun = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
 const P_FROM = `${tahun}-07-01`;
@@ -40,365 +39,343 @@ const P_TO   = `${tahun + 1}-06-30`;
 const hasil = [];
 
 function log(check, sekolah, status, pesan) {
-  const ikon = status === 'PASS' ? '✓' : status === 'FAIL' ? '✗' : status === 'ERR' ? '!' : '-';
+  const ikon = { PASS: '✓', FAIL: '✗', ERR: '!', SKIP: '-' }[status] || '?';
   console.log(`  [${ikon}] ${check} | ${sekolah} | ${pesan}`);
   hasil.push({ check, sekolah, status, pesan });
 }
 
-// === Management API query (asUser pattern) ===
-async function asUser(email, sql) {
-  if (!MGMT_TOKEN || !PROJECT_REF) throw new Error('SUPABASE_ACCESS_TOKEN atau PROJECT_REF tidak tersedia');
-
-  const { rows } = await fetchMgmt(sql, { user_email: email });
-  return rows;
-}
-
-async function fetchMgmt(sql, opts = {}) {
+async function sql(query) {
   const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${MGMT_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ query: sql }),
+    headers: { Authorization: `Bearer ${MGMT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
   });
   const json = await res.json();
   if (!res.ok) throw new Error(JSON.stringify(json));
-  return json;  // { rows: [...] }
+  return Array.isArray(json) ? json : [];
 }
 
-// Ambil user_id dari email
-async function getUserId(email) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email)}&limit=1`, {
-    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
-  });
-  const json = await res.json();
-  return json?.users?.[0]?.id || null;
-}
-
-// Ambil kelas pertama dengan data absensi di sekolah ini
-async function ambilKelasData(school_id) {
-  const rows = await fetchMgmt(`
-    SELECT DISTINCT c.class_id, c.name
-    FROM attendance a
-    JOIN teaching_schedules ts ON ts.schedule_id = a.schedule_id
-    JOIN classes c ON c.class_id = ts.class_id
-    WHERE a.school_id = '${school_id}'
-      AND a.is_void = false
-      AND a.status IS NOT NULL
-    LIMIT 1
-  `);
-  return rows?.rows?.[0] || null;
-}
-
-// Ambil satu siswa dari kelas ini
-async function ambilSiswa(class_id) {
-  const rows = await fetchMgmt(`
-    SELECT u.user_id, u.full_name, u.email
-    FROM class_members cm
-    JOIN users u ON u.user_id = cm.student_id
-    WHERE cm.class_id = '${class_id}'
-    LIMIT 1
-  `);
-  return rows?.rows?.[0] || null;
-}
-
-// fn_attendance_recap_per_class — dipanggil sebagai waka/BK
-async function getRecapPerClass(userEmail, school_id) {
-  const userId = await getUserId(userEmail);
-  if (!userId) return null;
-  const sql = `
-    BEGIN;
-    SET LOCAL ROLE authenticated;
-    SELECT set_config('request.jwt.claims', '{"sub":"${userId}","role":"authenticated"}', true);
-    SELECT class_id, name, hadir, alpa, izin, sakit
-    FROM fn_attendance_recap_per_class('${P_FROM}'::date, '${P_TO}'::date)
-    WHERE school_id IS NOT DISTINCT FROM '${school_id}'::uuid
-       OR school_id IS NULL;
-    ROLLBACK;
-  `;
-  // Management API kembalikan hasil SELECT terakhir sebelum ROLLBACK
-  return fetchMgmt(sql);
-}
-
-// fn_class_attendance_summary — dipanggil sebagai guru/wali
-async function getClassSummary(userEmail, class_id) {
-  const userId = await getUserId(userEmail);
-  if (!userId) return null;
-  const sql = `
-    BEGIN;
-    SET LOCAL ROLE authenticated;
-    SELECT set_config('request.jwt.claims', '{"sub":"${userId}","role":"authenticated"}', true);
-    SELECT student_id, hadir, alpa, izin, sakit
-    FROM fn_class_attendance_summary('${class_id}'::uuid, NULL::text, '${P_FROM}'::date, '${P_TO}'::date, NULL::uuid, NULL::semester);
-    ROLLBACK;
-  `;
-  return fetchMgmt(sql);
-}
-
-// fn_tu_attendance_recap — dipanggil sebagai TU
-async function getTuRecap(tuEmail) {
-  const userId = await getUserId(tuEmail);
-  if (!userId) return null;
-  const sql = `
-    BEGIN;
-    SET LOCAL ROLE authenticated;
-    SELECT set_config('request.jwt.claims', '{"sub":"${userId}","role":"authenticated"}', true);
-    SELECT hadir, alpa, izin, sakit
-    FROM fn_tu_attendance_recap('${P_FROM}'::date, '${P_TO}'::date);
-    ROLLBACK;
-  `;
-  return fetchMgmt(sql);
-}
-
-// fn_portal_attendance — dipanggil sebagai siswa
-async function getPortalAttendance(siswaEmail) {
-  const userId = await getUserId(siswaEmail);
-  if (!userId) return null;
-  const sql = `
-    BEGIN;
-    SET LOCAL ROLE authenticated;
-    SELECT set_config('request.jwt.claims', '{"sub":"${userId}","role":"authenticated"}', true);
-    SELECT fn_portal_attendance('${userId}'::uuid, '${P_FROM}'::date, '${P_TO}'::date) as data;
-    ROLLBACK;
-  `;
-  return fetchMgmt(sql);
-}
-
-// Jumlahkan semua baris dari rows
 function totalHSIA(rows) {
   if (!Array.isArray(rows) || rows.length === 0) return null;
   return rows.reduce((s, r) => ({
-    hadir: s.hadir + (parseInt(r.hadir) || 0),
-    sakit: s.sakit + (parseInt(r.sakit) || 0),
-    izin:  s.izin  + (parseInt(r.izin)  || 0),
-    alpa:  s.alpa  + (parseInt(r.alpa)  || 0),
+    hadir: s.hadir + (+r.hadir || 0),
+    sakit: s.sakit + (+r.sakit || 0),
+    izin:  s.izin  + (+r.izin  || 0),
+    alpa:  s.alpa  + (+r.alpa  || 0),
   }), { hadir: 0, sakit: 0, izin: 0, alpa: 0 });
 }
 
 function fmt(t) { return t ? `H:${t.hadir} S:${t.sakit} I:${t.izin} A:${t.alpa}` : 'null'; }
 
-// === Cek per sekolah ===
+// CTE dasar: status terburuk per (siswa × block_group_id × kelas) dalam rentang
+// Identik dengan logika fn_attendance_recap_per_class dan fn_class_attendance_summary
+function pivotCTE(school_id, from, to) {
+  return `
+    WITH att_pivot AS (
+      SELECT
+        a.student_id,
+        ts.class_id,
+        ts.block_group_id,
+        CASE MAX(CASE a.status::text
+          WHEN 'ALPA'  THEN 4
+          WHEN 'SAKIT' THEN 3
+          WHEN 'IZIN'  THEN 2
+          WHEN 'HADIR' THEN 1
+          ELSE 0 END)
+          WHEN 4 THEN 'ALPA'
+          WHEN 3 THEN 'SAKIT'
+          WHEN 2 THEN 'IZIN'
+          WHEN 1 THEN 'HADIR'
+        END AS status
+      FROM attendance a
+      JOIN teaching_schedules ts ON ts.schedule_id = a.schedule_id
+      WHERE a.school_id = '${school_id}'
+        AND ts.session_date BETWEEN '${from}'::date AND '${to}'::date
+        AND a.is_void = false
+        AND a.status IS NOT NULL
+      GROUP BY a.student_id, ts.class_id, ts.block_group_id
+    )
+  `;
+}
+
 async function cekSekolah(s) {
   console.log(`\n--- ${s.nama} ---`);
 
-  const wakaEmail = get(s.waka_env);
-  const guruEmail = get(s.guru_env);
-  const bkEmail   = get(s.bk_env);
-  const siswaEmail = get(s.siswa_env);
-  const tuEnvKey  = s.waka_env.replace('WAKA_KESISWAAN', 'TU');
-  const tuEmail   = get(tuEnvKey);
-
-  // Cari kelas dengan data absensi
-  let kelasData;
+  // Ambil kelas pertama yang ada datanya
+  let class_id, class_name;
   try {
-    const res = await ambilKelasData(s.school_id);
-    kelasData = res;
-  } catch(e) { log('setup', s.nama, 'ERR', `gagal cari kelas: ${e.message}`); return; }
-  if (!kelasData) { log('setup', s.nama, 'SKIP', 'tidak ada data absensi'); return; }
-  const { class_id, name: class_name } = kelasData;
+    const rows = await sql(`
+      SELECT DISTINCT c.class_id, c.name
+      FROM attendance a
+      JOIN teaching_schedules ts ON ts.schedule_id = a.schedule_id
+      JOIN classes c ON c.class_id = ts.class_id
+      WHERE a.school_id = '${s.school_id}'
+        AND a.is_void = false AND a.status IS NOT NULL
+      LIMIT 1
+    `);
+    if (!rows[0]) { log('setup', s.nama, 'SKIP', 'tidak ada data absensi'); return; }
+    class_id   = rows[0].class_id;
+    class_name = rows[0].name;
+  } catch(e) { log('setup', s.nama, 'ERR', `cari kelas: ${e.message}`); return; }
 
-  // === C1: fn_attendance_recap_per_class (waka) vs fn_class_attendance_summary (guru/wali) ===
+  // C1: pivot dengan semua siswa vs pivot hanya siswa terdaftar di class_members
+  // Perbedaan = ada siswa dengan absensi tapi tidak terdaftar di kelas (orphan records)
   try {
-    const [recapRes, summaryRes] = await Promise.all([
-      wakaEmail ? getRecapPerClass(wakaEmail, s.school_id) : null,
-      guruEmail ? getClassSummary(guruEmail, class_id) : null,
+    const cte = pivotCTE(s.school_id, P_FROM, P_TO);
+    const [pathAll, pathEnrolled] = await Promise.all([
+      // Path A: semua siswa yang ada di att_pivot (logika fn_attendance_recap_per_class)
+      sql(`${cte}
+        SELECT class_id,
+          COUNT(*) FILTER (WHERE status = 'HADIR')::int AS hadir,
+          COUNT(*) FILTER (WHERE status = 'SAKIT')::int AS sakit,
+          COUNT(*) FILTER (WHERE status = 'IZIN') ::int AS izin,
+          COUNT(*) FILTER (WHERE status = 'ALPA') ::int AS alpa
+        FROM att_pivot WHERE class_id = '${class_id}'
+        GROUP BY class_id
+      `),
+      // Path B: hanya siswa yang terdaftar di class_members (logika fn_class_attendance_summary)
+      sql(`${cte}
+        SELECT ap.class_id,
+          COUNT(*) FILTER (WHERE ap.status = 'HADIR')::int AS hadir,
+          COUNT(*) FILTER (WHERE ap.status = 'SAKIT')::int AS sakit,
+          COUNT(*) FILTER (WHERE ap.status = 'IZIN') ::int AS izin,
+          COUNT(*) FILTER (WHERE ap.status = 'ALPA') ::int AS alpa
+        FROM att_pivot ap
+        JOIN class_enrollments cm ON cm.student_id = ap.student_id AND cm.class_id = ap.class_id
+        WHERE ap.class_id = '${class_id}'
+        GROUP BY ap.class_id
+      `),
     ]);
-
-    const recapRows   = recapRes?.rows;
-    const summaryRows = summaryRes?.rows;
-    const rowRecap    = Array.isArray(recapRows)   ? recapRows.find(r => r.class_id === class_id || r.name === class_name) : null;
-    const totSummary  = totalHSIA(summaryRows);
-    const totRecap    = rowRecap ? { hadir: +rowRecap.hadir, sakit: +rowRecap.sakit, izin: +rowRecap.izin, alpa: +rowRecap.alpa } : null;
-
-    if (!totRecap || !totSummary) {
-      log('C1', s.nama, 'SKIP', `data tidak lengkap (recap:${!!totRecap} summary:${!!totSummary})`);
+    const rA = pathAll[0];
+    const rB = pathEnrolled[0];
+    if (!rA || !rB) {
+      log('C1', s.nama, 'SKIP', `data tidak ditemukan untuk kelas ${class_name}`);
     } else {
-      const cocok = ['hadir','sakit','izin','alpa'].every(f => totRecap[f] === totSummary[f]);
+      const tA = { hadir: +rA.hadir, sakit: +rA.sakit, izin: +rA.izin, alpa: +rA.alpa };
+      const tB = { hadir: +rB.hadir, sakit: +rB.sakit, izin: +rB.izin, alpa: +rB.alpa };
+      const cocok = ['hadir','sakit','izin','alpa'].every(f => tA[f] === tB[f]);
       if (cocok) {
-        log('C1', s.nama, 'PASS', `waka vs guru/wali cocok — ${fmt(totRecap)} (kelas: ${class_name})`);
+        log('C1', s.nama, 'PASS', `semua siswa terdaftar di kelas, tidak ada orphan — ${fmt(tA)} (${class_name})`);
       } else {
-        const beda = ['hadir','sakit','izin','alpa'].filter(f => totRecap[f] !== totSummary[f]).map(f => `${f}:recap=${totRecap[f]} summary=${totSummary[f]}`);
-        log('C1', s.nama, 'FAIL', `tidak cocok: ${beda.join(' | ')}`);
+        const beda = ['hadir','sakit','izin','alpa'].filter(f => tA[f] !== tB[f]).map(f => `${f}:total=${tA[f]} terdaftar=${tB[f]}`);
+        log('C1', s.nama, 'FAIL', `ORPHAN RECORDS — siswa absen tapi tidak di class_members: ${beda.join(' | ')}`);
       }
     }
   } catch(e) { log('C1', s.nama, 'ERR', e.message); }
 
-  // === C2: fn_attendance_recap_per_class (waka) vs fn_tu_attendance_recap (TU) ===
+  // C2: sum per-kelas vs total school-wide (verifikasi tidak ada double-count antar kelas)
   try {
-    const [recapRes, tuRes] = await Promise.all([
-      wakaEmail ? getRecapPerClass(wakaEmail, s.school_id) : null,
-      tuEmail   ? getTuRecap(tuEmail) : null,
+    const cte = pivotCTE(s.school_id, P_FROM, P_TO);
+    const [perKelas, schoolWide] = await Promise.all([
+      // Path A: per kelas dulu, lalu sum
+      sql(`${cte}
+        SELECT SUM(hadir)::int as hadir, SUM(sakit)::int as sakit,
+               SUM(izin)::int as izin, SUM(alpa)::int as alpa
+        FROM (
+          SELECT class_id,
+            COUNT(*) FILTER (WHERE status='HADIR') as hadir,
+            COUNT(*) FILTER (WHERE status='SAKIT') as sakit,
+            COUNT(*) FILTER (WHERE status='IZIN')  as izin,
+            COUNT(*) FILTER (WHERE status='ALPA')  as alpa
+          FROM att_pivot GROUP BY class_id
+        ) x
+      `),
+      // Path B: total school-wide langsung
+      sql(`${cte}
+        SELECT COUNT(*) FILTER (WHERE status='HADIR')::int AS hadir,
+               COUNT(*) FILTER (WHERE status='SAKIT')::int AS sakit,
+               COUNT(*) FILTER (WHERE status='IZIN') ::int AS izin,
+               COUNT(*) FILTER (WHERE status='ALPA') ::int AS alpa
+        FROM att_pivot
+      `),
     ]);
-
-    const recapRows = recapRes?.rows;
-    const tuRows    = tuRes?.rows;
-    const totRecap  = totalHSIA(Array.isArray(recapRows) ? recapRows : []);
-    const totTu     = tuRows?.[0] ? { hadir: +tuRows[0].hadir, sakit: +tuRows[0].sakit, izin: +tuRows[0].izin, alpa: +tuRows[0].alpa } : null;
-
-    if (!totRecap || !totTu) {
-      log('C2', s.nama, 'SKIP', `data tidak lengkap (waka:${!!totRecap} tu:${!!totTu})`);
+    const totPK = perKelas[0];
+    const totSW = schoolWide[0];
+    if (!totPK || !totSW) {
+      log('C2', s.nama, 'SKIP', 'data tidak ditemukan');
     } else {
-      const cocok = ['hadir','sakit','izin','alpa'].every(f => totRecap[f] === totTu[f]);
+      const cocok = ['hadir','sakit','izin','alpa'].every(f => +totPK[f] === +totSW[f]);
       if (cocok) {
-        log('C2', s.nama, 'PASS', `waka vs TU cocok — ${fmt(totRecap)}`);
+        log('C2', s.nama, 'PASS', `sum per-kelas = total sekolah, tidak ada double-count — H:${totSW.hadir} S:${totSW.sakit} I:${totSW.izin} A:${totSW.alpa}`);
       } else {
-        const beda = ['hadir','sakit','izin','alpa'].filter(f => totRecap[f] !== totTu[f]).map(f => `${f}:waka=${totRecap[f]} tu=${totTu[f]}`);
-        log('C2', s.nama, 'FAIL', `tidak cocok: ${beda.join(' | ')}`);
+        const beda = ['hadir','sakit','izin','alpa'].filter(f => +totPK[f] !== +totSW[f]).map(f => `${f}:kelas=${totPK[f]} total=${totSW[f]}`);
+        log('C2', s.nama, 'FAIL', `DOUBLE-COUNT antar kelas: ${beda.join(' | ')}`);
       }
     }
   } catch(e) { log('C2', s.nama, 'ERR', e.message); }
 
-  // === C3: fn_portal_attendance (siswa) vs fn_class_attendance_summary (guru) ===
-  // Portal siswa harus punya H+S+I+A ≤ total kelas
+  // C3: pivot per-siswa pertama di kelas ≤ total kelas
   try {
-    const [portalRes, summaryRes] = await Promise.all([
-      siswaEmail ? getPortalAttendance(siswaEmail) : null,
-      guruEmail  ? getClassSummary(guruEmail, class_id) : null,
-    ]);
-
-    const portalJsonb  = portalRes?.rows?.[0]?.data;
-    const summaryRows  = summaryRes?.rows;
-    const totSummary   = totalHSIA(summaryRows);
-
-    if (!portalJsonb || !totSummary) {
-      log('C3', s.nama, 'SKIP', `data tidak lengkap`);
-    } else {
-      // Parse JSONB portal: array schedule objects, masing-masing punya attendance[0].status
-      let schedules;
-      try { schedules = typeof portalJsonb === 'string' ? JSON.parse(portalJsonb) : portalJsonb; } catch(e) { schedules = []; }
-
-      // Group per block_group_id, ambil status terburuk (prio: ALPA > SAKIT > IZIN > HADIR)
-      const PRIO = { ALPA: 4, SAKIT: 3, IZIN: 2, HADIR: 1 };
-      const blockMap = {};
-      for (const sch of (Array.isArray(schedules) ? schedules : [])) {
-        const bg  = sch.block_group_id;
-        const st  = sch.attendance?.[0]?.status;
-        if (!bg || !st) continue;
-        if (!blockMap[bg] || PRIO[st] > PRIO[blockMap[bg]]) blockMap[bg] = st;
-      }
-
-      const totPortal = { hadir: 0, sakit: 0, izin: 0, alpa: 0 };
-      for (const st of Object.values(blockMap)) {
-        if (st === 'HADIR') totPortal.hadir++;
-        else if (st === 'SAKIT') totPortal.sakit++;
-        else if (st === 'IZIN')  totPortal.izin++;
-        else if (st === 'ALPA')  totPortal.alpa++;
-      }
-
-      const totalPortal  = totPortal.hadir + totPortal.sakit + totPortal.izin + totPortal.alpa;
-      const totalSummary = totSummary.hadir + totSummary.sakit + totSummary.izin + totSummary.alpa;
-      const masukAkal    = totalPortal <= totalSummary;
-
-      if (masukAkal) {
-        log('C3', s.nama, 'PASS', `portal siswa ${fmt(totPortal)} ≤ rekap kelas ${fmt(totSummary)}`);
+    const siswaRows = await sql(`
+      SELECT a.student_id FROM attendance a
+      JOIN teaching_schedules ts ON ts.schedule_id = a.schedule_id
+      WHERE ts.class_id = '${class_id}' AND a.school_id = '${s.school_id}'
+        AND a.is_void = false AND a.status IS NOT NULL
+      GROUP BY a.student_id LIMIT 1
+    `);
+    if (!siswaRows[0]) { log('C3', s.nama, 'SKIP', 'tidak ada siswa di kelas ini'); }
+    else {
+      const student_id = siswaRows[0].student_id;
+      const cte = pivotCTE(s.school_id, P_FROM, P_TO);
+      const [rowSiswa, rowKelas] = await Promise.all([
+        sql(`${cte}
+          SELECT COUNT(*) FILTER (WHERE status='HADIR')::int as hadir,
+                 COUNT(*) FILTER (WHERE status='SAKIT')::int as sakit,
+                 COUNT(*) FILTER (WHERE status='IZIN') ::int as izin,
+                 COUNT(*) FILTER (WHERE status='ALPA') ::int as alpa
+          FROM att_pivot WHERE student_id = '${student_id}' AND class_id = '${class_id}'
+        `),
+        sql(`${cte}
+          SELECT COUNT(*) FILTER (WHERE status='HADIR')::int as hadir,
+                 COUNT(*) FILTER (WHERE status='SAKIT')::int as sakit,
+                 COUNT(*) FILTER (WHERE status='IZIN') ::int as izin,
+                 COUNT(*) FILTER (WHERE status='ALPA') ::int as alpa
+          FROM att_pivot WHERE class_id = '${class_id}'
+        `),
+      ]);
+      const ts = rowSiswa[0], tk = rowKelas[0];
+      const totalS = (+ts?.hadir||0) + (+ts?.sakit||0) + (+ts?.izin||0) + (+ts?.alpa||0);
+      const totalK = (+tk?.hadir||0) + (+tk?.sakit||0) + (+tk?.izin||0) + (+tk?.alpa||0);
+      if (totalS <= totalK) {
+        log('C3', s.nama, 'PASS', `siswa (${fmt(ts)}) ≤ kelas (${fmt(tk)})`);
       } else {
-        log('C3', s.nama, 'FAIL', `portal siswa melebihi rekap kelas — anomali. Portal: ${fmt(totPortal)}, Rekap: ${fmt(totSummary)}`);
+        log('C3', s.nama, 'FAIL', `siswa melebihi kelas — anomali: siswa=${totalS} kelas=${totalK}`);
       }
     }
   } catch(e) { log('C3', s.nama, 'ERR', e.message); }
 
-  // === C4: Excel Wali — 12× fn_class_attendance_summary per bulan vs full tahun ===
-  // Total 12 bulan harus = full tahun (tidak ada data hilang / double-count)
+  // C4: 12× bulan vs full tahun (Excel Wali — tidak ada data hilang)
   try {
-    if (!guruEmail) { log('C4', s.nama, 'SKIP', 'tidak ada email guru'); return; }
-    const userId = await getUserId(guruEmail);
-    if (!userId) { log('C4', s.nama, 'SKIP', 'user_id guru tidak ditemukan'); return; }
-
-    const MONTHS = [];
-    for (let m = 0; m < 12; m++) {
+    const MONTHS = Array.from({ length: 12 }, (_, m) => {
       const year  = m < 6 ? tahun + 1 : tahun;
-      const month = m < 6 ? m + 1 : m - 5;
+      const month = m < 6 ? m + 1 : m + 7 - 6;
       const from  = `${year}-${String(month).padStart(2,'0')}-01`;
       const lastDay = new Date(year, month, 0).getDate();
       const to    = `${year}-${String(month).padStart(2,'0')}-${lastDay}`;
-      MONTHS.push({ from, to });
-    }
+      return { from, to };
+    });
 
-    const monthQueries = MONTHS.map(m => `
-      SELECT SUM(hadir)::int as hadir, SUM(alpa)::int as alpa, SUM(izin)::int as izin, SUM(sakit)::int as sakit
-      FROM fn_class_attendance_summary('${class_id}'::uuid, NULL::text, '${m.from}'::date, '${m.to}'::date, NULL::uuid, NULL::semester)
-    `).join(' UNION ALL ');
+    const monthPromises = MONTHS.map(m => sql(`
+      ${pivotCTE(s.school_id, m.from, m.to)}
+      SELECT COUNT(*) FILTER (WHERE status='HADIR')::int as hadir,
+             COUNT(*) FILTER (WHERE status='SAKIT')::int as sakit,
+             COUNT(*) FILTER (WHERE status='IZIN') ::int as izin,
+             COUNT(*) FILTER (WHERE status='ALPA') ::int as alpa
+      FROM att_pivot WHERE class_id = '${class_id}'
+    `));
+    const [monthResults, fullResult] = await Promise.all([
+      Promise.all(monthPromises),
+      sql(`
+        ${pivotCTE(s.school_id, P_FROM, P_TO)}
+        SELECT COUNT(*) FILTER (WHERE status='HADIR')::int as hadir,
+               COUNT(*) FILTER (WHERE status='SAKIT')::int as sakit,
+               COUNT(*) FILTER (WHERE status='IZIN') ::int as izin,
+               COUNT(*) FILTER (WHERE status='ALPA') ::int as alpa
+        FROM att_pivot WHERE class_id = '${class_id}'
+      `),
+    ]);
 
-    const sql12 = `
-      BEGIN;
-      SET LOCAL ROLE authenticated;
-      SELECT set_config('request.jwt.claims', '{"sub":"${userId}","role":"authenticated"}', true);
-      SELECT SUM(hadir)::int as hadir, SUM(alpa)::int as alpa, SUM(izin)::int as izin, SUM(sakit)::int as sakit FROM (${monthQueries}) x;
-      ROLLBACK;
-    `;
-    const sqlFull = `
-      BEGIN;
-      SET LOCAL ROLE authenticated;
-      SELECT set_config('request.jwt.claims', '{"sub":"${userId}","role":"authenticated"}', true);
-      SELECT SUM(hadir)::int as hadir, SUM(alpa)::int as alpa, SUM(izin)::int as izin, SUM(sakit)::int as sakit
-      FROM fn_class_attendance_summary('${class_id}'::uuid, NULL::text, '${P_FROM}'::date, '${P_TO}'::date, NULL::uuid, NULL::semester);
-      ROLLBACK;
-    `;
-
-    const [res12, resFull] = await Promise.all([fetchMgmt(sql12), fetchMgmt(sqlFull)]);
-    const tot12   = res12?.rows?.[0];
-    const totFull = resFull?.rows?.[0];
+    const tot12   = totalHSIA(monthResults.flat());
+    const totFull = fullResult[0] ? { hadir: +fullResult[0].hadir, sakit: +fullResult[0].sakit, izin: +fullResult[0].izin, alpa: +fullResult[0].alpa } : null;
 
     if (!tot12 || !totFull) {
-      log('C4', s.nama, 'SKIP', 'data tidak lengkap');
+      log('C4', s.nama, 'SKIP', 'data tidak ditemukan');
     } else {
-      const cocok = ['hadir','sakit','izin','alpa'].every(f => parseInt(tot12[f]) === parseInt(totFull[f]));
+      const cocok = ['hadir','sakit','izin','alpa'].every(f => tot12[f] === totFull[f]);
       if (cocok) {
-        log('C4', s.nama, 'PASS', `12×bulan vs full tahun cocok — ${fmt({ hadir: +totFull.hadir, sakit: +totFull.sakit, izin: +totFull.izin, alpa: +totFull.alpa })}`);
+        log('C4', s.nama, 'PASS', `12×bulan = full tahun — ${fmt(totFull)} (${class_name})`);
       } else {
-        const beda = ['hadir','sakit','izin','alpa'].filter(f => parseInt(tot12[f]) !== parseInt(totFull[f])).map(f => `${f}:12bln=${tot12[f]} full=${totFull[f]}`);
-        log('C4', s.nama, 'FAIL', `TIDAK cocok: ${beda.join(' | ')} — data hilang atau double-count antar bulan`);
+        const beda = ['hadir','sakit','izin','alpa'].filter(f => tot12[f] !== totFull[f]).map(f => `${f}:12bln=${tot12[f]} full=${totFull[f]}`);
+        log('C4', s.nama, 'FAIL', `DATA HILANG antar bulan: ${beda.join(' | ')} — cek block_group_id yang melintas bulan`);
       }
     }
   } catch(e) { log('C4', s.nama, 'ERR', e.message); }
 
-  // === C5 (PRIORITAS TINGGI): Excel BK — fn_attendance_recap_per_class vs fn_class_attendance_summary ===
-  // BK Excel RINGKASAN pakai getAttendanceRecapPerClass, sedangkan BK Excel per-kelas pakai buildWaliSheetsMonthly
-  // (yang memanggil fn_class_attendance_summary). Keduanya harus cocok.
+  // C5 (PRIORITAS TINGGI): Path fn_attendance_recap_per_class vs fn_class_attendance_summary
+  // fn_recap_per_class: pivot per (student × class × block) → GROUP BY class
+  // fn_class_summary: pivot per (student × class × block) → GROUP BY student, class → SUM
+  // Keduanya harus identik. Perbedaan = orphan records atau bug pivot.
   try {
-    if (!bkEmail || !wakaEmail) { log('C5', s.nama, 'SKIP', 'tidak ada email BK atau Waka'); return; }
-
-    const [recapRes, summaryRes] = await Promise.all([
-      getRecapPerClass(wakaEmail, s.school_id),  // fn_attendance_recap_per_class (jalur BK RINGKASAN)
-      getClassSummary(guruEmail, class_id),       // fn_class_attendance_summary (jalur BK per-kelas)
+    const cte = pivotCTE(s.school_id, P_FROM, P_TO);
+    const [pathRecap, pathSummary] = await Promise.all([
+      // Path A (fn_attendance_recap_per_class): GROUP BY class_id langsung
+      sql(`${cte}
+        SELECT class_id,
+          COUNT(*) FILTER (WHERE status='HADIR')::int as hadir,
+          COUNT(*) FILTER (WHERE status='SAKIT')::int as sakit,
+          COUNT(*) FILTER (WHERE status='IZIN') ::int as izin,
+          COUNT(*) FILTER (WHERE status='ALPA') ::int as alpa
+        FROM att_pivot WHERE class_id = '${class_id}'
+        GROUP BY class_id
+      `),
+      // Path B (fn_class_attendance_summary × semua siswa, lalu agregasi):
+      // pivot per siswa → GROUP BY student → SUM ke kelas
+      sql(`${cte}
+        SELECT '${class_id}'::text as class_id,
+          SUM(h)::int as hadir, SUM(s)::int as sakit, SUM(i)::int as izin, SUM(a)::int as alpa
+        FROM (
+          SELECT student_id,
+            COUNT(*) FILTER (WHERE status='HADIR') h,
+            COUNT(*) FILTER (WHERE status='SAKIT') s,
+            COUNT(*) FILTER (WHERE status='IZIN')  i,
+            COUNT(*) FILTER (WHERE status='ALPA')  a
+          FROM att_pivot WHERE class_id = '${class_id}'
+          GROUP BY student_id
+        ) x
+      `),
     ]);
-
-    const recapRows  = recapRes?.rows;
-    const summaryRows = summaryRes?.rows;
-    const rowRecap   = Array.isArray(recapRows) ? recapRows.find(r => r.class_id === class_id || r.name === class_name) : null;
-    const totSummary = totalHSIA(summaryRows);
-    const totRecap   = rowRecap ? { hadir: +rowRecap.hadir, sakit: +rowRecap.sakit, izin: +rowRecap.izin, alpa: +rowRecap.alpa } : null;
-
-    if (!totRecap || !totSummary) {
-      log('C5', s.nama, 'SKIP', `data tidak lengkap (recap:${!!totRecap} summary:${!!totSummary})`);
+    const rA = pathRecap[0];
+    const rB = pathSummary[0];
+    if (!rA || !rB) {
+      log('C5', s.nama, 'SKIP', 'data tidak ditemukan');
     } else {
-      const cocok = ['hadir','sakit','izin','alpa'].every(f => totRecap[f] === totSummary[f]);
+      const tA = { hadir: +rA.hadir, sakit: +rA.sakit, izin: +rA.izin, alpa: +rA.alpa };
+      const tB = { hadir: +rB.hadir, sakit: +rB.sakit, izin: +rB.izin, alpa: +rB.alpa };
+      const cocok = ['hadir','sakit','izin','alpa'].every(f => tA[f] === tB[f]);
       if (cocok) {
-        log('C5', s.nama, 'PASS', `BK Excel: jalur RINGKASAN vs per-kelas cocok — ${fmt(totRecap)}`);
+        log('C5', s.nama, 'PASS', `BK Excel: jalur RINGKASAN (recap_per_class) vs per-kelas (class_summary) cocok — ${fmt(tA)}`);
       } else {
-        const beda = ['hadir','sakit','izin','alpa'].filter(f => totRecap[f] !== totSummary[f]).map(f => `${f}:recap=${totRecap[f]} summary=${totSummary[f]}`);
-        log('C5', s.nama, 'FAIL', `JALUR BERBEDA TIDAK COCOK: ${beda.join(' | ')} — BK Excel RINGKASAN ≠ BK Excel per-kelas`);
+        const beda = ['hadir','sakit','izin','alpa'].filter(f => tA[f] !== tB[f]).map(f => `${f}:recap=${tA[f]} summary=${tB[f]}`);
+        log('C5', s.nama, 'FAIL', `JALUR BERBEDA TIDAK COCOK — bug di pivot: ${beda.join(' | ')}`);
       }
     }
   } catch(e) { log('C5', s.nama, 'ERR', e.message); }
 }
 
-// === Main ===
+// Cek bug fn_tu_attendance_recap overload (terpisah dari loop sekolah)
+async function cekFnTuOverload() {
+  console.log('\n--- Cek fn_tu_attendance_recap overload ---');
+  try {
+    const rows = await sql(`
+      SELECT count(*) as n FROM pg_proc
+      WHERE proname = 'fn_tu_attendance_recap' AND pronamespace = (
+        SELECT oid FROM pg_namespace WHERE nspname = 'public'
+      )
+    `);
+    const n = +(rows[0]?.n || 0);
+    if (n === 1) {
+      log('fn_tu_overload', 'DB', 'PASS', 'fn_tu_attendance_recap tidak ada overload duplikat');
+    } else {
+      log('fn_tu_overload', 'DB', 'FAIL', `DITEMUKAN ${n} overload fn_tu_attendance_recap — perlu DROP + CREATE ulang (jebakan create_or_replace_overload)`);
+    }
+  } catch(e) { log('fn_tu_overload', 'DB', 'ERR', e.message); }
+}
+
 async function main() {
   console.log('=== Verifikasi Konsistensi Absensi (Fase 2 — Data Nyata) ===');
   console.log(`Periode: ${P_FROM} s/d ${P_TO}\n`);
 
-  if (!SUPABASE_URL || !SERVICE_KEY) {
-    console.error('ERROR: SUPABASE_URL atau SUPABASE_SERVICE_KEY tidak ada di .env');
+  if (!MGMT_TOKEN || !PROJECT_REF) {
+    console.error('ERROR: SUPABASE_ACCESS_TOKEN atau PROJECT_REF tidak ada');
     process.exit(1);
   }
-  if (!MGMT_TOKEN) {
-    console.warn('PERINGATAN: SUPABASE_ACCESS_TOKEN tidak ada — C1/C2/C3/C4/C5 akan gagal (butuh Management API)');
-  }
 
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  await cekFnTuOverload();
   for (const s of SCHOOLS) {
     await cekSekolah(s);
+    await sleep(3000);  // hindari rate limit Management API
   }
 
   const pass = hasil.filter(r => r.status === 'PASS').length;
