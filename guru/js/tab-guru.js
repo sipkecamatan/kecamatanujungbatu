@@ -220,7 +220,14 @@ async function loadGuruRecap() {
                     XLSX.utils.book_append_sheet(wb, ws, sheetName);
                 }
 
-                XLSX.writeFile(wb, `kehadiran_guru_${(start || 'awal').replace(/-/g,'')}_${(end || 'akhir').replace(/-/g,'')}.xlsx`);
+                const filename = `kehadiran_guru_${(start || 'awal').replace(/-/g,'')}_${(end || 'akhir').replace(/-/g,'')}.xlsx`;
+                const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+                const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                a.href = url; a.download = filename;
+                document.body.appendChild(a); a.click();
+                setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Unduh Excel';
