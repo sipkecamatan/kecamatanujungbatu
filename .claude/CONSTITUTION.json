@@ -698,8 +698,8 @@
     {
       "id": "T008",
       "task": "Investigasi 153 blok CAMPURAN Kasus A SMK — dua mapel beda dalam satu block_group_id",
-      "status": "terbuka",
-      "catatan": "Dari portal-konsistensi.mjs: SMK punya 153 block_group_id yang berisi jadwal dua mapel berbeda. Kemungkinan bug wizard saat membuat jadwal. Perlu cek apakah ini by design atau perlu diperbaiki di sumber data."
+      "status": "SELESAI 1 Nov",
+      "catatan": "Akar masalah: PARTITION BY di fn_apply_schedule_templates tidak menyertakan subject_id — sesi dua mapel berurutan digabung satu blok. Fix: migration 20261101050000 update data lama (UPDATE block_group_id) + update fungsi (tambah subject_id ke PARTITION). attendance tidak terpengaruh (join via schedule_id)."
     },
     {
       "id": "T006",
@@ -710,9 +710,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "31e3570",
-    "migrasi_terpasang_sampai": "20261101040000",
-    "main_sha": "31e3570",
-    "_catatan_push": "feat(guru): Siswa Perlu Perhatian di 5 tab (Guru, Wali, Kaprodi, Waka, BK) + helper tab-shared.js"
+    "last_session_commit": "5140ff2",
+    "migrasi_terpasang_sampai": "20261101050000",
+    "main_sha": "5140ff2",
+    "_catatan_push": "fix(migration): block_group_id per subject — pisah blok lintas-mapel (migration 20261101050000)"
   }
 }
