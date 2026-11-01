@@ -683,9 +683,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "de2a945",
+    "last_session_commit": "411ff48",
     "migrasi_terpasang_sampai": "20261101040000",
-    "main_sha": "de2a945",
-    "_catatan_push": "fix(wali): MONTHS_RANGE dinamis dari academicYear, Februari kabisat benar, XLSX.writeFile→blob (Chrome blocker). Tambah script rekap-konsistensi-role.mjs (R1–R7 per role via Management API)."
+    "main_sha": "411ff48",
+    "_catatan_push": "feat(scripts): tambah portal-konsistensi.mjs — verifikasi jalur portal (pivotAttendanceBlocks) vs fn_class_attendance_summary per siswa; CP1/CP2/CP3."
   }
 }
