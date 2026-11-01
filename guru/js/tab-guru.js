@@ -159,17 +159,19 @@ async function loadSiswaPerhatian() {
                 if (r.pct !== null && r.pct < PERHATIAN_HADIR_MIN) cat.push(`hadir ${Math.round(r.pct * 100)}% < 75%`);
                 if (r.A >= PERHATIAN_ALPA_MIN) cat.push(`alpa ${r.A}x`);
                 const pctColor = r.pct !== null && r.pct < PERHATIAN_HADIR_MIN ? 'var(--color-danger)' : 'var(--color-success)';
-                return `<div style="display:flex;align-items:center;gap:8px;padding:5px 4px;border-bottom:1px solid var(--color-border)">
-                    <span style="min-width:20px;font-size:11px;color:var(--color-text-muted);text-align:right;flex-shrink:0">${idx + 1}</span>
-                    <span style="flex:1;font-size:13px">${esc(r.full_name ?? '')}</span>
-                    <span style="display:flex;gap:8px;align-items:center;font-size:11px;font-weight:500;flex-shrink:0">
+                return `<div style="padding:6px 4px;border-bottom:1px solid var(--color-border)">
+                    <div style="display:flex;align-items:baseline;gap:6px">
+                        <span style="min-width:20px;font-size:11px;color:var(--color-text-muted);text-align:right;flex-shrink:0">${idx + 1}</span>
+                        <span style="flex:1;font-size:13px;font-weight:500">${esc(r.full_name ?? '')}</span>
+                        <span style="font-size:13px;font-weight:700;color:${pctColor};flex-shrink:0">${r.pct !== null ? Math.round(r.pct * 100) + '%' : '—'}</span>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;padding-left:26px;margin-top:2px;font-size:11px">
                         <span style="color:var(--color-success)">${r.H}H</span>
                         <span style="color:var(--color-primary)">${r.S}S</span>
                         <span style="color:var(--color-warning)">${r.I}I</span>
                         <span style="color:var(--color-danger)">${r.A}A</span>
-                        <span style="color:${pctColor};font-weight:700;min-width:36px;text-align:right">${r.pct !== null ? Math.round(r.pct * 100) + '%' : '—'}</span>
-                    </span>
-                    <span style="font-size:11px;color:var(--color-text-muted);flex-shrink:0;min-width:80px;text-align:right">${esc(cat.join(', '))}</span>
+                        <span style="color:var(--color-text-muted)">${esc(cat.join(' · '))}</span>
+                    </div>
                 </div>`;
             }).join('');
 
