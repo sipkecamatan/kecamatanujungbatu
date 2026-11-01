@@ -587,7 +587,7 @@
       "test_relevan": [
         "tenant-isolation.mjs"
       ],
-      "catatan": "Perubahan api.js, tab-shared.js, atau dashboard.js WAJIB diuji dampaknya ke tab-guru.js. 1 Nov 2026: Excel guru diperbarui — buildGuruExcel() menghasilkan sheet RINGKASAN + per kelas bergaya referensi wali Oki Saputra (warna H/S/I/A, baris total, freeze pane, siswa perlu perhatian). Filter tanggal start/end kini diteruskan ke API. | 1 Nov fix: XLSX.writeFile→manual blob (Chrome download blocker)"
+      "catatan": "Perubahan api.js, tab-shared.js, atau dashboard.js WAJIB diuji dampaknya ke tab-guru.js. 1 Nov 2026: Excel guru final — buildGuruExcel() menghasilkan RINGKASAN + 12 sheet bulanan (Jul-Jun). Setiap sheet bulan berisi blok per kelas diajar guru di bulan itu (sub-header kelas merged, header tanggal, baris siswa, total, jumlah H/S/I/A). Data selalu seluruh tahun ajaran (null/null), tidak terikat filter layar. XLSX.writeFile→manual blob (Chrome download blocker). mkHdrPerhatian() factory untuk hindari shared-ref SheetJS."
     }
   },
   "jebakan_teknis": {
@@ -683,9 +683,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "6d8a5ed",
+    "last_session_commit": "372930a",
     "migrasi_terpasang_sampai": "20261101040000",
-    "main_sha": "6d8a5ed",
-    "_catatan_push": "absensi-konsistensi.mjs selesai: 16/16 PASS (SMK+SMA+SMP). fn_tu_attendance_recap overload diperbaiki (DROP 3-param via migration 20261101040000). Alur absensi hulu-hilir verified."
+    "main_sha": "372930a",
+    "_catatan_push": "Excel guru: 12 sheet bulanan Jul-Jun (ganti sheet per-kelas). Data seluruh tahun ajaran, tidak terikat filter. Fix shared-ref hdrPerhatian + catch block. Chrome download blocker fix. d4f0daa: tests/lib/nilai-rapor-server.sql bypass trigger penugasan untuk data gangguan."
   }
 }
