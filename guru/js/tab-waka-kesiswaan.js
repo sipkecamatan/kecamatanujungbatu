@@ -246,14 +246,20 @@ async function downloadWkAttExcel({ config }) {
         const allClasses = allClassArrays.flat().sort((a, b) => a.name.localeCompare(b.name, 'id'));
         if (!allClasses.length) { alert('Belum ada kelas untuk diunduh.'); return; }
 
-        // ~39 call: annual per-siswa (n kelas) + 9 monthly class-level
-        const [clsResults, ...monthlyRekaps] = await Promise.all([
-            Promise.all(allClasses.map(c =>
-                getWaliAttendanceSummary(c.class_id, academicYear, null, null, config.current_semester)
-                    .then(students => ({ cls: c, students }))
-            )),
-            ...MONTHS_RANGE.map(([ds, de]) => getAttendanceRecapPerClass(ds, de)),
-        ]);
+        // Kueri per-kelas dijalankan berurutan untuk hindari statement timeout
+        // (terlalu banyak query paralel → 57014 di free tier)
+        const clsResults = [];
+        for (let i = 0; i < allClasses.length; i++) {
+            const c = allClasses[i];
+            btn.textContent = `Menyiapkan… (${i + 1}/${allClasses.length})`;
+            const students = await getWaliAttendanceSummary(c.class_id, academicYear, null, null, config.current_semester);
+            clsResults.push({ cls: c, students });
+        }
+        btn.textContent = 'Menyiapkan tren…';
+        // Bulan: tetap paralel (agregat kelas, lebih ringan)
+        const monthlyRekaps = await Promise.all(
+            MONTHS_RANGE.map(([ds, de]) => getAttendanceRecapPerClass(ds, de))
+        );
 
         // Totals tahunan
         const allStudents = clsResults.flatMap(d => d.students);
