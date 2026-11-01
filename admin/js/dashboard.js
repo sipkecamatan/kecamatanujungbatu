@@ -29,7 +29,8 @@ function esc(s) {
 const ROLE_LABEL = {
     GURU: 'Guru', BK: 'BK', WALI_KELAS: 'Wali Kelas',
     WAKA_KURIKULUM: 'Waka Kurikulum', WAKA_HUMAS: 'Waka Humas',
-    WAKA_KESISWAAN: 'Waka Kesiswaan', KEPSEK: 'Kepala Sekolah',
+    WAKA_KESISWAAN: 'Waka Kesiswaan', WAKASEK: 'Wakasek',
+    KEPSEK: 'Kepala Sekolah',
     KAPRODI: 'Kaprodi', SISWA: 'Siswa', ORTU: 'Orang Tua',
     ADMINISTRATIVE: 'Admin', TU: 'Tata Usaha', DUDI: 'DUDI',
     STAKEHOLDER: 'Stakeholder',
@@ -1587,7 +1588,7 @@ async function renderAlumniPanel() {
 
     panelContent.innerHTML = `
         <h3>Siswa Alumni (${siswaRows.length})</h3>
-        <p class="hint" style="margin-bottom:12px">Dikelompokkan per tahun lulus → program keahlian → kelas.</p>
+        <p class="hint" style="margin-bottom:12px">Dikelompokkan per tahun lulus → program → kelas.</p>
         ${siswaHtml}
         <hr style="margin:24px 0;border:none;border-top:1px solid var(--color-border)" />
         <h3>Siswa KELUAR (${keluarRaw.length})</h3>
