@@ -601,7 +601,7 @@
     "koordinat_klik": "kerangka tangkapan layar 1568 lebar; skala = 1568 / innerWidth; setelah reload tunggu >=4 dtk",
     "postgrest_404": "404 pada RPC sering berarti galat tipe runtime (enum vs text) bukan tidak ditemukan",
     "excel_pivot_guru": "Excel rekap absensi harus pivot per block_group_id (bukan session_date) — dua pertemuan sehari harus jadi dua kolom terpisah; pakai buildPertemuanMeta dari tab-shared.js",
-    "excel_semua_data": "Excel unduhan di tab Waka, Kaprodi, BK, TU mengambil SEMUA data tanpa filter tanggal — bukan data yang sedang ditampilkan di layar. PENGECUALIAN: tab Wali (per 2026-10-30) sudah menggunakan filter dateStart/dateEnd yang dipilih pengguna.",
+    "excel_semua_data": "Excel unduhan di tab Guru, Wali, Kaprodi, Waka, BK, TU mengambil SEMUA data seluruh tahun ajaran (null/null) — tidak terikat filter tanggal di layar. MONTHS_RANGE dihitung dinamis dari academicYear, BUKAN hardcoded. Perbaikan Wali: 1 Nov 2026 (sebelumnya hardcoded 2026/2027 dan pakai filter layar).",
     "hooks_jq": "jq tidak tersedia di mesin Windows ini — pakai node untuk parsing stdin di hook commands",
     "hooks_settings_watcher": "settings.json baru tidak aktif sampai sesi di-restart atau buka /hooks di UI Claude Code",
     "hooks_pretooluse_format": "PreToolUse hook HARUS output {hookSpecificOutput:{hookEventName:'PreToolUse',permissionDecision:'deny',permissionDecisionReason:'...'}} — format lama {continue:false,stopReason} tidak dikenali Claude Code dan hook DIAM SAJA tanpa memblokir apapun",
@@ -621,7 +621,7 @@
     "xlsx_writefile_chrome_blocker": {
       "masalah": "XLSX.writeFile() diblokir Chrome automatic-download blocker jika sudah ada unduhan lain di sesi browser yang sama",
       "solusi": "Pakai manual blob: XLSX.write({type:\"array\",bookType:\"xlsx\"}) → new Blob([buf]) → URL.createObjectURL → a.click → setTimeout revokeObjectURL",
-      "referensi": "tab-waka-kesiswaan.js (contoh kerja), tab-guru.js fix commit b088d96 (1 Nov 2026)",
+      "referensi": "tab-waka-kesiswaan.js (contoh kerja), tab-guru.js fix commit b088d96, tab-wali.js fix sesi 1 Nov 2026",
       "ditemukan": "2026-11-01"
     },
     "sheetjs_shared_array_reference": {
@@ -683,9 +683,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "372930a",
+    "last_session_commit": "pending",
     "migrasi_terpasang_sampai": "20261101040000",
-    "main_sha": "372930a",
-    "_catatan_push": "Excel guru: 12 sheet bulanan Jul-Jun (ganti sheet per-kelas). Data seluruh tahun ajaran, tidak terikat filter. Fix shared-ref hdrPerhatian + catch block. Chrome download blocker fix. d4f0daa: tests/lib/nilai-rapor-server.sql bypass trigger penugasan untuk data gangguan."
+    "main_sha": "pending",
+    "_catatan_push": "fix(wali): MONTHS_RANGE dinamis dari academicYear, Februari kabisat benar, XLSX.writeFile→blob (Chrome blocker). Tambah script rekap-konsistensi-role.mjs (R1–R7 per role via Management API)."
   }
 }

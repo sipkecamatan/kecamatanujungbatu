@@ -53,15 +53,15 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
             const className    = document.getElementById('wali-class-title')
                 .textContent.replace('Kelas Walian — ', '').trim();
             // Unduh SELURUH tahun ajaran — tidak terikat filter tanggal di layar
-            // Rekap per bulan dipanggil terpisah agar angka H/S/I/A konsisten dengan website
-            const MONTHS_RANGE = [
-                ['2026-07-01','2026-07-31'],['2026-08-01','2026-08-31'],
-                ['2026-09-01','2026-09-30'],['2026-10-01','2026-10-31'],
-                ['2026-11-01','2026-11-30'],['2026-12-01','2026-12-31'],
-                ['2027-01-01','2027-01-31'],['2027-02-01','2027-02-28'],
-                ['2027-03-01','2027-03-31'],['2027-04-01','2027-04-30'],
-                ['2027-05-01','2027-05-31'],['2027-06-01','2027-06-30'],
-            ];
+            // Hitung MONTHS_RANGE dinamis dari academicYear (mis. "2026/2027" → Jul 2026–Jun 2027)
+            const ayStart = parseInt((academicYear ?? '').split('/')[0], 10) || new Date().getFullYear();
+            const MONTHS_RANGE = Array.from({ length: 12 }, (_, m) => {
+                const yr  = m < 6 ? ayStart + 1 : ayStart;
+                const mo  = m < 6 ? m + 1 : m + 7 - 6;
+                const pad = String(mo).padStart(2, '0');
+                const lastDay = new Date(yr, mo, 0).getDate();
+                return [`${yr}-${pad}-01`, `${yr}-${pad}-${lastDay}`];
+            });
             const [students, scheduleRows, ...monthlyRekaps] = await Promise.all([
                 getWaliAttendanceSummary(classId, academicYear, null, null, config.current_semester),
                 getClassScheduleFull(classId, academicYear, null, null),
@@ -81,7 +81,14 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
             const wb = XLSX.utils.book_new();
             for (const { name, ws } of buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, className, academicYear }))
                 XLSX.utils.book_append_sheet(wb, ws, name);
-            XLSX.writeFile(wb, `rekap_wali_${className.replace(/\s+/g, '_')}_${academicYear}.xlsx`);
+            const ay  = (academicYear ?? '').replace('/', '-');
+            const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+            const url = URL.createObjectURL(new Blob([buf], { type: 'application/octet-stream' }));
+            const a   = Object.assign(document.createElement('a'), {
+                href: url, download: `rekap_wali_${className.replace(/\s+/g, '_')}_${ay}.xlsx`,
+            });
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
         } catch (err) {
             alert('Gagal mengunduh: ' + fe(err));
         } finally {
