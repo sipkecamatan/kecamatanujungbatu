@@ -660,9 +660,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "PENDING",
+    "last_session_commit": "22d1b09",
     "migrasi_terpasang_sampai": "20261031040000",
-    "main_sha": "606da8a",
-    "_catatan_push": "Migration 20261101010000 belum di-push/apply. Perlu db push + git push oleh Romo sebelum Rekap Kehadiran Siswa bisa dipakai."
+    "main_sha": "22d1b09",
+    "_catatan_push": "Migration 20261101010000 belum di-apply di live. Perlu db push + git push oleh Romo. Setelah apply, verifikasi Rekap Kehadiran Siswa (klik Tampilkan) di SMP/SMA/SMK harus sukses."
   }
 }
