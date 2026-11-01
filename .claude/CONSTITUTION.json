@@ -661,9 +661,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "TBD",
+    "last_session_commit": "ade5840",
     "migrasi_terpasang_sampai": "20261101010000",
-    "main_sha": "TBD",
+    "main_sha": "ade5840",
     "_catatan_push": "Excel guru diperbarui (buildGuruExcel + RINGKASAN). Data absen Bayu Prakoso SMP Uji 1 diinjeksi: 180 baris, 6 kelas, 9 sesi (27–29 Okt 2026), distribusi HADIR=143 SAKIT=10 IZIN=12 ALPA=15."
   }
 }
