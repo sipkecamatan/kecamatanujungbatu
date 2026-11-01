@@ -684,9 +684,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "fec2d67",
+    "last_session_commit": "b28ab1b",
     "migrasi_terpasang_sampai": "20261101040000",
-    "main_sha": "fec2d67",
-    "_catatan_push": "feat(guru): tambah section Siswa Perlu Perhatian di Tab Guru Beranda"
+    "main_sha": "b28ab1b",
+    "_catatan_push": "fix(portal): blok CAMPURAN dihitung sebagai status terburuk di kartu siswa/ortu (dashboard.js + portal.js)"
   }
 }
