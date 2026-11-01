@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node -e \"console.log(JSON.stringify({systemMessage:'[SESSION END] Ada file yang diubah? Jalankan session-end.md sebelum commit: Consistency Checker \u2192 Data Truth Verifier \u2192 Regression Guard \u2192 Knowledge Capture'}))\"",
+            "command": "node -e \"console.log(JSON.stringify({systemMessage:'[SESSION END] Ada file yang diubah? (A) Romo jalankan dulu di terminal: node tests/tenant-isolation.mjs && node tests/nilai-rapor-server.mjs \u2014 lalu (B) panggil Claude untuk Consistency Checker + Knowledge Capture'}))\"",
             "shell": "bash",
             "statusMessage": "Menampilkan reminder session-end..."
           }
