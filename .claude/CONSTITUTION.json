@@ -123,7 +123,8 @@
     "guru": {
       "Tab Guru (Beranda)": [
         "Jadwal Mengajar (hari ini / minggu ini)",
-        "Rekap Kehadiran Siswa (filter kelas + tanggal)"
+        "Rekap Kehadiran Siswa (filter kelas + tanggal)",
+        "Siswa Perlu Perhatian (otomatis semester berjalan, semua kelas diampu, expand per kelas)"
       ],
       "Tab Jurnal Mengajar": [
         "Progress Mengajar",
@@ -587,7 +588,7 @@
       "test_relevan": [
         "tenant-isolation.mjs"
       ],
-      "catatan": "Perubahan api.js, tab-shared.js, atau dashboard.js WAJIB diuji dampaknya ke tab-guru.js. 1 Nov 2026: Excel guru final — buildGuruExcel() menghasilkan RINGKASAN + 12 sheet bulanan (Jul-Jun). Setiap sheet bulan berisi blok per kelas diajar guru di bulan itu (sub-header kelas merged, header tanggal, baris siswa, total, jumlah H/S/I/A). Data selalu seluruh tahun ajaran (null/null), tidak terikat filter layar. XLSX.writeFile→manual blob (Chrome download blocker). mkHdrPerhatian() factory untuk hindari shared-ref SheetJS."
+      "catatan": "Perubahan api.js, tab-shared.js, atau dashboard.js WAJIB diuji dampaknya ke tab-guru.js. 1 Nov 2026: Excel guru final — buildGuruExcel() menghasilkan RINGKASAN + 12 sheet bulanan (Jul-Jun). Setiap sheet bulan berisi blok per kelas diajar guru di bulan itu (sub-header kelas merged, header tanggal, baris siswa, total, jumlah H/S/I/A). Data selalu seluruh tahun ajaran (null/null), tidak terikat filter layar. XLSX.writeFile→manual blob (Chrome download blocker). mkHdrPerhatian() factory untuk hindari shared-ref SheetJS. 1 Nov 2026: loadSiswaPerhatian() — section baru di Tab Guru Beranda: semua kelas diampu, semester berjalan, threshold ALPA≥2 atau %hadir<75%, expand per kelas."
     }
   },
   "jebakan_teknis": {
@@ -683,9 +684,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "411ff48",
+    "last_session_commit": "TBD",
     "migrasi_terpasang_sampai": "20261101040000",
-    "main_sha": "411ff48",
-    "_catatan_push": "feat(scripts): tambah portal-konsistensi.mjs — verifikasi jalur portal (pivotAttendanceBlocks) vs fn_class_attendance_summary per siswa; CP1/CP2/CP3."
+    "main_sha": "TBD",
+    "_catatan_push": "feat(guru): tambah section Siswa Perlu Perhatian di Tab Guru Beranda"
   }
 }

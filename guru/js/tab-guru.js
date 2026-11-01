@@ -103,6 +103,94 @@ export async function initGuruTab({ currentUser, config, jabatan, LC }) {
 
     await loadSchedule();
     await initObsForm();
+    await loadSiswaPerhatian();
+
+    const refreshBtn = document.getElementById('guru-perhatian-refresh');
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+        refreshBtn.dataset.bound = '1';
+        refreshBtn.addEventListener('click', () => loadSiswaPerhatian());
+    }
+}
+
+const PERHATIAN_ALPA_MIN  = 2;
+const PERHATIAN_HADIR_MIN = 0.75;
+
+async function loadSiswaPerhatian() {
+    const el = document.getElementById('guru-perhatian-content');
+    if (!el) return;
+    el.innerHTML = '<p class="hint">Memuat…</p>';
+    try {
+        const classes = await getMyClasses(_currentUser.user_id, _config.current_academic_year, _config.current_semester);
+        if (!classes.length) {
+            el.innerHTML = '<p class="hint">Tidak ada kelas yang diampu semester ini.</p>';
+            return;
+        }
+        const classDataList = await Promise.all(classes.map(async cls => {
+            const summary = await getAttendanceSummaryByStudents(cls.class_id, _config.current_academic_year, null, null, _currentUser.user_id);
+            return { class_id: cls.class_id, name: cls.name ?? cls.class_id, summary };
+        }));
+
+        const processedClasses = classDataList.map(({ class_id, name, summary }) => {
+            const roster = summary.map(s => {
+                const H = Number(s.hadir ?? s.HADIR ?? 0);
+                const S = Number(s.sakit ?? s.SAKIT ?? 0);
+                const I = Number(s.izin  ?? s.IZIN  ?? 0);
+                const A = Number(s.alpa  ?? s.ALPA  ?? 0);
+                const tot = H + S + I + A;
+                const pct = tot > 0 ? H / tot : null;
+                return { ...s, H, S, I, A, tot, pct };
+            });
+            const perhatian = roster.filter(r => r.A >= PERHATIAN_ALPA_MIN || (r.pct !== null && r.pct < PERHATIAN_HADIR_MIN));
+            return { class_id, name, roster, perhatian };
+        });
+
+        const totalPerhatian = processedClasses.reduce((a, c) => a + c.perhatian.length, 0);
+        if (totalPerhatian === 0) {
+            el.innerHTML = '<p class="hint" style="color:var(--color-success)">Tidak ada siswa yang memerlukan perhatian khusus saat ini.</p>';
+            return;
+        }
+
+        el.innerHTML = processedClasses.map(cls => {
+            if (!cls.perhatian.length) return '';
+            const pctKelas = cls.roster.reduce((a, r) => a + r.H, 0) / Math.max(cls.roster.reduce((a, r) => a + r.tot, 0), 1);
+            const pctLabel = Math.round(pctKelas * 100) + '%';
+            const rowsHtml = cls.perhatian.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'id')).map((r, idx) => {
+                const cat = [];
+                if (r.pct !== null && r.pct < PERHATIAN_HADIR_MIN) cat.push(`hadir ${Math.round(r.pct * 100)}% < 75%`);
+                if (r.A >= PERHATIAN_ALPA_MIN) cat.push(`alpa ${r.A}x`);
+                const pctColor = r.pct !== null && r.pct < PERHATIAN_HADIR_MIN ? 'var(--color-danger)' : 'var(--color-success)';
+                return `<div style="display:flex;align-items:center;gap:8px;padding:5px 4px;border-bottom:1px solid var(--color-border,#e5e7eb)">
+                    <span style="min-width:20px;font-size:11px;color:var(--color-text-muted);text-align:right;flex-shrink:0">${idx + 1}</span>
+                    <span style="flex:1;font-size:13px">${esc(r.full_name ?? '')}</span>
+                    <span style="display:flex;gap:8px;align-items:center;font-size:11px;font-weight:500;flex-shrink:0">
+                        <span style="color:var(--color-success)">${r.H}H</span>
+                        <span style="color:var(--color-primary)">${r.S}S</span>
+                        <span style="color:var(--color-warning,#f59e0b)">${r.I}I</span>
+                        <span style="color:var(--color-danger)">${r.A}A</span>
+                        <span style="color:${pctColor};font-weight:700;min-width:36px;text-align:right">${r.pct !== null ? Math.round(r.pct * 100) + '%' : '—'}</span>
+                    </span>
+                    <span style="font-size:11px;color:var(--color-text-muted);flex-shrink:0;min-width:80px;text-align:right">${esc(cat.join(', '))}</span>
+                </div>`;
+            }).join('');
+
+            const panelId = `perhatian-panel-${cls.class_id}`;
+            const btnId   = `perhatian-btn-${cls.class_id}`;
+            return `<div style="border:1px solid var(--color-border,#e5e7eb);border-radius:8px;margin-bottom:8px;overflow:hidden">
+                <button id="${btnId}" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--color-surface-2,#f8fafc);border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--color-text)" onclick="(function(){var p=document.getElementById('${panelId}');var b=document.getElementById('${btnId}');var open=p.style.display!=='none';p.style.display=open?'none':'block';b.querySelector('.perhatian-caret').textContent=open?'▶':'▼';})()">
+                    <span>${esc(cls.name)}</span>
+                    <span style="display:flex;gap:12px;align-items:center;font-size:12px;font-weight:400">
+                        <span style="color:var(--color-danger)">${cls.perhatian.length} siswa perlu perhatian</span>
+                        <span style="color:var(--color-text-muted)">${cls.roster.length} siswa · ${pctLabel} hadir</span>
+                        <span class="perhatian-caret" style="color:var(--color-text-muted)">▶</span>
+                    </span>
+                </button>
+                <div id="${panelId}" style="display:none;padding:0 4px 4px">${rowsHtml}</div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        const el2 = document.getElementById('guru-perhatian-content');
+        if (el2) el2.innerHTML = `<p class="hint" style="color:var(--color-danger)">Gagal memuat data: ${esc(String(err?.message ?? err))}</p>`;
+    }
 }
 
 async function initGuruRekapDropdown() {
