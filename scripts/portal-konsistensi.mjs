@@ -65,10 +65,9 @@ function fmt(r) {
 }
 
 /**
- * CTE portal: replikasi pivotAttendanceBlocks di SQL.
- * EKSKUL → HADIR sebelum cek keunikan status.
- * summary_status = CAMPURAN jika ≥2 status berbeda dalam satu (student × block).
- * Hitung hanya HADIR/SAKIT/IZIN/ALPA; CAMPURAN diabaikan (sama persis dengan klien).
+ * CTE portal: replikasi logika portal SETELAH fix Nov 2026 (commit b28ab1b).
+ * EKSKUL → HADIR. Blok CAMPURAN dihitung sebagai status TERBURUK dari slot-nya
+ * (sama dengan fn_class_attendance_summary) — konsisten dengan dashboard.js + portal.js.
  */
 function portalAggregateCTE(school_id, from, to) {
   return `
@@ -88,22 +87,29 @@ function portalAggregateCTE(school_id, from, to) {
       SELECT
         student_id,
         block_group_id,
-        CASE WHEN COUNT(DISTINCT eff_status) = 1
-             THEN MAX(eff_status)
-             ELSE 'CAMPURAN'
-        END AS summary_status
+        CASE MAX(CASE eff_status
+          WHEN 'ALPA'  THEN 4
+          WHEN 'SAKIT' THEN 3
+          WHEN 'IZIN'  THEN 2
+          WHEN 'HADIR' THEN 1
+          ELSE 0 END)
+          WHEN 4 THEN 'ALPA'
+          WHEN 3 THEN 'SAKIT'
+          WHEN 2 THEN 'IZIN'
+          WHEN 1 THEN 'HADIR'
+        END AS eff_worst
       FROM att_raw
       GROUP BY student_id, block_group_id
     ),
     per_student AS (
       SELECT
         student_id,
-        COUNT(*) FILTER (WHERE summary_status = 'HADIR')::int    AS hadir,
-        COUNT(*) FILTER (WHERE summary_status = 'SAKIT')::int    AS sakit,
-        COUNT(*) FILTER (WHERE summary_status = 'IZIN') ::int    AS izin,
-        COUNT(*) FILTER (WHERE summary_status = 'ALPA') ::int    AS alpa,
-        COUNT(*) FILTER (WHERE summary_status = 'CAMPURAN')::int AS campuran
+        COUNT(*) FILTER (WHERE eff_worst = 'HADIR')::int AS hadir,
+        COUNT(*) FILTER (WHERE eff_worst = 'SAKIT')::int AS sakit,
+        COUNT(*) FILTER (WHERE eff_worst = 'IZIN') ::int AS izin,
+        COUNT(*) FILTER (WHERE eff_worst = 'ALPA') ::int AS alpa
       FROM pivot
+      WHERE eff_worst IS NOT NULL
       GROUP BY student_id
     )
   `;
@@ -178,8 +184,7 @@ async function cekSekolah(s) {
         ${portalAggregateCTE(s.school_id, P_FROM, P_TO)}
         SELECT
           SUM(hadir)::int AS hadir, SUM(sakit)::int AS sakit,
-          SUM(izin)::int  AS izin,  SUM(alpa)::int  AS alpa,
-          SUM(campuran)::int AS campuran
+          SUM(izin)::int  AS izin,  SUM(alpa)::int  AS alpa
         FROM per_student
       `),
       sql(`
@@ -197,12 +202,12 @@ async function cekSekolah(s) {
     } else {
       const cocok = ['hadir','sakit','izin','alpa'].every(f => +p[f] === +su[f]);
       if (cocok) {
-        log('CP1', s.nama, 'PASS', `portal = summary — ${fmt(p)}${+p.campuran > 0 ? ` (+${p.campuran} blok CAMPURAN diabaikan portal)` : ''}`);
+        log('CP1', s.nama, 'PASS', `portal = summary — ${fmt(p)}`);
       } else {
         const beda = ['hadir','sakit','izin','alpa']
           .filter(f => +p[f] !== +su[f])
           .map(f => `${f}:portal=${p[f]} summary=${su[f]}`);
-        log('CP1', s.nama, 'FAIL', `BEDA TOTAL — ${beda.join(' | ')}${+p.campuran > 0 ? ` (${p.campuran} blok CAMPURAN diabaikan portal)` : ''}`);
+        log('CP1', s.nama, 'FAIL', `BEDA TOTAL — ${beda.join(' | ')}`);
       }
     }
   } catch(e) { log('CP1', s.nama, 'ERR', e.message); }
@@ -245,22 +250,66 @@ async function cekSekolah(s) {
   await sleep(2500);
 
   // CP3: per-siswa mismatch — berapa siswa angkanya berbeda di dua jalur
+  // SQL ditulis langsung (tanpa menggabungkan CTE helper) untuk menghindari
+  // konflik nama CTE dan masalah regex replace pada string multiline.
   try {
+    const sid = s.school_id;
     const rows = await sql(`
-      ${portalAggregateCTE(s.school_id, P_FROM, P_TO)}
-      , summary_cte AS (
-        ${summaryAggregateCTE(s.school_id, P_FROM, P_TO).replace(/^\s*WITH\s+/i, '')}
+      WITH p_raw AS (
+        SELECT
+          a.student_id,
+          ts.block_group_id,
+          CASE WHEN a.status::text = 'EKSKUL' THEN 'HADIR' ELSE a.status::text END AS eff
+        FROM attendance a
+        JOIN teaching_schedules ts ON ts.schedule_id = a.schedule_id
+        WHERE a.school_id = '${sid}'
+          AND ts.session_date BETWEEN '${P_FROM}'::date AND '${P_TO}'::date
+          AND a.is_void = false AND a.status IS NOT NULL
+      ),
+      p_pivot AS (
+        SELECT student_id, block_group_id,
+          CASE MAX(CASE eff WHEN 'ALPA' THEN 4 WHEN 'SAKIT' THEN 3 WHEN 'IZIN' THEN 2 WHEN 'HADIR' THEN 1 ELSE 0 END)
+            WHEN 4 THEN 'ALPA' WHEN 3 THEN 'SAKIT' WHEN 2 THEN 'IZIN' WHEN 1 THEN 'HADIR' END AS worst
+        FROM p_raw GROUP BY student_id, block_group_id
+      ),
+      portal AS (
+        SELECT student_id,
+          COUNT(*) FILTER (WHERE worst = 'HADIR')::int AS hadir,
+          COUNT(*) FILTER (WHERE worst = 'SAKIT')::int AS sakit,
+          COUNT(*) FILTER (WHERE worst = 'IZIN') ::int AS izin,
+          COUNT(*) FILTER (WHERE worst = 'ALPA') ::int AS alpa
+        FROM p_pivot WHERE worst IS NOT NULL GROUP BY student_id
+      ),
+      s_pivot AS (
+        SELECT a.student_id, ts.block_group_id,
+          CASE MAX(CASE a.status::text WHEN 'ALPA' THEN 4 WHEN 'SAKIT' THEN 3 WHEN 'IZIN' THEN 2
+            WHEN 'HADIR' THEN 1 WHEN 'EKSKUL' THEN 1 ELSE 0 END)
+            WHEN 4 THEN 'ALPA' WHEN 3 THEN 'SAKIT' WHEN 2 THEN 'IZIN' WHEN 1 THEN 'HADIR' END AS worst
+        FROM attendance a
+        JOIN teaching_schedules ts ON ts.schedule_id = a.schedule_id
+        WHERE a.school_id = '${sid}'
+          AND ts.session_date BETWEEN '${P_FROM}'::date AND '${P_TO}'::date
+          AND a.is_void = false AND a.status IS NOT NULL
+        GROUP BY a.student_id, ts.block_group_id
+      ),
+      summ AS (
+        SELECT student_id,
+          COUNT(*) FILTER (WHERE worst = 'HADIR')::int AS hadir,
+          COUNT(*) FILTER (WHERE worst = 'SAKIT')::int AS sakit,
+          COUNT(*) FILTER (WHERE worst = 'IZIN') ::int AS izin,
+          COUNT(*) FILTER (WHERE worst = 'ALPA') ::int AS alpa
+        FROM s_pivot WHERE worst IS NOT NULL GROUP BY student_id
       )
       SELECT
         COUNT(*) FILTER (
-          WHERE p.hadir <> COALESCE(su.hadir, 0)
-             OR p.sakit <> COALESCE(su.sakit, 0)
-             OR p.izin  <> COALESCE(su.izin,  0)
-             OR p.alpa  <> COALESCE(su.alpa,  0)
+          WHERE COALESCE(portal.hadir,0) <> COALESCE(summ.hadir,0)
+             OR COALESCE(portal.sakit,0) <> COALESCE(summ.sakit,0)
+             OR COALESCE(portal.izin, 0) <> COALESCE(summ.izin, 0)
+             OR COALESCE(portal.alpa, 0) <> COALESCE(summ.alpa, 0)
         )::int AS mismatch,
         COUNT(*)::int AS total_siswa
-      FROM per_student p
-      FULL OUTER JOIN summary_cte.per_student su USING (student_id)
+      FROM portal
+      FULL OUTER JOIN summ USING (student_id)
     `);
     const r = rows[0];
     if (!r) {
@@ -270,46 +319,14 @@ async function cekSekolah(s) {
     } else {
       log('CP3', s.nama, 'FAIL', `${r.mismatch} dari ${r.total_siswa} siswa BERBEDA antara portal dan summary`);
     }
-  } catch(e) {
-    // Fallback: CP3 pakai JOIN eksplisit tanpa nested CTE name conflict
-    try {
-      const rows = await sql(`
-        WITH portal AS (
-          ${portalAggregateCTE(s.school_id, P_FROM, P_TO).replace(/^\s*WITH\s+/i, '')}
-          SELECT student_id, hadir AS p_h, sakit AS p_s, izin AS p_i, alpa AS p_a
-          FROM per_student
-        ),
-        summary AS (
-          ${summaryAggregateCTE(s.school_id, P_FROM, P_TO).replace(/^\s*WITH\s+/i, '')}
-          SELECT student_id, hadir AS s_h, sakit AS s_s, izin AS s_i, alpa AS s_a
-          FROM per_student
-        )
-        SELECT
-          COUNT(*) FILTER (
-            WHERE p_h <> COALESCE(s_h, 0) OR p_s <> COALESCE(s_s, 0)
-               OR p_i <> COALESCE(s_i, 0) OR p_a <> COALESCE(s_a, 0)
-          )::int AS mismatch,
-          COUNT(*)::int AS total_siswa
-        FROM portal
-        FULL OUTER JOIN summary USING (student_id)
-      `);
-      const r = rows[0];
-      if (!r) {
-        log('CP3', s.nama, 'SKIP', 'data tidak ditemukan');
-      } else if (+r.mismatch === 0) {
-        log('CP3', s.nama, 'PASS', `semua ${r.total_siswa} siswa cocok di dua jalur`);
-      } else {
-        log('CP3', s.nama, 'FAIL', `${r.mismatch} dari ${r.total_siswa} siswa BERBEDA antara portal dan summary`);
-      }
-    } catch(e2) { log('CP3', s.nama, 'ERR', e2.message); }
-  }
+  } catch(e) { log('CP3', s.nama, 'ERR', e.message); }
 }
 
 async function main() {
   console.log('=== Verifikasi Konsistensi Portal (siswa/ortu) vs Guru/Wali ===');
   console.log(`Periode: ${P_FROM} s/d ${P_TO}\n`);
   console.log('Jalur dibandingkan:');
-  console.log('  PORTAL  — pivot per block_group_id: status tunggal atau CAMPURAN (diabaikan), EKSKUL→HADIR');
+  console.log('  PORTAL  — pivot per block_group_id: status TERBURUK (CAMPURAN → terburuk slot), EKSKUL→HADIR (fix b28ab1b)');
   console.log('  SUMMARY — fn_class_attendance_summary: status TERBURUK per block_group_id\n');
 
   if (!MGMT_TOKEN || !PROJECT_REF) {
