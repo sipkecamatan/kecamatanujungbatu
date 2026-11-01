@@ -388,9 +388,8 @@ export async function downloadKelasExcel({ classId, classLabel, config, btn }) {
 
         const sheets = buildWaliSheetsMonthly({ students, scheduleRows, monthlyMap, className: classLabel, academicYear });
         const wb     = XLSX.utils.book_new();
-        const prefix = classLabel.slice(0, 24);
         for (const { name, ws } of sheets)
-            XLSX.utils.book_append_sheet(wb, ws, name === 'RINGKASAN' ? 'RINGKASAN' : `${prefix} ${name}`.slice(0, 31));
+            XLSX.utils.book_append_sheet(wb, ws, name);
 
         const safeName = classLabel.replace(/\s+/g, '_').slice(0, 40);
         const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
