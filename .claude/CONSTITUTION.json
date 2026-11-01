@@ -710,9 +710,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "d68ba14",
-    "migrasi_terpasang_sampai": "20261101050000",
-    "main_sha": "d68ba14",
-    "_catatan_push": "fix(excel): kaprodi unduh Excel ringkasan 1 sheet seperti Waka"
+    "last_session_commit": "7a6fc31",
+    "migrasi_terpasang_sampai": "20261101060000",
+    "main_sha": "7a6fc31",
+    "_catatan_push": "fix(ui): tombol Filter & Unduh Excel ke baris tersendiri di HP"
   }
 }
