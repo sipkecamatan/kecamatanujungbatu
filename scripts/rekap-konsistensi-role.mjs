@@ -2,18 +2,15 @@
  * Verifikasi konsistensi data website == data Excel untuk setiap role.
  * Jalankan: node scripts/rekap-konsistensi-role.mjs
  *
- * Prinsip: Excel dan website sama-sama memanggil pivot yang sama.
- * Script ini membuktikan bahwa pivot itu benar untuk setiap jalur role:
+ * Pendekatan efisien: GROUP BY class_id / teacher_id dalam satu query per bulan,
+ * bukan loop per kelas/per guru — total ~15 query per sekolah, bukan ratusan.
  *
- *   R1 — WALI KELAS  : 12×bulan = full tahun, untuk SEMUA kelas (bukan hanya 1)
- *   R2 — GURU        : pivot berfilter teacher_id → 12×bulan = full tahun per guru
+ *   R1 — WALI KELAS  : 12×bulan = full tahun, semua kelas (1 query/bulan GROUP BY class)
+ *   R2 — GURU        : 12×bulan = full tahun, semua guru (1 query/bulan GROUP BY teacher)
  *   R3 — KAPRODI     : sum per-kelas dalam program = total program (SMK)
- *   R4 — WAKA        : sum per-kelas = total sekolah (semua sekolah)
- *   R5 — BK          : per-siswa di semua kelas ≤ total kelas (semua sekolah)
- *   R6 — TU          : sum per-kelas school-wide = total sekolah (identik R4, path berbeda)
- *   R7 — WAKASEK SMP : sum per-program (jenjang SMP tidak ada program) = total sekolah
- *
- * Menggunakan Management API (SQL langsung) karena service key tidak bisa set auth.uid().
+ *   R4 — WAKA + R6 TU: sum per-kelas = total sekolah
+ *   R5 — BK          : tidak ada siswa orphan (absensi tapi tidak terdaftar di kelas)
+ *   R7 — WAKASEK SMP : 12×bulan = full tahun school-wide
  */
 
 import fs from 'fs';
@@ -30,8 +27,8 @@ if (!MGMT_TOKEN || !PROJECT_REF) {
     process.exit(1);
 }
 
-const now   = new Date();
-const tahun = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+const now    = new Date();
+const tahun  = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
 const P_FROM = `${tahun}-07-01`;
 const P_TO   = `${tahun + 1}-06-30`;
 const MONTHS = Array.from({ length: 12 }, (_, m) => {
@@ -56,13 +53,13 @@ async function sql(query) {
 }
 
 function log(check, label, status, pesan) {
-    const ikon = { PASS: '✓', FAIL: '✗', ERR: '!', SKIP: '-' }[status] || '?';
+    const ikon = { PASS: '✓', FAIL: '✗', ERR: '!', SKIP: '-', INFO: 'i' }[status] || '?';
     const line = `  [${ikon}] ${check} | ${label} | ${pesan}`;
     console.log(line);
     hasil.push({ check, label, status, pesan });
 }
 
-/** CTE pivot standar: status terburuk per (siswa × kelas × block_group_id) */
+/** CTE pivot: GROUP BY (student, class, block_group), optional teacher filter */
 function cte(school_id, from, to, teacherFilter = '') {
     return `
     WITH att_pivot AS (
@@ -86,278 +83,338 @@ function cte(school_id, from, to, teacherFilter = '') {
     )`;
 }
 
-function totHSIA(rows) {
-    return rows.reduce((s, r) => ({
-        H: s.H + (+r.hadir||0), S: s.S + (+r.sakit||0),
-        I: s.I + (+r.izin||0),  A: s.A + (+r.alpa||0),
-    }), { H: 0, S: 0, I: 0, A: 0 });
+/** Agregasi H/S/I/A GROUP BY key (class_id atau scheduled_teacher_id) */
+function aggrByKey(key) {
+    return `
+    SELECT ${key} AS grp_key,
+      COUNT(*) FILTER (WHERE status='HADIR')::int hadir,
+      COUNT(*) FILTER (WHERE status='SAKIT')::int sakit,
+      COUNT(*) FILTER (WHERE status='IZIN') ::int izin,
+      COUNT(*) FILTER (WHERE status='ALPA') ::int alpa
+    FROM att_pivot GROUP BY ${key}`;
 }
-function eqHSIA(a, b) { return a.H===b.H && a.S===b.S && a.I===b.I && a.A===b.A; }
-function fmtT(t) { return `H:${t.H} S:${t.S} I:${t.I} A:${t.A}`; }
+
+/** Bandingkan dua Map<grp_key, {H,S,I,A}>: kembalikan list mismatch */
+function diffMaps(m12, mFull) {
+    const keys = new Set([...m12.keys(), ...mFull.keys()]);
+    const mismatches = [];
+    for (const k of keys) {
+        const a = m12.get(k)   ?? { H:0, S:0, I:0, A:0 };
+        const b = mFull.get(k) ?? { H:0, S:0, I:0, A:0 };
+        if (a.H!==b.H || a.S!==b.S || a.I!==b.I || a.A!==b.A)
+            mismatches.push({ k, a, b });
+    }
+    return mismatches;
+}
+
+function toMap(rows, keyField) {
+    const m = new Map();
+    for (const r of rows)
+        m.set(r.grp_key ?? r[keyField], { H:+r.hadir, S:+r.sakit, I:+r.izin, A:+r.alpa });
+    return m;
+}
+
+function fmtMM(mm) {
+    return mm.slice(0,3).map(m => `${m.k.slice(0,8)}: 12bln(H${m.a.H}) ≠ full(H${m.b.H})`).join('; ')
+        + (mm.length > 3 ? ` …+${mm.length-3}` : '');
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// R1 — WALI KELAS: 12×bulan = full tahun untuk SETIAP kelas yang ada data
+// R1 — WALI KELAS: 12×bulan = full tahun, GROUP BY class_id (1 query/bulan)
 // ─────────────────────────────────────────────────────────────────────────────
 async function r1WaliKelas(school_id, school_name) {
-    const label = `${school_name}`;
     try {
-        const kelas = await sql(`
-            SELECT DISTINCT ts.class_id, c.name
-            FROM attendance a
-            JOIN teaching_schedules ts ON ts.schedule_id = a.schedule_id
-            JOIN classes c ON c.class_id = ts.class_id
-            WHERE a.school_id = '${school_id}' AND a.is_void = false AND a.status IS NOT NULL
-            ORDER BY c.name
-        `);
-        if (!kelas.length) { log('R1-wali', label, 'SKIP', 'tidak ada data absensi'); return; }
-
-        let fail = 0, total = kelas.length;
-        for (const k of kelas) {
-            // 12×bulan
-            const bulanRows = await Promise.all(MONTHS.map(m => sql(`
-                ${cte(school_id, m.from, m.to)}
-                SELECT COUNT(*) FILTER (WHERE status='HADIR')::int hadir,
-                       COUNT(*) FILTER (WHERE status='SAKIT')::int sakit,
-                       COUNT(*) FILTER (WHERE status='IZIN') ::int izin,
-                       COUNT(*) FILTER (WHERE status='ALPA') ::int alpa
-                FROM att_pivot WHERE class_id = '${k.class_id}'
-            `)));
-            const tot12 = totHSIA(bulanRows.flat());
-
-            // Full tahun
-            const [full] = await sql(`
-                ${cte(school_id, P_FROM, P_TO)}
-                SELECT COUNT(*) FILTER (WHERE status='HADIR')::int hadir,
-                       COUNT(*) FILTER (WHERE status='SAKIT')::int sakit,
-                       COUNT(*) FILTER (WHERE status='IZIN') ::int izin,
-                       COUNT(*) FILTER (WHERE status='ALPA') ::int alpa
-                FROM att_pivot WHERE class_id = '${k.class_id}'
-            `);
-            const totFull = { H:+full.hadir, S:+full.sakit, I:+full.izin, A:+full.alpa };
-
-            if (!eqHSIA(tot12, totFull)) {
-                fail++;
-                log('R1-wali', `${label} / ${k.name}`, 'FAIL', `12bln≠tahun: 12bln=${fmtT(tot12)} tahun=${fmtT(totFull)}`);
+        // 12 query bulanan + 1 full year, berurutan (bukan paralel) untuk hindari rate limit
+        const map12 = new Map(); // class_id → {H,S,I,A} akumulasi 12 bulan
+        for (const m of MONTHS) {
+            const rows = await sql(`${cte(school_id, m.from, m.to)} ${aggrByKey('class_id')}`);
+            for (const r of rows) {
+                const prev = map12.get(r.grp_key) ?? { H:0, S:0, I:0, A:0 };
+                map12.set(r.grp_key, { H: prev.H+(+r.hadir), S: prev.S+(+r.sakit), I: prev.I+(+r.izin), A: prev.A+(+r.alpa) });
             }
-            await sleep(800);
+            await sleep(2500);
         }
-        if (fail === 0)
-            log('R1-wali', label, 'PASS', `${total} kelas: 12×bulan = full tahun semua ✓`);
-    } catch(e) { log('R1-wali', label, 'ERR', e.message); }
+        const fullRows = await sql(`${cte(school_id, P_FROM, P_TO)} ${aggrByKey('class_id')}`);
+        const mapFull  = toMap(fullRows, 'grp_key');
+        await sleep(2500);
+
+        if (map12.size === 0) { log('R1-wali', school_name, 'SKIP', 'tidak ada data absensi'); return; }
+        const mm = diffMaps(map12, mapFull);
+        if (mm.length === 0)
+            log('R1-wali', school_name, 'PASS', `${map12.size} kelas: 12×bulan = full tahun ✓`);
+        else
+            log('R1-wali', school_name, 'FAIL', `${mm.length} kelas tidak cocok: ${fmtMM(mm)}`);
+    } catch(e) { log('R1-wali', school_name, 'ERR', e.message); }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// R2 — GURU: pivot berfilter teacher_id → 12×bulan = full tahun, per guru unik
+// R2 — GURU: 12×bulan = full tahun, GROUP BY teacher_id (1 query/bulan)
 // ─────────────────────────────────────────────────────────────────────────────
 async function r2Guru(school_id, school_name) {
-    const label = school_name;
     try {
-        const gurus = await sql(`
-            SELECT DISTINCT ts.scheduled_teacher_id as uid, u.full_name
-            FROM attendance a
-            JOIN teaching_schedules ts ON ts.schedule_id = a.schedule_id
-            JOIN users u ON u.user_id = ts.scheduled_teacher_id
-            WHERE a.school_id = '${school_id}' AND a.is_void = false AND a.status IS NOT NULL
-            ORDER BY u.full_name
-        `);
-        if (!gurus.length) { log('R2-guru', label, 'SKIP', 'tidak ada guru dengan data'); return; }
-
-        let fail = 0;
-        for (const g of gurus) {
-            const tf = `AND ts.scheduled_teacher_id = '${g.uid}'`;
-            const bulanRows = await Promise.all(MONTHS.map(m => sql(`
-                ${cte(school_id, m.from, m.to, tf)}
-                SELECT COUNT(*) FILTER (WHERE status='HADIR')::int hadir,
-                       COUNT(*) FILTER (WHERE status='SAKIT')::int sakit,
-                       COUNT(*) FILTER (WHERE status='IZIN') ::int izin,
-                       COUNT(*) FILTER (WHERE status='ALPA') ::int alpa
-                FROM att_pivot
-            `)));
-            const tot12 = totHSIA(bulanRows.flat());
-
-            const [full] = await sql(`
-                ${cte(school_id, P_FROM, P_TO, tf)}
-                SELECT COUNT(*) FILTER (WHERE status='HADIR')::int hadir,
-                       COUNT(*) FILTER (WHERE status='SAKIT')::int sakit,
-                       COUNT(*) FILTER (WHERE status='IZIN') ::int izin,
-                       COUNT(*) FILTER (WHERE status='ALPA') ::int alpa
-                FROM att_pivot
-            `);
-            const totFull = { H:+full.hadir, S:+full.sakit, I:+full.izin, A:+full.alpa };
-
-            if (!eqHSIA(tot12, totFull)) {
-                fail++;
-                log('R2-guru', `${label} / ${g.full_name}`, 'FAIL', `12bln≠tahun: ${fmtT(tot12)} ≠ ${fmtT(totFull)}`);
+        const map12 = new Map();
+        for (const m of MONTHS) {
+            const rows = await sql(`${cte(school_id, m.from, m.to)} ${aggrByKey('scheduled_teacher_id')}`);
+            for (const r of rows) {
+                const prev = map12.get(r.grp_key) ?? { H:0, S:0, I:0, A:0 };
+                map12.set(r.grp_key, { H: prev.H+(+r.hadir), S: prev.S+(+r.sakit), I: prev.I+(+r.izin), A: prev.A+(+r.alpa) });
             }
-            await sleep(800);
+            await sleep(2500);
         }
-        if (fail === 0)
-            log('R2-guru', label, 'PASS', `${gurus.length} guru: 12×bulan = full tahun semua ✓`);
-    } catch(e) { log('R2-guru', label, 'ERR', e.message); }
+        const fullRows = await sql(`${cte(school_id, P_FROM, P_TO)} ${aggrByKey('scheduled_teacher_id')}`);
+        const mapFull  = toMap(fullRows, 'grp_key');
+        await sleep(2500);
+
+        if (map12.size === 0) { log('R2-guru', school_name, 'SKIP', 'tidak ada data'); return; }
+        const mm = diffMaps(map12, mapFull);
+        if (mm.length === 0)
+            log('R2-guru', school_name, 'PASS', `${map12.size} guru: 12×bulan = full tahun ✓`);
+        else
+            log('R2-guru', school_name, 'FAIL', `${mm.length} guru tidak cocok: ${fmtMM(mm)}`);
+    } catch(e) { log('R2-guru', school_name, 'ERR', e.message); }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// R3 — KAPRODI (SMK): sum kelas per-program = total program
+// R3 — KAPRODI: sum per-kelas per-program = total program (SMK)
 // ─────────────────────────────────────────────────────────────────────────────
 async function r3Kaprodi(school_id, school_name) {
-    const label = school_name;
     try {
-        // Ambil program_id → class_id dari tabel programs + classes (SMK punya kolom program_id di classes)
-        const programs = await sql(`
-            SELECT p.program_id, p.name as prog_name, array_agg(c.class_id) as class_ids
-            FROM programs p
-            JOIN classes c ON c.program_id = p.program_id AND c.school_id = '${school_id}'
-            WHERE p.school_id = '${school_id}'
-            GROUP BY p.program_id, p.name
+        // class_id → program_id
+        const clsProg = await sql(`
+            SELECT c.class_id, c.program_id
+            FROM classes c WHERE c.school_id = '${school_id}' AND c.program_id IS NOT NULL
         `);
-        if (!programs.length) { log('R3-kaprodi', label, 'SKIP', 'tidak ada program (bukan SMK?)'); return; }
+        if (!clsProg.length) { log('R3-kaprodi', school_name, 'SKIP', 'tidak ada program'); return; }
+        await sleep(2000);
 
-        let fail = 0;
-        for (const prog of programs) {
-            const ids = prog.class_ids;
-            if (!ids || !ids.length) continue;
-            const inClause = ids.map(id => `'${id}'`).join(',');
+        // pivot full year GROUP BY class_id
+        const clsRows = await sql(`${cte(school_id, P_FROM, P_TO)} ${aggrByKey('class_id')}`);
+        await sleep(2000);
 
-            // Path A: sum per-kelas
-            const perKelas = await sql(`
-                ${cte(school_id, P_FROM, P_TO)}
+        // akumulasi per program dari class rows
+        const progMap = new Map(); // program_id → {H,S,I,A}
+        const clsMap  = new Map(clsRows.map(r => [r.grp_key, { H:+r.hadir, S:+r.sakit, I:+r.izin, A:+r.alpa }]));
+        for (const { class_id, program_id } of clsProg) {
+            const c = clsMap.get(class_id) ?? { H:0, S:0, I:0, A:0 };
+            const p = progMap.get(program_id) ?? { H:0, S:0, I:0, A:0 };
+            progMap.set(program_id, { H: p.H+c.H, S: p.S+c.S, I: p.I+c.I, A: p.A+c.A });
+        }
+
+        // pivot full year GROUP BY program (via JOIN classes)
+        const progRows = await sql(`
+            ${cte(school_id, P_FROM, P_TO)}
+            SELECT c.program_id AS grp_key,
+              COUNT(*) FILTER (WHERE ap.status='HADIR')::int hadir,
+              COUNT(*) FILTER (WHERE ap.status='SAKIT')::int sakit,
+              COUNT(*) FILTER (WHERE ap.status='IZIN') ::int izin,
+              COUNT(*) FILTER (WHERE ap.status='ALPA') ::int alpa
+            FROM att_pivot ap
+            JOIN classes c ON c.class_id = ap.class_id
+            WHERE c.program_id IS NOT NULL
+            GROUP BY c.program_id
+        `);
+        await sleep(2000);
+        const progDirect = toMap(progRows, 'grp_key');
+
+        const mm = diffMaps(progMap, progDirect);
+        if (mm.length === 0)
+            log('R3-kaprodi', school_name, 'PASS', `${progMap.size} program: sum-per-kelas = total-program ✓`);
+        else
+            log('R3-kaprodi', school_name, 'FAIL', `${mm.length} program tidak cocok: ${fmtMM(mm)}`);
+    } catch(e) { log('R3-kaprodi', school_name, 'ERR', e.message); }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// R4 + R6 — WAKA + TU: sum per-kelas = total sekolah (2 query)
+// ─────────────────────────────────────────────────────────────────────────────
+async function r4WakaTU(school_id, school_name) {
+    try {
+        const [perKelas, total] = await Promise.all([
+            sql(`${cte(school_id, P_FROM, P_TO)}
                 SELECT SUM(h)::int hadir, SUM(s)::int sakit, SUM(i)::int izin, SUM(a)::int alpa
-                FROM (
-                  SELECT class_id,
+                FROM (SELECT class_id,
                     COUNT(*) FILTER (WHERE status='HADIR') h, COUNT(*) FILTER (WHERE status='SAKIT') s,
                     COUNT(*) FILTER (WHERE status='IZIN')  i, COUNT(*) FILTER (WHERE status='ALPA')  a
-                  FROM att_pivot WHERE class_id = ANY(ARRAY[${inClause}]::uuid[])
-                  GROUP BY class_id
-                ) x
-            `);
-            // Path B: langsung total program
-            const totalProg = await sql(`
-                ${cte(school_id, P_FROM, P_TO)}
+                  FROM att_pivot GROUP BY class_id) x`),
+            sql(`${cte(school_id, P_FROM, P_TO)}
                 SELECT COUNT(*) FILTER (WHERE status='HADIR')::int hadir,
                        COUNT(*) FILTER (WHERE status='SAKIT')::int sakit,
                        COUNT(*) FILTER (WHERE status='IZIN') ::int izin,
                        COUNT(*) FILTER (WHERE status='ALPA') ::int alpa
-                FROM att_pivot WHERE class_id = ANY(ARRAY[${inClause}]::uuid[])
-            `);
-
-            const tA = totHSIA(perKelas);
-            const tB = totHSIA(totalProg);
-            if (!eqHSIA(tA, tB)) {
-                fail++;
-                log('R3-kaprodi', `${label} / ${prog.prog_name}`, 'FAIL', `per-kelas≠total: ${fmtT(tA)} ≠ ${fmtT(tB)}`);
-            }
-            await sleep(600);
-        }
-        if (fail === 0)
-            log('R3-kaprodi', label, 'PASS', `${programs.length} program: sum-per-kelas = total-program semua ✓`);
-    } catch(e) { log('R3-kaprodi', label, 'ERR', e.message); }
+                FROM att_pivot`),
+        ]);
+        await sleep(2500);
+        const a = perKelas[0], b = total[0];
+        if (!a || !b) { log('R4-waka', school_name, 'SKIP', 'tidak ada data'); log('R6-tu', school_name, 'SKIP', 'tidak ada data'); return; }
+        const ok = +a.hadir===+b.hadir && +a.sakit===+b.sakit && +a.izin===+b.izin && +a.alpa===+b.alpa;
+        const st = ok ? 'PASS' : 'FAIL';
+        const msg = ok ? `sum-per-kelas = total-sekolah ✓` : `MISMATCH: kelas(H${a.hadir}) ≠ total(H${b.hadir})`;
+        log('R4-waka', school_name, st, msg);
+        log('R6-tu',   school_name, st, msg);
+    } catch(e) { log('R4-waka', school_name, 'ERR', e.message); log('R6-tu', school_name, 'ERR', e.message); }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// R4 — WAKA KESISWAAN: sum per-kelas = total sekolah (view waka)
-// R6 — TU           : sama, tapi via jalur berbeda (tanpa filter program)
-// Keduanya identik secara SQL — perbedaan hanya di UI (kolom yang tampil)
-// ─────────────────────────────────────────────────────────────────────────────
-async function r4WakaTU(school_id, school_name) {
-    const label = school_name;
-    try {
-        // Path A: sum per-kelas
-        const perKelas = await sql(`
-            ${cte(school_id, P_FROM, P_TO)}
-            SELECT SUM(h)::int hadir, SUM(s)::int sakit, SUM(i)::int izin, SUM(a)::int alpa
-            FROM (
-              SELECT class_id,
-                COUNT(*) FILTER (WHERE status='HADIR') h, COUNT(*) FILTER (WHERE status='SAKIT') s,
-                COUNT(*) FILTER (WHERE status='IZIN')  i, COUNT(*) FILTER (WHERE status='ALPA')  a
-              FROM att_pivot GROUP BY class_id
-            ) x
-        `);
-        // Path B: total sekolah langsung
-        const totalSch = await sql(`
-            ${cte(school_id, P_FROM, P_TO)}
-            SELECT COUNT(*) FILTER (WHERE status='HADIR')::int hadir,
-                   COUNT(*) FILTER (WHERE status='SAKIT')::int sakit,
-                   COUNT(*) FILTER (WHERE status='IZIN') ::int izin,
-                   COUNT(*) FILTER (WHERE status='ALPA') ::int alpa
-            FROM att_pivot
-        `);
-
-        const tA = totHSIA(perKelas);
-        const tB = totHSIA(totalSch);
-
-        if (eqHSIA(tA, tB)) {
-            log('R4-waka', label, 'PASS', `sum-per-kelas = total-sekolah — ${fmtT(tB)} ✓`);
-            log('R6-tu',   label, 'PASS', `sum-per-kelas = total-sekolah (TU jalur sama) — ${fmtT(tB)} ✓`);
-        } else {
-            log('R4-waka', label, 'FAIL', `${fmtT(tA)} ≠ ${fmtT(tB)}`);
-            log('R6-tu',   label, 'FAIL', `${fmtT(tA)} ≠ ${fmtT(tB)}`);
-        }
-    } catch(e) {
-        log('R4-waka', label, 'ERR', e.message);
-        log('R6-tu',   label, 'ERR', e.message);
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// R5 — BK: per-siswa di setiap kelas ≤ total kelas, tidak ada siswa orphan
+// R5 — BK: tidak ada siswa orphan (1 query)
 // ─────────────────────────────────────────────────────────────────────────────
 async function r5BK(school_id, school_name) {
-    const label = school_name;
     try {
-        // Cek apakah ada attendance dari siswa yang tidak terdaftar di kelas itu (orphan)
-        const orphans = await sql(`
+        const rows = await sql(`
             ${cte(school_id, P_FROM, P_TO)}
-            SELECT ap.class_id, c.name as class_name, COUNT(*) as n_orphan
+            SELECT COUNT(*) AS n_orphan
             FROM att_pivot ap
-            JOIN classes c ON c.class_id = ap.class_id
             LEFT JOIN class_enrollments ce
                    ON ce.student_id = ap.student_id AND ce.class_id = ap.class_id
             WHERE ce.enrollment_id IS NULL
-            GROUP BY ap.class_id, c.name
-            ORDER BY c.name
         `);
-
-        if (orphans.length === 0) {
-            log('R5-bk', label, 'PASS', 'tidak ada siswa orphan (semua absensi terikat ke kelas yang benar) ✓');
-        } else {
-            for (const o of orphans)
-                log('R5-bk', `${label}/${o.class_name}`, 'FAIL', `${o.n_orphan} baris absensi siswa tidak terdaftar di kelas`);
-        }
-    } catch(e) { log('R5-bk', label, 'ERR', e.message); }
+        await sleep(2000);
+        const n = +(rows[0]?.n_orphan ?? 0);
+        if (n === 0)
+            log('R5-bk', school_name, 'PASS', 'tidak ada siswa orphan ✓');
+        else
+            log('R5-bk', school_name, 'FAIL', `${n} baris absensi siswa tidak terdaftar di kelasnya`);
+    } catch(e) { log('R5-bk', school_name, 'ERR', e.message); }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// R7 — WAKASEK SMP: verifikasi school-wide per-bulan = full tahun
-// (Wakasek SMP melihat rekap sekolah, mirip Waka Kesiswaan SMA/SMK)
+// R7 — WAKASEK SMP: 12×bulan = full tahun school-wide (13 query, berurutan)
 // ─────────────────────────────────────────────────────────────────────────────
 async function r7Wakasek(school_id, school_name) {
-    const label = school_name;
     try {
-        const bulanRows = await Promise.all(MONTHS.map(m => sql(`
-            ${cte(school_id, m.from, m.to)}
+        let tot12 = { H:0, S:0, I:0, A:0 };
+        for (const m of MONTHS) {
+            const [r] = await sql(`${cte(school_id, m.from, m.to)}
+                SELECT COUNT(*) FILTER (WHERE status='HADIR')::int hadir,
+                       COUNT(*) FILTER (WHERE status='SAKIT')::int sakit,
+                       COUNT(*) FILTER (WHERE status='IZIN') ::int izin,
+                       COUNT(*) FILTER (WHERE status='ALPA') ::int alpa
+                FROM att_pivot`);
+            tot12 = { H: tot12.H+(+r?.hadir||0), S: tot12.S+(+r?.sakit||0), I: tot12.I+(+r?.izin||0), A: tot12.A+(+r?.alpa||0) };
+            await sleep(2500);
+        }
+        const [full] = await sql(`${cte(school_id, P_FROM, P_TO)}
             SELECT COUNT(*) FILTER (WHERE status='HADIR')::int hadir,
                    COUNT(*) FILTER (WHERE status='SAKIT')::int sakit,
                    COUNT(*) FILTER (WHERE status='IZIN') ::int izin,
                    COUNT(*) FILTER (WHERE status='ALPA') ::int alpa
-            FROM att_pivot
-        `)));
-        const tot12 = totHSIA(bulanRows.flat());
-
-        const [full] = await sql(`
-            ${cte(school_id, P_FROM, P_TO)}
-            SELECT COUNT(*) FILTER (WHERE status='HADIR')::int hadir,
-                   COUNT(*) FILTER (WHERE status='SAKIT')::int sakit,
-                   COUNT(*) FILTER (WHERE status='IZIN') ::int izin,
-                   COUNT(*) FILTER (WHERE status='ALPA') ::int alpa
-            FROM att_pivot
-        `);
-        const totFull = { H:+full.hadir, S:+full.sakit, I:+full.izin, A:+full.alpa };
-
-        if (eqHSIA(tot12, totFull))
-            log('R7-wakasek', label, 'PASS', `12×bulan = full tahun school-wide — ${fmtT(totFull)} ✓`);
+            FROM att_pivot`);
+        await sleep(2500);
+        const totF = { H:+full.hadir, S:+full.sakit, I:+full.izin, A:+full.alpa };
+        if (tot12.H===totF.H && tot12.S===totF.S && tot12.I===totF.I && tot12.A===totF.A)
+            log('R7-wakasek', school_name, 'PASS', `12×bulan = full tahun school-wide ✓`);
         else
-            log('R7-wakasek', label, 'FAIL', `12bln=${fmtT(tot12)} ≠ tahun=${fmtT(totFull)}`);
-    } catch(e) { log('R7-wakasek', label, 'ERR', e.message); }
+            log('R7-wakasek', school_name, 'FAIL', `12bln(H${tot12.H}) ≠ full(H${totF.H})`);
+    } catch(e) { log('R7-wakasek', school_name, 'ERR', e.message); }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// R8 — KELENGKAPAN KELAS GURU: kelas yang diajar tapi nol absensi = tidak
+//      muncul di sheet bulanan Excel guru (hanya muncul di RINGKASAN jika ada)
+// ─────────────────────────────────────────────────────────────────────────────
+async function r8KelengkapanKelasGuru(school_id, school_name) {
+    try {
+        // Semua pasangan (guru, kelas) yang punya jadwal di tahun ini
+        const scheduled = await sql(`
+            SELECT ts.scheduled_teacher_id AS teacher_id,
+                   ts.class_id,
+                   c.name AS class_name,
+                   u.full_name AS teacher_name,
+                   COUNT(DISTINCT ts.block_group_id) AS n_sesi
+            FROM teaching_schedules ts
+            JOIN classes c ON c.class_id = ts.class_id
+            JOIN users u ON u.user_id = ts.scheduled_teacher_id
+            WHERE ts.school_id = '${school_id}'
+              AND ts.session_date BETWEEN '${P_FROM}'::date AND '${P_TO}'::date
+            GROUP BY ts.scheduled_teacher_id, ts.class_id, c.name, u.full_name
+        `);
+        await sleep(2500);
+        if (!scheduled.length) { log('R8-kelas-guru', school_name, 'SKIP', 'tidak ada jadwal'); return; }
+
+        // Pasangan (guru, kelas) yang punya minimal 1 baris absensi
+        const hasAtt = await sql(`
+            SELECT DISTINCT ts.scheduled_teacher_id AS teacher_id, ts.class_id
+            FROM attendance a
+            JOIN teaching_schedules ts ON ts.schedule_id = a.schedule_id
+            WHERE a.school_id = '${school_id}'
+              AND ts.session_date BETWEEN '${P_FROM}'::date AND '${P_TO}'::date
+              AND a.is_void = false AND a.status IS NOT NULL
+        `);
+        await sleep(2500);
+
+        const attSet = new Set(hasAtt.map(r => `${r.teacher_id}|${r.class_id}`));
+        const missing = scheduled.filter(r => !attSet.has(`${r.teacher_id}|${r.class_id}`));
+
+        const nTotal   = scheduled.length;
+        const nMissing = missing.length;
+        const nOk      = nTotal - nMissing;
+
+        if (nMissing === 0) {
+            log('R8-kelas-guru', school_name, 'PASS',
+                `semua ${nTotal} pasangan (guru×kelas) punya absensi → semua muncul di Excel ✓`);
+        } else {
+            // Kelompokkan per guru untuk laporan ringkas
+            const byGuru = {};
+            for (const r of missing) {
+                if (!byGuru[r.teacher_name]) byGuru[r.teacher_name] = [];
+                byGuru[r.teacher_name].push(`${r.class_name}(${r.n_sesi}sesi)`);
+            }
+            const ringkas = Object.entries(byGuru).slice(0, 3)
+                .map(([g, cls]) => `${g}: ${cls.join(', ')}`).join(' | ');
+            log('R8-kelas-guru', school_name, 'INFO',
+                `${nMissing}/${nTotal} pasangan tanpa absensi → tidak muncul di sheet bulanan Excel. ${nOk} pasangan ✓. Contoh: ${ringkas}`);
+        }
+    } catch(e) { log('R8-kelas-guru', school_name, 'ERR', e.message); }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// R9 — KELENGKAPAN SISWA: siswa terdaftar di kelas tapi nol absensi = tidak
+//      muncul di Excel wali/guru (hanya muncul jika fn_class_attendance_summary
+//      mengembalikan baris dengan hadir=0/sakit=0 — tergantung implementasi)
+// ─────────────────────────────────────────────────────────────────────────────
+async function r9KelengkapanSiswa(school_id, school_name) {
+    try {
+        // Siswa terdaftar di kelas yang punya jadwal tahun ini
+        const enrolled = await sql(`
+            SELECT ce.class_id, COUNT(DISTINCT ce.student_id) AS n_enrolled
+            FROM class_enrollments ce
+            JOIN classes c ON c.class_id = ce.class_id
+            WHERE c.school_id = '${school_id}'
+            GROUP BY ce.class_id
+        `);
+        await sleep(2500);
+        if (!enrolled.length) { log('R9-siswa', school_name, 'SKIP', 'tidak ada enrollment'); return; }
+
+        // Siswa yang punya minimal 1 absensi di kelas yang sama
+        const hasAtt = await sql(`
+            SELECT ts.class_id, COUNT(DISTINCT a.student_id) AS n_hadir
+            FROM attendance a
+            JOIN teaching_schedules ts ON ts.schedule_id = a.schedule_id
+            WHERE a.school_id = '${school_id}'
+              AND ts.session_date BETWEEN '${P_FROM}'::date AND '${P_TO}'::date
+              AND a.is_void = false AND a.status IS NOT NULL
+            GROUP BY ts.class_id
+        `);
+        await sleep(2500);
+
+        const attMap = new Map(hasAtt.map(r => [r.class_id, +r.n_hadir]));
+        let nKelasOk = 0, nKelasMissing = 0, totalMissing = 0;
+
+        for (const e of enrolled) {
+            const nEnr  = +e.n_enrolled;
+            const nAtt  = attMap.get(e.class_id) ?? 0;
+            const delta = nEnr - nAtt;
+            if (delta > 0) { nKelasMissing++; totalMissing += delta; }
+            else nKelasOk++;
+        }
+
+        if (nKelasMissing === 0) {
+            log('R9-siswa', school_name, 'PASS',
+                `semua siswa di ${nKelasOk} kelas punya absensi → semua muncul di Excel ✓`);
+        } else {
+            log('R9-siswa', school_name, 'INFO',
+                `${totalMissing} siswa di ${nKelasMissing} kelas belum punya absensi → tidak muncul di Excel. ${nKelasOk} kelas ✓`);
+        }
+    } catch(e) { log('R9-siswa', school_name, 'ERR', e.message); }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -365,54 +422,55 @@ async function r7Wakasek(school_id, school_name) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function main() {
     console.log('=== Rekap Konsistensi per Role (Website == Excel) ===');
-    console.log(`Tahun ajaran: ${P_FROM} s/d ${P_TO}\n`);
+    console.log(`Tahun ajaran: ${P_FROM} s/d ${P_TO}`);
+    console.log('Catatan: jeda 2.5 detik antar query untuk hindari rate limit Management API\n');
 
-    // Ambil semua sekolah dari database
-    const res = await fetch(
-        `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
-        { method:'POST', headers:{ Authorization:`Bearer ${MGMT_TOKEN}`, 'Content-Type':'application/json' },
-          body: JSON.stringify({ query: `SELECT school_id, name, jenjang FROM schools ORDER BY jenjang, name` }) }
-    );
-    const schools = await res.json();
+    const schoolRows = await sql(`SELECT school_id, name, jenjang FROM schools ORDER BY jenjang, name`);
+    await sleep(2000);
 
-    const smpList = schools.filter(s => s.jenjang === 'SMP');
-    const smaList = schools.filter(s => s.jenjang === 'SMA');
-    const smkList = schools.filter(s => s.jenjang === 'SMK');
+    const smpList = schoolRows.filter(s => s.jenjang === 'SMP');
+    const smkList = schoolRows.filter(s => s.jenjang === 'SMK');
 
-    // R1 — WALI KELAS (semua sekolah, semua kelas)
+    const label = s => `${s.jenjang} ${s.name}`;
+
     console.log('\n── R1 WALI KELAS: 12×bulan = full tahun per kelas ──');
-    for (const s of schools) { await r1WaliKelas(s.school_id, `${s.jenjang} ${s.name}`); await sleep(1000); }
+    for (const s of schoolRows) { await r1WaliKelas(s.school_id, label(s)); await sleep(3000); }
 
-    // R2 — GURU (semua sekolah)
-    console.log('\n── R2 GURU: filter teacher_id, 12×bulan = full tahun per guru ──');
-    for (const s of schools) { await r2Guru(s.school_id, `${s.jenjang} ${s.name}`); await sleep(1000); }
+    console.log('\n── R2 GURU: filter teacher_id, 12×bulan = full tahun ──');
+    for (const s of schoolRows) { await r2Guru(s.school_id, label(s)); await sleep(3000); }
 
-    // R3 — KAPRODI (SMK saja)
     console.log('\n── R3 KAPRODI: sum per-kelas = total program (SMK) ──');
-    for (const s of smkList) { await r3Kaprodi(s.school_id, `SMK ${s.name}`); await sleep(1000); }
-    if (!smkList.length) console.log('  (tidak ada sekolah SMK)');
+    for (const s of smkList) { await r3Kaprodi(s.school_id, label(s)); await sleep(3000); }
+    if (!smkList.length) console.log('  (tidak ada SMK)');
 
-    // R4 + R6 — WAKA KESISWAAN + TU (semua sekolah)
-    console.log('\n── R4 WAKA KESISWAAN + R6 TU: sum per-kelas = total sekolah ──');
-    for (const s of schools) { await r4WakaTU(s.school_id, `${s.jenjang} ${s.name}`); await sleep(600); }
+    console.log('\n── R4 WAKA + R6 TU: sum per-kelas = total sekolah ──');
+    for (const s of schoolRows) { await r4WakaTU(s.school_id, label(s)); await sleep(3000); }
 
-    // R5 — BK (semua sekolah)
-    console.log('\n── R5 BK: tidak ada siswa orphan di semua kelas ──');
-    for (const s of schools) { await r5BK(s.school_id, `${s.jenjang} ${s.name}`); await sleep(600); }
+    console.log('\n── R5 BK: tidak ada siswa orphan ──');
+    for (const s of schoolRows) { await r5BK(s.school_id, label(s)); await sleep(3000); }
 
-    // R7 — WAKASEK SMP
     console.log('\n── R7 WAKASEK SMP: 12×bulan = full tahun school-wide ──');
-    for (const s of smpList) { await r7Wakasek(s.school_id, `SMP ${s.name}`); await sleep(600); }
-    if (!smpList.length) console.log('  (tidak ada sekolah SMP)');
+    for (const s of smpList) { await r7Wakasek(s.school_id, label(s)); await sleep(3000); }
+    if (!smpList.length) console.log('  (tidak ada SMP)');
 
-    // Ringkasan
+    console.log('\n── R8 KELENGKAPAN KELAS GURU: kelas tanpa absensi = tidak muncul di sheet bulanan ──');
+    for (const s of schoolRows) { await r8KelengkapanKelasGuru(s.school_id, label(s)); await sleep(3000); }
+
+    console.log('\n── R9 KELENGKAPAN SISWA: siswa tanpa absensi = tidak muncul di Excel ──');
+    for (const s of schoolRows) { await r9KelengkapanSiswa(s.school_id, label(s)); await sleep(3000); }
+
     const pass = hasil.filter(r => r.status === 'PASS').length;
     const fail = hasil.filter(r => r.status === 'FAIL').length;
+    const info = hasil.filter(r => r.status === 'INFO').length;
     const skip = hasil.filter(r => r.status === 'SKIP').length;
     const err  = hasil.filter(r => r.status === 'ERR').length;
 
     console.log('\n=== RINGKASAN ===');
-    console.log(`PASS: ${pass} | FAIL: ${fail} | SKIP: ${skip} | ERR: ${err}`);
+    console.log(`PASS: ${pass} | FAIL: ${fail} | INFO: ${info} | SKIP: ${skip} | ERR: ${err}`);
+    if (info > 0) {
+        console.log('\nINFO (bukan error — data belum diisi guru/siswa baru):');
+        hasil.filter(r => r.status === 'INFO').forEach(r => console.log(`  [i] ${r.check} (${r.label}): ${r.pesan}`));
+    }
 
     if (fail > 0 || err > 0) {
         console.log('\nPerlu ditindaklanjuti:');
