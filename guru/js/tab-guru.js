@@ -105,12 +105,7 @@ export async function initGuruTab({ currentUser, config, jabatan, LC }) {
     await initObsForm();
     await loadSiswaPerhatian();
 
-    const refreshBtn = document.getElementById('guru-perhatian-refresh');
-    if (refreshBtn && !refreshBtn.dataset.bound) {
-        refreshBtn.dataset.bound = '1';
-        refreshBtn.addEventListener('click', () => loadSiswaPerhatian());
-    }
-    wirePerhatianCollapse('guru-perhatian-card', 'guru-perhatian-refresh');
+    wirePerhatianCollapse('guru-perhatian-card');
 }
 
 

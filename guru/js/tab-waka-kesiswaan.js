@@ -38,12 +38,7 @@ export async function initWakaKesiswaanTab({ config, kasusEngine }) {
     await loadWkLateRecap({ config });
     await _initWakaKesiswaanKasusSection({ makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList });
     loadWkPerhatian({ config });
-    const wkRefBtn = document.getElementById('wk-perhatian-refresh');
-    if (wkRefBtn && !wkRefBtn.dataset.bound) {
-        wkRefBtn.dataset.bound = '1';
-        wkRefBtn.addEventListener('click', () => loadWkPerhatian({ config }));
-    }
-    wirePerhatianCollapse('wk-perhatian-card', 'wk-perhatian-refresh');
+    wirePerhatianCollapse('wk-perhatian-card');
 }
 
 async function loadWkPerhatian({ config }) {

@@ -311,7 +311,7 @@ export function renderPerhatianAccordion(el, classDataList, onExpand = null) {
  * Header (toggle) diklik → body tampil/sembunyi; default tertutup.
  * Klik tombol refresh di dalam header tidak memicu toggle.
  */
-export function wirePerhatianCollapse(cardId, refreshId) {
+export function wirePerhatianCollapse(cardId) {
     const card = document.getElementById(cardId);
     if (!card || card.dataset.pphCollWired) return;
     card.dataset.pphCollWired = '1';
@@ -320,8 +320,7 @@ export function wirePerhatianCollapse(cardId, refreshId) {
     const body   = document.getElementById(base + '-body');
     const caret  = toggle?.querySelector('.pph-sect-caret');
     if (!toggle || !body) return;
-    toggle.addEventListener('click', (e) => {
-        if (refreshId && e.target.closest('#' + refreshId)) return;
+    toggle.addEventListener('click', () => {
         const open = body.style.display !== 'none';
         body.style.display = open ? 'none' : '';
         if (caret) caret.textContent = open ? '▶' : '▼';

@@ -111,12 +111,7 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
     await Promise.all([loadWaliLate({ currentUser }), loadWaliExit({ currentUser })]);
     await loadWaliPerhatian({ classId, config });
 
-    const refreshBtn = document.getElementById('wali-perhatian-refresh');
-    if (refreshBtn && !refreshBtn.dataset.bound) {
-        refreshBtn.dataset.bound = '1';
-        refreshBtn.addEventListener('click', () => loadWaliPerhatian({ classId, config }));
-    }
-    wirePerhatianCollapse('wali-perhatian-card', 'wali-perhatian-refresh');
+    wirePerhatianCollapse('wali-perhatian-card');
 }
 
 async function loadWaliPerhatian({ classId, config }) {

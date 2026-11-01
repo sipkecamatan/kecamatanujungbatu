@@ -30,12 +30,7 @@ export async function initBkTab({ config, kasusEngine }) {
     await loadBkAttendanceRecap({ config });
     await _initBkKasusSection({ makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList });
     loadBkPerhatian({ config });
-    const bkRefBtn = document.getElementById('bk-perhatian-refresh');
-    if (bkRefBtn && !bkRefBtn.dataset.bound) {
-        bkRefBtn.dataset.bound = '1';
-        bkRefBtn.addEventListener('click', () => loadBkPerhatian({ config }));
-    }
-    wirePerhatianCollapse('bk-perhatian-card', 'bk-perhatian-refresh');
+    wirePerhatianCollapse('bk-perhatian-card');
 }
 
 async function loadBkPerhatian({ config }) {

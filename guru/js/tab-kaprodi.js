@@ -95,12 +95,7 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
         await Promise.all([loadKpRecap(), loadKpClsRecap({ config }), loadKpObs(), initKpPlacementForm(programId)]);
         await _initKaprodiKasusSection({ makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList });
         loadKpPerhatian({ programId, config });
-        const kpRefBtn = document.getElementById('kp-perhatian-refresh');
-        if (kpRefBtn && !kpRefBtn.dataset.bound) {
-            kpRefBtn.dataset.bound = '1';
-            kpRefBtn.addEventListener('click', () => loadKpPerhatian({ programId, config }));
-        }
-        wirePerhatianCollapse('kp-perhatian-card', 'kp-perhatian-refresh');
+        wirePerhatianCollapse('kp-perhatian-card');
 
         document.querySelectorAll('#kp-accordion .kp-acc-header').forEach(header => {
             const newHeader = header.cloneNode(true);
