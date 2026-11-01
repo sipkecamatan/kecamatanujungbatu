@@ -645,8 +645,8 @@
     {
       "id": "T001",
       "task": "Audit + perbaiki alur absensi semua rekap",
-      "status": "SELESAI 31 Okt (diperluas)",
-      "catatan": "28 Okt: tab-guru.js pivot ke block_group_id; fn_attendance_recap_per_class; tab-bk.js Level 3; fn_tu_attendance_recap; BK Excel ditambahkan. 31 Okt: MONTHS_RANGE diperluas Jul–Jun (12 bulan) di tab-kaprodi.js sebagai sumber tunggal — sebelumnya Okt–Jun sehingga 75% data Jul-Sep hilang dari semua Excel. BK Excel RINGKASAN disamakan pola Waka Kesiswaan. Tes konsistensi absensi-konsistensi.mjs: 8 PASS 0 FAIL."
+      "status": "SELESAI 1 Nov (verified)",
+      "catatan": "28 Okt: tab-guru.js pivot ke block_group_id; fn_attendance_recap_per_class; tab-bk.js Level 3; fn_tu_attendance_recap; BK Excel ditambahkan. 31 Okt: MONTHS_RANGE diperluas Jul–Jun (12 bulan). 1 Nov: absensi-konsistensi.mjs 16/16 PASS (SMK+SMA+SMP) — alur data hulu-hilir terbukti konsisten. fn_tu_attendance_recap overload 3-param dihapus via migration 20261101040000."
     },
     {
       "id": "T002",
@@ -683,9 +683,9 @@
   ],
   "state": {
     "last_updated": "2026-11-01",
-    "last_session_commit": "3206a5c",
-    "migrasi_terpasang_sampai": "20261101030000",
-    "main_sha": "3206a5c",
-    "_catatan_push": "absensi-konsistensi.mjs: 15/15 PASS (SMK+SMA+SMP). migration 20261101030000: DROP fn_tu_attendance_recap(date,date) overload lama. Setelah db push → 16/16 PASS."
+    "last_session_commit": "6d8a5ed",
+    "migrasi_terpasang_sampai": "20261101040000",
+    "main_sha": "6d8a5ed",
+    "_catatan_push": "absensi-konsistensi.mjs selesai: 16/16 PASS (SMK+SMA+SMP). fn_tu_attendance_recap overload diperbaiki (DROP 3-param via migration 20261101040000). Alur absensi hulu-hilir verified."
   }
 }
