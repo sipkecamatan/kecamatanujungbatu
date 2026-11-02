@@ -7,6 +7,7 @@ import {
     searchStudents,
     getTodayLateArrivals, recordLateArrival, deleteLateArrival,
     getTodayExits, recordExit, updateReturnTime, deleteExit,
+    getTodayLastSessionEnd,
 } from './api.js';
 import { esc, fe, fmtTime, showInputModal } from './tab-shared.js';
 
@@ -15,6 +16,15 @@ const PIKET_OPEN_MIN   = 0;
 const PIKET_CLOSE_HOUR = 16;
 const PIKET_CLOSE_MIN  = 0;
 const PIKET_LATE_LIMIT = '07:15';
+
+async function _piketCanDelete() {
+    const nowStr = _piketJakartaTimeStr();
+    try {
+        const lastEnd = await getTodayLastSessionEnd();
+        if (!lastEnd) return false;
+        return nowStr <= lastEnd;
+    } catch { return false; }
+}
 
 function _piketFormActive() {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -226,9 +236,9 @@ async function _piketRenderRekap(currentUser) {
     const el = document.getElementById('piket-rekap-content');
     if (!el) return;
     el.innerHTML = '<p style="color:var(--color-text-muted);font-size:13px">Memuat…</p>';
-    let arrivals;
+    let arrivals, canDelete;
     try {
-        arrivals = await getTodayLateArrivals();
+        [arrivals, canDelete] = await Promise.all([getTodayLateArrivals(), _piketCanDelete()]);
     } catch {
         el.innerHTML = '<p style="color:var(--color-danger,#dc2626);font-size:13px">Gagal memuat data. Coba muat ulang halaman.</p>';
         return;
@@ -259,7 +269,7 @@ async function _piketRenderRekap(currentUser) {
                             <td style="padding:8px 10px">${r.reason ? esc(r.reason) : '<span style="color:var(--color-text-muted)">—</span>'}</td>
                             <td style="padding:8px 10px;white-space:nowrap">${esc(r.recorder_name)}</td>
                             <td style="padding:8px 10px">
-                                ${r.recorded_by === currentUser.user_id
+                                ${r.recorded_by === currentUser.user_id && canDelete
                                     ? `<button class="btn btn-sm btn-danger piket-delete-btn" data-id="${esc(r.late_id)}">Hapus</button>`
                                     : ''}
                             </td>
@@ -381,7 +391,7 @@ async function _piketRenderExitForm(currentUser) {
 async function _piketRenderExits(currentUser) {
     const content = document.getElementById('piket-exits-content');
     if (!content) return;
-    const exits = await getTodayExits();
+    const [exits, canDelete] = await Promise.all([getTodayExits(), _piketCanDelete()]);
     const currentUserId = currentUser?.user_id ?? null;
     if (!exits.length) {
         content.innerHTML = '<p class="hint">Belum ada siswa izin keluar hari ini.</p>';
@@ -415,7 +425,7 @@ async function _piketRenderExits(currentUser) {
                             </td>
                             <td style="padding:8px 10px">${r.reason ? esc(r.reason) : '<span style="color:var(--color-text-muted)">—</span>'}</td>
                             <td style="padding:8px 10px">
-                                ${r.recorder_id === currentUserId
+                                ${r.recorder_id === currentUserId && canDelete
                                     ? `<button class="btn btn-sm btn-danger piket-exit-delete-btn" data-exit-id="${esc(r.exit_id)}">Hapus</button>`
                                     : ''}
                             </td>

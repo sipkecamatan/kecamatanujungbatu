@@ -159,6 +159,23 @@ export async function getMyScheduleForDate(userId, date) {
 }
 
 /**
+ * Jam akhir pelajaran terakhir hari ini di sekolah user (dari teaching_schedules).
+ * Dipakai tab piket untuk menentukan batas waktu tombol Hapus.
+ * Kembalikan string 'HH:MM' atau null jika tidak ada jadwal hari ini.
+ */
+export async function getTodayLastSessionEnd() {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+    const { data, error } = await supabase
+        .from('teaching_schedules')
+        .select('session_end')
+        .eq('session_date', today)
+        .order('session_end', { ascending: false })
+        .limit(1);
+    if (error) throw error;
+    return data?.[0]?.session_end?.slice(0, 5) ?? null;
+}
+
+/**
  * Kelas unik yang diampu guru ini pada tahun ajaran + semester tertentu.
  * Dipakai untuk dropdown rekap absensi guru.
  */
