@@ -500,6 +500,44 @@
         "absensi-konsistensi.mjs (C1, C2, C5)"
       ]
     },
+    "late_arrivals": {
+      "kolom_tanggal": "late_date (bukan arrival_date)",
+      "kolom_pk": "late_id (bukan late_arrival_id)",
+      "kolom_jam": "arrival_time",
+      "skema": "late_id, school_id, student_id, recorded_by, late_date, arrival_time, reason, created_at",
+      "test_relevan": [
+        "tests/piket-verifikasi.mjs"
+      ],
+      "catatan": "Nama kolom berbeda dari asumsi awal. Tidak ada kolom class_name — nama kelas diselesaikan via JOIN class_enrollments → classes."
+    },
+    "student_exits": {
+      "kolom_tanggal": "exit_date",
+      "kolom_pk": "exit_id",
+      "skema": "exit_id, school_id, student_id, exit_date, exit_time, return_time, reason, recorded_by, created_at",
+      "test_relevan": [
+        "tests/piket-verifikasi.mjs"
+      ],
+      "catatan": "return_time IS NULL berarti belum kembali — tampil 'Belum kembali' (merah) di UI."
+    },
+    "tests/piket-verifikasi.mjs": {
+      "tujuan": "Verifikasi RLS piket (late_arrivals + student_exits) per role — Layer D (database) dan R (RLS simulasi). Dijalankan setelah migration piket.",
+      "check": [
+        "D1-D2: total baris per sekolah Okt-Nov 2026",
+        "D3: siswa tanpa enrollment aktif (class_name tidak bisa diselesaikan)",
+        "D4: enrollment ganda (withdrawn_at IS NULL di 2+ baris)",
+        "D5: student_exits dengan exit_date IS NULL",
+        "R3: WAKA_KESISWAAN mendapat semua baris sekolah",
+        "R4: WAKASEK SMP mendapat student_exits (fix 20261102010000)",
+        "R5: BK mendapat semua baris sekolah (fix 20261102020000)",
+        "R6-R7: KAPRODI hanya program sendiri",
+        "R1-R2: WALI hanya kelas waliannya",
+        "R8: GURU biasa < total sekolah",
+        "R9: WAKA_KURIKULUM < total sekolah (bukan 0 — bisa lihat baris via rls_late_arrivals_read_guru_mengajar)",
+        "R10: KEPSEK tidak bisa baca langsung (0)"
+      ],
+      "hasil_2026-11-02": "14 lulus, 0 gagal, 5 peringatan (R7/R1/R2/R9 warning wajar)",
+      "butuh": "SUPABASE_ACCESS_TOKEN di .env"
+    },
     "RLS_policy": {
       "test_relevan": [
         "tenant-isolation.mjs",
@@ -726,14 +764,20 @@
       "task": "Tile 'Guru di Kelas' di dashboard kepsek — ganti label dan sub-label",
       "status": "terbuka",
       "catatan": "Saat ini: 98.4% / 'Guru di Kelas' / '60 / 61 guru'. Angka 98.4% dan label menyesatkan karena dihitung dari guru yang pernah isi absen minimal 1x dalam periode, bukan konsistensi harian. Usulan: angka besar '60 / 61', label 'Guru Isi Absen', sub-label dinamis: '1 guru belum isi sama sekali' / 'Semua guru sudah isi absen'. Menggambarkan antusiasme guru menjalankan absensi di kelas."
+    },
+    {
+      "id": "T009",
+      "task": "Script verifikasi piket Layer A + T (angka layar = database, tampilan edge case)",
+      "status": "terbuka",
+      "catatan": "Layer D + R sudah selesai di tests/piket-verifikasi.mjs (2 Nov 2026). Layer A (A1-A8: jumlah catatan di layar = DB) dan T (T1-T7: tampilan Belum kembali merah, dropdown, default collapse, pesan kosong) butuh Playwright. Gunakan pola tests/rekap-agregasi-web.mjs + .env akun uji wali/waka/bk/kaprodi/kepsek."
     }
   ],
   "state": {
     "last_updated": "2026-11-02",
-    "last_session_commit": "34617e9",
+    "last_session_commit": "TBD — diisi setelah commit sesi ini",
     "migrasi_terpasang_sampai": "20261101060000",
     "migrasi_ditulis_belum_push": "20261102020000_rls_piket_bk",
-    "main_sha": "d29573d",
-    "_catatan_push": "feat(piket): tambah akses BK ke keterlambatan + izin keluar + section UI di tab BK"
+    "main_sha": "TBD — sama dengan last_session_commit",
+    "_catatan_push": "test(piket): tambah tests/piket-verifikasi.mjs — layer D + R"
   }
 }
