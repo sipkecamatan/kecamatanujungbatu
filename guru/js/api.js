@@ -1845,7 +1845,8 @@ export async function getWaliLateArrivals(dateStart, dateEnd) {
         .from('late_arrivals')
         .select(`
             late_id, late_date, arrival_time, reason,
-            student:students(student_id, full_name, nis)
+            student:students(student_id, full_name, nis),
+            recorder:users!recorded_by(full_name)
         `)
         .gte('late_date', dateStart)
         .lte('late_date', dateEnd)
@@ -1853,13 +1854,14 @@ export async function getWaliLateArrivals(dateStart, dateEnd) {
         .order('arrival_time', { ascending: true });
     if (error) throw error;
     return (data ?? []).map(r => ({
-        late_id:      r.late_id,
-        date:         r.late_date,
-        arrival_time: r.arrival_time,
-        reason:       r.reason ?? '',
-        student_id:   r.student?.student_id,
-        student_name: r.student?.full_name ?? '—',
-        nis:          r.student?.nis ?? '—',
+        late_id:       r.late_id,
+        date:          r.late_date,
+        arrival_time:  r.arrival_time,
+        reason:        r.reason ?? '',
+        student_id:    r.student?.student_id,
+        student_name:  r.student?.full_name ?? '—',
+        nis:           r.student?.nis ?? '—',
+        recorder_name: r.recorder?.full_name ?? '',
     }));
 }
 
@@ -1868,7 +1870,8 @@ export async function getWaliExits(dateStart, dateEnd) {
         .from('student_exits')
         .select(`
             exit_id, exit_date, exit_time, return_time, reason,
-            student:students(student_id, full_name, nis)
+            student:students(student_id, full_name, nis),
+            recorder:users!recorded_by(full_name)
         `)
         .gte('exit_date', dateStart)
         .lte('exit_date', dateEnd)
@@ -1876,14 +1879,15 @@ export async function getWaliExits(dateStart, dateEnd) {
         .order('exit_time', { ascending: true });
     if (error) throw error;
     return (data ?? []).map(r => ({
-        exit_id:      r.exit_id,
-        date:         r.exit_date,
-        exit_time:    r.exit_time,
-        return_time:  r.return_time ?? '—',
-        reason:       r.reason ?? '',
-        student_id:   r.student?.student_id,
-        student_name: r.student?.full_name ?? '—',
-        nis:          r.student?.nis ?? '—',
+        exit_id:       r.exit_id,
+        date:          r.exit_date,
+        exit_time:     r.exit_time,
+        return_time:   r.return_time ?? '—',
+        reason:        r.reason ?? '',
+        student_id:    r.student?.student_id,
+        student_name:  r.student?.full_name ?? '—',
+        nis:           r.student?.nis ?? '—',
+        recorder_name: r.recorder?.full_name ?? '',
     }));
 }
 

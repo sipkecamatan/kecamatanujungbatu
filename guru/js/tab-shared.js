@@ -576,9 +576,10 @@ export function downloadWaliLateRekap(rows, students, className, academicYear, f
                 .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
             const cellIdx = new Map();
             for (const r of mRows) {
-                const val = r.arrival_time
-                    ? (r.reason ? `${r.arrival_time.slice(0,5)} – ${r.reason}` : r.arrival_time.slice(0,5))
-                    : (r.reason || '✓');
+                const jam = r.arrival_time ? r.arrival_time.slice(0,5) : '';
+                let val = jam || '✓';
+                if (r.reason) val += ` – ${r.reason}`;
+                if (r.recorder_name) val += ` (${r.recorder_name})`;
                 const k = `${r.student_id}|${r.date}`;
                 cellIdx.set(k, cellIdx.has(k) ? `${cellIdx.get(k)} / ${val}` : val);
             }
@@ -826,9 +827,10 @@ export function downloadWaliExitRekap(rows, students, className, academicYear, f
                 .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
             const cellIdx = new Map();
             for (const r of mRows) {
-                const val = r.exit_time
-                    ? (r.reason ? `${r.exit_time.slice(0,5)} – ${r.reason}` : r.exit_time.slice(0,5))
-                    : (r.reason || '✓');
+                const jam = r.exit_time ? r.exit_time.slice(0,5) : '';
+                let val = jam || '✓';
+                if (r.reason) val += ` – ${r.reason}`;
+                if (r.recorder_name) val += ` (${r.recorder_name})`;
                 const k = `${r.student_id}|${r.date}`;
                 cellIdx.set(k, cellIdx.has(k) ? `${cellIdx.get(k)} / ${val}` : val);
             }
