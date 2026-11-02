@@ -411,7 +411,13 @@
     },
     "scripts/absensi-konsistensi.mjs": {
       "tujuan": "Verifikasi konsistensi data absensi dari hulu ke hilir via Management API + raw SQL",
-      "check": ["C1 orphan records", "C2 double-count antar kelas", "C3 portal siswa ≤ rekap kelas", "C4 12×bulan = full tahun", "C5 BK Excel jalur berbeda"],
+      "check": [
+        "C1 orphan records",
+        "C2 double-count antar kelas",
+        "C3 portal siswa ≤ rekap kelas",
+        "C4 12×bulan = full tahun",
+        "C5 BK Excel jalur berbeda"
+      ],
       "butuh": "SUPABASE_ACCESS_TOKEN=sbp_... di .env (personal access token, bukan service key)",
       "catatan": "Tidak memanggil SECURITY DEFINER RPC — query tabel langsung. Jeda 3 detik antar sekolah untuk hindari rate limit."
     },
@@ -654,7 +660,13 @@
     "class_enrollments_bukan_class_members": "Tabel keanggotaan kelas bernama class_enrollments (bukan class_members). JOIN: class_enrollments cm ON cm.student_id = ... AND cm.class_id = ...",
     "fn_tu_overload_sesi_ini": "fn_tu_attendance_recap punya 2 overload (2 param dan 5 param) karena migration 20261027 + 20261028 signature berbeda. Diperbaiki dengan migration 20261101030000 yang DROP(date,date). Setelah db push verifier mendeteksi PASS.",
     "cte_reserved_word_raw": "Nama CTE 'raw' adalah reserved word di PostgreSQL — query gagal dengan 'syntax error at or near raw'. Selalu gunakan nama deskriptif seperti att_raw, data_raw, src_raw.",
-    "blok_campuran_portal": "Blok CAMPURAN (satu siswa × satu block_group_id punya ≥2 status berbeda antar slot) terjadi di dua kasus: (A) dua mapel berbeda masuk satu block_group_id — kemungkinan bug pengelompokan jadwal; (B) satu mapel, guru input status berbeda per sesi — valid by design (siswa hadir sebagian). Dampak: sebelum fix Nov 2026, portal siswa/ortu mengabaikan blok CAMPURAN sehingga angka H/S/I/A lebih kecil dari yang guru/wali lihat. Fix: kartu angka menghitung CAMPURAN sebagai status terburuk dari slot-nya (dashboard.js + portal.js commit b28ab1b). Badge 'Campuran' di tabel detail tetap tampil."
+    "blok_campuran_portal": "Blok CAMPURAN (satu siswa × satu block_group_id punya ≥2 status berbeda antar slot) terjadi di dua kasus: (A) dua mapel berbeda masuk satu block_group_id — kemungkinan bug pengelompokan jadwal; (B) satu mapel, guru input status berbeda per sesi — valid by design (siswa hadir sebagian). Dampak: sebelum fix Nov 2026, portal siswa/ortu mengabaikan blok CAMPURAN sehingga angka H/S/I/A lebih kecil dari yang guru/wali lihat. Fix: kartu angka menghitung CAMPURAN sebagai status terburuk dari slot-nya (dashboard.js + portal.js commit b28ab1b). Badge 'Campuran' di tabel detail tetap tampil.",
+    "playwright_login_form": {
+      "masalah": "Playwright login via inject supabase.auth tidak andal: sesi tersimpan di localStorage tapi getUser() gagal di halaman berikutnya karena perbedaan versi client atau timing.",
+      "solusi": "Gunakan form login nyata: isi #identifier dengan NIP (bukan email), isi #password, tunggu #login-btn:not([disabled]) (applyBranding() harus selesai dulu), klik, waitForURL('**/dashboard.html**').",
+      "catatan_role": "WAKASEK (SMP) pakai hash #wakasek bukan #waka_kesiswaan — dashboard.js memindah DOM dari #tab-waka_kesiswaan ke #tab-wakasek via case 'wakasek' di loadTabContent.",
+      "ditemukan": "2026-11-02"
+    }
   },
   "open_tasks": [
     {
@@ -667,7 +679,7 @@
       "id": "T001",
       "task": "Audit + perbaiki alur absensi semua rekap",
       "status": "SELESAI 1 Nov (verified)",
-      "catatan": "28 Okt: tab-guru.js pivot ke block_group_id; fn_attendance_recap_per_class; tab-bk.js Level 3; fn_tu_attendance_recap; BK Excel ditambahkan. 31 Okt: MONTHS_RANGE diperluas Jul–Jun (12 bulan). 1 Nov: absensi-konsistensi.mjs 16/16 PASS (SMK+SMA+SMP) — alur data hulu-hilir terbukti konsisten. fn_tu_attendance_recap overload 3-param dihapus via migration 20261101040000."
+      "catatan": "28 Okt: tab-guru.js pivot ke block_group_id; fn_attendance_recap_per_class; tab-bk.js Level 3; fn_tu_attendance_recap; BK Excel ditambahkan. 31 Okt: MONTHS_RANGE diperluas Jul–Jun (12 bulan). 1 Nov: absensi-konsistensi.mjs 16/16 PASS (SMK+SMA+SMP) — alur data hulu-hilir terbukti konsisten. fn_tu_attendance_recap overload 3-param dihapus via migration 20261101040000. 2 Nov: rekap-agregasi-web.mjs — Playwright end-to-end terbukti: layar web = DB untuk SMK (total cocok, 20 kelas X/XI ✓), SMA (6 kelas ✓), SMP (6 kelas ✓). WHAT YOU SEE IS WHAT YOU GET."
     },
     {
       "id": "T002",
@@ -709,7 +721,7 @@
     }
   ],
   "state": {
-    "last_updated": "2026-11-01",
+    "last_updated": "2026-11-02",
     "last_session_commit": "7a6fc31",
     "migrasi_terpasang_sampai": "20261101060000",
     "main_sha": "7a6fc31",
