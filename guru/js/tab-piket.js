@@ -419,7 +419,7 @@ async function _piketRenderExits(currentUser) {
                             <td style="padding:8px 10px">
                                 ${r.return_time
                                     ? r.return_time.slice(0,5)
-                                    : (r.recorder_id === currentUserId
+                                    : (r.recorder_id === currentUserId && canDelete
                                         ? `<button class="btn btn-sm btn-secondary piket-return-btn" data-exit-id="${esc(r.exit_id)}">Catat Kembali</button>`
                                         : '—')}
                             </td>
