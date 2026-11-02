@@ -9,7 +9,7 @@ import {
     supabase,
     getPrograms, getAttendanceRecapPerClass,
     getClassesByProgram, getWaliAttendanceSummary,
-    getLateArrivalsByRange, getCoachingCasesCount,
+    getLateArrivalsByRange, getCoachingCasesCount, getExitsByRange,
 } from './api.js';
 import { esc, fe, wireSimpleAccordion, localDateStr, renderPerhatianAccordion, wirePerhatianCollapse } from './tab-shared.js';
 import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kaprodi.js';
@@ -17,12 +17,14 @@ import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kapr
 export let wkKasusCtx = null;
 let _wkAttendanceRequestSeq = 0;
 let _wkLateRequestSeq       = 0;
+let _wkExitRequestSeq       = 0;
 
 export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser }) {
     const { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } = kasusEngine;
 
     wireSimpleAccordion('wk-att-card');
     wireSimpleAccordion('wk-late-card');
+    wireSimpleAccordion('wk-exit-card');
     const today        = localDateStr();
     const firstOfMonth = today.slice(0, 8) + '01';
     document.getElementById('wk-att-start').value = firstOfMonth;
@@ -33,6 +35,10 @@ export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser })
     document.getElementById('wk-late-start').value = firstOfMonth;
     document.getElementById('wk-late-end').value   = today;
     document.getElementById('wk-late-filter-btn').onclick = () => loadWkLateRecap({ config });
+
+    document.getElementById('wk-exit-start').value = firstOfMonth;
+    document.getElementById('wk-exit-end').value   = today;
+    document.getElementById('wk-exit-filter-btn').onclick = () => loadWkExitRecap({ config });
 
     await loadWkAttendanceRecap({ config });
     await loadWkLateRecap({ config });
@@ -447,14 +453,13 @@ async function loadWkLateRecap({ config }) {
             <div style="overflow-x:auto">
             <table class="table" style="width:100%">
                 <thead><tr>
-                    <th>Tanggal</th><th>Nama Siswa</th><th>NIS</th>
+                    <th>Tanggal</th><th>Nama Siswa</th>
                     <th>Kelas</th><th>Jam Datang</th><th>Alasan</th><th>Dicatat Oleh</th>
                 </tr></thead>
                 <tbody>${rows.map(r => `
                     <tr>
                         <td style="white-space:nowrap">${fmtDisp(r.date)}</td>
                         <td>${esc(r.student_name)}</td>
-                        <td>${esc(r.nis)}</td>
                         <td>${esc(r.class_name)}</td>
                         <td style="white-space:nowrap">${r.arrival_time.slice(0, 5)}</td>
                         <td>${esc(r.reason || '—')}</td>
@@ -465,6 +470,51 @@ async function loadWkLateRecap({ config }) {
             </div>`;
     } catch (err) {
         if (requestSeq !== _wkLateRequestSeq) return;
+        container.innerHTML = `<div class="alert alert-danger">${esc(fe(err))}</div>`;
+    }
+}
+
+async function loadWkExitRecap({ config }) {
+    const requestSeq = ++_wkExitRequestSeq;
+    const start      = document.getElementById('wk-exit-start').value;
+    const end        = document.getElementById('wk-exit-end').value;
+    const container  = document.getElementById('wk-exit-recap');
+    if (!start || !end || start > end) {
+        container.innerHTML = '<p class="hint" style="color:var(--color-danger)">Rentang tanggal tidak valid.</p>';
+        return;
+    }
+    container.innerHTML = '<p class="hint">Memuat…</p>';
+    try {
+        const rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
+        if (requestSeq !== _wkExitRequestSeq) return;
+        if (!rows.length) {
+            container.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>';
+            return;
+        }
+        const fmtDisp = d => new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        container.innerHTML = `
+            <p class="hint" style="margin-bottom:8px">${rows.length} catatan ditemukan</p>
+            <div style="overflow-x:auto">
+            <table class="table" style="width:100%">
+                <thead><tr>
+                    <th>Tanggal</th><th>Nama Siswa</th>
+                    <th>Kelas</th><th>Jam Keluar</th><th>Jam Kembali</th><th>Alasan</th><th>Dicatat Oleh</th>
+                </tr></thead>
+                <tbody>${rows.map(r => `
+                    <tr>
+                        <td style="white-space:nowrap">${fmtDisp(r.date)}</td>
+                        <td>${esc(r.student_name)}</td>
+                        <td>${esc(r.class_name)}</td>
+                        <td style="white-space:nowrap">${r.exit_time ? r.exit_time.slice(0, 5) : '—'}</td>
+                        <td style="white-space:nowrap">${r.return_time ? r.return_time.slice(0, 5) : '<span style="color:var(--color-danger,#dc2626)">Belum kembali</span>'}</td>
+                        <td>${esc(r.reason || '—')}</td>
+                        <td>${esc(r.recorder)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            </div>`;
+    } catch (err) {
+        if (requestSeq !== _wkExitRequestSeq) return;
         container.innerHTML = `<div class="alert alert-danger">${esc(fe(err))}</div>`;
     }
 }

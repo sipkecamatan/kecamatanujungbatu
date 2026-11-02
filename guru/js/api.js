@@ -1916,6 +1916,52 @@ export async function getLateArrivalsByRange(dateStart, dateEnd, academicYear = 
     });
 }
 
+export async function getExitsByRange(dateStart, dateEnd, academicYear = null) {
+    const rows = [];
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase
+            .from('student_exits')
+            .select(`
+                exit_id, exit_date, exit_time, return_time, reason,
+                student:students(
+                    student_id, full_name, nis, student_status,
+                    class_enrollment:class_enrollments(
+                        academic_year, withdrawn_at, class:classes(name)
+                    )
+                ),
+                recorder:users!student_exits_recorded_by_fkey(full_name)
+            `)
+            .gte('exit_date', dateStart)
+            .lte('exit_date', dateEnd)
+            .order('exit_date', { ascending: false })
+            .order('exit_time', { ascending: true })
+            .order('exit_id', { ascending: true })
+            .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        const page = data ?? [];
+        rows.push(...page);
+        if (page.length < pageSize) break;
+    }
+    return rows.map(r => {
+        const enrollment = (r.student?.class_enrollment ?? [])
+            .filter(e => !e.withdrawn_at && (!academicYear || e.academic_year === academicYear))
+            .sort((a, b) => String(b.academic_year ?? '').localeCompare(String(a.academic_year ?? '')));
+        const current = enrollment[0];
+        return {
+            exit_id:      r.exit_id,
+            date:         r.exit_date,
+            exit_time:    r.exit_time,
+            return_time:  r.return_time,
+            reason:       r.reason ?? '',
+            student_name: r.student?.full_name ?? '—',
+            nis:          r.student?.nis ?? '—',
+            class_name:   current?.class?.name ?? '—',
+            recorder:     r.recorder?.full_name ?? '—',
+        };
+    });
+}
+
 export async function getLateArrivalsAggregate(dateStart, dateEnd) {
     const { data, error } = await supabase
         .from('late_arrivals')
