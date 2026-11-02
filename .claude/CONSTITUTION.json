@@ -774,10 +774,10 @@
   ],
   "state": {
     "last_updated": "2026-11-02",
-    "last_session_commit": "TBD — diisi setelah commit sesi ini",
+    "last_session_commit": "1528bf4",
     "migrasi_terpasang_sampai": "20261101060000",
     "migrasi_ditulis_belum_push": "20261102020000_rls_piket_bk",
-    "main_sha": "TBD — sama dengan last_session_commit",
+    "main_sha": "1528bf4",
     "_catatan_push": "test(piket): tambah tests/piket-verifikasi.mjs — layer D + R"
   }
 }
