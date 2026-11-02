@@ -108,7 +108,9 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
     document.getElementById('wali-late-filter-btn').onclick = () => loadWaliLate({ currentUser });
     document.getElementById('wali-exit-filter-btn').onclick = () => loadWaliExit({ currentUser });
 
-    await Promise.all([loadWaliLate({ currentUser }), loadWaliExit({ currentUser })]);
+    _wireWaliCollapse('wali-terlambat-card', 'wali-late-chevron');
+    _wireWaliCollapse('wali-keluar-card',    'wali-exit-chevron');
+
     await loadWaliPerhatian({ classId, config });
 
     wirePerhatianCollapse('wali-perhatian-card');
@@ -126,8 +128,28 @@ async function loadWaliPerhatian({ classId, config }) {
     }
 }
 
+function _wireWaliCollapse(cardId, chevronId) {
+    const card    = document.getElementById(cardId);
+    const chevron = document.getElementById(chevronId);
+    const header  = card?.querySelector('.kp-acc-header');
+    const body    = card?.querySelector('.kp-acc-body');
+    if (!header || !body) return;
+    header.addEventListener('click', () => {
+        const open = body.style.display !== 'none';
+        body.style.display = open ? 'none' : 'block';
+        if (chevron) chevron.style.transform = open ? '' : 'rotate(180deg)';
+    });
+}
+
+function _fmtTgl(iso) {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    const bln = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+    return `${Number(d)} ${bln[Number(m) - 1]} ${y}`;
+}
+function _fmtJam(t) { return t ? t.slice(0, 5) : '—'; }
+
 async function loadWaliLate({ currentUser }) {
-    const classId   = currentUser.wali_kelas_class_id;
     const dateStart = document.getElementById('wali-late-date-start').value;
     const dateEnd   = document.getElementById('wali-late-date-end').value;
     const el        = document.getElementById('wali-late-content');
@@ -137,22 +159,44 @@ async function loadWaliLate({ currentUser }) {
         const rows = await getWaliLateArrivals(dateStart, dateEnd);
         if (!rows.length) { el.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>'; return; }
         el.innerHTML = `
-            <div style="overflow-x:auto">
-            <table class="data-table">
+            <style>
+              .wali-piket-tbl{width:100%;border-collapse:collapse;font-size:13px}
+              .wali-piket-tbl th{padding:8px 10px;text-align:left;border-bottom:2px solid var(--color-border);white-space:nowrap;font-weight:600}
+              .wali-piket-tbl td{padding:8px 10px;border-bottom:1px solid var(--color-border);vertical-align:top}
+              .wali-piket-tbl tr:last-child td{border-bottom:none}
+              .piket-card{background:var(--color-bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:13px}
+              .piket-card-nama{font-weight:600;margin-bottom:4px}
+              .piket-card-row{display:flex;gap:6px;flex-wrap:wrap;color:var(--color-text-muted);font-size:12px;margin-top:2px}
+              .piket-card-badge{background:var(--color-surface);border-radius:4px;padding:2px 6px}
+              @media(min-width:600px){.wali-piket-wrap-tbl{display:block}.wali-piket-wrap-cards{display:none}}
+              @media(max-width:599px){.wali-piket-wrap-tbl{display:none}.wali-piket-wrap-cards{display:block}}
+            </style>
+            <div class="wali-piket-wrap-tbl" style="overflow-x:auto">
+              <table class="wali-piket-tbl">
                 <thead><tr>
-                    <th>Tanggal</th><th>Nama Siswa</th><th>NIS</th>
-                    <th>Jam Masuk</th><th>Keterangan</th>
+                  <th>Tanggal</th><th>Nama Siswa</th>
+                  <th>Jam Masuk</th><th>Keterangan</th>
                 </tr></thead>
                 <tbody>
-                ${rows.map(r => `<tr>
-                    <td>${r.date}</td>
-                    <td>${r.student_name}</td>
-                    <td>${r.nis}</td>
-                    <td>${r.arrival_time ?? '—'}</td>
-                    <td>${r.reason || '—'}</td>
-                </tr>`).join('')}
+                  ${rows.map(r => `<tr>
+                    <td style="white-space:nowrap">${esc(_fmtTgl(r.date))}</td>
+                    <td>${esc(r.student_name)}</td>
+                    <td style="white-space:nowrap">${_fmtJam(r.arrival_time)}</td>
+                    <td>${r.reason ? esc(r.reason) : '<span style="color:var(--color-text-muted)">—</span>'}</td>
+                  </tr>`).join('')}
                 </tbody>
-            </table>
+              </table>
+            </div>
+            <div class="wali-piket-wrap-cards">
+              ${rows.map(r => `
+                <div class="piket-card">
+                  <div class="piket-card-nama">${esc(r.student_name)}</div>
+                  <div class="piket-card-row">
+                    <span class="piket-card-badge">📅 ${esc(_fmtTgl(r.date))}</span>
+                    <span class="piket-card-badge">🕐 Masuk ${_fmtJam(r.arrival_time)}</span>
+                    ${r.reason ? `<span class="piket-card-badge">${esc(r.reason)}</span>` : ''}
+                  </div>
+                </div>`).join('')}
             </div>`;
     } catch (err) {
         el.innerHTML = `<p class="hint error">Gagal memuat: ${fe(err)}</p>`;
@@ -160,7 +204,6 @@ async function loadWaliLate({ currentUser }) {
 }
 
 async function loadWaliExit({ currentUser }) {
-    const classId   = currentUser.wali_kelas_class_id;
     const dateStart = document.getElementById('wali-exit-date-start').value;
     const dateEnd   = document.getElementById('wali-exit-date-end').value;
     const el        = document.getElementById('wali-exit-content');
@@ -170,23 +213,34 @@ async function loadWaliExit({ currentUser }) {
         const rows = await getWaliExits(dateStart, dateEnd);
         if (!rows.length) { el.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>'; return; }
         el.innerHTML = `
-            <div style="overflow-x:auto">
-            <table class="data-table">
+            <div class="wali-piket-wrap-tbl" style="overflow-x:auto">
+              <table class="wali-piket-tbl">
                 <thead><tr>
-                    <th>Tanggal</th><th>Nama Siswa</th><th>NIS</th>
-                    <th>Jam Keluar</th><th>Jam Kembali</th><th>Keterangan</th>
+                  <th>Tanggal</th><th>Nama Siswa</th>
+                  <th>Jam Keluar</th><th>Jam Kembali</th><th>Keterangan</th>
                 </tr></thead>
                 <tbody>
-                ${rows.map(r => `<tr>
-                    <td>${r.date}</td>
-                    <td>${r.student_name}</td>
-                    <td>${r.nis}</td>
-                    <td>${r.exit_time ?? '—'}</td>
-                    <td>${r.return_time}</td>
-                    <td>${r.reason || '—'}</td>
-                </tr>`).join('')}
+                  ${rows.map(r => `<tr>
+                    <td style="white-space:nowrap">${esc(_fmtTgl(r.date))}</td>
+                    <td>${esc(r.student_name)}</td>
+                    <td style="white-space:nowrap">${_fmtJam(r.exit_time)}</td>
+                    <td style="white-space:nowrap">${_fmtJam(r.return_time === '—' ? null : r.return_time)}</td>
+                    <td>${r.reason ? esc(r.reason) : '<span style="color:var(--color-text-muted)">—</span>'}</td>
+                  </tr>`).join('')}
                 </tbody>
-            </table>
+              </table>
+            </div>
+            <div class="wali-piket-wrap-cards">
+              ${rows.map(r => `
+                <div class="piket-card">
+                  <div class="piket-card-nama">${esc(r.student_name)}</div>
+                  <div class="piket-card-row">
+                    <span class="piket-card-badge">📅 ${esc(_fmtTgl(r.date))}</span>
+                    <span class="piket-card-badge">🚪 Keluar ${_fmtJam(r.exit_time)}</span>
+                    ${(r.return_time && r.return_time !== '—') ? `<span class="piket-card-badge">↩ Kembali ${_fmtJam(r.return_time)}</span>` : '<span class="piket-card-badge" style="color:var(--color-danger,#dc2626)">Belum kembali</span>'}
+                    ${r.reason ? `<span class="piket-card-badge">${esc(r.reason)}</span>` : ''}
+                  </div>
+                </div>`).join('')}
             </div>`;
     } catch (err) {
         el.innerHTML = `<p class="hint error">Gagal memuat: ${fe(err)}</p>`;
