@@ -724,9 +724,9 @@
   ],
   "state": {
     "last_updated": "2026-11-02",
-    "last_session_commit": "TBD-piket-bugfix",
+    "last_session_commit": "5ac240f",
     "migrasi_terpasang_sampai": "20261101060000",
-    "main_sha": "TBD-piket-bugfix",
+    "main_sha": "5ac240f",
     "_catatan_push": "fix(ui): audit + perbaiki 8 bug tab Piket (timezone, dropdown, error handling, validasi)"
   }
 }
