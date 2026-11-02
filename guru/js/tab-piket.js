@@ -82,7 +82,13 @@ async function _piketRenderAll(currentUser) {
 async function _piketRenderRingkasan() {
     const el = document.getElementById('piket-ringkasan-content');
     if (!el) return;
-    const arrivals = await getTodayLateArrivals();
+    let arrivals;
+    try {
+        arrivals = await getTodayLateArrivals();
+    } catch {
+        el.innerHTML = '<p style="color:var(--color-danger,#dc2626);font-size:13px">Gagal memuat data. Coba muat ulang halaman.</p>';
+        return;
+    }
     const active   = _piketFormActive();
     el.innerHTML = `
         <div style="display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-start;font-size:14px">
@@ -204,6 +210,7 @@ async function _piketRenderForm(currentUser) {
             selectedEl.style.display = 'none';
             selectedEl.innerHTML = '';
             document.getElementById('piket-reason').value = '';
+            document.getElementById('piket-arrival-time').value = _piketJakartaTimeStr();
             await Promise.all([_piketRenderRingkasan(), _piketRenderRekap(currentUser)]);
         } catch (err) {
             msgEl.style.color = 'var(--color-danger,#dc2626)';
@@ -219,7 +226,13 @@ async function _piketRenderRekap(currentUser) {
     const el = document.getElementById('piket-rekap-content');
     if (!el) return;
     el.innerHTML = '<p style="color:var(--color-text-muted);font-size:13px">Memuat…</p>';
-    const arrivals = await getTodayLateArrivals();
+    let arrivals;
+    try {
+        arrivals = await getTodayLateArrivals();
+    } catch {
+        el.innerHTML = '<p style="color:var(--color-danger,#dc2626);font-size:13px">Gagal memuat data. Coba muat ulang halaman.</p>';
+        return;
+    }
     if (!arrivals.length) {
         el.innerHTML = '<p style="color:var(--color-text-muted);font-size:13px;font-style:italic">Belum ada keterlambatan hari ini.</p>';
         return;
@@ -277,9 +290,9 @@ async function _piketRenderExitForm(currentUser) {
         wrap.innerHTML = '<p class="hint">Form tidak tersedia di luar jam 07:00–16:00.</p>';
         return;
     }
-    const now = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+    const now = _piketJakartaTimeStr();
     wrap.innerHTML = `
-        <div class="field">
+        <div class="field" style="position:relative">
             <label for="piket-exit-search">Cari Siswa</label>
             <input type="text" id="piket-exit-search" class="input" placeholder="Ketik nama atau NIS…" autocomplete="off" />
             <div id="piket-exit-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);max-height:200px;overflow-y:auto"></div>
@@ -413,9 +426,13 @@ async function _piketRenderExits(currentUser) {
 
     content.querySelectorAll('.piket-return-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-            const now = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+            const now = _piketJakartaTimeStr();
             const returnTime = await showInputModal('Jam kembali (HH:MM):', { defaultValue: now, placeholder: 'HH:MM' });
             if (!returnTime) return;
+            if (!/^\d{2}:\d{2}$/.test(returnTime)) {
+                alert('Format jam tidak valid. Gunakan HH:MM, contoh: 10:30');
+                return;
+            }
             try {
                 await updateReturnTime(btn.dataset.exitId, returnTime);
                 await _piketRenderExits(currentUser);

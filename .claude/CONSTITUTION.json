@@ -666,7 +666,9 @@
       "solusi": "Gunakan form login nyata: isi #identifier dengan NIP (bukan email), isi #password, tunggu #login-btn:not([disabled]) (applyBranding() harus selesai dulu), klik, waitForURL('**/dashboard.html**').",
       "catatan_role": "WAKASEK (SMP) pakai hash #wakasek bukan #waka_kesiswaan — dashboard.js memindah DOM dari #tab-waka_kesiswaan ke #tab-wakasek via case 'wakasek' di loadTabContent.",
       "ditemukan": "2026-11-02"
-    }
+    },
+    "piket_timezone_input": "Semua default nilai <input type='time'> di tab Piket WAJIB pakai _piketJakartaTimeStr() — BUKAN new Date().toLocaleTimeString(). Fungsi toLocaleTimeString ikut timezone OS device; jika device di luar WIB (UTC+7) jam default akan salah. Berlaku untuk: jam datang (Section 2), jam keluar (Section 4), jam kembali (Section 5). Ditemukan audit 2 Nov 2026.",
+    "dropdown_position_relative": "Setiap dropdown autocomplete (position:absolute) WAJIB punya wrapper div dengan position:relative — tanpa itu dropdown muncul relatif ke ancestor posisi terdekat di DOM, bisa jauh dari input. Pola benar: <div class='field' style='position:relative'>...<input>...<div id='dropdown' style='position:absolute;top:100%'>. Jebakan ditemukan di piket exit form (2 Nov 2026) — piket late form (Section 2) sudah benar sejak awal."
   },
   "open_tasks": [
     {
@@ -722,9 +724,9 @@
   ],
   "state": {
     "last_updated": "2026-11-02",
-    "last_session_commit": "565e0e5",
+    "last_session_commit": "TBD-piket-bugfix",
     "migrasi_terpasang_sampai": "20261101060000",
-    "main_sha": "565e0e5",
-    "_catatan_push": "feat(scripts): tambah verifikasi agregasi absensi 3 level + end-to-end web"
+    "main_sha": "TBD-piket-bugfix",
+    "_catatan_push": "fix(ui): audit + perbaiki 8 bug tab Piket (timezone, dropdown, error handling, validasi)"
   }
 }
