@@ -164,12 +164,12 @@ async function loadWaliLate({ currentUser }) {
               .wali-piket-tbl th{padding:8px 10px;text-align:left;border-bottom:2px solid var(--color-border);white-space:nowrap;font-weight:600}
               .wali-piket-tbl td{padding:8px 10px;border-bottom:1px solid var(--color-border);vertical-align:top}
               .wali-piket-tbl tr:last-child td{border-bottom:none}
-              .piket-card{background:var(--color-bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:13px}
-              .piket-card-nama{font-weight:600;margin-bottom:4px}
-              .piket-card-row{display:flex;gap:6px;flex-wrap:wrap;color:var(--color-text-muted);font-size:12px;margin-top:2px}
-              .piket-card-badge{background:var(--color-surface);border-radius:4px;padding:2px 6px}
-              @media(min-width:600px){.wali-piket-wrap-tbl{display:block}.wali-piket-wrap-cards{display:none}}
-              @media(max-width:599px){.wali-piket-wrap-tbl{display:none}.wali-piket-wrap-cards{display:block}}
+              .wali-piket-list-item{padding:10px 2px;border-bottom:1px solid var(--color-border);font-size:13px}
+              .wali-piket-list-item:last-child{border-bottom:none}
+              .wali-piket-list-nama{font-weight:600;margin-bottom:3px}
+              .wali-piket-list-meta{display:flex;gap:12px;flex-wrap:wrap;color:var(--color-text-muted);font-size:12px;align-items:center}
+              @media(min-width:600px){.wali-piket-wrap-tbl{display:block}.wali-piket-wrap-list{display:none}}
+              @media(max-width:599px){.wali-piket-wrap-tbl{display:none}.wali-piket-wrap-list{display:block}}
             </style>
             <div class="wali-piket-wrap-tbl" style="overflow-x:auto">
               <table class="wali-piket-tbl">
@@ -187,14 +187,14 @@ async function loadWaliLate({ currentUser }) {
                 </tbody>
               </table>
             </div>
-            <div class="wali-piket-wrap-cards">
+            <div class="wali-piket-wrap-list">
               ${rows.map(r => `
-                <div class="piket-card">
-                  <div class="piket-card-nama">${esc(r.student_name)}</div>
-                  <div class="piket-card-row">
-                    <span class="piket-card-badge">📅 ${esc(_fmtTgl(r.date))}</span>
-                    <span class="piket-card-badge">🕐 Masuk ${_fmtJam(r.arrival_time)}</span>
-                    ${r.reason ? `<span class="piket-card-badge">${esc(r.reason)}</span>` : ''}
+                <div class="wali-piket-list-item">
+                  <div class="wali-piket-list-nama">${esc(r.student_name)}</div>
+                  <div class="wali-piket-list-meta">
+                    <span><i class="ti ti-calendar"></i> ${esc(_fmtTgl(r.date))}</span>
+                    <span><i class="ti ti-clock"></i> Masuk ${_fmtJam(r.arrival_time)}</span>
+                    ${r.reason ? `<span><i class="ti ti-message"></i> ${esc(r.reason)}</span>` : ''}
                   </div>
                 </div>`).join('')}
             </div>`;
@@ -230,15 +230,17 @@ async function loadWaliExit({ currentUser }) {
                 </tbody>
               </table>
             </div>
-            <div class="wali-piket-wrap-cards">
+            <div class="wali-piket-wrap-list">
               ${rows.map(r => `
-                <div class="piket-card">
-                  <div class="piket-card-nama">${esc(r.student_name)}</div>
-                  <div class="piket-card-row">
-                    <span class="piket-card-badge">📅 ${esc(_fmtTgl(r.date))}</span>
-                    <span class="piket-card-badge">🚪 Keluar ${_fmtJam(r.exit_time)}</span>
-                    ${(r.return_time && r.return_time !== '—') ? `<span class="piket-card-badge">↩ Kembali ${_fmtJam(r.return_time)}</span>` : '<span class="piket-card-badge" style="color:var(--color-danger,#dc2626)">Belum kembali</span>'}
-                    ${r.reason ? `<span class="piket-card-badge">${esc(r.reason)}</span>` : ''}
+                <div class="wali-piket-list-item">
+                  <div class="wali-piket-list-nama">${esc(r.student_name)}</div>
+                  <div class="wali-piket-list-meta">
+                    <span><i class="ti ti-calendar"></i> ${esc(_fmtTgl(r.date))}</span>
+                    <span><i class="ti ti-logout"></i> Keluar ${_fmtJam(r.exit_time)}</span>
+                    ${(r.return_time && r.return_time !== '—')
+                      ? `<span><i class="ti ti-login"></i> Kembali ${_fmtJam(r.return_time)}</span>`
+                      : `<span style="color:var(--color-danger,#dc2626)"><i class="ti ti-clock-x"></i> Belum kembali</span>`}
+                    ${r.reason ? `<span><i class="ti ti-message"></i> ${esc(r.reason)}</span>` : ''}
                   </div>
                 </div>`).join('')}
             </div>`;
