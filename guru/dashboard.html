@@ -534,7 +534,10 @@
             <div class="section-card" style="margin-top:16px" id="wali-terlambat-card">
                 <div class="kp-acc-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
                     <h3 style="margin:0">Keterlambatan Siswa Walian</h3>
-                    <i class="ti ti-chevron-down" style="font-size:18px;color:var(--color-text-muted);transition:transform .2s" id="wali-late-chevron"></i>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <button id="wali-late-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px">↓ Excel</button>
+                        <i class="ti ti-chevron-down" style="font-size:18px;color:var(--color-text-muted);transition:transform .2s" id="wali-late-chevron"></i>
+                    </div>
                 </div>
                 <div class="kp-acc-body" style="display:none">
                     <div class="date-row" style="margin:12px 0">
@@ -553,7 +556,10 @@
             <div class="section-card" style="margin-top:16px" id="wali-keluar-card">
                 <div class="kp-acc-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
                     <h3 style="margin:0">Izin Keluar Siswa Walian</h3>
-                    <i class="ti ti-chevron-down" style="font-size:18px;color:var(--color-text-muted);transition:transform .2s" id="wali-exit-chevron"></i>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <button id="wali-exit-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px">↓ Excel</button>
+                        <i class="ti ti-chevron-down" style="font-size:18px;color:var(--color-text-muted);transition:transform .2s" id="wali-exit-chevron"></i>
+                    </div>
                 </div>
                 <div class="kp-acc-body" style="display:none">
                     <div class="date-row" style="margin:12px 0">
@@ -598,7 +604,7 @@
             </div>
 
             <div class="section-card kp-acc-item" id="bk-late-card" style="margin-top:16px">
-                <div class="kp-acc-header"><span>Rekap Keterlambatan</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header"><span>Rekap Keterlambatan</span><button id="bk-late-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px;margin-left:auto;margin-right:8px">↓ Excel</button><span class="kp-acc-arrow">▸</span></div>
                 <div class="kp-acc-body" style="display:none">
                 <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
                     <div style="display:flex;align-items:center;gap:8px">
@@ -620,7 +626,7 @@
             </div>
 
             <div class="section-card kp-acc-item" id="bk-exit-card" style="margin-top:16px">
-                <div class="kp-acc-header"><span>Rekap Izin Keluar</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header"><span>Rekap Izin Keluar</span><button id="bk-exit-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px;margin-left:auto;margin-right:8px">↓ Excel</button><span class="kp-acc-arrow">▸</span></div>
                 <div class="kp-acc-body" style="display:none">
                 <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
                     <div style="display:flex;align-items:center;gap:8px">
@@ -735,7 +741,7 @@
 
             <!-- Rekap Keterlambatan — piket (hanya kelas di program ini) -->
             <div class="section-card kp-acc-item" id="kp-late-card">
-                <div class="kp-acc-header"><span>Rekap Keterlambatan</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header"><span>Rekap Keterlambatan</span><button id="kp-late-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px;margin-left:auto;margin-right:8px">↓ Excel</button><span class="kp-acc-arrow">▸</span></div>
                 <div class="kp-acc-body" style="display:none">
                 <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
                     <div style="display:flex;align-items:center;gap:8px">
@@ -758,7 +764,7 @@
 
             <!-- Rekap Izin Keluar — piket (hanya kelas di program ini) -->
             <div class="section-card kp-acc-item" id="kp-exit-card">
-                <div class="kp-acc-header"><span>Rekap Izin Keluar</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header"><span>Rekap Izin Keluar</span><button id="kp-exit-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px;margin-left:auto;margin-right:8px">↓ Excel</button><span class="kp-acc-arrow">▸</span></div>
                 <div class="kp-acc-body" style="display:none">
                 <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
                     <div style="display:flex;align-items:center;gap:8px">
@@ -1131,7 +1137,7 @@
             </div>
 
             <div class="section-card kp-acc-item" id="wk-late-card">
-                <div class="kp-acc-header"><span>Rekap Keterlambatan</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header"><span>Rekap Keterlambatan</span><button id="wk-late-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px;margin-left:auto;margin-right:8px">↓ Excel</button><span class="kp-acc-arrow">▸</span></div>
                 <div class="kp-acc-body" id="wk-late-body" style="display:none">
                 <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
                     <div style="display:flex;align-items:center;gap:8px">
@@ -1153,7 +1159,7 @@
             </div>
 
             <div class="section-card kp-acc-item" id="wk-exit-card" style="margin-top:16px">
-                <div class="kp-acc-header"><span>Rekap Izin Keluar</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header"><span>Rekap Izin Keluar</span><button id="wk-exit-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px;margin-left:auto;margin-right:8px">↓ Excel</button><span class="kp-acc-arrow">▸</span></div>
                 <div class="kp-acc-body" style="display:none">
                 <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
                     <div style="display:flex;align-items:center;gap:8px">

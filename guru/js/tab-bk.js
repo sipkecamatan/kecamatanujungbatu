@@ -11,7 +11,7 @@ import {
     getClassStudents, getClassAttendanceByDate,
     getLateArrivalsByRange, getExitsByRange, getKelasSekolah,
 } from './api.js';
-import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta, renderPerhatianAccordion, wirePerhatianCollapse } from './tab-shared.js';
+import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta, renderPerhatianAccordion, wirePerhatianCollapse, downloadLateExcel, downloadExitExcel } from './tab-shared.js';
 import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kaprodi.js';
 
 /* global XLSX */
@@ -19,6 +19,8 @@ import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kapr
 let _bkKasusCtx  = null;
 let _bkLateSeq   = 0;
 let _bkExitSeq   = 0;
+let _cachedBkLate = [];
+let _cachedBkExit = [];
 
 export async function initBkTab({ config, kasusEngine }) {
     const { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } = kasusEngine;
@@ -38,6 +40,27 @@ export async function initBkTab({ config, kasusEngine }) {
     document.getElementById('bk-att-export-btn').onclick  = () => downloadBkAttExcel({ config });
     document.getElementById('bk-late-filter-btn').onclick = () => loadBkLateRecap({ config });
     document.getElementById('bk-exit-filter-btn').onclick = () => loadBkExitRecap({ config });
+
+    const _bkLateExcelBtn = document.getElementById('bk-late-excel-btn');
+    if (_bkLateExcelBtn) {
+        _bkLateExcelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!_cachedBkLate.length) return;
+            const start = document.getElementById('bk-late-start').value;
+            const end   = document.getElementById('bk-late-end').value;
+            downloadLateExcel(_cachedBkLate, `keterlambatan_BK_${start}_${end}`, { withKelas: true, withRecorder: true });
+        });
+    }
+    const _bkExitExcelBtn = document.getElementById('bk-exit-excel-btn');
+    if (_bkExitExcelBtn) {
+        _bkExitExcelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!_cachedBkExit.length) return;
+            const start = document.getElementById('bk-exit-start').value;
+            const end   = document.getElementById('bk-exit-end').value;
+            downloadExitExcel(_cachedBkExit, `izin_keluar_BK_${start}_${end}`, { withKelas: true, withRecorder: true });
+        });
+    }
 
     try {
         const classes = await getKelasSekolah();
@@ -396,10 +419,14 @@ async function loadBkLateRecap({ config }) {
         return;
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
+    const _bkLateExcelBtnInner = document.getElementById('bk-late-excel-btn');
+    if (_bkLateExcelBtnInner) _bkLateExcelBtnInner.style.display = 'none';
     try {
         let rows = await getLateArrivalsByRange(start, end, config?.current_academic_year ?? null);
         if (seq !== _bkLateSeq) return;
         if (classId) rows = rows.filter(r => r.class_id === classId);
+        _cachedBkLate = rows;
+        if (_bkLateExcelBtnInner) _bkLateExcelBtnInner.style.display = rows.length ? '' : 'none';
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>';
             return;
@@ -443,10 +470,14 @@ async function loadBkExitRecap({ config }) {
         return;
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
+    const _bkExitExcelBtnInner = document.getElementById('bk-exit-excel-btn');
+    if (_bkExitExcelBtnInner) _bkExitExcelBtnInner.style.display = 'none';
     try {
         let rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
         if (seq !== _bkExitSeq) return;
         if (classId) rows = rows.filter(r => r.class_id === classId);
+        _cachedBkExit = rows;
+        if (_bkExitExcelBtnInner) _bkExitExcelBtnInner.style.display = rows.length ? '' : 'none';
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>';
             return;

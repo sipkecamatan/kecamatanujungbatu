@@ -18,7 +18,7 @@ import {
     createPlacement, finishPlacement, bulkImportPkl,
     getLateArrivalsByRange, getExitsByRange,
 } from './api.js';
-import { esc, fe, fmt, localDateStr, buildPertemuanMeta, filterPerhatian, renderPerhatianAccordion, wirePerhatianCollapse, wireSimpleAccordion } from './tab-shared.js';
+import { esc, fe, fmt, localDateStr, buildPertemuanMeta, filterPerhatian, renderPerhatianAccordion, wirePerhatianCollapse, wireSimpleAccordion, downloadLateExcel, downloadExitExcel } from './tab-shared.js';
 import { buildWaliSheetsMonthly } from './tab-wali.js';
 
 const DIMENSION_LABELS = {
@@ -39,6 +39,8 @@ let kpClsRecapSeq     = 0;
 let _kpKasusCtx       = null;
 let _kpLateSeq        = 0;
 let _kpExitSeq        = 0;
+let _cachedKpLate     = [];
+let _cachedKpExit     = [];
 
 // Diekspor: dipakai di bagian kasus/observasi dashboard.js
 export let kaprodiAllStudents = [];
@@ -101,6 +103,27 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
         document.getElementById('kp-exit-end').value   = today;
         document.getElementById('kp-late-filter-btn').onclick = () => loadKpLateRecap({ config, programId });
         document.getElementById('kp-exit-filter-btn').onclick = () => loadKpExitRecap({ config, programId });
+
+        const _kpLateExcelBtn = document.getElementById('kp-late-excel-btn');
+        if (_kpLateExcelBtn) {
+            _kpLateExcelBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!_cachedKpLate.length) return;
+                const start = document.getElementById('kp-late-start').value;
+                const end   = document.getElementById('kp-late-end').value;
+                downloadLateExcel(_cachedKpLate, `keterlambatan_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
+            });
+        }
+        const _kpExitExcelBtn = document.getElementById('kp-exit-excel-btn');
+        if (_kpExitExcelBtn) {
+            _kpExitExcelBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!_cachedKpExit.length) return;
+                const start = document.getElementById('kp-exit-start').value;
+                const end   = document.getElementById('kp-exit-end').value;
+                downloadExitExcel(_cachedKpExit, `izin_keluar_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
+            });
+        }
 
         // Isi dropdown kelas dari program ini
         try {
@@ -744,10 +767,14 @@ async function loadKpLateRecap({ config, programId }) {
         return;
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
+    const _kpLateExcelBtnInner = document.getElementById('kp-late-excel-btn');
+    if (_kpLateExcelBtnInner) _kpLateExcelBtnInner.style.display = 'none';
     try {
         let rows = await getLateArrivalsByRange(start, end, config?.current_academic_year ?? null);
         if (seq !== _kpLateSeq) return;
         if (classId) rows = rows.filter(r => r.class_id === classId);
+        _cachedKpLate = rows;
+        if (_kpLateExcelBtnInner) _kpLateExcelBtnInner.style.display = rows.length ? '' : 'none';
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>';
             return;
@@ -791,10 +818,14 @@ async function loadKpExitRecap({ config, programId }) {
         return;
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
+    const _kpExitExcelBtnInner = document.getElementById('kp-exit-excel-btn');
+    if (_kpExitExcelBtnInner) _kpExitExcelBtnInner.style.display = 'none';
     try {
         let rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
         if (seq !== _kpExitSeq) return;
         if (classId) rows = rows.filter(r => r.class_id === classId);
+        _cachedKpExit = rows;
+        if (_kpExitExcelBtnInner) _kpExitExcelBtnInner.style.display = rows.length ? '' : 'none';
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>';
             return;

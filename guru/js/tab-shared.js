@@ -340,3 +340,84 @@ export function wireSimpleAccordion(cardId) {
         body.style.display = open ? 'none' : 'block';
     });
 }
+
+/**
+ * Unduh Excel keterlambatan (late_arrivals).
+ * @param {Array}  rows      — dari getWaliLateArrivals atau getLateArrivalsByRange
+ * @param {string} filename  — nama file tanpa ekstensi
+ * @param {Object} opts
+ * @param {boolean} [opts.withKelas=false]    — sertakan kolom Kelas
+ * @param {boolean} [opts.withRecorder=false] — sertakan kolom Dicatat Oleh
+ */
+export function downloadLateExcel(rows, filename, { withKelas = false, withRecorder = false } = {}) {
+    /* global XLSX */
+    const header = ['Tanggal', 'Nama Siswa', 'NIS'];
+    if (withKelas) header.push('Kelas');
+    header.push('Jam Masuk', 'Alasan');
+    if (withRecorder) header.push('Dicatat Oleh');
+
+    const fmtTgl = (iso) => {
+        if (!iso) return '—';
+        const [y, m, d] = iso.split('-');
+        const bln = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+        return `${Number(d)} ${bln[Number(m)-1]} ${y}`;
+    };
+
+    const data = rows.map(r => {
+        const row = [fmtTgl(r.date), r.student_name ?? '—', r.nis ?? '—'];
+        if (withKelas) row.push(r.class_name ?? '—');
+        row.push(r.arrival_time ? r.arrival_time.slice(0, 5) : '—', r.reason || '');
+        if (withRecorder) row.push(r.recorder ?? '—');
+        return row;
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Keterlambatan');
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/octet-stream' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = filename + '.xlsx'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/**
+ * Unduh Excel izin keluar (student_exits).
+ * @param {Array}  rows      — dari getWaliExits atau getExitsByRange
+ * @param {string} filename  — nama file tanpa ekstensi
+ * @param {Object} opts
+ * @param {boolean} [opts.withKelas=false]
+ * @param {boolean} [opts.withRecorder=false]
+ */
+export function downloadExitExcel(rows, filename, { withKelas = false, withRecorder = false } = {}) {
+    /* global XLSX */
+    const header = ['Tanggal', 'Nama Siswa', 'NIS'];
+    if (withKelas) header.push('Kelas');
+    header.push('Jam Keluar', 'Jam Kembali', 'Alasan');
+    if (withRecorder) header.push('Dicatat Oleh');
+
+    const fmtTgl = (iso) => {
+        if (!iso) return '—';
+        const [y, m, d] = iso.split('-');
+        const bln = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+        return `${Number(d)} ${bln[Number(m)-1]} ${y}`;
+    };
+    const fmtJam = (t) => (t && t !== '—') ? t.slice(0, 5) : '—';
+
+    const data = rows.map(r => {
+        const row = [fmtTgl(r.date), r.student_name ?? '—', r.nis ?? '—'];
+        if (withKelas) row.push(r.class_name ?? '—');
+        row.push(fmtJam(r.exit_time), fmtJam(r.return_time), r.reason || '');
+        if (withRecorder) row.push(r.recorder ?? '—');
+        return row;
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Izin Keluar');
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/octet-stream' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = filename + '.xlsx'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+}

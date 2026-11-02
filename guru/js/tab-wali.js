@@ -10,13 +10,15 @@ import {
     getWaliLateArrivals, getWaliExits, getClassScheduleFull,
 } from './api.js';
 import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
-import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat, wirePerhatianCollapse } from './tab-shared.js';
+import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat, wirePerhatianCollapse, downloadLateExcel, downloadExitExcel } from './tab-shared.js';
 
 /* global XLSX */
 
 let _waliSummarySeq = 0;
 let _waliRosterSeq  = 0;
 let _waliKasusCtx   = null;
+let _cachedWaliLate = [];
+let _cachedWaliExit = [];
 
 export async function initWaliTab({ currentUser, config, kasusEngine }) {
     const { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList, showKasusLoadError } = kasusEngine;
@@ -108,6 +110,29 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
     document.getElementById('wali-late-filter-btn').onclick = () => loadWaliLate({ currentUser });
     document.getElementById('wali-exit-filter-btn').onclick = () => loadWaliExit({ currentUser });
 
+    const _waliLateExcelBtn = document.getElementById('wali-late-excel-btn');
+    const _waliExitExcelBtn = document.getElementById('wali-exit-excel-btn');
+    if (_waliLateExcelBtn) {
+        _waliLateExcelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!_cachedWaliLate.length) return;
+            const start = document.getElementById('wali-late-date-start').value;
+            const end   = document.getElementById('wali-late-date-end').value;
+            const kelas = currentUser.wali_kelas_class_name ?? 'kelas';
+            downloadLateExcel(_cachedWaliLate, `keterlambatan_wali_${kelas}_${start}_${end}`.replace(/\s+/g, '_'));
+        });
+    }
+    if (_waliExitExcelBtn) {
+        _waliExitExcelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!_cachedWaliExit.length) return;
+            const start = document.getElementById('wali-exit-date-start').value;
+            const end   = document.getElementById('wali-exit-date-end').value;
+            const kelas = currentUser.wali_kelas_class_name ?? 'kelas';
+            downloadExitExcel(_cachedWaliExit, `izin_keluar_wali_${kelas}_${start}_${end}`.replace(/\s+/g, '_'));
+        });
+    }
+
     _wireWaliCollapse('wali-terlambat-card', 'wali-late-chevron');
     _wireWaliCollapse('wali-keluar-card',    'wali-exit-chevron');
 
@@ -155,8 +180,12 @@ async function loadWaliLate({ currentUser }) {
     const el        = document.getElementById('wali-late-content');
     if (!dateStart || !dateEnd) { el.innerHTML = '<p class="hint">Pilih rentang tanggal lalu klik Filter.</p>'; return; }
     el.innerHTML = '<p class="hint">Memuat…</p>';
+    const _lateExcelBtn = document.getElementById('wali-late-excel-btn');
+    if (_lateExcelBtn) _lateExcelBtn.style.display = 'none';
     try {
         const rows = await getWaliLateArrivals(dateStart, dateEnd);
+        _cachedWaliLate = rows;
+        if (_lateExcelBtn) _lateExcelBtn.style.display = rows.length ? '' : 'none';
         if (!rows.length) { el.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>'; return; }
         el.innerHTML = `
             <style>
@@ -209,8 +238,12 @@ async function loadWaliExit({ currentUser }) {
     const el        = document.getElementById('wali-exit-content');
     if (!dateStart || !dateEnd) { el.innerHTML = '<p class="hint">Pilih rentang tanggal lalu klik Filter.</p>'; return; }
     el.innerHTML = '<p class="hint">Memuat…</p>';
+    const _exitExcelBtn = document.getElementById('wali-exit-excel-btn');
+    if (_exitExcelBtn) _exitExcelBtn.style.display = 'none';
     try {
         const rows = await getWaliExits(dateStart, dateEnd);
+        _cachedWaliExit = rows;
+        if (_exitExcelBtn) _exitExcelBtn.style.display = rows.length ? '' : 'none';
         if (!rows.length) { el.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>'; return; }
         el.innerHTML = `
             <div class="wali-piket-wrap-tbl" style="overflow-x:auto">

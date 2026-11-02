@@ -12,7 +12,7 @@ import {
     getLateArrivalsByRange, getCoachingCasesCount, getExitsByRange,
     getKelasSekolah,
 } from './api.js';
-import { esc, fe, wireSimpleAccordion, localDateStr, renderPerhatianAccordion, wirePerhatianCollapse } from './tab-shared.js';
+import { esc, fe, wireSimpleAccordion, localDateStr, renderPerhatianAccordion, wirePerhatianCollapse, downloadLateExcel, downloadExitExcel } from './tab-shared.js';
 import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kaprodi.js';
 
 export let wkKasusCtx = null;
@@ -20,6 +20,8 @@ let _wkAttendanceRequestSeq = 0;
 let _wkLateRequestSeq       = 0;
 let _wkExitRequestSeq       = 0;
 let _wkClasses              = [];
+let _cachedWkLate           = [];
+let _cachedWkExit           = [];
 
 export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser }) {
     const { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } = kasusEngine;
@@ -37,10 +39,32 @@ export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser })
     document.getElementById('wk-late-start').value = firstOfMonth;
     document.getElementById('wk-late-end').value   = today;
     document.getElementById('wk-late-filter-btn').onclick = () => loadWkLateRecap({ config });
+    const _wkLateExcelBtn = document.getElementById('wk-late-excel-btn');
+    if (_wkLateExcelBtn) {
+        _wkLateExcelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!_cachedWkLate.length) return;
+            const start = document.getElementById('wk-late-start').value;
+            const end   = document.getElementById('wk-late-end').value;
+            const label = currentUser?.role_type === 'WAKASEK' ? 'wakasek_smp' : 'waka_kesiswaan';
+            downloadLateExcel(_cachedWkLate, `keterlambatan_${label}_${start}_${end}`, { withKelas: true, withRecorder: true });
+        });
+    }
 
     document.getElementById('wk-exit-start').value = firstOfMonth;
     document.getElementById('wk-exit-end').value   = today;
     document.getElementById('wk-exit-filter-btn').onclick = () => loadWkExitRecap({ config });
+    const _wkExitExcelBtn = document.getElementById('wk-exit-excel-btn');
+    if (_wkExitExcelBtn) {
+        _wkExitExcelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!_cachedWkExit.length) return;
+            const start = document.getElementById('wk-exit-start').value;
+            const end   = document.getElementById('wk-exit-end').value;
+            const label = currentUser?.role_type === 'WAKASEK' ? 'wakasek_smp' : 'waka_kesiswaan';
+            downloadExitExcel(_cachedWkExit, `izin_keluar_${label}_${start}_${end}`, { withKelas: true, withRecorder: true });
+        });
+    }
 
     // Muat daftar kelas untuk dropdown filter
     try {
@@ -451,10 +475,14 @@ async function loadWkLateRecap({ config }) {
         return;
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
+    const _wkLateExcelBtnInner = document.getElementById('wk-late-excel-btn');
+    if (_wkLateExcelBtnInner) _wkLateExcelBtnInner.style.display = 'none';
     try {
         let rows = await getLateArrivalsByRange(start, end, config?.current_academic_year ?? null);
         if (requestSeq !== _wkLateRequestSeq) return;
         if (classId) rows = rows.filter(r => r.class_id === classId);
+        _cachedWkLate = rows;
+        if (_wkLateExcelBtnInner) _wkLateExcelBtnInner.style.display = rows.length ? '' : 'none';
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>';
             return;
@@ -497,10 +525,14 @@ async function loadWkExitRecap({ config }) {
         return;
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
+    const _wkExitExcelBtnInner = document.getElementById('wk-exit-excel-btn');
+    if (_wkExitExcelBtnInner) _wkExitExcelBtnInner.style.display = 'none';
     try {
         let rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
         if (requestSeq !== _wkExitRequestSeq) return;
         if (classId) rows = rows.filter(r => r.class_id === classId);
+        _cachedWkExit = rows;
+        if (_wkExitExcelBtnInner) _wkExitExcelBtnInner.style.display = rows.length ? '' : 'none';
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>';
             return;
