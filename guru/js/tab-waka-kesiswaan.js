@@ -10,6 +10,7 @@ import {
     getPrograms, getAttendanceRecapPerClass,
     getClassesByProgram, getWaliAttendanceSummary,
     getLateArrivalsByRange, getCoachingCasesCount, getExitsByRange,
+    getKelasSekolah,
 } from './api.js';
 import { esc, fe, wireSimpleAccordion, localDateStr, renderPerhatianAccordion, wirePerhatianCollapse } from './tab-shared.js';
 import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kaprodi.js';
@@ -18,6 +19,7 @@ export let wkKasusCtx = null;
 let _wkAttendanceRequestSeq = 0;
 let _wkLateRequestSeq       = 0;
 let _wkExitRequestSeq       = 0;
+let _wkClasses              = [];
 
 export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser }) {
     const { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } = kasusEngine;
@@ -39,6 +41,14 @@ export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser })
     document.getElementById('wk-exit-start').value = firstOfMonth;
     document.getElementById('wk-exit-end').value   = today;
     document.getElementById('wk-exit-filter-btn').onclick = () => loadWkExitRecap({ config });
+
+    // Muat daftar kelas untuk dropdown filter
+    try {
+        _wkClasses = await getKelasSekolah();
+        const opt = _wkClasses.map(c => `<option value="${esc(c.class_id)}">${esc(c.name)}</option>`).join('');
+        document.getElementById('wk-late-class').insertAdjacentHTML('beforeend', opt);
+        document.getElementById('wk-exit-class').insertAdjacentHTML('beforeend', opt);
+    } catch (_) { /* dropdown tetap kosong, filter tidak aktif */ }
 
     await loadWkAttendanceRecap({ config });
     await loadWkLateRecap({ config });
@@ -434,6 +444,7 @@ async function loadWkLateRecap({ config }) {
     const requestSeq = ++_wkLateRequestSeq;
     const start      = document.getElementById('wk-late-start').value;
     const end        = document.getElementById('wk-late-end').value;
+    const classId    = document.getElementById('wk-late-class')?.value || '';
     const container  = document.getElementById('wk-late-recap');
     if (!start || !end || start > end) {
         container.innerHTML = '<p class="hint" style="color:var(--color-danger)">Rentang tanggal tidak valid.</p>';
@@ -441,8 +452,9 @@ async function loadWkLateRecap({ config }) {
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
     try {
-        const rows = await getLateArrivalsByRange(start, end, config?.current_academic_year ?? null);
+        let rows = await getLateArrivalsByRange(start, end, config?.current_academic_year ?? null);
         if (requestSeq !== _wkLateRequestSeq) return;
+        if (classId) rows = rows.filter(r => r.class_id === classId);
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>';
             return;
@@ -478,6 +490,7 @@ async function loadWkExitRecap({ config }) {
     const requestSeq = ++_wkExitRequestSeq;
     const start      = document.getElementById('wk-exit-start').value;
     const end        = document.getElementById('wk-exit-end').value;
+    const classId    = document.getElementById('wk-exit-class')?.value || '';
     const container  = document.getElementById('wk-exit-recap');
     if (!start || !end || start > end) {
         container.innerHTML = '<p class="hint" style="color:var(--color-danger)">Rentang tanggal tidak valid.</p>';
@@ -485,8 +498,9 @@ async function loadWkExitRecap({ config }) {
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
     try {
-        const rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
+        let rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
         if (requestSeq !== _wkExitRequestSeq) return;
+        if (classId) rows = rows.filter(r => r.class_id === classId);
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>';
             return;

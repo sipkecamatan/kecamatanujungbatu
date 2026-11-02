@@ -182,6 +182,8 @@
     },
     "kaprodi": {
       "Tab Kaprodi": [
+        "Rekap Keterlambatan (piket, hanya kelas di program, dropdown kelas)",
+        "Rekap Izin Keluar (piket, hanya kelas di program, dropdown kelas)",
         "Rekap Kehadiran per Kelas Prodi",
         "Siswa Perlu Perhatian (accordion per kelas program, load paralel)",
         "Rekap Absensi PKL",
@@ -196,7 +198,8 @@
       "Tab Waka Kesiswaan": [
         "Rekap Kehadiran Seluruh Sekolah",
         "Siswa Perlu Perhatian (lazy accordion — daftar kelas muncul segera, detail fetch saat expand)",
-        "Keterlambatan Seluruh Sekolah",
+        "Keterlambatan Seluruh Sekolah (dropdown kelas filter)",
+        "Izin Keluar Seluruh Sekolah (dropdown kelas filter)",
         "Pembinaan Siswa — Kesiswaan",
         "Detail kasus + tindakan Waka"
       ]
@@ -725,9 +728,10 @@
   ],
   "state": {
     "last_updated": "2026-11-02",
-    "last_session_commit": "5ac240f",
+    "last_session_commit": "34617e9",
     "migrasi_terpasang_sampai": "20261101060000",
-    "main_sha": "5ac240f",
-    "_catatan_push": "fix(ui): audit + perbaiki 8 bug tab Piket (timezone, dropdown, error handling, validasi)"
+    "migrasi_ditulis_belum_push": "20261102010000_fix_rls_piket_waka_kaprodi",
+    "main_sha": "34617e9",
+    "_catatan_push": "feat(piket): fix RLS exits waka (WAKASEK) + RLS kaprodi piket + dropdown kelas waka + section piket kaprodi"
   }
 }

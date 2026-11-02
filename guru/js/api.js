@@ -1881,7 +1881,7 @@ export async function getLateArrivalsByRange(dateStart, dateEnd, academicYear = 
                 student:students(
                     student_id, full_name, nis, student_status,
                     class_enrollment:class_enrollments(
-                        academic_year, withdrawn_at, class:classes(name)
+                        academic_year, withdrawn_at, class:classes(class_id, name)
                     )
                 ),
                 recorder:users!late_arrivals_recorded_by_fkey(full_name)
@@ -1910,6 +1910,7 @@ export async function getLateArrivalsByRange(dateStart, dateEnd, academicYear = 
             reason:       r.reason ?? '',
             student_name: r.student?.full_name ?? '—',
             nis:          r.student?.nis ?? '—',
+            class_id:     current?.class?.class_id ?? null,
             class_name:   current?.class?.name ?? '—',
             recorder:     r.recorder?.full_name ?? '—',
         };
@@ -1927,7 +1928,7 @@ export async function getExitsByRange(dateStart, dateEnd, academicYear = null) {
                 student:students(
                     student_id, full_name, nis, student_status,
                     class_enrollment:class_enrollments(
-                        academic_year, withdrawn_at, class:classes(name)
+                        academic_year, withdrawn_at, class:classes(class_id, name)
                     )
                 ),
                 recorder:users!student_exits_recorded_by_fkey(full_name)
@@ -1956,6 +1957,7 @@ export async function getExitsByRange(dateStart, dateEnd, academicYear = null) {
             reason:       r.reason ?? '',
             student_name: r.student?.full_name ?? '—',
             nis:          r.student?.nis ?? '—',
+            class_id:     current?.class?.class_id ?? null,
             class_name:   current?.class?.name ?? '—',
             recorder:     r.recorder?.full_name ?? '—',
         };

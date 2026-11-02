@@ -689,6 +689,52 @@
     <div class="tab-panel" id="tab-kaprodi">
         <div class="page-body" id="kp-accordion">
 
+            <!-- Rekap Keterlambatan — piket (hanya kelas di program ini) -->
+            <div class="section-card kp-acc-item" id="kp-late-card">
+                <div class="kp-acc-header"><span>Rekap Keterlambatan</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" style="display:none">
+                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="kp-late-start" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Dari:</label>
+                        <input type="date" id="kp-late-start" class="input" style="flex:1;min-width:0">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="kp-late-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
+                        <input type="date" id="kp-late-end" class="input" style="flex:1;min-width:0">
+                        <button class="btn btn-secondary btn-sm" id="kp-late-filter-btn">Filter</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="kp-late-class" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Kelas:</label>
+                        <select id="kp-late-class" class="input" style="flex:1;min-width:0"><option value="">Semua kelas prodi</option></select>
+                    </div>
+                </div>
+                <div id="kp-late-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
+                </div>
+            </div>
+
+            <!-- Rekap Izin Keluar — piket (hanya kelas di program ini) -->
+            <div class="section-card kp-acc-item" id="kp-exit-card">
+                <div class="kp-acc-header"><span>Rekap Izin Keluar</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-body" style="display:none">
+                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="kp-exit-start" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Dari:</label>
+                        <input type="date" id="kp-exit-start" class="input" style="flex:1;min-width:0">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="kp-exit-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
+                        <input type="date" id="kp-exit-end" class="input" style="flex:1;min-width:0">
+                        <button class="btn btn-secondary btn-sm" id="kp-exit-filter-btn">Filter</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="kp-exit-class" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Kelas:</label>
+                        <select id="kp-exit-class" class="input" style="flex:1;min-width:0"><option value="">Semua kelas prodi</option></select>
+                    </div>
+                </div>
+                <div id="kp-exit-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
+                </div>
+            </div>
+
             <!-- Rekap Absensi Kelas — kehadiran sesi siswa AKTIF di sekolah -->
             <div class="section-card kp-acc-item">
                 <div class="kp-acc-header" data-target="kp-body-cls"><span>Rekap Absensi Kelas</span><span class="kp-acc-arrow">▸</span></div>
@@ -1053,6 +1099,10 @@
                         <input type="date" id="wk-late-end" class="input" style="flex:1;min-width:0">
                         <button class="btn btn-secondary btn-sm" id="wk-late-filter-btn">Filter</button>
                     </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="wk-late-class" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Kelas:</label>
+                        <select id="wk-late-class" class="input" style="flex:1;min-width:0"><option value="">Semua kelas</option></select>
+                    </div>
                 </div>
                 <div id="wk-late-recap"><p class="hint">Memuat…</p></div>
                 </div>
@@ -1070,6 +1120,10 @@
                         <label for="wk-exit-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
                         <input type="date" id="wk-exit-end" class="input" style="flex:1;min-width:0">
                         <button class="btn btn-secondary btn-sm" id="wk-exit-filter-btn">Filter</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <label for="wk-exit-class" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Kelas:</label>
+                        <select id="wk-exit-class" class="input" style="flex:1;min-width:0"><option value="">Semua kelas</option></select>
                     </div>
                 </div>
                 <div id="wk-exit-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>

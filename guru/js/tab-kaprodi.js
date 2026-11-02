@@ -16,8 +16,9 @@ import {
     getClassStudents, getClassAttendanceByDate,
     getWaliAttendanceSummary, getClassScheduleFull,
     createPlacement, finishPlacement, bulkImportPkl,
+    getLateArrivalsByRange, getExitsByRange,
 } from './api.js';
-import { esc, fe, fmt, localDateStr, buildPertemuanMeta, filterPerhatian, renderPerhatianAccordion, wirePerhatianCollapse } from './tab-shared.js';
+import { esc, fe, fmt, localDateStr, buildPertemuanMeta, filterPerhatian, renderPerhatianAccordion, wirePerhatianCollapse, wireSimpleAccordion } from './tab-shared.js';
 import { buildWaliSheetsMonthly } from './tab-wali.js';
 
 const DIMENSION_LABELS = {
@@ -36,6 +37,8 @@ let kpTabLoading      = false;
 let kpRecapSeq        = 0;
 let kpClsRecapSeq     = 0;
 let _kpKasusCtx       = null;
+let _kpLateSeq        = 0;
+let _kpExitSeq        = 0;
 
 // Diekspor: dipakai di bagian kasus/observasi dashboard.js
 export let kaprodiAllStudents = [];
@@ -87,6 +90,26 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
         document.getElementById('kp-filter-btn').onclick     = loadKpRecap;
         document.getElementById('kp-cls-filter-btn').onclick = () => loadKpClsRecap({ config });
         document.getElementById('kp-cls-export-btn').onclick = () => downloadKpClsExcel({ config });
+
+        // Wiring section Rekap Keterlambatan + Rekap Izin Keluar (piket)
+        wireSimpleAccordion('kp-late-card');
+        wireSimpleAccordion('kp-exit-card');
+        const firstOfMonth = today.slice(0, 8) + '01';
+        document.getElementById('kp-late-start').value = firstOfMonth;
+        document.getElementById('kp-late-end').value   = today;
+        document.getElementById('kp-exit-start').value = firstOfMonth;
+        document.getElementById('kp-exit-end').value   = today;
+        document.getElementById('kp-late-filter-btn').onclick = () => loadKpLateRecap({ config, programId });
+        document.getElementById('kp-exit-filter-btn').onclick = () => loadKpExitRecap({ config, programId });
+
+        // Isi dropdown kelas dari program ini
+        try {
+            const kpClasses = await getClassesByProgram(programId);
+            const optHtml   = kpClasses.sort((a, b) => a.name.localeCompare(b.name, 'id'))
+                .map(c => `<option value="${esc(c.class_id)}">${esc(c.name)}</option>`).join('');
+            document.getElementById('kp-late-class').insertAdjacentHTML('beforeend', optHtml);
+            document.getElementById('kp-exit-class').insertAdjacentHTML('beforeend', optHtml);
+        } catch (_) { /* dropdown tetap, filter tidak aktif */ }
 
         const studentsBody = document.getElementById('kp-students-body');
         studentsBody.removeEventListener('click', _handleKpStudentsClick);
@@ -707,4 +730,99 @@ async function initKpPlacementForm(programId) {
             fileInput.value = '';
         }
     });
+}
+
+// ── Rekap Keterlambatan (piket) — hanya siswa program ini (dijaga RLS) ────────
+async function loadKpLateRecap({ config, programId }) {
+    const seq       = ++_kpLateSeq;
+    const start     = document.getElementById('kp-late-start').value;
+    const end       = document.getElementById('kp-late-end').value;
+    const classId   = document.getElementById('kp-late-class')?.value || '';
+    const container = document.getElementById('kp-late-recap');
+    if (!start || !end || start > end) {
+        container.innerHTML = '<p class="hint" style="color:var(--color-danger)">Rentang tanggal tidak valid.</p>';
+        return;
+    }
+    container.innerHTML = '<p class="hint">Memuat…</p>';
+    try {
+        let rows = await getLateArrivalsByRange(start, end, config?.current_academic_year ?? null);
+        if (seq !== _kpLateSeq) return;
+        if (classId) rows = rows.filter(r => r.class_id === classId);
+        if (!rows.length) {
+            container.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>';
+            return;
+        }
+        const fmtDisp = d => new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        container.innerHTML = `
+            <p class="hint" style="margin-bottom:8px">${rows.length} catatan ditemukan</p>
+            <div style="overflow-x:auto">
+            <table class="table" style="width:100%">
+                <thead><tr>
+                    <th>Tanggal</th><th>Nama Siswa</th>
+                    <th>Kelas</th><th>Jam Datang</th><th>Alasan</th><th>Dicatat Oleh</th>
+                </tr></thead>
+                <tbody>${rows.map(r => `
+                    <tr>
+                        <td style="white-space:nowrap">${fmtDisp(r.date)}</td>
+                        <td>${esc(r.student_name)}</td>
+                        <td>${esc(r.class_name)}</td>
+                        <td style="white-space:nowrap">${r.arrival_time.slice(0, 5)}</td>
+                        <td>${esc(r.reason || '—')}</td>
+                        <td>${esc(r.recorder)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            </div>`;
+    } catch (err) {
+        if (seq !== _kpLateSeq) return;
+        container.innerHTML = `<div class="alert alert-danger">${esc(fe(err))}</div>`;
+    }
+}
+
+// ── Rekap Izin Keluar (piket) — hanya siswa program ini (dijaga RLS) ──────────
+async function loadKpExitRecap({ config, programId }) {
+    const seq       = ++_kpExitSeq;
+    const start     = document.getElementById('kp-exit-start').value;
+    const end       = document.getElementById('kp-exit-end').value;
+    const classId   = document.getElementById('kp-exit-class')?.value || '';
+    const container = document.getElementById('kp-exit-recap');
+    if (!start || !end || start > end) {
+        container.innerHTML = '<p class="hint" style="color:var(--color-danger)">Rentang tanggal tidak valid.</p>';
+        return;
+    }
+    container.innerHTML = '<p class="hint">Memuat…</p>';
+    try {
+        let rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
+        if (seq !== _kpExitSeq) return;
+        if (classId) rows = rows.filter(r => r.class_id === classId);
+        if (!rows.length) {
+            container.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>';
+            return;
+        }
+        const fmtDisp = d => new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        container.innerHTML = `
+            <p class="hint" style="margin-bottom:8px">${rows.length} catatan ditemukan</p>
+            <div style="overflow-x:auto">
+            <table class="table" style="width:100%">
+                <thead><tr>
+                    <th>Tanggal</th><th>Nama Siswa</th>
+                    <th>Kelas</th><th>Jam Keluar</th><th>Jam Kembali</th><th>Alasan</th><th>Dicatat Oleh</th>
+                </tr></thead>
+                <tbody>${rows.map(r => `
+                    <tr>
+                        <td style="white-space:nowrap">${fmtDisp(r.date)}</td>
+                        <td>${esc(r.student_name)}</td>
+                        <td>${esc(r.class_name)}</td>
+                        <td style="white-space:nowrap">${r.exit_time ? r.exit_time.slice(0, 5) : '—'}</td>
+                        <td style="white-space:nowrap">${r.return_time ? r.return_time.slice(0, 5) : '<span style="color:var(--color-danger,#dc2626)">Belum kembali</span>'}</td>
+                        <td>${esc(r.reason || '—')}</td>
+                        <td>${esc(r.recorder)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            </div>`;
+    } catch (err) {
+        if (seq !== _kpExitSeq) return;
+        container.innerHTML = `<div class="alert alert-danger">${esc(fe(err))}</div>`;
+    }
 }
