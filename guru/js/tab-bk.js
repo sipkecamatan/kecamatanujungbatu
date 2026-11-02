@@ -9,24 +9,43 @@ import {
     getPrograms, getClassesByProgram, getAttendanceRecapPerClass,
     getWaliAttendanceSummary, getStudentAttendanceSessions,
     getClassStudents, getClassAttendanceByDate,
+    getLateArrivalsByRange, getExitsByRange, getKelasSekolah,
 } from './api.js';
 import { esc, fe, wireSimpleAccordion, localDateStr, buildPertemuanMeta, renderPerhatianAccordion, wirePerhatianCollapse } from './tab-shared.js';
 import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kaprodi.js';
 
 /* global XLSX */
 
-let _bkKasusCtx = null;
+let _bkKasusCtx  = null;
+let _bkLateSeq   = 0;
+let _bkExitSeq   = 0;
 
 export async function initBkTab({ config, kasusEngine }) {
     const { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } = kasusEngine;
 
     wireSimpleAccordion('bk-att-card');
+    wireSimpleAccordion('bk-late-card');
+    wireSimpleAccordion('bk-exit-card');
     const today        = localDateStr();
     const firstOfMonth = today.slice(0, 8) + '01';
-    document.getElementById('bk-att-start').value = firstOfMonth;
-    document.getElementById('bk-att-end').value   = today;
-    document.getElementById('bk-att-filter-btn').onclick = () => loadBkAttendanceRecap({ config });
-    document.getElementById('bk-att-export-btn').onclick = () => downloadBkAttExcel({ config });
+    document.getElementById('bk-att-start').value  = firstOfMonth;
+    document.getElementById('bk-att-end').value    = today;
+    document.getElementById('bk-late-start').value = firstOfMonth;
+    document.getElementById('bk-late-end').value   = today;
+    document.getElementById('bk-exit-start').value = firstOfMonth;
+    document.getElementById('bk-exit-end').value   = today;
+    document.getElementById('bk-att-filter-btn').onclick  = () => loadBkAttendanceRecap({ config });
+    document.getElementById('bk-att-export-btn').onclick  = () => downloadBkAttExcel({ config });
+    document.getElementById('bk-late-filter-btn').onclick = () => loadBkLateRecap({ config });
+    document.getElementById('bk-exit-filter-btn').onclick = () => loadBkExitRecap({ config });
+
+    try {
+        const classes = await getKelasSekolah();
+        const optHtml = classes.map(c => `<option value="${esc(c.class_id)}">${esc(c.name)}</option>`).join('');
+        document.getElementById('bk-late-class').insertAdjacentHTML('beforeend', optHtml);
+        document.getElementById('bk-exit-class').insertAdjacentHTML('beforeend', optHtml);
+    } catch (_) { /* dropdown tetap, filter tidak aktif */ }
+
     await loadBkAttendanceRecap({ config });
     await _initBkKasusSection({ makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList });
     loadBkPerhatian({ config });
@@ -362,5 +381,100 @@ async function downloadBkAttExcel({ config }) {
     } finally {
         btn.disabled = false;
         btn.textContent = '↓ Unduh Excel';
+    }
+}
+
+// ── Rekap Keterlambatan — BK melihat seluruh sekolah (dijaga RLS) ─────────────
+async function loadBkLateRecap({ config }) {
+    const seq       = ++_bkLateSeq;
+    const start     = document.getElementById('bk-late-start').value;
+    const end       = document.getElementById('bk-late-end').value;
+    const classId   = document.getElementById('bk-late-class')?.value || '';
+    const container = document.getElementById('bk-late-recap');
+    if (!start || !end || start > end) {
+        container.innerHTML = '<p class="hint" style="color:var(--color-danger)">Rentang tanggal tidak valid.</p>';
+        return;
+    }
+    container.innerHTML = '<p class="hint">Memuat…</p>';
+    try {
+        let rows = await getLateArrivalsByRange(start, end, config?.current_academic_year ?? null);
+        if (seq !== _bkLateSeq) return;
+        if (classId) rows = rows.filter(r => r.class_id === classId);
+        if (!rows.length) {
+            container.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>';
+            return;
+        }
+        const fmtDisp = d => new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        container.innerHTML = `
+            <p class="hint" style="margin-bottom:8px">${rows.length} catatan ditemukan</p>
+            <div style="overflow-x:auto">
+            <table class="table" style="width:100%">
+                <thead><tr>
+                    <th>Tanggal</th><th>Nama Siswa</th>
+                    <th>Kelas</th><th>Jam Datang</th><th>Alasan</th><th>Dicatat Oleh</th>
+                </tr></thead>
+                <tbody>${rows.map(r => `
+                    <tr>
+                        <td style="white-space:nowrap">${fmtDisp(r.date)}</td>
+                        <td>${esc(r.student_name)}</td>
+                        <td>${esc(r.class_name)}</td>
+                        <td style="white-space:nowrap">${r.arrival_time.slice(0, 5)}</td>
+                        <td>${esc(r.reason || '—')}</td>
+                        <td>${esc(r.recorder)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            </div>`;
+    } catch (err) {
+        if (seq !== _bkLateSeq) return;
+        container.innerHTML = `<div class="alert alert-danger">${esc(fe(err))}</div>`;
+    }
+}
+
+// ── Rekap Izin Keluar — BK melihat seluruh sekolah (dijaga RLS) ───────────────
+async function loadBkExitRecap({ config }) {
+    const seq       = ++_bkExitSeq;
+    const start     = document.getElementById('bk-exit-start').value;
+    const end       = document.getElementById('bk-exit-end').value;
+    const classId   = document.getElementById('bk-exit-class')?.value || '';
+    const container = document.getElementById('bk-exit-recap');
+    if (!start || !end || start > end) {
+        container.innerHTML = '<p class="hint" style="color:var(--color-danger)">Rentang tanggal tidak valid.</p>';
+        return;
+    }
+    container.innerHTML = '<p class="hint">Memuat…</p>';
+    try {
+        let rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
+        if (seq !== _bkExitSeq) return;
+        if (classId) rows = rows.filter(r => r.class_id === classId);
+        if (!rows.length) {
+            container.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>';
+            return;
+        }
+        const fmtDisp = d => new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        container.innerHTML = `
+            <p class="hint" style="margin-bottom:8px">${rows.length} catatan ditemukan</p>
+            <div style="overflow-x:auto">
+            <table class="table" style="width:100%">
+                <thead><tr>
+                    <th>Tanggal</th><th>Nama Siswa</th>
+                    <th>Kelas</th><th>Jam Keluar</th><th>Jam Kembali</th><th>Alasan</th><th>Dicatat Oleh</th>
+                </tr></thead>
+                <tbody>${rows.map(r => `
+                    <tr>
+                        <td style="white-space:nowrap">${fmtDisp(r.date)}</td>
+                        <td>${esc(r.student_name)}</td>
+                        <td>${esc(r.class_name)}</td>
+                        <td style="white-space:nowrap">${r.exit_time ? r.exit_time.slice(0, 5) : '—'}</td>
+                        <td style="white-space:nowrap">${r.return_time ? r.return_time.slice(0, 5) : '<span style="color:var(--color-danger,#dc2626)">Belum kembali</span>'}</td>
+                        <td>${esc(r.reason || '—')}</td>
+                        <td>${esc(r.recorder)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            </div>`;
+    } catch (err) {
+        if (seq !== _bkExitSeq) return;
+        container.innerHTML = `<div class="alert alert-danger">${esc(fe(err))}</div>`;
     }
 }

@@ -174,6 +174,8 @@
     "bk": {
       "Tab BK": [
         "Rekap Kehadiran (fokus rendah)",
+        "Rekap Keterlambatan (seluruh sekolah, dropdown kelas)",
+        "Rekap Izin Keluar (seluruh sekolah, dropdown kelas)",
         "Siswa Perlu Perhatian (lazy accordion identik Waka)",
         "Pembinaan Siswa — BK",
         "Detail kasus + tindakan BK"
@@ -730,8 +732,8 @@
     "last_updated": "2026-11-02",
     "last_session_commit": "34617e9",
     "migrasi_terpasang_sampai": "20261101060000",
-    "migrasi_ditulis_belum_push": "20261102010000_fix_rls_piket_waka_kaprodi",
-    "main_sha": "34617e9",
-    "_catatan_push": "feat(piket): fix RLS exits waka (WAKASEK) + RLS kaprodi piket + dropdown kelas waka + section piket kaprodi"
+    "migrasi_ditulis_belum_push": "20261102020000_rls_piket_bk",
+    "main_sha": "d29573d",
+    "_catatan_push": "feat(piket): tambah akses BK ke keterlambatan + izin keluar + section UI di tab BK"
   }
 }
