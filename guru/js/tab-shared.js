@@ -564,7 +564,7 @@ export function downloadWaliLateRekap(rows, students, className, academicYear, f
 
         if (!mRows.length) {
             sheetData.push([hCell('No'), hCell('Nama Siswa'), hCell('NIS'), hCell('Total')]);
-            sheetData.push([ecell(''), nCell('Tidak ada keterlambatan bulan ini.'), ecell(''), ecell('')]);
+            sheetData.push([cell(''), nCell('Tidak ada keterlambatan bulan ini.'), cell(''), cell('')]);
         } else {
             const tanggalSet = [...new Set(mRows.map(r => r.date))].sort();
             mergeEndCol = 3 + tanggalSet.length - 1;
