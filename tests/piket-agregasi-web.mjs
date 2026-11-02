@@ -142,6 +142,8 @@ const AKUN_BUTUH = [
     ['UJI_SMK_BK',             'SMK'],
     ['UJI_SMK_WAKA_KESISWAAN', 'SMK'],
     ['UJI_SMP_WAKA_KESISWAAN', 'SMP'],
+    ['UJI_SMK_WALI',           'SMK'],
+    ['UJI_SMK_KAPRODI',        'SMK'],
 ];
 
 for (const [envKey, jenjang] of AKUN_BUTUH) {
@@ -189,35 +191,6 @@ for (const [envKey, jenjang] of AKUN_BUTUH) {
     }
 }
 
-// Temukan satu wali kelas di sekolah SMK uji
-const smkSekolah = schoolSlugs['SMK']?.[0];
-let waliUser = null;
-if (smkSekolah && process.env.UJI_SMK_WALI_PASSWORD) {
-    try {
-        const rows = await mgmtQuery(`
-            SELECT u.user_id, u.nip, s.slug AS school_slug, s.school_id, s.name AS school_name,
-                   u.wali_kelas_class_id, c.name AS class_name
-            FROM users u
-            JOIN schools s ON s.school_id = u.school_id
-            LEFT JOIN classes c ON c.class_id = u.wali_kelas_class_id
-            WHERE s.school_id = '${smkSekolah.school_id}'
-              AND u.wali_kelas_class_id IS NOT NULL
-              AND u.deleted_at IS NULL
-            ORDER BY u.nip
-            LIMIT 1
-        `);
-        if (rows.length) {
-            waliUser = { ...rows[0] };
-            log.info(`WALI SMK: NIP=${waliUser.nip}, kelas=${waliUser.class_name}`);
-        } else {
-            log.warn('Tidak ditemukan wali kelas di SMK uji');
-        }
-    } catch (e) {
-        log.warn(`Query wali gagal: ${e.message}`);
-    }
-} else if (!process.env.UJI_SMK_WALI_PASSWORD) {
-    log.skip('UJI_SMK_WALI_PASSWORD tidak ada di .env — A7/A8 dilewati');
-}
 
 // ── Helper: login + cek piket ────────────────────────────────────────────────
 
@@ -502,14 +475,15 @@ try {
     }
 
     // ── A7 + A8 — Wali Kelas SMK ───────────────────────────────────────────
-    const waliPwd = process.env.UJI_SMK_WALI_PASSWORD;
-    if (waliUser && waliPwd) {
+    const waliInfo = userMap['UJI_SMK_WALI'];
+    const waliPwd  = process.env.UJI_SMK_WALI_PASSWORD;
+    if (waliInfo && waliPwd) {
         await cekPiket(browser, {
-            label: `A7 · Wali SMK (${waliUser.class_name}) · Keterlambatan`,
-            slug:        waliUser.school_slug,
-            nip:         waliUser.nip,
+            label: `A7 · Wali SMK · Keterlambatan`,
+            slug:        waliInfo.school_slug,
+            nip:         waliInfo.nip,
             password:    waliPwd,
-            auth_user_id: waliUser.user_id,
+            auth_user_id: waliInfo.auth_user_id,
             tabKey:      'wali_kelas',
             sectionCardId: 'wali-terlambat-card',
             filterBtnId:   'wali-late-filter-btn',
@@ -518,14 +492,14 @@ try {
             contentId:     'wali-late-content',
             tabel:         'late_arrivals',
             kolom_tanggal: 'late_date',
-            countRows:     true,    // wali render tabel langsung, tanpa hint "X catatan"
+            countRows:     true,
         });
         await cekPiket(browser, {
-            label: `A8 · Wali SMK (${waliUser.class_name}) · Izin Keluar`,
-            slug:        waliUser.school_slug,
-            nip:         waliUser.nip,
+            label: `A8 · Wali SMK · Izin Keluar`,
+            slug:        waliInfo.school_slug,
+            nip:         waliInfo.nip,
             password:    waliPwd,
-            auth_user_id: waliUser.user_id,
+            auth_user_id: waliInfo.auth_user_id,
             tabKey:      'wali_kelas',
             sectionCardId: 'wali-keluar-card',
             filterBtnId:   'wali-exit-filter-btn',
@@ -536,8 +510,46 @@ try {
             kolom_tanggal: 'exit_date',
             countRows:     true,
         });
-    } else if (!waliPwd) {
-        log.skip('A7/A8: UJI_SMK_WALI_PASSWORD tidak ada di .env');
+    } else {
+        log.skip('A7/A8: UJI_SMK_WALI atau UJI_SMK_WALI_PASSWORD tidak ada di .env');
+    }
+
+    // ── A9 + A10 — Kaprodi SMK ─────────────────────────────────────────────
+    const kpInfo = userMap['UJI_SMK_KAPRODI'];
+    const kpPwd  = process.env.UJI_SMK_KAPRODI_PASSWORD;
+    if (kpInfo && kpPwd) {
+        await cekPiket(browser, {
+            label: 'A9 · Kaprodi SMK · Keterlambatan',
+            slug:        kpInfo.school_slug,
+            nip:         kpInfo.nip,
+            password:    kpPwd,
+            auth_user_id: kpInfo.auth_user_id,
+            tabKey:      'kaprodi',
+            sectionCardId: 'kp-late-card',
+            filterBtnId:   'kp-late-filter-btn',
+            startInputId:  'kp-late-start',
+            endInputId:    'kp-late-end',
+            contentId:     'kp-late-recap',
+            tabel:         'late_arrivals',
+            kolom_tanggal: 'late_date',
+        });
+        await cekPiket(browser, {
+            label: 'A10 · Kaprodi SMK · Izin Keluar',
+            slug:        kpInfo.school_slug,
+            nip:         kpInfo.nip,
+            password:    kpPwd,
+            auth_user_id: kpInfo.auth_user_id,
+            tabKey:      'kaprodi',
+            sectionCardId: 'kp-exit-card',
+            filterBtnId:   'kp-exit-filter-btn',
+            startInputId:  'kp-exit-start',
+            endInputId:    'kp-exit-end',
+            contentId:     'kp-exit-recap',
+            tabel:         'student_exits',
+            kolom_tanggal: 'exit_date',
+        });
+    } else {
+        log.skip('A9/A10: UJI_SMK_KAPRODI atau UJI_SMK_KAPRODI_PASSWORD tidak ada di .env');
     }
 
 } finally {
