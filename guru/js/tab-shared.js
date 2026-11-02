@@ -550,71 +550,65 @@ export function downloadWaliLateRekap(rows, students, className, academicYear, f
     ];
     XLSX.utils.book_append_sheet(wb, wsRingkasan, 'RINGKASAN');
 
-    // ── Sheet per bulan ──────────────────────────────────────────────────────
+    // ── Sheet per bulan (selalu 12 sheet) ───────────────────────────────────
     for (const { bulan, tahun, label, nama } of BULAN_URUT) {
         const key = `${tahun}-${String(bulan).padStart(2,'0')}`;
         const mRows = byMonth.get(key) ?? [];
-        if (!mRows.length) continue; // skip bulan kosong
-
-        // Tanggal unik di bulan ini, urut
-        const tanggalSet = [...new Set(mRows.map(r => r.date))].sort();
-
-        // Siswa yang terlambat bulan ini, urut nama
-        const siswaIds = [...new Set(mRows.map(r => r.student_id))];
-        const siswaList = siswaIds
-            .map(id => studentMap.get(id) ?? { student_id: id, full_name: '—', nis: '—' })
-            .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
-
-        // Index: student_id × date → "HH:MM – alasan" atau "HH:MM"
-        const cellIdx = new Map(); // `${student_id}|${date}` → string
-        for (const r of mRows) {
-            const val = r.arrival_time
-                ? (r.reason ? `${r.arrival_time.slice(0,5)} – ${r.reason}` : r.arrival_time.slice(0,5))
-                : (r.reason || '✓');
-            const k = `${r.student_id}|${r.date}`;
-            // bisa terlambat lebih dari sekali dalam sehari — gabung
-            cellIdx.set(k, cellIdx.has(k) ? `${cellIdx.get(k)} / ${val}` : val);
-        }
-
-        const fmtTanggal = (iso) => {
-            const [, , d] = iso.split('-');
-            return `${Number(d)}/${String(bulan).padStart(2,'0')}`;
-        };
 
         const sheetData = [];
-        // Baris 1: judul
         sheetData.push([cell(`KETERLAMBATAN ${nama.toUpperCase()} — ${className}`, { font: { bold: true, name: 'Arial', sz: 12 } })]);
         sheetData.push([]);
 
-        // Header: No | Nama Siswa | NIS | Total | tanggal1 | tanggal2 | …
-        sheetData.push([
-            hCell('No'), hCell('Nama Siswa'), hCell('NIS'), hCell('Total'),
-            ...tanggalSet.map(d => hCell(fmtTanggal(d))),
-        ]);
+        let colWidths = [{ wch: 5 }, { wch: 28 }, { wch: 14 }, { wch: 7 }];
+        let mergeEndCol = 3;
 
-        siswaList.forEach(({ student_id, full_name, nis }, i) => {
-            const total = mRows.filter(r => r.student_id === student_id).length;
-            const row = [
-                numCell(i + 1),
-                cell(full_name, { font: FONT_BOLD, border: BORDER_ALL }),
-                nCell(nis),
-                total >= 3 ? warnCell(total) : numCell(total),
-            ];
-            for (const d of tanggalSet) {
-                const v = cellIdx.get(`${student_id}|${d}`);
-                row.push(v ? nCell(v) : mCell(''));
+        if (!mRows.length) {
+            sheetData.push([hCell('No'), hCell('Nama Siswa'), hCell('NIS'), hCell('Total')]);
+            sheetData.push([ecell(''), nCell('Tidak ada keterlambatan bulan ini.'), ecell(''), ecell('')]);
+        } else {
+            const tanggalSet = [...new Set(mRows.map(r => r.date))].sort();
+            mergeEndCol = 3 + tanggalSet.length - 1;
+            colWidths = [...colWidths, ...tanggalSet.map(() => ({ wch: 20 }))];
+
+            const siswaIds  = [...new Set(mRows.map(r => r.student_id))];
+            const siswaList = siswaIds
+                .map(id => studentMap.get(id) ?? { student_id: id, full_name: '—', nis: '—' })
+                .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+            const cellIdx = new Map();
+            for (const r of mRows) {
+                const val = r.arrival_time
+                    ? (r.reason ? `${r.arrival_time.slice(0,5)} – ${r.reason}` : r.arrival_time.slice(0,5))
+                    : (r.reason || '✓');
+                const k = `${r.student_id}|${r.date}`;
+                cellIdx.set(k, cellIdx.has(k) ? `${cellIdx.get(k)} / ${val}` : val);
             }
-            sheetData.push(row);
-        });
+            const fmtTanggal = (iso) => {
+                const [, , d] = iso.split('-');
+                return `${Number(d)}/${String(bulan).padStart(2,'0')}`;
+            };
+            sheetData.push([
+                hCell('No'), hCell('Nama Siswa'), hCell('NIS'), hCell('Total'),
+                ...tanggalSet.map(d => hCell(fmtTanggal(d))),
+            ]);
+            siswaList.forEach(({ student_id, full_name, nis }, i) => {
+                const total = mRows.filter(r => r.student_id === student_id).length;
+                const row = [
+                    numCell(i + 1),
+                    cell(full_name, { font: FONT_BOLD, border: BORDER_ALL }),
+                    nCell(nis),
+                    total >= 3 ? warnCell(total) : numCell(total),
+                ];
+                for (const d of tanggalSet) {
+                    const v = cellIdx.get(`${student_id}|${d}`);
+                    row.push(v ? nCell(v) : mCell(''));
+                }
+                sheetData.push(row);
+            });
+        }
 
         const wsSheet = XLSX.utils.aoa_to_sheet(sheetData);
-        wsSheet['!cols'] = [
-            { wch: 5 }, { wch: 28 }, { wch: 14 }, { wch: 7 },
-            ...tanggalSet.map(() => ({ wch: 20 })),
-        ];
-        wsSheet['!merges'] = [
-            { s: { r: 0, c: 0 }, e: { r: 0, c: 3 + tanggalSet.length - 1 } },
-        ];
+        wsSheet['!cols'] = colWidths;
+        wsSheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: mergeEndCol } }];
         XLSX.utils.book_append_sheet(wb, wsSheet, label);
     }
 
@@ -806,60 +800,65 @@ export function downloadWaliExitRekap(rows, students, className, academicYear, f
     ];
     XLSX.utils.book_append_sheet(wbExit, wsRingkasan, 'RINGKASAN');
 
-    // ── Sheet per bulan ──────────────────────────────────────────────────────
+    // ── Sheet per bulan (selalu 12 sheet) ───────────────────────────────────
     for (const { bulan, tahun, label, nama } of BULAN_URUT) {
         const key = `${tahun}-${String(bulan).padStart(2,'0')}`;
         const mRows = byMonth.get(key) ?? [];
-        if (!mRows.length) continue;
-
-        const tanggalSet = [...new Set(mRows.map(r => r.date))].sort();
-        const siswaIds   = [...new Set(mRows.map(r => r.student_id))];
-        const siswaList  = siswaIds
-            .map(id => studentMap.get(id) ?? { student_id: id, full_name: '—', nis: '—' })
-            .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
-
-        const cellIdx = new Map();
-        for (const r of mRows) {
-            const val = r.exit_time
-                ? (r.reason ? `${r.exit_time.slice(0,5)} – ${r.reason}` : r.exit_time.slice(0,5))
-                : (r.reason || '✓');
-            const k = `${r.student_id}|${r.date}`;
-            cellIdx.set(k, cellIdx.has(k) ? `${cellIdx.get(k)} / ${val}` : val);
-        }
-
-        const fmtTanggal = (iso) => {
-            const [, , d] = iso.split('-');
-            return `${Number(d)}/${String(bulan).padStart(2,'0')}`;
-        };
 
         const sheetData = [];
         sheetData.push([ecell(`IZIN KELUAR ${nama.toUpperCase()} — ${className}`, { font: { bold: true, name: 'Arial', sz: 12 } })]);
         sheetData.push([]);
-        sheetData.push([
-            hCell('No'), hCell('Nama Siswa'), hCell('NIS'), hCell('Total'),
-            ...tanggalSet.map(d => hCell(fmtTanggal(d))),
-        ]);
-        siswaList.forEach(({ student_id, full_name, nis }, i) => {
-            const total = mRows.filter(r => r.student_id === student_id).length;
-            const row = [
-                numCell(i + 1),
-                ecell(full_name, { font: FONT_BOLD, border: BORDER_ALL }),
-                nCell(nis),
-                total >= 3 ? warnCell(total) : numCell(total),
-            ];
-            for (const d of tanggalSet) {
-                const v = cellIdx.get(`${student_id}|${d}`);
-                row.push(v ? nCell(v) : mCell(''));
+
+        let colWidths = [{ wch: 5 }, { wch: 28 }, { wch: 14 }, { wch: 7 }];
+        let mergeEndCol = 3;
+
+        if (!mRows.length) {
+            sheetData.push([hCell('No'), hCell('Nama Siswa'), hCell('NIS'), hCell('Total')]);
+            sheetData.push([ecell(''), nCell('Tidak ada izin keluar bulan ini.'), ecell(''), ecell('')]);
+        } else {
+            const tanggalSet = [...new Set(mRows.map(r => r.date))].sort();
+            mergeEndCol = 3 + tanggalSet.length - 1;
+            colWidths = [...colWidths, ...tanggalSet.map(() => ({ wch: 22 }))];
+
+            const siswaIds  = [...new Set(mRows.map(r => r.student_id))];
+            const siswaList = siswaIds
+                .map(id => studentMap.get(id) ?? { student_id: id, full_name: '—', nis: '—' })
+                .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+            const cellIdx = new Map();
+            for (const r of mRows) {
+                const val = r.exit_time
+                    ? (r.reason ? `${r.exit_time.slice(0,5)} – ${r.reason}` : r.exit_time.slice(0,5))
+                    : (r.reason || '✓');
+                const k = `${r.student_id}|${r.date}`;
+                cellIdx.set(k, cellIdx.has(k) ? `${cellIdx.get(k)} / ${val}` : val);
             }
-            sheetData.push(row);
-        });
+            const fmtTanggal = (iso) => {
+                const [, , d] = iso.split('-');
+                return `${Number(d)}/${String(bulan).padStart(2,'0')}`;
+            };
+            sheetData.push([
+                hCell('No'), hCell('Nama Siswa'), hCell('NIS'), hCell('Total'),
+                ...tanggalSet.map(d => hCell(fmtTanggal(d))),
+            ]);
+            siswaList.forEach(({ student_id, full_name, nis }, i) => {
+                const total = mRows.filter(r => r.student_id === student_id).length;
+                const row = [
+                    numCell(i + 1),
+                    ecell(full_name, { font: FONT_BOLD, border: BORDER_ALL }),
+                    nCell(nis),
+                    total >= 3 ? warnCell(total) : numCell(total),
+                ];
+                for (const d of tanggalSet) {
+                    const v = cellIdx.get(`${student_id}|${d}`);
+                    row.push(v ? nCell(v) : mCell(''));
+                }
+                sheetData.push(row);
+            });
+        }
 
         const wsSheet = XLSX.utils.aoa_to_sheet(sheetData);
-        wsSheet['!cols'] = [
-            { wch: 5 }, { wch: 28 }, { wch: 14 }, { wch: 7 },
-            ...tanggalSet.map(() => ({ wch: 22 })),
-        ];
-        wsSheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 + tanggalSet.length - 1 } }];
+        wsSheet['!cols'] = colWidths;
+        wsSheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: mergeEndCol } }];
         XLSX.utils.book_append_sheet(wbExit, wsSheet, label);
     }
 
