@@ -117,7 +117,7 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
         _waliLateExcelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (!_cachedWaliLate.length) return;
-            const kelas = currentUser.wali_kelas_class_name ?? 'kelas';
+            const kelas = info?.name ?? '';
             _waliLateExcelBtn.disabled = true;
             _waliLateExcelBtn.textContent = 'Menyiapkan…';
             try {
@@ -147,7 +147,7 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
     if (_waliExitExcelBtn) {
         _waliExitExcelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            const kelas = currentUser.wali_kelas_class_name ?? 'kelas';
+            const kelas = info?.name ?? '';
             _waliExitExcelBtn.disabled = true;
             _waliExitExcelBtn.textContent = 'Menyiapkan…';
             try {
