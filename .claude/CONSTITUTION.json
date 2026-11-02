@@ -519,6 +519,19 @@
       ],
       "catatan": "return_time IS NULL berarti belum kembali — tampil 'Belum kembali' (merah) di UI."
     },
+    "tests/piket-agregasi-web.mjs": {
+      "tujuan": "Verifikasi Layer A piket — UI count = DB simulasiRLS count untuk setiap role via Playwright login nyata. Dijalankan setelah perubahan tab-bk.js / tab-wali.js / tab-kaprodi.js / tab-waka-kesiswaan.js.",
+      "check": [
+        "A1-A2: BK SMK (keterlambatan + izin keluar)",
+        "A3-A4: Waka Kesiswaan SMK",
+        "A5-A6: Wakasek SMP",
+        "A7-A8: Wali Kelas SMK",
+        "A9-A10: Kaprodi SMK"
+      ],
+      "butuh": "SUPABASE_ACCESS_TOKEN + UJI_*_PASSWORD di .env; Playwright terinstall (npx playwright install chromium)",
+      "hasil_2026-11-02": "11 lulus, 0 gagal",
+      "catatan_teknis": "Gunakan akun must_change_password=false. Tunggu init async sebelum buka accordion (lihat jebakan playwright_login_form). simulasiRLS pakai TEMP TABLE + auth_user_id bukan user_id."
+    },
     "tests/piket-verifikasi.mjs": {
       "tujuan": "Verifikasi RLS piket (late_arrivals + student_exits) per role — Layer D (database) dan R (RLS simulasi). Dijalankan setelah migration piket.",
       "check": [
@@ -707,8 +720,11 @@
     "blok_campuran_portal": "Blok CAMPURAN (satu siswa × satu block_group_id punya ≥2 status berbeda antar slot) terjadi di dua kasus: (A) dua mapel berbeda masuk satu block_group_id — kemungkinan bug pengelompokan jadwal; (B) satu mapel, guru input status berbeda per sesi — valid by design (siswa hadir sebagian). Dampak: sebelum fix Nov 2026, portal siswa/ortu mengabaikan blok CAMPURAN sehingga angka H/S/I/A lebih kecil dari yang guru/wali lihat. Fix: kartu angka menghitung CAMPURAN sebagai status terburuk dari slot-nya (dashboard.js + portal.js commit b28ab1b). Badge 'Campuran' di tabel detail tetap tampil.",
     "playwright_login_form": {
       "masalah": "Playwright login via inject supabase.auth tidak andal: sesi tersimpan di localStorage tapi getUser() gagal di halaman berikutnya karena perbedaan versi client atau timing.",
-      "solusi": "Gunakan form login nyata: isi #identifier dengan NIP (bukan email), isi #password, tunggu #login-btn:not([disabled]) (applyBranding() harus selesai dulu), klik, waitForURL('**/dashboard.html**').",
-      "catatan_role": "WAKASEK (SMP) pakai hash #wakasek bukan #waka_kesiswaan — dashboard.js memindah DOM dari #tab-waka_kesiswaan ke #tab-wakasek via case 'wakasek' di loadTabContent.",
+      "solusi": "Gunakan form login nyata: isi #identifier dengan login_identifier (NIP, bukan email), isi #password, tunggu #login-btn:not([disabled]) (applyBranding() harus selesai dulu), klik, waitForURL('**/dashboard.html**').",
+      "catatan_role": "WAKASEK (SMP) pakai tab key 'wakasek', selector button.tab-btn[data-tab='wakasek'].first() — ada 2 elemen [data-tab='wakasek'] di DOM (strict mode Playwright akan error tanpa .first()).",
+      "must_change_password": "Akun dengan must_change_password=true (label 'Menunggu ganti PW' di admin panel) → setelah login redirect ke halaman ganti PW, BUKAN dashboard.html — waitForURL timeout. Gunakan akun yang sudah pernah ganti PW (must_change_password=false).",
+      "accordion_async_init": "Kaprodi dan Wali accordion diwire (wireSimpleAccordion / _wireWaliCollapse) SETELAH async load data (await Promise.all / loadWaliSummary). Playwright harus waitForFunction(()=>document.getElementById('kp-late-start').value!=='') sebelum klik accordion, bukan hanya waitFor tab active.",
+      "simulasiRLS_auth_user_id": "JWT sub claim harus u.auth_user_id (UUID Supabase Auth), BUKAN u.user_id (UUID app). Keduanya berbeda; salah kolom → RLS tidak mencocokkan auth.uid() → COUNT = 0 diam-diam.",
       "ditemukan": "2026-11-02"
     },
     "piket_timezone_input": "Semua default nilai <input type='time'> di tab Piket WAJIB pakai _piketJakartaTimeStr() — BUKAN new Date().toLocaleTimeString(). Fungsi toLocaleTimeString ikut timezone OS device; jika device di luar WIB (UTC+7) jam default akan salah. Berlaku untuk: jam datang (Section 2), jam keluar (Section 4), jam kembali (Section 5). Ditemukan audit 2 Nov 2026.",
@@ -769,16 +785,16 @@
     {
       "id": "T009",
       "task": "Script verifikasi piket Layer A + T (angka layar = database, tampilan edge case)",
-      "status": "LAYER T SELESAI — Layer A terbuka",
-      "catatan": "Layer D + R selesai di tests/piket-verifikasi.mjs (2 Nov). Layer T selesai di tests/piket-tampilan.mjs (2 Nov): 55 checks lulus — T1 Belum kembali merah di semua 4 file, T2 pesan kosong, T3 default collapse, T4 dropdown kelas, T5 Excel btn hidden awal, T6 validasi tanggal, T7 kolom Excel (late+exit, dengan/tanpa withKelas/withRecorder). Layer A (angka layar = DB per role via Playwright login nyata) belum dibuat — butuh .env akun uji wali/waka/bk/kaprodi."
+      "status": "SELESAI 2 Nov — semua layer lulus",
+      "catatan": "Layer D+R: piket-verifikasi.mjs 14/14 lulus. Layer T: piket-tampilan.mjs 55/55 lulus. Layer A: piket-agregasi-web.mjs 11/11 lulus — BK SMK (73+35), Waka SMK (73+35), Wakasek SMP (95+26), Wali SMK (0+0), Kaprodi SMK (17+4). UI = DB untuk semua role. Akun uji dan password ada di docs/Akun (tidak dikomit)."
     }
   ],
   "state": {
     "last_updated": "2026-11-02",
-    "last_session_commit": "2a5efac",
+    "last_session_commit": "94d05c2",
     "migrasi_terpasang_sampai": "20261101060000",
     "migrasi_ditulis_belum_push": "20261102020000_rls_piket_bk",
-    "main_sha": "1c351c0",
-    "_catatan_push": "feat(piket): tombol unduh Excel keterlambatan + izin keluar"
+    "main_sha": "94d05c2",
+    "_catatan_push": "test(piket): Layer A 11/11 lulus — piket-agregasi-web.mjs"
   }
 }
