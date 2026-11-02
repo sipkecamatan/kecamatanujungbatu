@@ -769,13 +769,13 @@
     {
       "id": "T009",
       "task": "Script verifikasi piket Layer A + T (angka layar = database, tampilan edge case)",
-      "status": "terbuka",
-      "catatan": "Layer D + R sudah selesai di tests/piket-verifikasi.mjs (2 Nov 2026). Layer A (A1-A8: jumlah catatan di layar = DB) dan T (T1-T7: tampilan Belum kembali merah, dropdown, default collapse, pesan kosong) butuh Playwright. Gunakan pola tests/rekap-agregasi-web.mjs + .env akun uji wali/waka/bk/kaprodi/kepsek."
+      "status": "LAYER T SELESAI — Layer A terbuka",
+      "catatan": "Layer D + R selesai di tests/piket-verifikasi.mjs (2 Nov). Layer T selesai di tests/piket-tampilan.mjs (2 Nov): 55 checks lulus — T1 Belum kembali merah di semua 4 file, T2 pesan kosong, T3 default collapse, T4 dropdown kelas, T5 Excel btn hidden awal, T6 validasi tanggal, T7 kolom Excel (late+exit, dengan/tanpa withKelas/withRecorder). Layer A (angka layar = DB per role via Playwright login nyata) belum dibuat — butuh .env akun uji wali/waka/bk/kaprodi."
     }
   ],
   "state": {
     "last_updated": "2026-11-02",
-    "last_session_commit": "1c351c0",
+    "last_session_commit": "2a5efac",
     "migrasi_terpasang_sampai": "20261101060000",
     "migrasi_ditulis_belum_push": "20261102020000_rls_piket_bk",
     "main_sha": "1c351c0",
