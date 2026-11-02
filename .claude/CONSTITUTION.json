@@ -639,6 +639,7 @@
         "guru/js/tab-kepsek.js"
       ],
       "export_perhatian": "filterPerhatian, renderPerhatianFlat, renderPerhatianAccordion, wirePerhatianCollapse, PERHATIAN_ALPA_MIN=2, PERHATIAN_HADIR_MIN=0.75 — satu-satunya sumber threshold; ubah di sini berlaku ke semua tab",
+      "export_piket_excel": "downloadLateExcel(rows, filename, {withKelas, withRecorder}) + downloadExitExcel(rows, filename, {withKelas, withRecorder}) — fungsi bersama untuk unduh Excel keterlambatan/izin keluar. Pakai manual blob (XLSX.write → Blob → createObjectURL). withKelas=true tambah kolom Kelas; withRecorder=true tambah kolom Dicatat Oleh. Ditambah 2 Nov 2026.",
       "catatan": "Jika threshold Alpa/hadir perlu diubah, cukup ubah PERHATIAN_ALPA_MIN/HADIR_MIN di tab-shared.js saja. wirePerhatianCollapse membuat section-card Siswa Perlu Perhatian bisa dilipat (default tertutup); dipanggil dari init tiap tab setelah wiring refresh button. Pola: card-id=*-perhatian-card, toggle-id=*-perhatian-toggle, body-id=*-perhatian-body."
     },
     "guru/js/tab-guru.js": {
@@ -774,10 +775,10 @@
   ],
   "state": {
     "last_updated": "2026-11-02",
-    "last_session_commit": "1528bf4",
+    "last_session_commit": "1c351c0",
     "migrasi_terpasang_sampai": "20261101060000",
     "migrasi_ditulis_belum_push": "20261102020000_rls_piket_bk",
-    "main_sha": "1528bf4",
-    "_catatan_push": "test(piket): tambah tests/piket-verifikasi.mjs — layer D + R"
+    "main_sha": "1c351c0",
+    "_catatan_push": "feat(piket): tombol unduh Excel keterlambatan + izin keluar"
   }
 }
