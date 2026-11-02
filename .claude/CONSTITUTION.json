@@ -668,7 +668,8 @@
       "ditemukan": "2026-11-02"
     },
     "piket_timezone_input": "Semua default nilai <input type='time'> di tab Piket WAJIB pakai _piketJakartaTimeStr() — BUKAN new Date().toLocaleTimeString(). Fungsi toLocaleTimeString ikut timezone OS device; jika device di luar WIB (UTC+7) jam default akan salah. Berlaku untuk: jam datang (Section 2), jam keluar (Section 4), jam kembali (Section 5). Ditemukan audit 2 Nov 2026.",
-    "dropdown_position_relative": "Setiap dropdown autocomplete (position:absolute) WAJIB punya wrapper div dengan position:relative — tanpa itu dropdown muncul relatif ke ancestor posisi terdekat di DOM, bisa jauh dari input. Pola benar: <div class='field' style='position:relative'>...<input>...<div id='dropdown' style='position:absolute;top:100%'>. Jebakan ditemukan di piket exit form (2 Nov 2026) — piket late form (Section 2) sudah benar sejak awal."
+    "dropdown_position_relative": "Setiap dropdown autocomplete (position:absolute) WAJIB punya wrapper div dengan position:relative — tanpa itu dropdown muncul relatif ke ancestor posisi terdekat di DOM, bisa jauh dari input. Pola benar: <div class='field' style='position:relative'>...<input>...<div id='dropdown' style='position:absolute;top:100%'>. Jebakan ditemukan di piket exit form (2 Nov 2026) — piket late form (Section 2) sudah benar sejak awal.",
+    "injeksi_piket_role_type": "Skrip injeksi data late_arrivals/student_exits: field recorded_by wajib diambil dari user dengan role_type IN ('GURU','WAKASEK','WAKA_KESISWAAN','WALI_KELAS','ADMINISTRATIVE') — nilai 'PIKET' dan 'GURU_PIKET' tidak ada di enum. Insert via REST API PostgREST + service key (bypass RLS). Query user_id via Management API. Data uji piket Okt–Nov 2026 sudah diinjeksi: SMK 73+35, SMA 67+37, SMP 94+26 baris."
   },
   "open_tasks": [
     {
