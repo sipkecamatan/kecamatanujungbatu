@@ -382,6 +382,250 @@ export function downloadLateExcel(rows, filename, { withKelas = false, withRecor
 }
 
 /**
+ * Unduh Excel rekap keterlambatan wali kelas — format RINGKASAN + sheet per bulan.
+ * @param {Array}  rows         — dari getWaliLateArrivals (seluruh tahun ajaran)
+ * @param {Array}  students     — dari getEnrolledStudents [{student_id, full_name, nis}]
+ * @param {string} className    — nama kelas, misal "X AKL 1"
+ * @param {string} academicYear — misal "2026/2027"
+ * @param {string} filename     — nama file tanpa ekstensi
+ */
+export function downloadWaliLateRekap(rows, students, className, academicYear, filename) {
+    /* global XLSX */
+    const BLN_LABEL = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+    const BLN_NAMA  = ['Januari','Februari','Maret','April','Mei','Juni',
+                       'Juli','Agustus','September','Oktober','November','Desember'];
+
+    // Tahun ajaran: "2026/2027" → tahun mulai 2026, bulan Jul–Des 2026 + Jan–Jun 2027
+    const [tahunMulai] = academicYear.split('/').map(Number);
+    // 12 bulan: [7,8,9,10,11,12, 1,2,3,4,5,6]
+    const BULAN_URUT = [7,8,9,10,11,12,1,2,3,4,5,6].map((m, i) => ({
+        bulan: m,
+        tahun: m >= 7 ? tahunMulai : tahunMulai + 1,
+        label: `${BLN_LABEL[m-1]} ${String(m >= 7 ? tahunMulai : tahunMulai + 1).slice(2)}`,
+        nama:  `${BLN_NAMA[m-1]} ${m >= 7 ? tahunMulai : tahunMulai + 1}`,
+    }));
+
+    // Index: student_id → nama
+    const studentMap = new Map(students.map(s => [s.student_id, s]));
+
+    // Kelompokkan rows per bulan
+    const byMonth = new Map(); // key: "YYYY-MM"
+    for (const r of rows) {
+        const key = r.date.slice(0, 7);
+        if (!byMonth.has(key)) byMonth.set(key, []);
+        byMonth.get(key).push(r);
+    }
+
+    // Hitung total per siswa per bulan (untuk threshold perlu perhatian ≥ 3)
+    // perStudentMonth: Map<student_id, Map<"YYYY-MM", [row]>>
+    const perStudentMonth = new Map();
+    for (const r of rows) {
+        if (!perStudentMonth.has(r.student_id)) perStudentMonth.set(r.student_id, new Map());
+        const mMap = perStudentMonth.get(r.student_id);
+        const key = r.date.slice(0, 7);
+        if (!mMap.has(key)) mMap.set(key, []);
+        mMap.get(key).push(r);
+    }
+
+    // Total per siswa (seluruh tahun)
+    const perStudent = new Map(); // student_id → total
+    for (const r of rows) {
+        perStudent.set(r.student_id, (perStudent.get(r.student_id) ?? 0) + 1);
+    }
+
+    const S = (v, opts = {}) => ({ v, ...opts });
+    const wb = XLSX.utils.book_new();
+
+    // ── Helper styling ──────────────────────────────────────────────────────
+    const HEADER_FILL = { fgColor: { rgb: '1E3A5F' } };
+    const SUBHEAD_FILL = { fgColor: { rgb: '2D6A9F' } };
+    const ALT_FILL    = { fgColor: { rgb: 'EBF2FA' } };
+    const WARN_FILL   = { fgColor: { rgb: 'FFF3CD' } };
+    const BORDER_THIN = { style: 'thin', color: { rgb: 'CCCCCC' } };
+    const BORDER_ALL  = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
+    const FONT_WHITE  = { color: { rgb: 'FFFFFF' }, bold: true, name: 'Arial', sz: 10 };
+    const FONT_BOLD   = { bold: true, name: 'Arial', sz: 10 };
+    const FONT_NORM   = { name: 'Arial', sz: 10 };
+    const FONT_MUTED  = { name: 'Arial', sz: 10, color: { rgb: '888888' } };
+
+    const cell = (v, { fill, font, align, border } = {}) => {
+        const c = { v, t: typeof v === 'number' ? 'n' : 's' };
+        const s = {};
+        if (fill)   s.fill   = { patternType: 'solid', ...fill };
+        if (font)   s.font   = font;
+        if (align)  s.alignment = align;
+        if (border) s.border = border;
+        if (Object.keys(s).length) c.s = s;
+        return c;
+    };
+    const hCell = (v) => cell(v, { fill: HEADER_FILL, font: FONT_WHITE, border: BORDER_ALL, align: { horizontal: 'center' } });
+    const shCell = (v) => cell(v, { fill: SUBHEAD_FILL, font: FONT_WHITE, border: BORDER_ALL });
+    const bCell = (v) => cell(v, { font: FONT_BOLD, border: BORDER_ALL });
+    const nCell = (v) => cell(v, { font: FONT_NORM, border: BORDER_ALL });
+    const mCell = (v) => cell(v, { font: FONT_MUTED, border: BORDER_ALL, align: { horizontal: 'center' } });
+    const numCell = (v) => cell(v, { font: FONT_NORM, border: BORDER_ALL, align: { horizontal: 'center' } });
+    const warnCell = (v) => cell(v, { fill: WARN_FILL, font: FONT_BOLD, border: BORDER_ALL, align: { horizontal: 'center' } });
+
+    // ── Sheet RINGKASAN ──────────────────────────────────────────────────────
+    const wsData = [];
+
+    // Baris 1: judul
+    wsData.push([cell(`REKAP KETERLAMBATAN — ${className}`, { font: { bold: true, name: 'Arial', sz: 14 } })]);
+    wsData.push([cell(`Tahun Ajaran: ${academicYear}  |  Data seluruh periode aktif`, { font: FONT_MUTED })]);
+    wsData.push([]);
+
+    // Blok statistik
+    const totalKejadian = rows.length;
+    const totalSiswa    = students.length;
+    // Siswa unik yang pernah terlambat
+    const siswaPernahTerlambat = perStudent.size;
+    wsData.push([
+        bCell('JUMLAH SISWA'), numCell(totalSiswa), cell(''),
+        bCell('TOTAL KEJADIAN'), numCell(totalKejadian), cell(''),
+        bCell('SISWA PERNAH TERLAMBAT'), numCell(siswaPernahTerlambat),
+    ]);
+    wsData.push([]);
+
+    // Tren per bulan
+    wsData.push([shCell('TREN KETERLAMBATAN PER BULAN')]);
+    wsData.push([
+        hCell('Bulan'), hCell('Kejadian'), hCell('Siswa Terlibat'), hCell('Siswa Perlu Perhatian (≥3x)'),
+    ]);
+    for (const { bulan, tahun, nama } of BULAN_URUT) {
+        const key = `${tahun}-${String(bulan).padStart(2,'0')}`;
+        const mRows = byMonth.get(key) ?? [];
+        const siswaUnik = new Set(mRows.map(r => r.student_id)).size;
+        // siswa perlu perhatian: terlambat ≥ 3 kali bulan ini
+        const perlu = [...new Set(mRows.map(r => r.student_id))]
+            .filter(id => mRows.filter(r => r.student_id === id).length >= 3).length;
+        if (!mRows.length) {
+            wsData.push([nCell(nama), mCell('—'), mCell('—'), mCell('—')]);
+        } else {
+            wsData.push([nCell(nama), numCell(mRows.length), numCell(siswaUnik),
+                perlu > 0 ? warnCell(`${perlu} siswa`) : numCell(0)]);
+        }
+    }
+    wsData.push([]);
+
+    // Siswa perlu perhatian: ≥ 3 kali dalam 1 bulan manapun
+    const perluPerhatian = [];
+    for (const [studentId, mMap] of perStudentMonth) {
+        const bulanBermasalah = [];
+        for (const [mKey, mRows] of mMap) {
+            if (mRows.length >= 3) bulanBermasalah.push({ key: mKey, count: mRows.length });
+        }
+        if (bulanBermasalah.length > 0) {
+            const s = studentMap.get(studentId);
+            const totalS = perStudent.get(studentId) ?? 0;
+            const catatan = bulanBermasalah
+                .map(({ key, count }) => {
+                    const [y, m] = key.split('-').map(Number);
+                    return `${BLN_LABEL[m-1]} ${count}x`;
+                }).join(', ');
+            perluPerhatian.push({ nama: s?.full_name ?? '—', nis: s?.nis ?? '—', total: totalS, catatan });
+        }
+    }
+    perluPerhatian.sort((a, b) => b.total - a.total);
+
+    wsData.push([shCell('SISWA PERLU PERHATIAN — SELURUH TAHUN AJARAN')]);
+    wsData.push([cell('Threshold: terlambat ≥ 3 kali dalam 1 bulan.', { font: FONT_MUTED })]);
+    wsData.push([hCell('No'), hCell('Nama Siswa'), hCell('NIS'), hCell('Total Terlambat'), hCell('Catatan')]);
+    if (!perluPerhatian.length) {
+        wsData.push([cell(''), nCell('Tidak ada siswa yang melewati threshold.'), cell(''), cell(''), cell('')]);
+    } else {
+        perluPerhatian.forEach(({ nama, nis, total, catatan }, i) => {
+            wsData.push([numCell(i + 1), nCell(nama), nCell(nis), numCell(total), nCell(catatan)]);
+        });
+    }
+
+    const wsRingkasan = XLSX.utils.aoa_to_sheet(wsData);
+    wsRingkasan['!cols'] = [
+        { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 22 }, { wch: 35 },
+    ];
+    // Merge judul dan subheader
+    wsRingkasan['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
+        { s: { r: 5, c: 0 }, e: { r: 5, c: 3 } }, // TREN header
+    ];
+    XLSX.utils.book_append_sheet(wb, wsRingkasan, 'RINGKASAN');
+
+    // ── Sheet per bulan ──────────────────────────────────────────────────────
+    for (const { bulan, tahun, label, nama } of BULAN_URUT) {
+        const key = `${tahun}-${String(bulan).padStart(2,'0')}`;
+        const mRows = byMonth.get(key) ?? [];
+        if (!mRows.length) continue; // skip bulan kosong
+
+        // Tanggal unik di bulan ini, urut
+        const tanggalSet = [...new Set(mRows.map(r => r.date))].sort();
+
+        // Siswa yang terlambat bulan ini, urut nama
+        const siswaIds = [...new Set(mRows.map(r => r.student_id))];
+        const siswaList = siswaIds
+            .map(id => studentMap.get(id) ?? { student_id: id, full_name: '—', nis: '—' })
+            .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+
+        // Index: student_id × date → "HH:MM – alasan" atau "HH:MM"
+        const cellIdx = new Map(); // `${student_id}|${date}` → string
+        for (const r of mRows) {
+            const val = r.arrival_time
+                ? (r.reason ? `${r.arrival_time.slice(0,5)} – ${r.reason}` : r.arrival_time.slice(0,5))
+                : (r.reason || '✓');
+            const k = `${r.student_id}|${r.date}`;
+            // bisa terlambat lebih dari sekali dalam sehari — gabung
+            cellIdx.set(k, cellIdx.has(k) ? `${cellIdx.get(k)} / ${val}` : val);
+        }
+
+        const fmtTanggal = (iso) => {
+            const [, , d] = iso.split('-');
+            return `${Number(d)}/${String(bulan).padStart(2,'0')}`;
+        };
+
+        const sheetData = [];
+        // Baris 1: judul
+        sheetData.push([cell(`KETERLAMBATAN ${nama.toUpperCase()} — ${className}`, { font: { bold: true, name: 'Arial', sz: 12 } })]);
+        sheetData.push([]);
+
+        // Header: No | Nama Siswa | NIS | Total | tanggal1 | tanggal2 | …
+        sheetData.push([
+            hCell('No'), hCell('Nama Siswa'), hCell('NIS'), hCell('Total'),
+            ...tanggalSet.map(d => hCell(fmtTanggal(d))),
+        ]);
+
+        siswaList.forEach(({ student_id, full_name, nis }, i) => {
+            const total = mRows.filter(r => r.student_id === student_id).length;
+            const row = [
+                numCell(i + 1),
+                cell(full_name, { font: FONT_BOLD, border: BORDER_ALL }),
+                nCell(nis),
+                total >= 3 ? warnCell(total) : numCell(total),
+            ];
+            for (const d of tanggalSet) {
+                const v = cellIdx.get(`${student_id}|${d}`);
+                row.push(v ? nCell(v) : mCell(''));
+            }
+            sheetData.push(row);
+        });
+
+        const wsSheet = XLSX.utils.aoa_to_sheet(sheetData);
+        wsSheet['!cols'] = [
+            { wch: 5 }, { wch: 28 }, { wch: 14 }, { wch: 7 },
+            ...tanggalSet.map(() => ({ wch: 20 })),
+        ];
+        wsSheet['!merges'] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 3 + tanggalSet.length - 1 } },
+        ];
+        XLSX.utils.book_append_sheet(wb, wsSheet, label);
+    }
+
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/octet-stream' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = filename + '.xlsx'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/**
  * Unduh Excel izin keluar (student_exits).
  * @param {Array}  rows      — dari getWaliExits atau getExitsByRange
  * @param {string} filename  — nama file tanpa ekstensi

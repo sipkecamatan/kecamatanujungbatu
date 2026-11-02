@@ -8,9 +8,10 @@
 import {
     getWaliKelasInfo, getWaliAttendanceSummary, getWaliCoachingStudents,
     getWaliLateArrivals, getWaliExits, getClassScheduleFull,
+    getEnrolledStudents, getSchoolConfig,
 } from './api.js';
 import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
-import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat, wirePerhatianCollapse, downloadLateExcel, downloadExitExcel } from './tab-shared.js';
+import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat, wirePerhatianCollapse, downloadLateExcel, downloadExitExcel, downloadWaliLateRekap } from './tab-shared.js';
 
 /* global XLSX */
 
@@ -113,13 +114,34 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
     const _waliLateExcelBtn = document.getElementById('wali-late-excel-btn');
     const _waliExitExcelBtn = document.getElementById('wali-exit-excel-btn');
     if (_waliLateExcelBtn) {
-        _waliLateExcelBtn.addEventListener('click', (e) => {
+        _waliLateExcelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (!_cachedWaliLate.length) return;
-            const start = document.getElementById('wali-late-date-start').value;
-            const end   = document.getElementById('wali-late-date-end').value;
             const kelas = currentUser.wali_kelas_class_name ?? 'kelas';
-            downloadLateExcel(_cachedWaliLate, `keterlambatan_wali_${kelas}_${start}_${end}`.replace(/\s+/g, '_'));
+            _waliLateExcelBtn.disabled = true;
+            _waliLateExcelBtn.textContent = 'Menyiapkan…';
+            try {
+                const cfg      = await getSchoolConfig();
+                const ay       = cfg?.current_academic_year ?? '';
+                const sem      = cfg?.current_semester ?? null;
+                // Ambil data seluruh tahun ajaran untuk RINGKASAN akurat
+                const [ayStart, ayEnd] = ay.split('/').map(Number);
+                const fullRows = await getWaliLateArrivals(
+                    `${ayStart}-07-01`, `${ayEnd}-06-30`
+                );
+                const students = classId
+                    ? await getEnrolledStudents(classId, ay, sem)
+                    : [];
+                downloadWaliLateRekap(
+                    fullRows, students, kelas, ay,
+                    `rekap_keterlambatan_${kelas}_${ay.replace('/','-')}`.replace(/\s+/g, '_')
+                );
+            } catch (err) {
+                alert('Gagal mengunduh rekap: ' + (err.message ?? err));
+            } finally {
+                _waliLateExcelBtn.disabled = false;
+                _waliLateExcelBtn.textContent = 'Unduh Excel';
+            }
         });
     }
     if (_waliExitExcelBtn) {
