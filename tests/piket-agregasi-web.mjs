@@ -150,42 +150,36 @@ for (const [envKey, jenjang] of AKUN_BUTUH) {
     const rawVal = process.env[envKey];
     if (!rawVal) { log.skip(`${envKey} tidak ada di .env`); continue; }
 
-    // rawVal bisa berupa NIP atau email (xxx@domain)
-    const nip   = rawVal.includes('@') ? rawVal.split('@')[0] : rawVal;
-    const email = rawVal.includes('@') ? rawVal : null;
+    // rawVal adalah email penuh (format: NIP@school.staff.internal atau xxx@uji.test)
+    // login_identifier = bagian sebelum @  (NIP)
+    const loginId = rawVal.split('@')[0];
 
     const sekolahList = schoolSlugs[jenjang] || [];
     if (!sekolahList.length) { log.skip(`${envKey}: tidak ada sekolah ${jenjang} dengan data piket`); continue; }
 
-    // Cari user di sekolah yang sesuai
-    const whereClause = email
-        ? `au.email = '${email.replace(/'/g, "''")}'`
-        : `u.nip = '${nip.replace(/'/g, "''")}'`;
-
     try {
         const rows = await mgmtQuery(`
-            SELECT u.user_id, u.nip, au.email,
+            SELECT u.auth_user_id, u.login_identifier, u.email,
                    s.slug AS school_slug, s.school_id, s.name AS school_name,
                    u.wali_kelas_class_id, u.kaprodi_program_id, u.role_type
             FROM users u
-            JOIN auth.users au ON au.id = u.auth_user_id
             JOIN schools s ON s.school_id = u.school_id
-            WHERE ${whereClause}
+            WHERE u.email = '${rawVal.replace(/'/g, "''")}'
               AND s.is_active = true
             LIMIT 1
         `);
-        if (!rows.length) { log.warn(`${envKey}: NIP/email tidak ditemukan di DB`); continue; }
+        if (!rows.length) { log.warn(`${envKey}: email tidak ditemukan di DB`); continue; }
         const r = rows[0];
         userMap[envKey] = {
-            nip:          r.nip,
+            nip:          r.login_identifier,
             email:        r.email,
-            auth_user_id: r.user_id,
+            auth_user_id: r.auth_user_id,
             school_slug:  r.school_slug,
             school_id:    r.school_id,
             school_name:  r.school_name,
             role_type:    r.role_type,
         };
-        log.info(`${envKey}: NIP=${r.nip}, role=${r.role_type}, sekolah=${r.school_name}`);
+        log.info(`${envKey}: login=${r.login_identifier}, role=${r.role_type}, sekolah=${r.school_name}`);
     } catch (e) {
         log.warn(`${envKey}: query gagal — ${e.message}`);
     }
@@ -222,18 +216,20 @@ async function cekPiket(browser, opts) {
 
     log.head(`${label}`);
 
-    // 1. DB count via simulasiRLS
+    // 1. DB count via simulasiRLS — pakai TEMP TABLE agar SELECT terakhir = hasil COUNT
     let dbCount;
     try {
-        const kolom_pk = tabel === 'late_arrivals' ? 'late_id' : 'exit_id';
         const rows = await simulasiRLS(auth_user_id, `
-            SELECT COUNT(*) AS n FROM ${tabel}
+            CREATE TEMP TABLE _cek_n (n bigint) ON COMMIT DROP;
+            INSERT INTO _cek_n SELECT COUNT(*) FROM ${tabel}
             WHERE ${kolom_tanggal} BETWEEN '${DARI}' AND '${HINGGA}'
             ${extraFilter};
+            SELECT n FROM _cek_n;
         `);
-        // rows berisi hasil SELECT terakhir sebelum ROLLBACK
-        const hasil = rows.find?.(r => r.n !== undefined) ?? rows[0];
-        dbCount = parseInt(hasil?.n ?? hasil?.count ?? 0, 10);
+        for (let i = rows.length - 1; i >= 0; i--) {
+            if (rows[i].n !== undefined) { dbCount = parseInt(rows[i].n); break; }
+        }
+        dbCount = dbCount ?? 0;
         log.info(`DB simulasiRLS: ${dbCount} baris`);
     } catch (e) {
         log.fail(`${label}: simulasiRLS gagal — ${e.message}`);
@@ -262,7 +258,7 @@ async function cekPiket(browser, opts) {
         await page.waitForSelector('[data-tab]', { timeout: 15000 });
 
         // 3. Navigasi ke tab yang benar
-        const tabBtn = page.locator(`[data-tab="${tabKey}"]`);
+        const tabBtn = page.locator(`button.tab-btn[data-tab="${tabKey}"]`).first();
         await tabBtn.waitFor({ timeout: 10000 });
         await tabBtn.click();
 
@@ -272,27 +268,40 @@ async function cekPiket(browser, opts) {
             tabKey, { timeout: 15000 }
         );
 
-        // Khusus kaprodi/bk/waka: tunggu init selesai (loading indicator hilang)
-        // Tunggu sampai tidak ada "Memuat…" di section header
-        await page.waitForFunction(() => {
-            const hints = [...document.querySelectorAll('.hint')];
-            return !hints.some(h => h.textContent.includes('Memuat') && h.closest('.kp-acc-body'));
-        }, { timeout: 20000 }).catch(() => { /* lanjut saja */ });
+        // Kaprodi/wali: accordion diwire SETELAH async load — tunggu sinyal default date terisi
+        if (tabKey === 'kaprodi') {
+            await page.waitForFunction(() => {
+                const el = document.getElementById('kp-late-start');
+                return el && el.value !== '';
+            }, { timeout: 30000 });
+        }
+        if (tabKey === 'wali_kelas') {
+            await page.waitForFunction(() => {
+                const el = document.getElementById('wali-late-date-start');
+                return el && el.value !== '';
+            }, { timeout: 30000 });
+        }
 
         // 4. Buka accordion section (klik header)
+        // Kaprodi butuh waktu lebih karena inisialisasi clone program accordion
         const cardHeader = page.locator(`#${sectionCardId} .kp-acc-header`).first();
-        await cardHeader.waitFor({ timeout: 10000 });
-        await cardHeader.click();
+        await cardHeader.waitFor({ timeout: 20000 });
+        // Pastikan body masih tertutup sebelum klik
+        const bodyOpen = await page.evaluate(
+            (cardId) => document.getElementById(cardId)?.querySelector('.kp-acc-body')?.style.display !== 'none',
+            sectionCardId
+        );
+        if (!bodyOpen) await cardHeader.click();
 
-        // Tunggu body terbuka
+        // Tunggu body terbuka (max 10 detik)
         await page.waitForFunction(
             (cardId) => {
                 const card = document.getElementById(cardId);
                 const body = card?.querySelector('.kp-acc-body');
                 return body && body.style.display !== 'none';
             },
-            sectionCardId, { timeout: 5000 }
-        ).catch(() => { /* mungkin sudah terbuka */ });
+            sectionCardId, { timeout: 10000 }
+        );
 
         // 5. Set tanggal dan klik filter
         await page.locator(`#${startInputId}`).fill(DARI);
