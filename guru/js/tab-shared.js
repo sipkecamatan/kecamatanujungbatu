@@ -665,3 +665,207 @@ export function downloadExitExcel(rows, filename, { withKelas = false, withRecor
     a.href = url; a.download = filename + '.xlsx'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
+
+/**
+ * Unduh Excel rekap izin keluar wali kelas — format RINGKASAN + sheet per bulan.
+ * @param {Array}  rows         — dari getWaliExits (seluruh tahun ajaran)
+ * @param {Array}  students     — dari getEnrolledStudents [{student_id, full_name, nis}]
+ * @param {string} className    — nama kelas, misal "X AKL 1"
+ * @param {string} academicYear — misal "2026/2027"
+ * @param {string} filename     — nama file tanpa ekstensi
+ */
+export function downloadWaliExitRekap(rows, students, className, academicYear, filename) {
+    /* global XLSX */
+    const BLN_LABEL = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+    const BLN_NAMA  = ['Januari','Februari','Maret','April','Mei','Juni',
+                       'Juli','Agustus','September','Oktober','November','Desember'];
+
+    const [tahunMulai] = academicYear.split('/').map(Number);
+    const BULAN_URUT = [7,8,9,10,11,12,1,2,3,4,5,6].map((m) => ({
+        bulan: m,
+        tahun: m >= 7 ? tahunMulai : tahunMulai + 1,
+        label: `${BLN_LABEL[m-1]} ${String(m >= 7 ? tahunMulai : tahunMulai + 1).slice(2)}`,
+        nama:  `${BLN_NAMA[m-1]} ${m >= 7 ? tahunMulai : tahunMulai + 1}`,
+    }));
+
+    const studentMap = new Map(students.map(s => [s.student_id, s]));
+
+    const byMonth = new Map();
+    for (const r of rows) {
+        const key = r.date.slice(0, 7);
+        if (!byMonth.has(key)) byMonth.set(key, []);
+        byMonth.get(key).push(r);
+    }
+
+    const perStudentMonth = new Map();
+    for (const r of rows) {
+        if (!perStudentMonth.has(r.student_id)) perStudentMonth.set(r.student_id, new Map());
+        const mMap = perStudentMonth.get(r.student_id);
+        const key = r.date.slice(0, 7);
+        if (!mMap.has(key)) mMap.set(key, []);
+        mMap.get(key).push(r);
+    }
+
+    const perStudent = new Map();
+    for (const r of rows) perStudent.set(r.student_id, (perStudent.get(r.student_id) ?? 0) + 1);
+
+    const wbExit = XLSX.utils.book_new();
+
+    const HEADER_FILL  = { fgColor: { rgb: '1E3A5F' } };
+    const SUBHEAD_FILL = { fgColor: { rgb: '2D6A9F' } };
+    const WARN_FILL    = { fgColor: { rgb: 'FFF3CD' } };
+    const BORDER_THIN  = { style: 'thin', color: { rgb: 'CCCCCC' } };
+    const BORDER_ALL   = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
+    const FONT_WHITE   = { color: { rgb: 'FFFFFF' }, bold: true, name: 'Arial', sz: 10 };
+    const FONT_BOLD    = { bold: true, name: 'Arial', sz: 10 };
+    const FONT_NORM    = { name: 'Arial', sz: 10 };
+    const FONT_MUTED   = { name: 'Arial', sz: 10, color: { rgb: '888888' } };
+
+    const ecell = (v, { fill, font, align, border } = {}) => {
+        const c = { v, t: typeof v === 'number' ? 'n' : 's' };
+        const s = {};
+        if (fill)   s.fill   = { patternType: 'solid', ...fill };
+        if (font)   s.font   = font;
+        if (align)  s.alignment = align;
+        if (border) s.border = border;
+        if (Object.keys(s).length) c.s = s;
+        return c;
+    };
+    const hCell   = (v) => ecell(v, { fill: HEADER_FILL,  font: FONT_WHITE, border: BORDER_ALL, align: { horizontal: 'center' } });
+    const shCell  = (v) => ecell(v, { fill: SUBHEAD_FILL, font: FONT_WHITE, border: BORDER_ALL });
+    const bCell   = (v) => ecell(v, { font: FONT_BOLD, border: BORDER_ALL });
+    const nCell   = (v) => ecell(v, { font: FONT_NORM, border: BORDER_ALL });
+    const mCell   = (v) => ecell(v, { font: FONT_MUTED, border: BORDER_ALL, align: { horizontal: 'center' } });
+    const numCell = (v) => ecell(v, { font: FONT_NORM,  border: BORDER_ALL, align: { horizontal: 'center' } });
+    const warnCell= (v) => ecell(v, { fill: WARN_FILL,  font: FONT_BOLD,   border: BORDER_ALL, align: { horizontal: 'center' } });
+
+    // ── Sheet RINGKASAN ──────────────────────────────────────────────────────
+    const wsData = [];
+    wsData.push([ecell(`REKAP IZIN KELUAR — ${className}`, { font: { bold: true, name: 'Arial', sz: 14 } })]);
+    wsData.push([ecell(`Tahun Ajaran: ${academicYear}  |  Data seluruh periode aktif`, { font: FONT_MUTED })]);
+    wsData.push([]);
+    wsData.push([
+        bCell('JUMLAH SISWA'), numCell(students.length), ecell(''),
+        bCell('TOTAL KEJADIAN'), numCell(rows.length), ecell(''),
+        bCell('SISWA PERNAH IZIN KELUAR'), numCell(perStudent.size),
+    ]);
+    wsData.push([]);
+    wsData.push([shCell('TREN IZIN KELUAR PER BULAN')]);
+    wsData.push([hCell('Bulan'), hCell('Kejadian'), hCell('Siswa Terlibat'), hCell('Siswa Perlu Perhatian (≥3x)')]);
+
+    for (const { bulan, tahun, nama } of BULAN_URUT) {
+        const key = `${tahun}-${String(bulan).padStart(2,'0')}`;
+        const mRows = byMonth.get(key) ?? [];
+        const siswaUnik = new Set(mRows.map(r => r.student_id)).size;
+        const perlu = [...new Set(mRows.map(r => r.student_id))]
+            .filter(id => mRows.filter(r => r.student_id === id).length >= 3).length;
+        if (!mRows.length) {
+            wsData.push([nCell(nama), mCell('—'), mCell('—'), mCell('—')]);
+        } else {
+            wsData.push([nCell(nama), numCell(mRows.length), numCell(siswaUnik),
+                perlu > 0 ? warnCell(`${perlu} siswa`) : numCell(0)]);
+        }
+    }
+    wsData.push([]);
+
+    const perluPerhatian = [];
+    for (const [studentId, mMap] of perStudentMonth) {
+        const bulanBermasalah = [];
+        for (const [mKey, mRows] of mMap) {
+            if (mRows.length >= 3) bulanBermasalah.push({ key: mKey, count: mRows.length });
+        }
+        if (bulanBermasalah.length > 0) {
+            const s = studentMap.get(studentId);
+            const totalS = perStudent.get(studentId) ?? 0;
+            const catatan = bulanBermasalah.map(({ key, count }) => {
+                const [, m] = key.split('-').map(Number);
+                return `${BLN_LABEL[m-1]} ${count}x`;
+            }).join(', ');
+            perluPerhatian.push({ nama: s?.full_name ?? '—', nis: s?.nis ?? '—', total: totalS, catatan });
+        }
+    }
+    perluPerhatian.sort((a, b) => b.total - a.total);
+
+    wsData.push([shCell('SISWA PERLU PERHATIAN — SELURUH TAHUN AJARAN')]);
+    wsData.push([ecell('Threshold: izin keluar ≥ 3 kali dalam 1 bulan.', { font: FONT_MUTED })]);
+    wsData.push([hCell('No'), hCell('Nama Siswa'), hCell('NIS'), hCell('Total Izin Keluar'), hCell('Catatan')]);
+    if (!perluPerhatian.length) {
+        wsData.push([ecell(''), nCell('Tidak ada siswa yang melewati threshold.'), ecell(''), ecell(''), ecell('')]);
+    } else {
+        perluPerhatian.forEach(({ nama, nis, total, catatan }, i) => {
+            wsData.push([numCell(i + 1), nCell(nama), nCell(nis), numCell(total), nCell(catatan)]);
+        });
+    }
+
+    const wsRingkasan = XLSX.utils.aoa_to_sheet(wsData);
+    wsRingkasan['!cols'] = [{ wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 22 }, { wch: 35 }];
+    wsRingkasan['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
+        { s: { r: 5, c: 0 }, e: { r: 5, c: 3 } },
+    ];
+    XLSX.utils.book_append_sheet(wbExit, wsRingkasan, 'RINGKASAN');
+
+    // ── Sheet per bulan ──────────────────────────────────────────────────────
+    for (const { bulan, tahun, label, nama } of BULAN_URUT) {
+        const key = `${tahun}-${String(bulan).padStart(2,'0')}`;
+        const mRows = byMonth.get(key) ?? [];
+        if (!mRows.length) continue;
+
+        const tanggalSet = [...new Set(mRows.map(r => r.date))].sort();
+        const siswaIds   = [...new Set(mRows.map(r => r.student_id))];
+        const siswaList  = siswaIds
+            .map(id => studentMap.get(id) ?? { student_id: id, full_name: '—', nis: '—' })
+            .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
+
+        const cellIdx = new Map();
+        for (const r of mRows) {
+            const val = r.exit_time
+                ? (r.reason ? `${r.exit_time.slice(0,5)} – ${r.reason}` : r.exit_time.slice(0,5))
+                : (r.reason || '✓');
+            const k = `${r.student_id}|${r.date}`;
+            cellIdx.set(k, cellIdx.has(k) ? `${cellIdx.get(k)} / ${val}` : val);
+        }
+
+        const fmtTanggal = (iso) => {
+            const [, , d] = iso.split('-');
+            return `${Number(d)}/${String(bulan).padStart(2,'0')}`;
+        };
+
+        const sheetData = [];
+        sheetData.push([ecell(`IZIN KELUAR ${nama.toUpperCase()} — ${className}`, { font: { bold: true, name: 'Arial', sz: 12 } })]);
+        sheetData.push([]);
+        sheetData.push([
+            hCell('No'), hCell('Nama Siswa'), hCell('NIS'), hCell('Total'),
+            ...tanggalSet.map(d => hCell(fmtTanggal(d))),
+        ]);
+        siswaList.forEach(({ student_id, full_name, nis }, i) => {
+            const total = mRows.filter(r => r.student_id === student_id).length;
+            const row = [
+                numCell(i + 1),
+                ecell(full_name, { font: FONT_BOLD, border: BORDER_ALL }),
+                nCell(nis),
+                total >= 3 ? warnCell(total) : numCell(total),
+            ];
+            for (const d of tanggalSet) {
+                const v = cellIdx.get(`${student_id}|${d}`);
+                row.push(v ? nCell(v) : mCell(''));
+            }
+            sheetData.push(row);
+        });
+
+        const wsSheet = XLSX.utils.aoa_to_sheet(sheetData);
+        wsSheet['!cols'] = [
+            { wch: 5 }, { wch: 28 }, { wch: 14 }, { wch: 7 },
+            ...tanggalSet.map(() => ({ wch: 22 })),
+        ];
+        wsSheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 + tanggalSet.length - 1 } }];
+        XLSX.utils.book_append_sheet(wbExit, wsSheet, label);
+    }
+
+    const bufExit = XLSX.write(wbExit, { type: 'array', bookType: 'xlsx' });
+    const urlExit = URL.createObjectURL(new Blob([bufExit], { type: 'application/octet-stream' }));
+    const aExit = document.createElement('a');
+    aExit.href = urlExit; aExit.download = filename + '.xlsx'; aExit.click();
+    setTimeout(() => URL.revokeObjectURL(urlExit), 10000);
+}

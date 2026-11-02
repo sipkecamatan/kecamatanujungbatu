@@ -11,7 +11,7 @@ import {
     getEnrolledStudents, getSchoolConfig,
 } from './api.js';
 import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
-import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat, wirePerhatianCollapse, downloadLateExcel, downloadExitExcel, downloadWaliLateRekap } from './tab-shared.js';
+import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat, wirePerhatianCollapse, downloadLateExcel, downloadExitExcel, downloadWaliLateRekap, downloadWaliExitRekap } from './tab-shared.js';
 
 /* global XLSX */
 
@@ -145,13 +145,32 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
         });
     }
     if (_waliExitExcelBtn) {
-        _waliExitExcelBtn.addEventListener('click', (e) => {
+        _waliExitExcelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (!_cachedWaliExit.length) return;
-            const start = document.getElementById('wali-exit-date-start').value;
-            const end   = document.getElementById('wali-exit-date-end').value;
             const kelas = currentUser.wali_kelas_class_name ?? 'kelas';
-            downloadExitExcel(_cachedWaliExit, `izin_keluar_wali_${kelas}_${start}_${end}`.replace(/\s+/g, '_'));
+            _waliExitExcelBtn.disabled = true;
+            _waliExitExcelBtn.textContent = 'Menyiapkan…';
+            try {
+                const cfg      = await getSchoolConfig();
+                const ay       = cfg?.current_academic_year ?? '';
+                const sem      = cfg?.current_semester ?? null;
+                const [ayStart, ayEnd] = ay.split('/').map(Number);
+                const fullRows = await getWaliExits(
+                    `${ayStart}-07-01`, `${ayEnd}-06-30`
+                );
+                const students = classId
+                    ? await getEnrolledStudents(classId, ay, sem)
+                    : [];
+                downloadWaliExitRekap(
+                    fullRows, students, kelas, ay,
+                    `rekap_izin_keluar_${kelas}_${ay.replace('/','-')}`.replace(/\s+/g, '_')
+                );
+            } catch (err) {
+                alert('Gagal mengunduh rekap: ' + (err.message ?? err));
+            } finally {
+                _waliExitExcelBtn.disabled = false;
+                _waliExitExcelBtn.textContent = 'Unduh Excel';
+            }
         });
     }
 
