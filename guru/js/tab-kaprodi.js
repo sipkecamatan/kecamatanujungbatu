@@ -388,8 +388,6 @@ async function loadKpClsRecap({ config }) {
             });
         });
 
-        document.getElementById('kp-cls-export-btn').style.display = '';
-
     } catch (err) {
         container.innerHTML = `<div class="alert alert-danger">${esc(fe(err))}</div>`;
     }
@@ -767,14 +765,11 @@ async function loadKpLateRecap({ config, programId }) {
         return;
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
-    const _kpLateExcelBtnInner = document.getElementById('kp-late-excel-btn');
-    if (_kpLateExcelBtnInner) _kpLateExcelBtnInner.style.display = 'none';
     try {
         let rows = await getLateArrivalsByRange(start, end, config?.current_academic_year ?? null);
         if (seq !== _kpLateSeq) return;
         if (classId) rows = rows.filter(r => r.class_id === classId);
         _cachedKpLate = rows;
-        if (_kpLateExcelBtnInner) _kpLateExcelBtnInner.style.display = rows.length ? '' : 'none';
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>';
             return;
@@ -818,14 +813,11 @@ async function loadKpExitRecap({ config, programId }) {
         return;
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
-    const _kpExitExcelBtnInner = document.getElementById('kp-exit-excel-btn');
-    if (_kpExitExcelBtnInner) _kpExitExcelBtnInner.style.display = 'none';
     try {
         let rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
         if (seq !== _kpExitSeq) return;
         if (classId) rows = rows.filter(r => r.class_id === classId);
         _cachedKpExit = rows;
-        if (_kpExitExcelBtnInner) _kpExitExcelBtnInner.style.display = rows.length ? '' : 'none';
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>';
             return;

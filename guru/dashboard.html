@@ -741,7 +741,7 @@
 
             <!-- Rekap Keterlambatan — piket (hanya kelas di program ini) -->
             <div class="section-card kp-acc-item" id="kp-late-card">
-                <div class="kp-acc-header"><span>Rekap Keterlambatan</span><button id="kp-late-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px;margin-left:auto;margin-right:8px">↓ Excel</button><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Rekap Keterlambatan</span><button id="kp-late-excel-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px">↓ Excel</button></div>
                 <div class="kp-acc-body" style="display:none">
                 <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
                     <div style="display:flex;align-items:center;gap:8px">
@@ -764,7 +764,7 @@
 
             <!-- Rekap Izin Keluar — piket (hanya kelas di program ini) -->
             <div class="section-card kp-acc-item" id="kp-exit-card">
-                <div class="kp-acc-header"><span>Rekap Izin Keluar</span><button id="kp-exit-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px;margin-left:auto;margin-right:8px">↓ Excel</button><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Rekap Izin Keluar</span><button id="kp-exit-excel-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px">↓ Excel</button></div>
                 <div class="kp-acc-body" style="display:none">
                 <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
                     <div style="display:flex;align-items:center;gap:8px">
@@ -787,14 +787,13 @@
 
             <!-- Rekap Absensi Kelas — kehadiran sesi siswa AKTIF di sekolah -->
             <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-cls"><span>Rekap Absensi Kelas</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header" data-target="kp-body-cls"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Rekap Absensi Kelas</span><button id="kp-cls-export-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px">Unduh Excel</button></div>
                 <div class="kp-acc-body" id="kp-body-cls" style="display:none">
                 <div class="date-row" style="margin-bottom:12px">
                     <label for="kp-cls-start">Dari:</label><input type="date" id="kp-cls-start" class="input" style="width:auto">
                     <label for="kp-cls-end">s/d:</label><input type="date" id="kp-cls-end" class="input" style="width:auto">
                     <div class="date-row-actions">
                         <button class="btn btn-secondary btn-sm" id="kp-cls-filter-btn">Filter</button>
-                        <button class="btn btn-secondary btn-sm" id="kp-cls-export-btn" style="display:none">Unduh Excel</button>
                     </div>
                 </div>
                 <div id="kp-cls-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
@@ -817,7 +816,7 @@
 
             <!-- Mitra DUDI — referensi dipilih di Form Penempatan -->
             <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-dudi"><span>Mitra DUDI</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header" data-target="kp-body-dudi"><span class="kp-acc-arrow">▸</span><span style="margin-left:8px">Mitra DUDI</span></div>
                 <div class="kp-acc-body" id="kp-body-dudi" style="display:none">
                 <div class="table-wrapper">
                     <table class="table"><thead><tr><th>Nama Usaha</th><th>Penanggung Jawab</th></tr></thead>
@@ -829,7 +828,7 @@
 
             <!-- Penempatan PKL — siswa AKTIF masuk PKL -->
             <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-placement"><span>Penempatan PKL</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header" data-target="kp-body-placement"><span class="kp-acc-arrow">▸</span><span style="margin-left:8px">Penempatan PKL</span></div>
                 <div class="kp-acc-body" id="kp-body-placement" style="display:none">
                 <form id="kp-placement-form" style="display:grid; gap:12px; grid-template-columns:1fr 1fr; margin-bottom:16px">
                     <div class="field" style="margin:0">
@@ -861,7 +860,7 @@
 
             <!-- Daftar Siswa PKL — monitor siapa yang sedang PKL -->
             <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-students"><span>Daftar Siswa PKL</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header" data-target="kp-body-students"><span class="kp-acc-arrow">▸</span><span style="margin-left:8px">Daftar Siswa PKL</span></div>
                 <div class="kp-acc-body" id="kp-body-students" style="display:none">
                 <div class="stats-row" style="margin-bottom:16px">
                     <div class="stat-card"><span class="stat-value" id="kp-stat-total">—</span><div class="stat-label">Total Siswa PKL</div></div>
@@ -893,7 +892,7 @@
 
             <!-- Rekap Absensi PKL — kehadiran harian siswa PKL di DUDI -->
             <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-pkl"><span>Rekap Absensi PKL</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header" data-target="kp-body-pkl"><span class="kp-acc-arrow">▸</span><span style="margin-left:8px">Rekap Absensi PKL</span></div>
                 <div class="kp-acc-body" id="kp-body-pkl" style="display:none">
                 <div class="date-row" style="margin-bottom:12px">
                     <label for="kp-date-start">Dari:</label><input type="date" id="kp-date-start" class="input" style="width:auto">
@@ -927,7 +926,7 @@
 
             <!-- Observasi DUDI -->
             <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-obs"><span>Observasi dari DUDI</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header" data-target="kp-body-obs"><span class="kp-acc-arrow">▸</span><span style="margin-left:8px">Observasi dari DUDI</span></div>
                 <div class="kp-acc-body" id="kp-body-obs" style="display:none">
                 <p class="hint" id="kp-obs-hint" style="display:none">Belum ada observasi dari DUDI.</p>
                 <div id="kp-obs-list"></div>
@@ -935,7 +934,7 @@
             </div>
 
             <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-kasus"><span>Pembinaan Siswa Program Studi</span><span class="kp-acc-arrow">▸</span></div>
+                <div class="kp-acc-header" data-target="kp-body-kasus"><span class="kp-acc-arrow">▸</span><span style="margin-left:8px">Pembinaan Siswa Program Studi</span></div>
                 <div class="kp-acc-body" id="kp-body-kasus" style="display:none">
                 <div id="kp-kasus-list-view" style="display:block">
                     <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center">
