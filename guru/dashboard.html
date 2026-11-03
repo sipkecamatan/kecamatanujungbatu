@@ -552,19 +552,17 @@
             <div class="section-card" style="margin-top:16px" id="wali-terlambat-card">
                 <div id="wali-terlambat-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
                     <h3 style="margin:0">Keterlambatan Siswa Walian</h3>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <button id="wali-late-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px" onclick="event.stopPropagation()">↓ Excel</button>
-                        <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
-                    </div>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                 </div>
                 <div id="wali-terlambat-body" style="display:none;margin-top:12px">
-                    <div class="date-row" style="margin:12px 0">
+                    <div class="date-row" style="margin-bottom:12px">
                         <label for="wali-late-date-start">Dari:</label>
                         <input type="date" id="wali-late-date-start" class="input">
                         <label for="wali-late-date-end">s/d:</label>
                         <input type="date" id="wali-late-date-end" class="input">
                         <div class="date-row-actions">
                             <button class="btn btn-secondary btn-sm" id="wali-late-filter-btn">Tampilkan</button>
+                            <button id="wali-late-excel-btn" class="btn btn-secondary btn-sm" style="display:none">Unduh Excel</button>
                         </div>
                     </div>
                     <div id="wali-late-content"></div>
@@ -574,19 +572,17 @@
             <div class="section-card" style="margin-top:16px" id="wali-keluar-card">
                 <div id="wali-keluar-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
                     <h3 style="margin:0">Izin Keluar Siswa Walian</h3>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <button id="wali-exit-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px" onclick="event.stopPropagation()">↓ Excel</button>
-                        <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
-                    </div>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                 </div>
                 <div id="wali-keluar-body" style="display:none;margin-top:12px">
-                    <div class="date-row" style="margin:12px 0">
+                    <div class="date-row" style="margin-bottom:12px">
                         <label for="wali-exit-date-start">Dari:</label>
                         <input type="date" id="wali-exit-date-start" class="input">
                         <label for="wali-exit-date-end">s/d:</label>
                         <input type="date" id="wali-exit-date-end" class="input">
                         <div class="date-row-actions">
                             <button class="btn btn-secondary btn-sm" id="wali-exit-filter-btn">Tampilkan</button>
+                            <button id="wali-exit-excel-btn" class="btn btn-secondary btn-sm" style="display:none">Unduh Excel</button>
                         </div>
                     </div>
                     <div id="wali-exit-content"></div>
