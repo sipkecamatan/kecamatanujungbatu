@@ -93,17 +93,17 @@ export function pasangNilaiRaporKelas(panel, ctx) {
         </div>
         <div id="nrk-body" style="display:none;margin-top:12px">
         <p class="hint" style="margin:0 0 10px;font-size:12px">Nilai rapor diinput oleh guru mata pelajaran. ${wali ? 'Anda memeriksa dan mencetak.' : 'Anda mengawasi kelengkapannya.'} Tanda "—" berarti guru mata pelajaran itu belum menyimpan nilai rapor.</p>
-        <div class="date-row" style="margin-bottom:10px">
-          ${wali ? '' : '<label for="nrk-kelas" style="white-space:nowrap">Kelas</label><select id="nrk-kelas" class="input" style="flex:2;min-width:140px"><option value="">— Pilih Kelas —</option></select>'}
-          <label for="nrk-tahun" style="white-space:nowrap">Tahun ajaran</label>
-          <input type="text" id="nrk-tahun" class="input" style="flex:2;min-width:100px" value="${esc(ctx.tahun || '')}">
-          <label for="nrk-semester" style="white-space:nowrap">Semester</label>
-          <select id="nrk-semester" class="input" style="min-width:60px"><option value="1"${String(ctx.semester) !== '2' ? ' selected' : ''}>1</option><option value="2"${String(ctx.semester) === '2' ? ' selected' : ''}>2</option></select>
-          <div class="date-row-actions">
-            <button type="button" class="btn btn-secondary btn-sm" id="nrk-muat">Tampilkan</button>
-            <button type="button" class="btn btn-secondary btn-sm" id="nrk-excel" style="display:none">Unduh Excel</button>
-            <button type="button" class="btn btn-secondary btn-sm" id="nrk-cetak" style="display:none">Cetak</button>
-          </div>
+        <div class="rapor-filter-row">
+          <label for="nrk-tahun">Tahun ajaran</label>
+          <input type="text" id="nrk-tahun" class="input" value="${esc(ctx.tahun || '')}">
+          <label for="nrk-semester">Semester</label>
+          <select id="nrk-semester" class="input"><option value="1"${String(ctx.semester) !== '2' ? ' selected' : ''}>1</option><option value="2"${String(ctx.semester) === '2' ? ' selected' : ''}>2</option></select>
+          <button type="button" class="btn btn-secondary btn-sm" id="nrk-muat">Tampilkan</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          ${wali ? '' : '<select id="nrk-kelas" class="input" style="flex:1"><option value="">— Pilih Kelas —</option></select>'}
+          <button type="button" class="btn btn-secondary btn-sm" id="nrk-excel" style="display:none">Unduh Excel</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="nrk-cetak" style="display:none">Cetak</button>
         </div>
         <div id="nrk-hasil"></div>
         </div>`;

@@ -313,6 +313,9 @@ details[open] .att-accordion-summary::before { transform: rotate(90deg); }
 .filter-dropdown-row select { flex: 1; min-width: 120px; font-size: 13px; }
 .placement-form { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin-bottom: 16px; }
 .placement-form .full-col { grid-column: 1 / -1; }
+.rapor-filter-row { display: grid; grid-template-columns: max-content minmax(0,1fr) max-content 120px max-content; gap: 10px; align-items: center; width: 100%; margin-bottom: 10px; }
+.rapor-filter-row label { white-space: nowrap; margin: 0; }
+.rapor-filter-row input, .rapor-filter-row select { min-width: 0; }
 
 /* ── Banner offset ────────────────────────────────────────── */
 body.has-login-banner .app-header { margin-top: 94px; }
@@ -435,6 +438,11 @@ body.has-login-banner .app-header { margin-top: 94px; }
     .date-row input[type="date"] { width: 100%; flex: none; }
     .date-row-actions { flex-direction: row; }
     .date-row-actions .btn { flex: 1; }
+
+    /* Rapor filter row — stack di HP */
+    .rapor-filter-row { grid-template-columns: max-content 1fr; }
+    .rapor-filter-row input, .rapor-filter-row select { width: 100%; }
+    .rapor-filter-row > button { grid-column: 1 / -1; }
 
     /* Tabel jadwal — jam + kelas lebih rapat */
     .table th, .table td { padding: 8px 8px; font-size: 13px; }
