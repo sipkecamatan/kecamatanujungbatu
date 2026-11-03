@@ -743,7 +743,8 @@
     "section_card_h3_scoped": "CSS .section-card h3{font-size:15px} di guru.css hanya berlaku di dalam .section-card. Komponen pakai class sendiri (pen-section dll) mendapat browser-default h3 (~19px) → header lebih tinggi dari standar. Wajib tambah font-size:15px eksplisit pada h3 header custom. Ditemukan 3 Nov 2026, commit 4bf909d.",
     "kaprodi_section_standar": "Tab Kaprodi: semua 10 section pakai wireWaliSection (toggle/body standar, ▶/▼). wireSimpleAccordion dihapus dari import. CSS kp-acc-* JANGAN dihapus — masih dipakai BK/Waka/Kepsek tab.",
     "kaprodi_filter_layout": "Tab Kaprodi filter: pakai kp-ctx-filter (flex-wrap desktop, flex-column mobile). Kelas+Dari+s/d+Actions dalam SATU container. kp-filter-actions = row tombol full-width di mobile. CSS di guru.css. Tombol Excel masuk kp-filter-actions berdampingan Tampilkan. Label = Tampilkan bukan Filter.",
-    "kaprodi_placement_actions": "Penempatan PKL: class kp-placement-actions (CSS di guru.css). Desktop: flex horizontal. Mobile: flex-column, semua btn width:100%. Urutan: Simpan Penempatan, Impor CSV, Unduh Template CSV."
+    "kaprodi_placement_actions": "Penempatan PKL: class kp-placement-actions (CSS di guru.css). Desktop: flex horizontal. Mobile: flex-column, semua btn width:100%. Urutan: Simpan Penempatan, Impor CSV, Unduh Template CSV.",
+    "wali_excel_di_header": "SUDAH DIPERBAIKI (3 Nov 2026): wali-late-excel-btn + wali-exit-excel-btn sebelumnya ada di header toggle (display:none, muncul setelah data). Kini dipindah ke date-row-actions di body berdampingan Tampilkan — identik pola Kelas Walian (wali-recap-export). JS show/hide by ID tetap berfungsi. Teks diubah ke Unduh Excel. Satu file dashboard.html berlaku semua jenjang SMP/SMA/SMK."
   },
   "open_tasks": [
     {
@@ -805,10 +806,10 @@
   ],
   "state": {
     "last_updated": "2026-11-03",
-    "last_session_commit": "6e6f834",
+    "last_session_commit": "7361d85",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "6e6f834",
+    "main_sha": "7361d85",
     "_catatan_push": "feat(wali): standardisasi collapse 6 section tab wali kelas",
     "last_session_summary": "UI/CSS: standardisasi collapse section (piket, catatan siswa, jurnal), mobile filter penilaian, tinggi header pen-section"
   }
