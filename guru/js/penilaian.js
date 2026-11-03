@@ -138,13 +138,10 @@ function injectStyles() {
     s.id = 'pen-styles';
     s.textContent = `
 /* sections */
-.pen-section { border:1px solid var(--color-border); border-radius:8px; margin-bottom:12px; overflow:hidden }
-.pen-section-header { display:flex; justify-content:space-between; align-items:center;
-  padding:12px 16px; cursor:pointer; font-weight:600; font-size:14px;
-  background:var(--color-surface); user-select:none }
-.pen-section-header:hover { background:var(--color-surface-hover,var(--color-surface)) }
-.pen-chevron { font-size:11px; transition:transform .2s }
-.pen-section-body { padding:16px }
+.pen-section { background:var(--color-surface); border-radius:var(--radius-lg); border:1px solid var(--color-border); padding:20px; margin-bottom:20px }
+.pen-section-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none }
+.pen-chevron { font-size:13px; color:var(--color-text-muted); flex-shrink:0 }
+.pen-section-body { margin-top:12px }
 /* sub sections */
 .pen-sec { margin-bottom:20px }
 .pen-sec-label { font-weight:600; font-size:13px; color:var(--color-text-muted);
@@ -2186,10 +2183,11 @@ function initCollapse() {
         if (!h || !b) return;
         const chevron = h.querySelector('.pen-chevron');
         b.style.display = 'none';
+        h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); h.click(); } });
         h.addEventListener('click', () => {
             const open = b.style.display !== 'none';
             b.style.display = open ? 'none' : '';
-            if (chevron) chevron.style.transform = open ? '' : 'rotate(180deg)';
+            if (chevron) chevron.textContent = open ? '▶' : '▼';
             if (!open) {
                 if (cfg.bodyId === 'pen-perencanaan-body') renderPerencanaan();
                 if (cfg.bodyId === 'pen-pelaksanaan-body') renderPelaksanaan();
@@ -2211,20 +2209,20 @@ async function renderAll() {
     container.classList.remove('section-card');
 
     container.innerHTML =
-        '<div class="pen-section"><div class="pen-section-header" id="pen-perencanaan-header">' +
-        '<span>Perencanaan</span><span class="pen-chevron">▼</span></div>' +
+        '<div class="pen-section"><div class="pen-section-header" id="pen-perencanaan-header" tabindex="0" role="button">' +
+        '<h3 style="margin:0">Perencanaan</h3><span class="pen-chevron">▶</span></div>' +
         '<div class="pen-section-body" id="pen-perencanaan-body"></div></div>' +
 
-        '<div class="pen-section"><div class="pen-section-header" id="pen-pelaksanaan-header">' +
-        '<span>Pelaksanaan</span><span class="pen-chevron">▼</span></div>' +
+        '<div class="pen-section"><div class="pen-section-header" id="pen-pelaksanaan-header" tabindex="0" role="button">' +
+        '<h3 style="margin:0">Pelaksanaan</h3><span class="pen-chevron">▶</span></div>' +
         '<div class="pen-section-body" id="pen-pelaksanaan-body"></div></div>' +
 
-        '<div class="pen-section"><div class="pen-section-header" id="pen-rekap-header">' +
-        '<span>Rekap Penilaian</span><span class="pen-chevron">▼</span></div>' +
+        '<div class="pen-section"><div class="pen-section-header" id="pen-rekap-header" tabindex="0" role="button">' +
+        '<h3 style="margin:0">Rekap Penilaian</h3><span class="pen-chevron">▶</span></div>' +
         '<div class="pen-section-body" id="pen-rekap-body"></div></div>' +
 
-        '<div class="pen-section"><div class="pen-section-header" id="pen-rapor-header">' +
-        '<span>Nilai Rapor</span><span class="pen-chevron">▼</span></div>' +
+        '<div class="pen-section"><div class="pen-section-header" id="pen-rapor-header" tabindex="0" role="button">' +
+        '<h3 style="margin:0">Nilai Rapor</h3><span class="pen-chevron">▶</span></div>' +
         '<div class="pen-section-body" id="pen-rapor-body"></div></div>';
 
     if (!_delegInit) {
