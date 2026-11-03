@@ -203,13 +203,18 @@
             </div>
 
             <!-- Riwayat observasi yang pernah ditulis guru ini -->
-            <div class="section-card">
-                <h3>Riwayat Catatan Saya</h3>
-                <div id="obs-history-list"><p class="hint">Memuat…</p></div>
-                <div style="text-align:center;margin-top:12px">
-                    <button id="obs-history-more" class="btn btn-secondary" style="display:none">
-                        Muat lebih banyak
-                    </button>
+            <div class="section-card" id="obs-history-card">
+                <div id="obs-history-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0">Riwayat Catatan Saya</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="obs-history-body" style="display:none;margin-top:12px">
+                    <div id="obs-history-list"><p class="hint">Memuat…</p></div>
+                    <div style="text-align:center;margin-top:12px">
+                        <button id="obs-history-more" class="btn btn-secondary" style="display:none">
+                            Muat lebih banyak
+                        </button>
+                    </div>
                 </div>
             </div>
 

@@ -1296,7 +1296,7 @@ export async function initObsTab({ currentUser, config, jabatan, LC }) {
     _LC          = LC;
 
     await initObsForm();
-    _initObsHistoryCollapse();
+    wireWaliSection('obs-history-toggle', 'obs-history-body');
     const moreBtn = document.getElementById('obs-history-more');
     if (moreBtn && moreBtn.dataset.wired !== '1') {
         moreBtn.dataset.wired = '1';
@@ -1305,34 +1305,6 @@ export async function initObsTab({ currentUser, config, jabatan, LC }) {
     await loadObsHistory();
 }
 
-function _initObsHistoryCollapse() {
-    const listEl  = document.getElementById('obs-history-list');
-    const moreWrap = document.getElementById('obs-history-more')?.parentElement;
-    const h3 = listEl?.closest('.section-card')?.querySelector('h3');
-    if (!h3 || h3.dataset.collapseWired) return;
-    h3.dataset.collapseWired = '1';
-
-    // Chevron di sebelah kanan judul
-    const chevron = document.createElement('span');
-    chevron.style.cssText = 'font-size:10px;color:var(--color-text-muted);transition:transform .18s;float:right;margin-top:2px';
-    chevron.textContent = '▶';
-    h3.style.cursor = 'pointer';
-    h3.appendChild(chevron);
-
-    // Konten tersembunyi secara default
-    const collapseEls = [listEl, document.getElementById('obs-history-kelas-filter'), moreWrap].filter(Boolean);
-    collapseEls.forEach(el => { el.style.display = 'none'; });
-    let terbuka = false;
-
-    h3.addEventListener('click', () => {
-        terbuka = !terbuka;
-        const filterEl = document.getElementById('obs-history-kelas-filter');
-        [listEl, filterEl, moreWrap].filter(Boolean).forEach(el => {
-            el.style.display = terbuka ? '' : 'none';
-        });
-        chevron.style.transform = terbuka ? 'rotate(90deg)' : '';
-    });
-}
 
 function setObsHistoryNotice(listEl, message, className = 'status-warn') {
     listEl.querySelector('.obs-history-notice')?.remove();
