@@ -311,6 +311,11 @@ details[open] .att-accordion-summary::before { transform: rotate(90deg); }
 .filter-action-row > * { flex: 1; }
 .filter-dropdown-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
 .filter-dropdown-row select { flex: 1; min-width: 120px; font-size: 13px; }
+.kp-ctx-filter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.kp-ctx-filter > label { white-space: nowrap; font-size: 13px; color: var(--color-text-muted); margin: 0; flex-shrink: 0; }
+.kp-ctx-filter select, .kp-ctx-filter input[type="date"] { flex: 1; min-width: 100px; }
+.kp-filter-actions { width: 100%; display: flex; gap: 8px; margin-top: 4px; }
+.kp-filter-actions .btn { flex: 1; }
 .placement-form { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin-bottom: 16px; }
 .placement-form .full-col { grid-column: 1 / -1; }
 .rapor-filter-row { display: grid; grid-template-columns: max-content minmax(0,1fr) max-content 120px max-content; gap: 10px; align-items: center; width: 100%; margin-bottom: 10px; }
@@ -438,6 +443,11 @@ body.has-login-banner .app-header { margin-top: 94px; }
     .date-row input[type="date"] { width: 100%; flex: none; }
     .date-row-actions { flex-direction: row; }
     .date-row-actions .btn { flex: 1; }
+
+    /* Kaprodi filter row — stack vertikal di HP */
+    .kp-ctx-filter { flex-direction: column; align-items: stretch; gap: 6px; }
+    .kp-ctx-filter select, .kp-ctx-filter input[type="date"] { width: 100%; flex: none; }
+    .kp-filter-actions { margin-top: 0; }
 
     /* Rapor filter row — stack di HP */
     .rapor-filter-row { grid-template-columns: max-content 1fr; }

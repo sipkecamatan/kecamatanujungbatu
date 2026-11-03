@@ -764,21 +764,19 @@
                     <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                 </div>
                 <div id="kp-late-body" style="display:none;margin-top:12px">
-                <button id="kp-late-excel-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px;margin-bottom:10px">↓ Excel</button>
-                <div class="date-row" style="margin-bottom:0">
-                    <label for="kp-late-start">Dari:</label>
-                    <input type="date" id="kp-late-start" class="input" style="width:auto">
-                    <label for="kp-late-end">s/d:</label>
-                    <input type="date" id="kp-late-end" class="input" style="width:auto">
-                    <div class="date-row-actions">
-                        <button class="btn btn-secondary btn-sm" id="kp-late-filter-btn">Filter</button>
-                    </div>
-                </div>
-                <div class="kelas-row">
+                <div class="kp-ctx-filter">
                     <label for="kp-late-class">Kelas:</label>
                     <select id="kp-late-class" class="input"><option value="">Semua kelas prodi</option></select>
+                    <label for="kp-late-start">Dari:</label>
+                    <input type="date" id="kp-late-start" class="input">
+                    <label for="kp-late-end">s/d:</label>
+                    <input type="date" id="kp-late-end" class="input">
+                    <div class="kp-filter-actions">
+                        <button class="btn btn-secondary btn-sm" id="kp-late-filter-btn">Tampilkan</button>
+                        <button id="kp-late-excel-btn" class="btn btn-secondary btn-sm">↓ Excel</button>
+                    </div>
                 </div>
-                <div id="kp-late-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
+                <div id="kp-late-recap"><p class="hint">Pilih rentang tanggal lalu klik Tampilkan.</p></div>
                 </div>
             </div>
 
@@ -789,21 +787,19 @@
                     <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                 </div>
                 <div id="kp-exit-body" style="display:none;margin-top:12px">
-                <button id="kp-exit-excel-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px;margin-bottom:10px">↓ Excel</button>
-                <div class="date-row" style="margin-bottom:0">
-                    <label for="kp-exit-start">Dari:</label>
-                    <input type="date" id="kp-exit-start" class="input" style="width:auto">
-                    <label for="kp-exit-end">s/d:</label>
-                    <input type="date" id="kp-exit-end" class="input" style="width:auto">
-                    <div class="date-row-actions">
-                        <button class="btn btn-secondary btn-sm" id="kp-exit-filter-btn">Filter</button>
-                    </div>
-                </div>
-                <div class="kelas-row">
+                <div class="kp-ctx-filter">
                     <label for="kp-exit-class">Kelas:</label>
                     <select id="kp-exit-class" class="input"><option value="">Semua kelas prodi</option></select>
+                    <label for="kp-exit-start">Dari:</label>
+                    <input type="date" id="kp-exit-start" class="input">
+                    <label for="kp-exit-end">s/d:</label>
+                    <input type="date" id="kp-exit-end" class="input">
+                    <div class="kp-filter-actions">
+                        <button class="btn btn-secondary btn-sm" id="kp-exit-filter-btn">Tampilkan</button>
+                        <button id="kp-exit-excel-btn" class="btn btn-secondary btn-sm">↓ Excel</button>
+                    </div>
                 </div>
-                <div id="kp-exit-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
+                <div id="kp-exit-recap"><p class="hint">Pilih rentang tanggal lalu klik Tampilkan.</p></div>
                 </div>
             </div>
 
@@ -814,15 +810,17 @@
                     <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                 </div>
                 <div id="kp-body-cls" style="display:none;margin-top:12px">
-                <button id="kp-cls-export-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px;margin-bottom:10px">↓ Excel</button>
-                <div class="date-row" style="margin-bottom:12px">
-                    <label for="kp-cls-start">Dari:</label><input type="date" id="kp-cls-start" class="input" style="width:auto">
-                    <label for="kp-cls-end">s/d:</label><input type="date" id="kp-cls-end" class="input" style="width:auto">
-                    <div class="date-row-actions">
-                        <button class="btn btn-secondary btn-sm" id="kp-cls-filter-btn">Filter</button>
+                <div class="kp-ctx-filter">
+                    <label for="kp-cls-start">Dari:</label>
+                    <input type="date" id="kp-cls-start" class="input">
+                    <label for="kp-cls-end">s/d:</label>
+                    <input type="date" id="kp-cls-end" class="input">
+                    <div class="kp-filter-actions">
+                        <button class="btn btn-secondary btn-sm" id="kp-cls-filter-btn">Tampilkan</button>
+                        <button id="kp-cls-export-btn" class="btn btn-secondary btn-sm">↓ Excel</button>
                     </div>
                 </div>
-                <div id="kp-cls-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
+                <div id="kp-cls-recap"><p class="hint">Pilih rentang tanggal lalu klik Tampilkan.</p></div>
                 </div>
             </div>
 
@@ -934,11 +932,11 @@
                 <div id="kp-body-pkl" style="display:none;margin-top:12px">
                 <div class="date-row" style="margin-bottom:12px">
                     <label for="kp-date-start">Dari:</label>
-                    <input type="date" id="kp-date-start" class="input" style="width:auto">
+                    <input type="date" id="kp-date-start" class="input">
                     <label for="kp-date-end">s/d:</label>
-                    <input type="date" id="kp-date-end" class="input" style="width:auto">
+                    <input type="date" id="kp-date-end" class="input">
                     <div class="date-row-actions">
-                        <button class="btn btn-secondary btn-sm" id="kp-filter-btn">Filter</button>
+                        <button class="btn btn-secondary btn-sm" id="kp-filter-btn">Tampilkan</button>
                     </div>
                 </div>
                 <div class="table-wrapper">
@@ -1010,7 +1008,7 @@
                             <option value="SEKOLAH">Sekolah</option>
                             <option value="PKL">PKL</option>
                         </select>
-                        <button class="btn btn-secondary btn-sm" id="kp-kasus-filter-btn">Filter</button>
+                        <button class="btn btn-secondary btn-sm" id="kp-kasus-filter-btn">Tampilkan</button>
                     </div>
                     <div id="kp-kasus-list-content"><p class="hint">Memuat…</p></div>
                 </div>
