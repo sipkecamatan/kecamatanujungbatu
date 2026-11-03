@@ -654,7 +654,7 @@
       "export_perhatian": "filterPerhatian, renderPerhatianFlat, renderPerhatianAccordion, wirePerhatianCollapse, PERHATIAN_ALPA_MIN=2, PERHATIAN_HADIR_MIN=0.75 — satu-satunya sumber threshold; ubah di sini berlaku ke semua tab",
       "export_piket_excel": "downloadLateExcel(rows, filename, {withKelas, withRecorder}) + downloadExitExcel(rows, filename, {withKelas, withRecorder}) — fungsi bersama untuk unduh Excel keterlambatan/izin keluar. Pakai manual blob (XLSX.write → Blob → createObjectURL). withKelas=true tambah kolom Kelas; withRecorder=true tambah kolom Dicatat Oleh. Ditambah 2 Nov 2026.",
       "export_wali_rekap": "downloadWaliLateRekap(rows, students, className, academicYear, filename) + downloadWaliExitRekap(rows, students, className, academicYear, filename) — rekap RINGKASAN + sheet per bulan untuk wali kelas. rows = data seluruh tahun ajaran (tidak terikat filter layar). students = getEnrolledStudents. Threshold: ≥3x/bulan → warnCell kuning. Sel persilangan siswa×tanggal berisi jam+alasan (misal '07:23 – Ban bocor'). Ditambah 2 Nov 2026.",
-      "export_collapse": "wireWaliSection(toggleId, bodyId) — collapse reusable untuk section wali kelas; toggle div pakai .pph-sect-caret (▶/▼), aria-expanded, keyboard Enter/Space. Dipakai tab-wali.js (5 section) dan nilai-rapor-kelas-ui.js. Ditambah 3 Nov 2026.",
+      "export_collapse": "wireWaliSection(toggleId, bodyId) — collapse reusable untuk section wali kelas; toggle div pakai .pph-sect-caret (▶/▼), aria-expanded, keyboard Enter/Space. Dipakai tab-wali.js (5 section), nilai-rapor-kelas-ui.js, dan tab-piket.js (4 section: Catat Keterlambatan, Rekap Hari Ini, Catat Izin Keluar, Izin Keluar Hari Ini). Ditambah 3 Nov 2026.",
       "catatan": "Jika threshold Alpa/hadir perlu diubah, cukup ubah PERHATIAN_ALPA_MIN/HADIR_MIN di tab-shared.js saja. wirePerhatianCollapse membuat section-card Siswa Perlu Perhatian bisa dilipat (default tertutup); dipanggil dari init tiap tab setelah wiring refresh button. Pola: card-id=*-perhatian-card, toggle-id=*-perhatian-toggle, body-id=*-perhatian-body. wireWaliSection adalah pola yang sama tapi dengan toggleId eksplisit, untuk section lain di tab wali."
     },
     "guru/js/tab-guru.js": {
@@ -801,6 +801,7 @@
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
     "main_sha": "d601863",
-    "_catatan_push": "feat(wali): standardisasi collapse 6 section tab wali kelas"
+    "_catatan_push": "feat(wali): standardisasi collapse 6 section tab wali kelas",
+    "last_session_summary": "collapse 4 section tab Piket (SMP/SMA/SMK) via wireWaliSection"
   }
 }

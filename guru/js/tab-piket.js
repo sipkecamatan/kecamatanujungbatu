@@ -9,7 +9,7 @@ import {
     getTodayExits, recordExit, updateReturnTime, deleteExit,
     getTodayLastSessionEnd,
 } from './api.js';
-import { esc, fe, fmtTime, showInputModal } from './tab-shared.js';
+import { esc, fe, fmtTime, showInputModal, wireWaliSection } from './tab-shared.js';
 
 const PIKET_OPEN_HOUR  = 7;
 const PIKET_OPEN_MIN   = 0;
@@ -57,26 +57,51 @@ export async function initPiketTab({ currentUser }) {
             <div id="piket-ringkasan-content"><p style="color:var(--color-text-muted);font-size:13px">Memuat…</p></div>
         </div>
         <div class="section-card" id="piket-form-card">
-            <h3>Catat Keterlambatan</h3>
-            <div id="piket-form-wrap"></div>
+            <div id="piket-form-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                <h3 style="margin:0">Catat Keterlambatan</h3>
+                <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+            </div>
+            <div id="piket-form-body" style="display:none;margin-top:12px">
+                <div id="piket-form-wrap"></div>
+            </div>
         </div>
         <div class="section-card" id="piket-rekap-card">
-            <h3>Rekap Hari Ini</h3>
-            <div id="piket-rekap-content"><p style="color:var(--color-text-muted);font-size:13px">Memuat…</p></div>
+            <div id="piket-rekap-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                <h3 style="margin:0">Rekap Hari Ini</h3>
+                <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+            </div>
+            <div id="piket-rekap-body" style="display:none;margin-top:12px">
+                <div id="piket-rekap-content"><p style="color:var(--color-text-muted);font-size:13px">Memuat…</p></div>
+            </div>
         </div>
         <div class="section-card" id="piket-exit-form-card">
-            <h3>Catat Izin Keluar</h3>
-            <div id="piket-exit-form-wrap">
-                <p class="hint">Form tidak tersedia di luar jam 07:00–16:00.</p>
+            <div id="piket-exit-form-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                <h3 style="margin:0">Catat Izin Keluar</h3>
+                <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+            </div>
+            <div id="piket-exit-form-body" style="display:none;margin-top:12px">
+                <div id="piket-exit-form-wrap">
+                    <p class="hint">Form tidak tersedia di luar jam 07:00–16:00.</p>
+                </div>
             </div>
         </div>
         <div class="section-card" id="piket-exits-card">
-            <h3>Izin Keluar Hari Ini</h3>
-            <div id="piket-exits-content"><p class="hint">Memuat…</p></div>
+            <div id="piket-exits-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                <h3 style="margin:0">Izin Keluar Hari Ini</h3>
+                <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+            </div>
+            <div id="piket-exits-body" style="display:none;margin-top:12px">
+                <div id="piket-exits-content"><p class="hint">Memuat…</p></div>
+            </div>
         </div>`;
 
     _piketTabInit = true;
     await _piketRenderAll(currentUser);
+
+    wireWaliSection('piket-form-toggle',      'piket-form-body');
+    wireWaliSection('piket-rekap-toggle',     'piket-rekap-body');
+    wireWaliSection('piket-exit-form-toggle', 'piket-exit-form-body');
+    wireWaliSection('piket-exits-toggle',     'piket-exits-body');
 }
 
 async function _piketRenderAll(currentUser) {
