@@ -105,46 +105,46 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
 
         const _kpLateExcelBtn = document.getElementById('kp-late-excel-btn');
         if (_kpLateExcelBtn) {
-            _kpLateExcelBtn.addEventListener('click', (e) => {
+            _kpLateExcelBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                if (!_cachedKpLate.length) {
-                    const card = document.getElementById('kp-late-card');
-                    const body = card?.querySelector('.kp-acc-body');
-                    if (card && body && !card.classList.contains('open')) {
-                        card.classList.add('open');
-                        body.style.display = 'block';
-                    } else {
-                        const orig = _kpLateExcelBtn.textContent;
-                        _kpLateExcelBtn.textContent = 'Filter dulu';
-                        setTimeout(() => { _kpLateExcelBtn.textContent = orig; }, 1800);
-                    }
-                    return;
-                }
                 const start = document.getElementById('kp-late-start').value;
                 const end   = document.getElementById('kp-late-end').value;
-                downloadLateExcel(_cachedKpLate, `keterlambatan_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
+                if (_cachedKpLate.length) {
+                    downloadLateExcel(_cachedKpLate, `keterlambatan_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
+                    return;
+                }
+                const origText = _kpLateExcelBtn.textContent;
+                _kpLateExcelBtn.textContent = '...';
+                _kpLateExcelBtn.disabled = true;
+                try {
+                    const rows = await getLateArrivalsByRange(start, end, config?.current_academic_year ?? null);
+                    _cachedKpLate = rows;
+                    downloadLateExcel(rows, `keterlambatan_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
+                } catch (_) { /* biarkan tombol kembali normal */ }
+                _kpLateExcelBtn.textContent = origText;
+                _kpLateExcelBtn.disabled = false;
             });
         }
         const _kpExitExcelBtn = document.getElementById('kp-exit-excel-btn');
         if (_kpExitExcelBtn) {
-            _kpExitExcelBtn.addEventListener('click', (e) => {
+            _kpExitExcelBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                if (!_cachedKpExit.length) {
-                    const card = document.getElementById('kp-exit-card');
-                    const body = card?.querySelector('.kp-acc-body');
-                    if (card && body && !card.classList.contains('open')) {
-                        card.classList.add('open');
-                        body.style.display = 'block';
-                    } else {
-                        const orig = _kpExitExcelBtn.textContent;
-                        _kpExitExcelBtn.textContent = 'Filter dulu';
-                        setTimeout(() => { _kpExitExcelBtn.textContent = orig; }, 1800);
-                    }
-                    return;
-                }
                 const start = document.getElementById('kp-exit-start').value;
                 const end   = document.getElementById('kp-exit-end').value;
-                downloadExitExcel(_cachedKpExit, `izin_keluar_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
+                if (_cachedKpExit.length) {
+                    downloadExitExcel(_cachedKpExit, `izin_keluar_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
+                    return;
+                }
+                const origText = _kpExitExcelBtn.textContent;
+                _kpExitExcelBtn.textContent = '...';
+                _kpExitExcelBtn.disabled = true;
+                try {
+                    const rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
+                    _cachedKpExit = rows;
+                    downloadExitExcel(rows, `izin_keluar_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
+                } catch (_) { /* biarkan tombol kembali normal */ }
+                _kpExitExcelBtn.textContent = origText;
+                _kpExitExcelBtn.disabled = false;
             });
         }
 
