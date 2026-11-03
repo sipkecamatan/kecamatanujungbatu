@@ -796,10 +796,10 @@
   ],
   "state": {
     "last_updated": "2026-11-03",
-    "last_session_commit": "TBD",
+    "last_session_commit": "21e59b6",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "TBD",
+    "main_sha": "21e59b6",
     "_catatan_push": "fix(wali): layout date-row full-width + ganti teks Filter→Tampilkan di tab Wali Kelas"
   }
 }
