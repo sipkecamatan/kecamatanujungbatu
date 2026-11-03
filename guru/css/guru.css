@@ -301,6 +301,9 @@ details[open] .att-accordion-summary::before { transform: rotate(90deg); }
 .date-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .date-range { display: flex; gap: 6px; flex: 1; min-width: 0; }
 .date-range input[type="date"] { flex: 1; min-width: 0; }
+.kelas-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
+.kelas-row label { margin: 0; font-size: 13px; color: var(--color-text-muted); white-space: nowrap; }
+.kelas-row select { flex: 1; min-width: 0; }
 
 /* ── Banner offset ────────────────────────────────────────── */
 body.has-login-banner .app-header { margin-top: 94px; }

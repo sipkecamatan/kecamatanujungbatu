@@ -796,10 +796,10 @@
   ],
   "state": {
     "last_updated": "2026-11-03",
-    "last_session_commit": "e83feeb",
+    "last_session_commit": "c1553b3",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "e83feeb",
-    "_catatan_push": "feat/fix kaprodi: layout header accordion + tombol Excel + RLS WAKASEK users"
+    "main_sha": "c1553b3",
+    "_catatan_push": "fix kaprodi: tombol Excel independen + seragamkan form filter Keterlambatan/Izin Keluar"
   }
 }

@@ -743,20 +743,18 @@
             <div class="section-card kp-acc-item" id="kp-late-card">
                 <div class="kp-acc-header"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Rekap Keterlambatan</span><button id="kp-late-excel-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px">↓ Excel</button></div>
                 <div class="kp-acc-body" style="display:none">
-                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="kp-late-start" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Dari:</label>
-                        <input type="date" id="kp-late-start" class="input" style="flex:1;min-width:0">
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="kp-late-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
-                        <input type="date" id="kp-late-end" class="input" style="flex:1;min-width:0">
+                <div class="date-row" style="margin-bottom:0">
+                    <label for="kp-late-start">Dari:</label>
+                    <input type="date" id="kp-late-start" class="input" style="width:auto">
+                    <label for="kp-late-end">s/d:</label>
+                    <input type="date" id="kp-late-end" class="input" style="width:auto">
+                    <div class="date-row-actions">
                         <button class="btn btn-secondary btn-sm" id="kp-late-filter-btn">Filter</button>
                     </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="kp-late-class" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Kelas:</label>
-                        <select id="kp-late-class" class="input" style="flex:1;min-width:0"><option value="">Semua kelas prodi</option></select>
-                    </div>
+                </div>
+                <div class="kelas-row">
+                    <label for="kp-late-class">Kelas:</label>
+                    <select id="kp-late-class" class="input"><option value="">Semua kelas prodi</option></select>
                 </div>
                 <div id="kp-late-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
                 </div>
@@ -766,20 +764,18 @@
             <div class="section-card kp-acc-item" id="kp-exit-card">
                 <div class="kp-acc-header"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Rekap Izin Keluar</span><button id="kp-exit-excel-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px">↓ Excel</button></div>
                 <div class="kp-acc-body" style="display:none">
-                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="kp-exit-start" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Dari:</label>
-                        <input type="date" id="kp-exit-start" class="input" style="flex:1;min-width:0">
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="kp-exit-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
-                        <input type="date" id="kp-exit-end" class="input" style="flex:1;min-width:0">
+                <div class="date-row" style="margin-bottom:0">
+                    <label for="kp-exit-start">Dari:</label>
+                    <input type="date" id="kp-exit-start" class="input" style="width:auto">
+                    <label for="kp-exit-end">s/d:</label>
+                    <input type="date" id="kp-exit-end" class="input" style="width:auto">
+                    <div class="date-row-actions">
                         <button class="btn btn-secondary btn-sm" id="kp-exit-filter-btn">Filter</button>
                     </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="kp-exit-class" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Kelas:</label>
-                        <select id="kp-exit-class" class="input" style="flex:1;min-width:0"><option value="">Semua kelas prodi</option></select>
-                    </div>
+                </div>
+                <div class="kelas-row">
+                    <label for="kp-exit-class">Kelas:</label>
+                    <select id="kp-exit-class" class="input"><option value="">Semua kelas prodi</option></select>
                 </div>
                 <div id="kp-exit-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
                 </div>
