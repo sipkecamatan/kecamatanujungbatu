@@ -97,7 +97,7 @@ export function pasangNilaiRaporKelas(panel, ctx) {
           ${wali ? '' : '<label style="font-size:12px;font-weight:normal;flex:1;min-width:140px">Kelas <select id="nrk-kelas" class="input" style="width:100%"><option value="">— Pilih Kelas —</option></select></label>'}
           <label style="font-size:12px;font-weight:normal;flex:1;min-width:120px">Tahun ajaran <input type="text" id="nrk-tahun" class="input" style="width:100%" value="${esc(ctx.tahun || '')}"></label>
           <label style="font-size:12px;font-weight:normal">Semester <select id="nrk-semester" class="input"><option value="1"${String(ctx.semester) !== '2' ? ' selected' : ''}>1</option><option value="2"${String(ctx.semester) === '2' ? ' selected' : ''}>2</option></select></label>
-          <button type="button" class="btn btn-primary btn-sm" id="nrk-muat">Tampilkan</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="nrk-muat">Tampilkan</button>
           <button type="button" class="btn btn-secondary btn-sm" id="nrk-excel" style="display:none">Unduh Excel</button>
           <button type="button" class="btn btn-secondary btn-sm" id="nrk-cetak" style="display:none">Cetak</button>
         </div>
