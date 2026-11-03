@@ -219,7 +219,7 @@ async function loadWaliLate({ currentUser }) {
     const dateStart = document.getElementById('wali-late-date-start').value;
     const dateEnd   = document.getElementById('wali-late-date-end').value;
     const el        = document.getElementById('wali-late-content');
-    if (!dateStart || !dateEnd) { el.innerHTML = '<p class="hint">Pilih rentang tanggal lalu klik Filter.</p>'; return; }
+    if (!dateStart || !dateEnd) { el.innerHTML = '<p class="hint">Pilih rentang tanggal lalu klik Tampilkan.</p>'; return; }
     el.innerHTML = '<p class="hint">Memuat…</p>';
     const _lateExcelBtn = document.getElementById('wali-late-excel-btn');
     if (_lateExcelBtn) _lateExcelBtn.style.display = 'none';
@@ -277,7 +277,7 @@ async function loadWaliExit({ currentUser }) {
     const dateStart = document.getElementById('wali-exit-date-start').value;
     const dateEnd   = document.getElementById('wali-exit-date-end').value;
     const el        = document.getElementById('wali-exit-content');
-    if (!dateStart || !dateEnd) { el.innerHTML = '<p class="hint">Pilih rentang tanggal lalu klik Filter.</p>'; return; }
+    if (!dateStart || !dateEnd) { el.innerHTML = '<p class="hint">Pilih rentang tanggal lalu klik Tampilkan.</p>'; return; }
     el.innerHTML = '<p class="hint">Memuat…</p>';
     const _exitExcelBtn = document.getElementById('wali-exit-excel-btn');
     if (_exitExcelBtn) _exitExcelBtn.style.display = 'none';

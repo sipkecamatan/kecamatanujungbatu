@@ -299,6 +299,9 @@ details[open] .att-accordion-summary::before { transform: rotate(90deg); }
 
 /* ── Date row ────────────────────────────────────────────── */
 .date-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.date-row input[type="date"] { flex: 1; min-width: 120px; }
+.date-row label { white-space: nowrap; }
+.date-row-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .date-range { display: flex; gap: 6px; flex: 1; min-width: 0; }
 .date-range input[type="date"] { flex: 1; min-width: 0; }
 .kelas-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
@@ -332,8 +335,7 @@ body.has-login-banner .app-header { margin-top: 94px; }
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 640px) {
     .wk-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-    .date-row-actions { display: flex; gap: 8px; grid-column: 1 / -1; }
-    .date-row-actions .btn { flex: 1; }
+    .date-row-actions { display: flex; gap: 8px; }
     .filter-dropdown-row .btn { flex: 1; }
     .placement-form { grid-template-columns: 1fr; }
 }
@@ -423,17 +425,16 @@ body.has-login-banner .app-header { margin-top: 94px; }
     /* Tab — tap target lebih besar */
     .tab-btn { padding: 12px 14px; font-size: 13px; }
 
-    /* Date row — grid 2 kolom agar label+input selalu sepasang */
+    /* Date row — stack vertikal di HP */
     .date-row {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: 6px 8px;
-        align-items: center;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
     }
-    .date-row input[type="date"] { width: 100%; }
-    .date-row label:last-of-type  { grid-column: 1; grid-row: 2; }
-    .date-row input[type="date"]:last-of-type { grid-column: 2; grid-row: 2; }
-    .date-row button { grid-column: 2; grid-row: 3; justify-self: end; }
+    .date-row input[type="date"] { width: 100%; flex: none; }
+    .date-row-actions { flex-direction: row; }
+    .date-row-actions .btn { flex: 1; }
 
     /* Tabel jadwal — jam + kelas lebih rapat */
     .table th, .table td { padding: 8px 8px; font-size: 13px; }
