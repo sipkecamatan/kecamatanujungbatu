@@ -319,6 +319,7 @@ details[open] .att-accordion-summary::before { transform: rotate(90deg); }
 .placement-form { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin-bottom: 16px; }
 .placement-form .full-col { grid-column: 1 / -1; }
 .kp-placement-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.kp-placement-actions .btn { flex: 1; }
 .rapor-filter-row { display: grid; grid-template-columns: max-content minmax(0,1fr) max-content 120px max-content; gap: 10px; align-items: center; width: 100%; margin-bottom: 10px; }
 .rapor-filter-row label { white-space: nowrap; margin: 0; }
 .rapor-filter-row input, .rapor-filter-row select { min-width: 0; }
