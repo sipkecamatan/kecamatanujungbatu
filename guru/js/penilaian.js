@@ -243,6 +243,11 @@ function injectStyles() {
 .rc-nav-info { flex:1; color:var(--color-text-muted); text-align:center }
 /* toast */
 @keyframes pen-toast-in { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
+/* filter mobile */
+@media (max-width: 600px) {
+  .pen-ctx-filter { gap:8px }
+  .pen-ctx-filter .field { margin-bottom:8px }
+}
 `;
     document.head.appendChild(s);
 }
