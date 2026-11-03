@@ -744,8 +744,9 @@
     "kaprodi_section_standar": "Tab Kaprodi: semua 10 section pakai wireWaliSection (toggle/body standar, ▶/▼). wireSimpleAccordion dihapus dari import. CSS kp-acc-* JANGAN dihapus — masih dipakai BK/Waka/Kepsek tab.",
     "kaprodi_filter_layout": "Tab Kaprodi filter: pakai kp-ctx-filter (flex-wrap desktop, flex-column mobile). Kelas+Dari+s/d+Actions dalam SATU container. kp-filter-actions = row tombol full-width di mobile. CSS di guru.css. Tombol Excel masuk kp-filter-actions berdampingan Tampilkan. Label = Tampilkan bukan Filter.",
     "kaprodi_placement_actions": "Penempatan PKL: class kp-placement-actions (CSS di guru.css). Desktop: flex horizontal. Mobile: flex-column, semua btn width:100%. Urutan: Simpan Penempatan, Impor CSV, Unduh Template CSV.",
-    "wali_excel_di_header": "SUDAH DIPERBAIKI (3 Nov 2026, diperbarui b3f720f): wali-late-excel-btn + wali-exit-excel-btn di date-row-actions. Tombol SELALU tampil (tidak display:none). Handler baca tanggal dari input filter; fallback ke rentang tahun ajaran jika input kosong. Alert jika tidak ada data (tidak buat file kosong). Cache guard dihapus — ekspor bisa langsung tanpa klik Tampilkan. downloadWaliLateRekap + downloadWaliExitRekap dari tab-shared.js:416,696.",
-    "excel_btn_label": "Standar label tombol ekspor Excel = \"↓ Excel\" (bukan \"Unduh Excel\", bukan \"⬇ Unduh Excel\"). textContent restore di finally block wajib sama. Komentar di tab-shared.js/rekap-excel.js TIDAK diubah."
+    "wali_excel_di_header": "SUDAH DIPERBAIKI (3 Nov 2026, diperbarui f10753a): wali-late-excel-btn + wali-exit-excel-btn di date-row-actions, SELALU tampil. Handler ekspor FULL YEAR (ayStart-07-01 s/d ayEnd-06-30), pakai config closure (bukan getSchoolConfig). downloadWaliLateRekap + downloadWaliExitRekap dari tab-shared.js:416,696.",
+    "excel_btn_label": "Standar label tombol ekspor Excel = \"↓ Excel\" (bukan \"Unduh Excel\", bukan \"⬇ Unduh Excel\"). textContent restore di finally block wajib sama. Komentar di tab-shared.js/rekap-excel.js TIDAK diubah.",
+    "excel_standar_global": "STANDAR GLOBAL (f10753a, 3 Nov 2026): semua ↓ Excel ekspor FULL YEAR (ayStart-07-01 s/d ayEnd-06-30) INDEPENDEN dari filter layar. Tombol selalu tampil (tidak display:none). Cache guard (_cached*.length) TIDAK DIGUNAKAN — tombol fetch data sendiri. Alert jika tidak ada data. Nama file: pakai ay (mis. 2026-2027), bukan rentang filter. Sudah berlaku: Wali, BK, Waka, Kaprodi late+exit. Pengecualian: guru-recap-export muncul dinamis setelah pilih kelas (by design, ekspor tetap full year)."
   },
   "open_tasks": [
     {
@@ -807,10 +808,10 @@
   ],
   "state": {
     "last_updated": "2026-11-03",
-    "last_session_commit": "b3f720f",
+    "last_session_commit": "f10753a",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "b3f720f",
+    "main_sha": "f10753a",
     "_catatan_push": "feat(wali): standardisasi collapse 6 section tab wali kelas",
     "last_session_summary": "UI/CSS: standardisasi collapse section (piket, catatan siswa, jurnal), mobile filter penilaian, tinggi header pen-section"
   }
