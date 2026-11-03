@@ -8,7 +8,7 @@
 import {
     getWaliKelasInfo, getWaliAttendanceSummary, getWaliCoachingStudents,
     getWaliLateArrivals, getWaliExits, getClassScheduleFull,
-    getEnrolledStudents, getSchoolConfig,
+    getEnrolledStudents,
 } from './api.js';
 import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
 import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat, wireWaliSection, downloadLateExcel, downloadExitExcel, downloadWaliLateRekap, downloadWaliExitRekap } from './tab-shared.js';
@@ -117,24 +117,18 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
         _waliLateExcelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const kelas = info?.name ?? '';
-            const dateStart = document.getElementById('wali-late-date-start').value;
-            const dateEnd   = document.getElementById('wali-late-date-end').value;
             _waliLateExcelBtn.disabled = true;
             _waliLateExcelBtn.textContent = 'Menyiapkan…';
             try {
-                const cfg      = await getSchoolConfig();
-                const ay       = cfg?.current_academic_year ?? '';
-                const sem      = cfg?.current_semester ?? null;
-                const ds = dateStart || `${(ay.split('/')[0]||new Date().getFullYear())}-07-01`;
-                const de = dateEnd   || `${(ay.split('/')[1]||new Date().getFullYear()+1)}-06-30`;
-                const fullRows = await getWaliLateArrivals(ds, de);
-                if (!fullRows.length) { alert('Tidak ada data keterlambatan pada rentang tanggal ini.'); return; }
-                const students = classId
-                    ? await getEnrolledStudents(classId, ay, sem)
-                    : [];
+                const ay = config.current_academic_year ?? '';
+                const sem = config.current_semester ?? null;
+                const [ayStart, ayEnd] = ay.split('/').map(Number);
+                const fullRows = await getWaliLateArrivals(`${ayStart}-07-01`, `${ayEnd}-06-30`);
+                if (!fullRows.length) { alert('Tidak ada data keterlambatan pada tahun ajaran ini.'); return; }
+                const students = classId ? await getEnrolledStudents(classId, ay, sem) : [];
                 downloadWaliLateRekap(
                     fullRows, students, kelas, ay,
-                    `rekap_keterlambatan_${kelas}_${ds}_sd_${de}`.replace(/\s+/g, '_')
+                    `rekap_keterlambatan_${kelas}_${ay.replace('/', '-')}`.replace(/\s+/g, '_')
                 );
             } catch (err) {
                 alert('Gagal mengunduh rekap: ' + (err.message ?? err));
@@ -148,24 +142,18 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
         _waliExitExcelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const kelas = info?.name ?? '';
-            const dateStart = document.getElementById('wali-exit-date-start').value;
-            const dateEnd   = document.getElementById('wali-exit-date-end').value;
             _waliExitExcelBtn.disabled = true;
             _waliExitExcelBtn.textContent = 'Menyiapkan…';
             try {
-                const cfg      = await getSchoolConfig();
-                const ay       = cfg?.current_academic_year ?? '';
-                const sem      = cfg?.current_semester ?? null;
-                const ds = dateStart || `${(ay.split('/')[0]||new Date().getFullYear())}-07-01`;
-                const de = dateEnd   || `${(ay.split('/')[1]||new Date().getFullYear()+1)}-06-30`;
-                const fullRows = await getWaliExits(ds, de);
-                if (!fullRows.length) { alert('Tidak ada data izin keluar pada rentang tanggal ini.'); return; }
-                const students = classId
-                    ? await getEnrolledStudents(classId, ay, sem)
-                    : [];
+                const ay = config.current_academic_year ?? '';
+                const sem = config.current_semester ?? null;
+                const [ayStart, ayEnd] = ay.split('/').map(Number);
+                const fullRows = await getWaliExits(`${ayStart}-07-01`, `${ayEnd}-06-30`);
+                if (!fullRows.length) { alert('Tidak ada data izin keluar pada tahun ajaran ini.'); return; }
+                const students = classId ? await getEnrolledStudents(classId, ay, sem) : [];
                 downloadWaliExitRekap(
                     fullRows, students, kelas, ay,
-                    `rekap_izin_keluar_${kelas}_${ds}_sd_${de}`.replace(/\s+/g, '_')
+                    `rekap_izin_keluar_${kelas}_${ay.replace('/', '-')}`.replace(/\s+/g, '_')
                 );
             } catch (err) {
                 alert('Gagal mengunduh rekap: ' + (err.message ?? err));

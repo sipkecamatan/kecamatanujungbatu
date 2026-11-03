@@ -41,13 +41,23 @@ export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser })
     document.getElementById('wk-late-filter-btn').onclick = () => loadWkLateRecap({ config });
     const _wkLateExcelBtn = document.getElementById('wk-late-excel-btn');
     if (_wkLateExcelBtn) {
-        _wkLateExcelBtn.addEventListener('click', (e) => {
+        _wkLateExcelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (!_cachedWkLate.length) return;
-            const start = document.getElementById('wk-late-start').value;
-            const end   = document.getElementById('wk-late-end').value;
-            const label = currentUser?.role_type === 'WAKASEK' ? 'wakasek_smp' : 'waka_kesiswaan';
-            downloadLateExcel(_cachedWkLate, `keterlambatan_${label}_${start}_${end}`, { withKelas: true, withRecorder: true });
+            _wkLateExcelBtn.disabled = true;
+            _wkLateExcelBtn.textContent = 'Menyiapkan…';
+            try {
+                const ay = config.current_academic_year ?? '';
+                const [ayStart, ayEnd] = ay.split('/').map(Number);
+                const label = currentUser?.role_type === 'WAKASEK' ? 'wakasek_smp' : 'waka_kesiswaan';
+                const rows = await getLateArrivalsByRange(`${ayStart}-07-01`, `${ayEnd}-06-30`, ay);
+                if (!rows.length) { alert('Tidak ada data keterlambatan pada tahun ajaran ini.'); return; }
+                downloadLateExcel(rows, `keterlambatan_${label}_${ay.replace('/', '-')}`, { withKelas: true, withRecorder: true });
+            } catch (err) {
+                alert('Gagal mengunduh: ' + (err.message ?? err));
+            } finally {
+                _wkLateExcelBtn.disabled = false;
+                _wkLateExcelBtn.textContent = '↓ Excel';
+            }
         });
     }
 
@@ -56,13 +66,23 @@ export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser })
     document.getElementById('wk-exit-filter-btn').onclick = () => loadWkExitRecap({ config });
     const _wkExitExcelBtn = document.getElementById('wk-exit-excel-btn');
     if (_wkExitExcelBtn) {
-        _wkExitExcelBtn.addEventListener('click', (e) => {
+        _wkExitExcelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (!_cachedWkExit.length) return;
-            const start = document.getElementById('wk-exit-start').value;
-            const end   = document.getElementById('wk-exit-end').value;
-            const label = currentUser?.role_type === 'WAKASEK' ? 'wakasek_smp' : 'waka_kesiswaan';
-            downloadExitExcel(_cachedWkExit, `izin_keluar_${label}_${start}_${end}`, { withKelas: true, withRecorder: true });
+            _wkExitExcelBtn.disabled = true;
+            _wkExitExcelBtn.textContent = 'Menyiapkan…';
+            try {
+                const ay = config.current_academic_year ?? '';
+                const [ayStart, ayEnd] = ay.split('/').map(Number);
+                const label = currentUser?.role_type === 'WAKASEK' ? 'wakasek_smp' : 'waka_kesiswaan';
+                const rows = await getExitsByRange(`${ayStart}-07-01`, `${ayEnd}-06-30`, ay);
+                if (!rows.length) { alert('Tidak ada data izin keluar pada tahun ajaran ini.'); return; }
+                downloadExitExcel(rows, `izin_keluar_${label}_${ay.replace('/', '-')}`, { withKelas: true, withRecorder: true });
+            } catch (err) {
+                alert('Gagal mengunduh: ' + (err.message ?? err));
+            } finally {
+                _wkExitExcelBtn.disabled = false;
+                _wkExitExcelBtn.textContent = '↓ Excel';
+            }
         });
     }
 
@@ -475,14 +495,11 @@ async function loadWkLateRecap({ config }) {
         return;
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
-    const _wkLateExcelBtnInner = document.getElementById('wk-late-excel-btn');
-    if (_wkLateExcelBtnInner) _wkLateExcelBtnInner.style.display = 'none';
     try {
         let rows = await getLateArrivalsByRange(start, end, config?.current_academic_year ?? null);
         if (requestSeq !== _wkLateRequestSeq) return;
         if (classId) rows = rows.filter(r => r.class_id === classId);
         _cachedWkLate = rows;
-        if (_wkLateExcelBtnInner) _wkLateExcelBtnInner.style.display = rows.length ? '' : 'none';
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>';
             return;
@@ -525,14 +542,11 @@ async function loadWkExitRecap({ config }) {
         return;
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
-    const _wkExitExcelBtnInner = document.getElementById('wk-exit-excel-btn');
-    if (_wkExitExcelBtnInner) _wkExitExcelBtnInner.style.display = 'none';
     try {
         let rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
         if (requestSeq !== _wkExitRequestSeq) return;
         if (classId) rows = rows.filter(r => r.class_id === classId);
         _cachedWkExit = rows;
-        if (_wkExitExcelBtnInner) _wkExitExcelBtnInner.style.display = rows.length ? '' : 'none';
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>';
             return;

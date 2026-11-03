@@ -114,44 +114,40 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
         if (_kpLateExcelBtn) {
             _kpLateExcelBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                const start = document.getElementById('kp-late-start').value;
-                const end   = document.getElementById('kp-late-end').value;
-                if (_cachedKpLate.length) {
-                    downloadLateExcel(_cachedKpLate, `keterlambatan_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
-                    return;
-                }
-                const origText = _kpLateExcelBtn.textContent;
-                _kpLateExcelBtn.textContent = '...';
                 _kpLateExcelBtn.disabled = true;
+                _kpLateExcelBtn.textContent = 'Menyiapkan…';
                 try {
-                    const rows = await getLateArrivalsByRange(start, end, config?.current_academic_year ?? null);
-                    _cachedKpLate = rows;
-                    downloadLateExcel(rows, `keterlambatan_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
-                } catch (_) { /* biarkan tombol kembali normal */ }
-                _kpLateExcelBtn.textContent = origText;
-                _kpLateExcelBtn.disabled = false;
+                    const ay = config?.current_academic_year ?? '';
+                    const [ayStart, ayEnd] = ay.split('/').map(Number);
+                    const rows = await getLateArrivalsByRange(`${ayStart}-07-01`, `${ayEnd}-06-30`, ay);
+                    if (!rows.length) { alert('Tidak ada data keterlambatan pada tahun ajaran ini.'); return; }
+                    downloadLateExcel(rows, `keterlambatan_kaprodi_${ay.replace('/', '-')}`, { withKelas: true, withRecorder: true });
+                } catch (err) {
+                    alert('Gagal mengunduh: ' + (err.message ?? err));
+                } finally {
+                    _kpLateExcelBtn.disabled = false;
+                    _kpLateExcelBtn.textContent = '↓ Excel';
+                }
             });
         }
         const _kpExitExcelBtn = document.getElementById('kp-exit-excel-btn');
         if (_kpExitExcelBtn) {
             _kpExitExcelBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                const start = document.getElementById('kp-exit-start').value;
-                const end   = document.getElementById('kp-exit-end').value;
-                if (_cachedKpExit.length) {
-                    downloadExitExcel(_cachedKpExit, `izin_keluar_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
-                    return;
-                }
-                const origText = _kpExitExcelBtn.textContent;
-                _kpExitExcelBtn.textContent = '...';
                 _kpExitExcelBtn.disabled = true;
+                _kpExitExcelBtn.textContent = 'Menyiapkan…';
                 try {
-                    const rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
-                    _cachedKpExit = rows;
-                    downloadExitExcel(rows, `izin_keluar_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
-                } catch (_) { /* biarkan tombol kembali normal */ }
-                _kpExitExcelBtn.textContent = origText;
-                _kpExitExcelBtn.disabled = false;
+                    const ay = config?.current_academic_year ?? '';
+                    const [ayStart, ayEnd] = ay.split('/').map(Number);
+                    const rows = await getExitsByRange(`${ayStart}-07-01`, `${ayEnd}-06-30`, ay);
+                    if (!rows.length) { alert('Tidak ada data izin keluar pada tahun ajaran ini.'); return; }
+                    downloadExitExcel(rows, `izin_keluar_kaprodi_${ay.replace('/', '-')}`, { withKelas: true, withRecorder: true });
+                } catch (err) {
+                    alert('Gagal mengunduh: ' + (err.message ?? err));
+                } finally {
+                    _kpExitExcelBtn.disabled = false;
+                    _kpExitExcelBtn.textContent = '↓ Excel';
+                }
             });
         }
 

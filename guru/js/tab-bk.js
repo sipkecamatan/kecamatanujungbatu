@@ -43,22 +43,42 @@ export async function initBkTab({ config, kasusEngine }) {
 
     const _bkLateExcelBtn = document.getElementById('bk-late-excel-btn');
     if (_bkLateExcelBtn) {
-        _bkLateExcelBtn.addEventListener('click', (e) => {
+        _bkLateExcelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (!_cachedBkLate.length) return;
-            const start = document.getElementById('bk-late-start').value;
-            const end   = document.getElementById('bk-late-end').value;
-            downloadLateExcel(_cachedBkLate, `keterlambatan_BK_${start}_${end}`, { withKelas: true, withRecorder: true });
+            _bkLateExcelBtn.disabled = true;
+            _bkLateExcelBtn.textContent = 'Menyiapkan…';
+            try {
+                const ay = config.current_academic_year ?? '';
+                const [ayStart, ayEnd] = ay.split('/').map(Number);
+                const rows = await getLateArrivalsByRange(`${ayStart}-07-01`, `${ayEnd}-06-30`, ay);
+                if (!rows.length) { alert('Tidak ada data keterlambatan pada tahun ajaran ini.'); return; }
+                downloadLateExcel(rows, `keterlambatan_BK_${ay.replace('/', '-')}`, { withKelas: true, withRecorder: true });
+            } catch (err) {
+                alert('Gagal mengunduh: ' + (err.message ?? err));
+            } finally {
+                _bkLateExcelBtn.disabled = false;
+                _bkLateExcelBtn.textContent = '↓ Excel';
+            }
         });
     }
     const _bkExitExcelBtn = document.getElementById('bk-exit-excel-btn');
     if (_bkExitExcelBtn) {
-        _bkExitExcelBtn.addEventListener('click', (e) => {
+        _bkExitExcelBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (!_cachedBkExit.length) return;
-            const start = document.getElementById('bk-exit-start').value;
-            const end   = document.getElementById('bk-exit-end').value;
-            downloadExitExcel(_cachedBkExit, `izin_keluar_BK_${start}_${end}`, { withKelas: true, withRecorder: true });
+            _bkExitExcelBtn.disabled = true;
+            _bkExitExcelBtn.textContent = 'Menyiapkan…';
+            try {
+                const ay = config.current_academic_year ?? '';
+                const [ayStart, ayEnd] = ay.split('/').map(Number);
+                const rows = await getExitsByRange(`${ayStart}-07-01`, `${ayEnd}-06-30`, ay);
+                if (!rows.length) { alert('Tidak ada data izin keluar pada tahun ajaran ini.'); return; }
+                downloadExitExcel(rows, `izin_keluar_BK_${ay.replace('/', '-')}`, { withKelas: true, withRecorder: true });
+            } catch (err) {
+                alert('Gagal mengunduh: ' + (err.message ?? err));
+            } finally {
+                _bkExitExcelBtn.disabled = false;
+                _bkExitExcelBtn.textContent = '↓ Excel';
+            }
         });
     }
 
@@ -419,14 +439,11 @@ async function loadBkLateRecap({ config }) {
         return;
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
-    const _bkLateExcelBtnInner = document.getElementById('bk-late-excel-btn');
-    if (_bkLateExcelBtnInner) _bkLateExcelBtnInner.style.display = 'none';
     try {
         let rows = await getLateArrivalsByRange(start, end, config?.current_academic_year ?? null);
         if (seq !== _bkLateSeq) return;
         if (classId) rows = rows.filter(r => r.class_id === classId);
         _cachedBkLate = rows;
-        if (_bkLateExcelBtnInner) _bkLateExcelBtnInner.style.display = rows.length ? '' : 'none';
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan keterlambatan pada rentang ini.</p>';
             return;
@@ -470,14 +487,11 @@ async function loadBkExitRecap({ config }) {
         return;
     }
     container.innerHTML = '<p class="hint">Memuat…</p>';
-    const _bkExitExcelBtnInner = document.getElementById('bk-exit-excel-btn');
-    if (_bkExitExcelBtnInner) _bkExitExcelBtnInner.style.display = 'none';
     try {
         let rows = await getExitsByRange(start, end, config?.current_academic_year ?? null);
         if (seq !== _bkExitSeq) return;
         if (classId) rows = rows.filter(r => r.class_id === classId);
         _cachedBkExit = rows;
-        if (_bkExitExcelBtnInner) _bkExitExcelBtnInner.style.display = rows.length ? '' : 'none';
         if (!rows.length) {
             container.innerHTML = '<p class="hint">Tidak ada catatan izin keluar pada rentang ini.</p>';
             return;
