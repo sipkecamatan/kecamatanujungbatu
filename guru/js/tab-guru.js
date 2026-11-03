@@ -88,6 +88,11 @@ export async function initGuruTab({ currentUser, config, jabatan, LC }) {
         document.getElementById('guru-recap-end').value   = today;
         await initGuruRekapDropdown();
 
+        const _guruStaticExportBtn = document.getElementById('guru-recap-export-static');
+        if (_guruStaticExportBtn) {
+            _guruStaticExportBtn.addEventListener('click', () => _downloadGuruExcel(_guruStaticExportBtn));
+        }
+
         document.querySelectorAll('.sched-view-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 document.querySelectorAll('.sched-view-btn').forEach(b => b.classList.remove('active'));
@@ -258,67 +263,10 @@ async function loadGuruRecap() {
         _guruRekapClassName = className;
 
         content.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-                <p style="font-size:0.82rem;color:var(--color-text-muted);margin:0">
-                    ${esc(className)} · ${rows.length} siswa · akumulasi ${dateStart || '—'} s/d ${dateEnd || '—'}
-                </p>
-                <button class="btn btn-secondary btn-sm" id="guru-recap-export">↓ Excel</button>
-            </div>
+            <p style="font-size:0.82rem;color:var(--color-text-muted);margin:0 0 8px">
+                ${esc(className)} · ${rows.length} siswa · akumulasi ${dateStart || '—'} s/d ${dateEnd || '—'}
+            </p>
             <div id="guru-rekap-accordion"></div>`;
-
-        document.getElementById('guru-recap-export').addEventListener('click', async () => {
-            const btn = document.getElementById('guru-recap-export');
-            btn.disabled = true;
-            btn.textContent = 'Menyiapkan…';
-
-            try {
-                const classes = await getMyClasses(_currentUser.user_id, _config.current_academic_year, _config.current_semester);
-                if (!classes.length) return;
-
-                // Excel selalu seluruh tahun ajaran — tidak terikat filter layar
-                const classDataList = await Promise.all(classes.map(async cls => {
-                    const [summary, detail] = await Promise.all([
-                        getAttendanceSummaryByStudents(cls.class_id, _config.current_academic_year, null, null, _currentUser.user_id),
-                        getClassAttendanceByDate(cls.class_id, _config.current_academic_year, null, null, _currentUser.user_id),
-                    ]);
-                    return { name: cls.name ?? cls.class_id, summary, detail };
-                }));
-
-                const sheets = buildGuruExcel({
-                    namaGuru:     _currentUser.full_name ?? 'Guru',
-                    periodeLabel: 'Seluruh periode aktif',
-                    academicYear: _config.current_academic_year,
-                    classDataList,
-                });
-
-                const wb = XLSX.utils.book_new();
-                const usedNames = new Set();
-                for (const { name, ws } of sheets) {
-                    let sheetName = name.slice(0, 31);
-                    for (let n = 2; usedNames.has(sheetName.toLowerCase()); n++) {
-                        const suf = ` (${n})`;
-                        sheetName = name.slice(0, 31 - suf.length) + suf;
-                    }
-                    usedNames.add(sheetName.toLowerCase());
-                    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-                }
-
-                const ay = (_config.current_academic_year ?? '').replace('/', '-');
-                const filename = `rekap_absen_guru_mapel_${ay}.xlsx`;
-                const buf  = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-                const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                const url  = URL.createObjectURL(blob);
-                const a    = document.createElement('a');
-                a.href = url; a.download = filename;
-                document.body.appendChild(a); a.click();
-                setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
-            } catch (err) {
-                alert('Gagal mengunduh Excel: ' + (err?.message ?? String(err)));
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '↓ Excel';
-            }
-        });
 
         renderGuruRekapPage();
         document.getElementById('guru-recap-btn').textContent = 'Sembunyikan';
@@ -331,6 +279,50 @@ async function loadGuruRecap() {
 // ── Excel Guru ───────────────────────────────────────────────
 
 /* global XLSX */
+
+async function _downloadGuruExcel(btn) {
+    btn.disabled = true;
+    btn.textContent = 'Menyiapkan…';
+    try {
+        const classes = await getMyClasses(_currentUser.user_id, _config.current_academic_year, _config.current_semester);
+        if (!classes.length) { alert('Tidak ada kelas yang diampu pada tahun ajaran ini.'); return; }
+        const classDataList = await Promise.all(classes.map(async cls => {
+            const [summary, detail] = await Promise.all([
+                getAttendanceSummaryByStudents(cls.class_id, _config.current_academic_year, null, null, _currentUser.user_id),
+                getClassAttendanceByDate(cls.class_id, _config.current_academic_year, null, null, _currentUser.user_id),
+            ]);
+            return { name: cls.name ?? cls.class_id, summary, detail };
+        }));
+        const sheets = buildGuruExcel({
+            namaGuru:     _currentUser.full_name ?? 'Guru',
+            periodeLabel: 'Seluruh periode aktif',
+            academicYear: _config.current_academic_year,
+            classDataList,
+        });
+        const wb = XLSX.utils.book_new();
+        const usedNames = new Set();
+        for (const { name, ws } of sheets) {
+            let sheetName = name.slice(0, 31);
+            for (let n = 2; usedNames.has(sheetName.toLowerCase()); n++) {
+                const suf = ` (${n})`;
+                sheetName = name.slice(0, 31 - suf.length) + suf;
+            }
+            usedNames.add(sheetName.toLowerCase());
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        }
+        const ay  = (_config.current_academic_year ?? '').replace('/', '-');
+        const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+        const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+        const a   = Object.assign(document.createElement('a'), { href: url, download: `rekap_absen_guru_mapel_${ay}.xlsx` });
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    } catch (err) {
+        alert('Gagal mengunduh Excel: ' + (err?.message ?? String(err)));
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '↓ Excel';
+    }
+}
 
 /**
  * Bangun workbook Excel rekap kehadiran guru:
