@@ -140,6 +140,7 @@ function injectStyles() {
 /* sections */
 .pen-section { background:var(--color-surface); border-radius:var(--radius-lg); border:1px solid var(--color-border); padding:20px; margin-bottom:20px }
 .pen-section-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none }
+.pen-section-header h3 { font-size:15px; font-weight:600; color:var(--color-text); margin:0 }
 .pen-chevron { font-size:13px; color:var(--color-text-muted); flex-shrink:0 }
 .pen-section-body { margin-top:12px }
 /* sub sections */
