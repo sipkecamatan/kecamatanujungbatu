@@ -318,6 +318,7 @@ details[open] .att-accordion-summary::before { transform: rotate(90deg); }
 .kp-filter-actions .btn { flex: 1; }
 .placement-form { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin-bottom: 16px; }
 .placement-form .full-col { grid-column: 1 / -1; }
+.kp-placement-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .rapor-filter-row { display: grid; grid-template-columns: max-content minmax(0,1fr) max-content 120px max-content; gap: 10px; align-items: center; width: 100%; margin-bottom: 10px; }
 .rapor-filter-row label { white-space: nowrap; margin: 0; }
 .rapor-filter-row input, .rapor-filter-row select { min-width: 0; }
@@ -448,6 +449,10 @@ body.has-login-banner .app-header { margin-top: 94px; }
     .kp-ctx-filter { flex-direction: column; align-items: stretch; gap: 6px; }
     .kp-ctx-filter select, .kp-ctx-filter input[type="date"] { width: 100%; flex: none; }
     .kp-filter-actions { margin-top: 0; }
+
+    /* Penempatan PKL — tombol stack vertikal full-width di HP */
+    .kp-placement-actions { flex-direction: column; align-items: stretch; }
+    .kp-placement-actions .btn { width: 100%; }
 
     /* Rapor filter row — stack di HP */
     .rapor-filter-row { grid-template-columns: max-content 1fr; }
