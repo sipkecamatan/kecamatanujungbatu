@@ -742,7 +742,8 @@
     "kaprodi_excel_btn_di_header": "Tombol Excel yang berada di dalam .kp-acc-header (accordion header) harus selalu stopPropagation agar tidak toggle accordion. Jika belum ada data dan section tertutup → buka section programatik. Jika belum ada data dan section terbuka → tampilkan umpan balik 'Filter dulu'. Hanya download jika cache tidak kosong. Implementasi: e21053d + e83feeb.",
     "section_card_h3_scoped": "CSS .section-card h3{font-size:15px} di guru.css hanya berlaku di dalam .section-card. Komponen pakai class sendiri (pen-section dll) mendapat browser-default h3 (~19px) → header lebih tinggi dari standar. Wajib tambah font-size:15px eksplisit pada h3 header custom. Ditemukan 3 Nov 2026, commit 4bf909d.",
     "kaprodi_section_standar": "Tab Kaprodi: semua 10 section pakai wireWaliSection (toggle/body standar, ▶/▼). wireSimpleAccordion dihapus dari import. CSS kp-acc-* JANGAN dihapus — masih dipakai BK/Waka/Kepsek tab.",
-    "kaprodi_filter_layout": "Tab Kaprodi filter: pakai kp-ctx-filter (flex-wrap desktop, column mobile). Kelas+Dari+s/d+Actions dalam SATU container. CSS di guru.css. Tombol Excel masuk kp-filter-actions (bukan di atas body). Label tombol = Tampilkan bukan Filter."
+    "kaprodi_filter_layout": "Tab Kaprodi filter: pakai kp-ctx-filter (flex-wrap desktop, flex-column mobile). Kelas+Dari+s/d+Actions dalam SATU container. kp-filter-actions = row tombol full-width di mobile. CSS di guru.css. Tombol Excel masuk kp-filter-actions berdampingan Tampilkan. Label = Tampilkan bukan Filter.",
+    "kaprodi_placement_actions": "Penempatan PKL: class kp-placement-actions (CSS di guru.css). Desktop: flex horizontal. Mobile: flex-column, semua btn width:100%. Urutan: Simpan Penempatan, Impor CSV, Unduh Template CSV."
   },
   "open_tasks": [
     {
@@ -804,10 +805,10 @@
   ],
   "state": {
     "last_updated": "2026-11-03",
-    "last_session_commit": "a4948da",
+    "last_session_commit": "6e6f834",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "a4948da",
+    "main_sha": "6e6f834",
     "_catatan_push": "feat(wali): standardisasi collapse 6 section tab wali kelas",
     "last_session_summary": "UI/CSS: standardisasi collapse section (piket, catatan siswa, jurnal), mobile filter penilaian, tinggi header pen-section"
   }
