@@ -803,10 +803,10 @@
   ],
   "state": {
     "last_updated": "2026-11-03",
-    "last_session_commit": "pending-kaprodi-collapse",
+    "last_session_commit": "f8abcee",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "pending-kaprodi-collapse",
+    "main_sha": "f8abcee",
     "_catatan_push": "feat(wali): standardisasi collapse 6 section tab wali kelas",
     "last_session_summary": "UI/CSS: standardisasi collapse section (piket, catatan siswa, jurnal), mobile filter penilaian, tinggi header pen-section"
   }
