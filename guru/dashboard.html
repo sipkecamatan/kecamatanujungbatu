@@ -758,9 +758,13 @@
         <div class="page-body" id="kp-accordion">
 
             <!-- Rekap Keterlambatan — piket (hanya kelas di program ini) -->
-            <div class="section-card kp-acc-item" id="kp-late-card">
-                <div class="kp-acc-header"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Rekap Keterlambatan</span><button id="kp-late-excel-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px">↓ Excel</button></div>
-                <div class="kp-acc-body" style="display:none">
+            <div class="section-card" id="kp-late-card">
+                <div id="kp-late-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Rekap Keterlambatan</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="kp-late-body" style="display:none;margin-top:12px">
+                <button id="kp-late-excel-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px;margin-bottom:10px">↓ Excel</button>
                 <div class="date-row" style="margin-bottom:0">
                     <label for="kp-late-start">Dari:</label>
                     <input type="date" id="kp-late-start" class="input" style="width:auto">
@@ -779,9 +783,13 @@
             </div>
 
             <!-- Rekap Izin Keluar — piket (hanya kelas di program ini) -->
-            <div class="section-card kp-acc-item" id="kp-exit-card">
-                <div class="kp-acc-header"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Rekap Izin Keluar</span><button id="kp-exit-excel-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px">↓ Excel</button></div>
-                <div class="kp-acc-body" style="display:none">
+            <div class="section-card" id="kp-exit-card">
+                <div id="kp-exit-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Rekap Izin Keluar</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="kp-exit-body" style="display:none;margin-top:12px">
+                <button id="kp-exit-excel-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px;margin-bottom:10px">↓ Excel</button>
                 <div class="date-row" style="margin-bottom:0">
                     <label for="kp-exit-start">Dari:</label>
                     <input type="date" id="kp-exit-start" class="input" style="width:auto">
@@ -800,9 +808,13 @@
             </div>
 
             <!-- Rekap Absensi Kelas — kehadiran sesi siswa AKTIF di sekolah -->
-            <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-cls"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Rekap Absensi Kelas</span><button id="kp-cls-export-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px">↓ Excel</button></div>
-                <div class="kp-acc-body" id="kp-body-cls" style="display:none">
+            <div class="section-card" id="kp-cls-card">
+                <div id="kp-cls-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Rekap Absensi Kelas</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="kp-body-cls" style="display:none;margin-top:12px">
+                <button id="kp-cls-export-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px;margin-bottom:10px">↓ Excel</button>
                 <div class="date-row" style="margin-bottom:12px">
                     <label for="kp-cls-start">Dari:</label><input type="date" id="kp-cls-start" class="input" style="width:auto">
                     <label for="kp-cls-end">s/d:</label><input type="date" id="kp-cls-end" class="input" style="width:auto">
@@ -816,9 +828,9 @@
 
             <!-- Siswa Perlu Perhatian — Kaprodi -->
             <div class="section-card" id="kp-perhatian-card">
-                <div id="kp-perhatian-toggle" class="kp-acc-header">
-                    <span class="pph-sect-caret" style="font-size:.85rem">▸</span>
-                    <span style="flex:1;margin-left:8px">Siswa Perlu Perhatian</span>
+                <div id="kp-perhatian-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Siswa Perlu Perhatian</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                 </div>
                 <div id="kp-perhatian-body" style="display:none">
                     <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0 0 12px">
@@ -829,9 +841,12 @@
             </div>
 
             <!-- Mitra DUDI — referensi dipilih di Form Penempatan -->
-            <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-dudi"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Mitra DUDI</span></div>
-                <div class="kp-acc-body" id="kp-body-dudi" style="display:none">
+            <div class="section-card" id="kp-dudi-card">
+                <div id="kp-dudi-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Mitra DUDI</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="kp-body-dudi" style="display:none;margin-top:12px">
                 <div class="table-wrapper">
                     <table class="table"><thead><tr><th>Nama Usaha</th><th>Penanggung Jawab</th></tr></thead>
                     <tbody id="kp-dudi-body"></tbody></table>
@@ -841,9 +856,12 @@
             </div>
 
             <!-- Penempatan PKL — siswa AKTIF masuk PKL -->
-            <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-placement"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Penempatan PKL</span></div>
-                <div class="kp-acc-body" id="kp-body-placement" style="display:none">
+            <div class="section-card" id="kp-placement-card">
+                <div id="kp-placement-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Penempatan PKL</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="kp-body-placement" style="display:none;margin-top:12px">
                 <form id="kp-placement-form" class="placement-form">
                     <div class="field" style="margin:0">
                         <label for="kp-pl-student">Siswa</label>
@@ -873,9 +891,12 @@
             </div>
 
             <!-- Daftar Siswa PKL — monitor siapa yang sedang PKL -->
-            <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-students"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Daftar Siswa PKL</span></div>
-                <div class="kp-acc-body" id="kp-body-students" style="display:none">
+            <div class="section-card" id="kp-students-card">
+                <div id="kp-students-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Daftar Siswa PKL</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="kp-body-students" style="display:none;margin-top:12px">
                 <div class="stats-row" style="margin-bottom:16px">
                     <div class="stat-card"><span class="stat-value" id="kp-stat-total">—</span><div class="stat-label">Total Siswa PKL</div></div>
                     <div class="stat-card"><span class="stat-value" id="kp-stat-placed">—</span><div class="stat-label">Sudah Ditempatkan</div></div>
@@ -905,9 +926,12 @@
             </div>
 
             <!-- Rekap Absensi PKL — kehadiran harian siswa PKL di DUDI -->
-            <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-pkl"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Rekap Absensi PKL</span></div>
-                <div class="kp-acc-body" id="kp-body-pkl" style="display:none">
+            <div class="section-card" id="kp-pkl-card">
+                <div id="kp-pkl-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Rekap Absensi PKL</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="kp-body-pkl" style="display:none;margin-top:12px">
                 <div class="date-row" style="margin-bottom:12px">
                     <label for="kp-date-start">Dari:</label>
                     <input type="date" id="kp-date-start" class="input" style="width:auto">
@@ -943,17 +967,23 @@
             </div>
 
             <!-- Observasi DUDI -->
-            <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-obs"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Observasi dari DUDI</span></div>
-                <div class="kp-acc-body" id="kp-body-obs" style="display:none">
+            <div class="section-card" id="kp-obs-card">
+                <div id="kp-obs-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Observasi dari DUDI</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="kp-body-obs" style="display:none;margin-top:12px">
                 <p class="hint" id="kp-obs-hint" style="display:none">Belum ada observasi dari DUDI.</p>
                 <div id="kp-obs-list"></div>
                 </div>
             </div>
 
-            <div class="section-card kp-acc-item">
-                <div class="kp-acc-header" data-target="kp-body-kasus"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Pembinaan Siswa Program Studi</span></div>
-                <div class="kp-acc-body" id="kp-body-kasus" style="display:none">
+            <div class="section-card" id="kp-kasus-card">
+                <div id="kp-kasus-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Pembinaan Siswa Program Studi</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="kp-body-kasus" style="display:none;margin-top:12px">
                 <div id="kp-kasus-list-view" style="display:block">
                     <div class="filter-action-row">
                         <div style="position:relative">

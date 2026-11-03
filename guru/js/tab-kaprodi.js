@@ -18,7 +18,7 @@ import {
     createPlacement, finishPlacement, bulkImportPkl,
     getLateArrivalsByRange, getExitsByRange,
 } from './api.js';
-import { esc, fe, fmt, localDateStr, buildPertemuanMeta, filterPerhatian, renderPerhatianAccordion, wirePerhatianCollapse, wireSimpleAccordion, downloadLateExcel, downloadExitExcel } from './tab-shared.js';
+import { esc, fe, fmt, localDateStr, buildPertemuanMeta, filterPerhatian, renderPerhatianAccordion, wirePerhatianCollapse, wireWaliSection, downloadLateExcel, downloadExitExcel } from './tab-shared.js';
 import { buildWaliSheetsMonthly } from './tab-wali.js';
 
 const DIMENSION_LABELS = {
@@ -92,9 +92,16 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
         document.getElementById('kp-filter-btn').onclick     = loadKpRecap;
         document.getElementById('kp-cls-filter-btn').onclick = () => loadKpClsRecap({ config });
 
-        // Wiring section Rekap Keterlambatan + Rekap Izin Keluar (piket)
-        wireSimpleAccordion('kp-late-card');
-        wireSimpleAccordion('kp-exit-card');
+        // Wiring collapse semua section Kaprodi (standar wireWaliSection)
+        wireWaliSection('kp-late-toggle',      'kp-late-body');
+        wireWaliSection('kp-exit-toggle',      'kp-exit-body');
+        wireWaliSection('kp-cls-toggle',       'kp-body-cls');
+        wireWaliSection('kp-dudi-toggle',      'kp-body-dudi');
+        wireWaliSection('kp-placement-toggle', 'kp-body-placement');
+        wireWaliSection('kp-students-toggle',  'kp-body-students');
+        wireWaliSection('kp-pkl-toggle',       'kp-body-pkl');
+        wireWaliSection('kp-obs-toggle',       'kp-body-obs');
+        wireWaliSection('kp-kasus-toggle',     'kp-body-kasus');
         const firstOfMonth = today.slice(0, 8) + '01';
         document.getElementById('kp-late-start').value = firstOfMonth;
         document.getElementById('kp-late-end').value   = today;
@@ -166,25 +173,6 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
         loadKpPerhatian({ programId, config });
         wirePerhatianCollapse('kp-perhatian-card');
 
-        document.querySelectorAll('#kp-accordion .kp-acc-header[data-target]').forEach(header => {
-            const newHeader = header.cloneNode(true);
-            header.parentNode.replaceChild(newHeader, header);
-            newHeader.addEventListener('click', () => {
-                const targetId = newHeader.dataset.target;
-                const isOpen   = newHeader.closest('.kp-acc-item').classList.contains('open');
-                document.querySelectorAll('#kp-accordion .kp-acc-item').forEach(item => {
-                    item.classList.remove('open');
-                    const b = item.querySelector('.kp-acc-body');
-                    if (b) b.style.display = 'none';
-                });
-                if (!isOpen) {
-                    const item = newHeader.closest('.kp-acc-item');
-                    item.classList.add('open');
-                    document.getElementById(targetId).style.display = 'block';
-                }
-            });
-        });
-        // Wire setelah cloneNode agar button klon mendapat listener
         document.getElementById('kp-cls-export-btn')?.addEventListener('click', (e) => { e.stopPropagation(); downloadKpClsExcel({ config }); });
         kpTabInitialized = true;
     } catch (err) {
