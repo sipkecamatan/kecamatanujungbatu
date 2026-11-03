@@ -88,9 +88,9 @@ export function pasangNilaiRaporKelas(panel, ctx) {
     kartu.innerHTML = `
         <h3 style="margin:0 0 6px">Nilai Rapor Kelas${wali && ctx.className ? ' — ' + esc(ctx.className) : ''}</h3>
         <p class="hint" style="margin:0 0 10px;font-size:12px">Nilai rapor diinput oleh guru mata pelajaran. ${wali ? 'Anda memeriksa dan mencetak.' : 'Anda mengawasi kelengkapannya.'} Tanda "—" berarti guru mata pelajaran itu belum menyimpan nilai rapor.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-          ${wali ? '' : '<label style="font-size:12px;font-weight:normal">Kelas <select id="nrk-kelas" class="input"><option value="">— Pilih Kelas —</option></select></label>'}
-          <label style="font-size:12px;font-weight:normal">Tahun ajaran <input type="text" id="nrk-tahun" class="input" style="width:110px" value="${esc(ctx.tahun || '')}"></label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;width:100%">
+          ${wali ? '' : '<label style="font-size:12px;font-weight:normal;flex:1;min-width:140px">Kelas <select id="nrk-kelas" class="input" style="width:100%"><option value="">— Pilih Kelas —</option></select></label>'}
+          <label style="font-size:12px;font-weight:normal;flex:1;min-width:120px">Tahun ajaran <input type="text" id="nrk-tahun" class="input" style="width:100%" value="${esc(ctx.tahun || '')}"></label>
           <label style="font-size:12px;font-weight:normal">Semester <select id="nrk-semester" class="input"><option value="1"${String(ctx.semester) !== '2' ? ' selected' : ''}>1</option><option value="2"${String(ctx.semester) === '2' ? ' selected' : ''}>2</option></select></label>
           <button type="button" class="btn btn-primary btn-sm" id="nrk-muat">Tampilkan</button>
           <button type="button" class="btn btn-secondary btn-sm" id="nrk-excel" style="display:none">Unduh Excel</button>
