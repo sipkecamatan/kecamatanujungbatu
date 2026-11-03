@@ -6,6 +6,7 @@
  * Pembuatan tabel dipisahkan sebagai fungsi murni agar dapat diuji.
  */
 import { getKelasSekolah, getStudentsForClass, getGradeFinalKelas } from './api.js';
+import { wireWaliSection } from './tab-shared.js';
 
 const fmt = (n) => (n === null || n === undefined || n === '' ? '—' : String(Number(n)).replace('.', ','));
 
@@ -86,7 +87,11 @@ export function pasangNilaiRaporKelas(panel, ctx) {
     kartu.className = 'section-card';
     kartu.style.marginTop = '12px';
     kartu.innerHTML = `
-        <h3 style="margin:0 0 6px">Nilai Rapor Kelas${wali && ctx.className ? ' — ' + esc(ctx.className) : ''}</h3>
+        <div id="nrk-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+            <h3 style="margin:0">Nilai Rapor Kelas${wali && ctx.className ? ' — ' + esc(ctx.className) : ''}</h3>
+            <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+        </div>
+        <div id="nrk-body" style="display:none;margin-top:12px">
         <p class="hint" style="margin:0 0 10px;font-size:12px">Nilai rapor diinput oleh guru mata pelajaran. ${wali ? 'Anda memeriksa dan mencetak.' : 'Anda mengawasi kelengkapannya.'} Tanda "—" berarti guru mata pelajaran itu belum menyimpan nilai rapor.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;width:100%">
           ${wali ? '' : '<label style="font-size:12px;font-weight:normal;flex:1;min-width:140px">Kelas <select id="nrk-kelas" class="input" style="width:100%"><option value="">— Pilih Kelas —</option></select></label>'}
@@ -96,8 +101,10 @@ export function pasangNilaiRaporKelas(panel, ctx) {
           <button type="button" class="btn btn-secondary btn-sm" id="nrk-excel" style="display:none">Unduh Excel</button>
           <button type="button" class="btn btn-secondary btn-sm" id="nrk-cetak" style="display:none">Cetak</button>
         </div>
-        <div id="nrk-hasil"></div>`;
+        <div id="nrk-hasil"></div>
+        </div>`;
     host.appendChild(kartu);
+    wireWaliSection('nrk-toggle', 'nrk-body');
     const q = (s) => kartu.querySelector(s);
     const hasil = q('#nrk-hasil');
     let matriks = null, judul = '';

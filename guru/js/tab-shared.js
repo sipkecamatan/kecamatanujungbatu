@@ -320,10 +320,34 @@ export function wirePerhatianCollapse(cardId) {
     const body   = document.getElementById(base + '-body');
     const caret  = toggle?.querySelector('.pph-sect-caret');
     if (!toggle || !body) return;
+    toggle.setAttribute('aria-expanded', 'false');
     toggle.addEventListener('click', () => {
         const open = body.style.display !== 'none';
         body.style.display = open ? 'none' : '';
         if (caret) caret.textContent = open ? '▶' : '▼';
+        toggle.setAttribute('aria-expanded', String(!open));
+    });
+    toggle.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle.click(); }
+    });
+}
+
+export function wireWaliSection(toggleId, bodyId) {
+    const toggle = document.getElementById(toggleId);
+    const body   = document.getElementById(bodyId);
+    if (!toggle || !body || toggle.dataset.waliCollWired) return;
+    toggle.dataset.waliCollWired = '1';
+    const caret = toggle.querySelector('.pph-sect-caret');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('tabindex', '0');
+    toggle.addEventListener('click', () => {
+        const open = body.style.display !== 'none';
+        body.style.display = open ? 'none' : '';
+        if (caret) caret.textContent = open ? '▶' : '▼';
+        toggle.setAttribute('aria-expanded', String(!open));
+    });
+    toggle.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle.click(); }
     });
 }
 

@@ -427,9 +427,12 @@
     ════════════════════════════════════════════════════════ -->
     <div class="tab-panel" id="tab-wali_kelas">
         <div class="page-body">
-            <div class="section-card kp-acc-item" id="wali-att-card">
-                <div class="kp-acc-header"><span id="wali-class-title">Kelas Walian</span><span class="kp-acc-arrow">▸</span></div>
-                <div class="kp-acc-body" id="wali-att-body" style="display:none">
+            <div class="section-card" id="wali-att-card">
+                <div id="wali-att-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0" id="wali-class-title">Kelas Walian</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="wali-att-body" style="display:none;margin-top:12px">
                 <div class="date-row" style="margin-bottom:12px">
                     <label for="wali-date-start">Dari:</label>
                     <input type="date" id="wali-date-start" class="input">
@@ -446,7 +449,7 @@
             </div>
 
             <div class="section-card" style="margin-top:16px" id="wali-perhatian-card">
-                <div id="wali-perhatian-toggle" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;cursor:pointer">
+                <div id="wali-perhatian-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
                     <h3 style="margin:0">Siswa Perlu Perhatian</h3>
                     <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                 </div>
@@ -458,8 +461,12 @@
                 </div>
             </div>
 
-            <div class="section-card" style="margin-top:16px">
-                <h3>Pembinaan Siswa Walian</h3>
+            <div class="section-card" style="margin-top:16px" id="wali-kasus-card">
+                <div id="wali-kasus-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0">Pembinaan Siswa Walian</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="wali-kasus-body" style="display:none;margin-top:12px">
                 <div id="wali-kasus-list-view" style="display:block">
                     <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center; width:100%">
                         <div style="position:relative; flex:1">
@@ -529,17 +536,18 @@
                         </div>
                     </div>
                 </div>
+                </div><!-- /wali-kasus-body -->
             </div>
 
             <div class="section-card" style="margin-top:16px" id="wali-terlambat-card">
-                <div class="kp-acc-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
+                <div id="wali-terlambat-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
                     <h3 style="margin:0">Keterlambatan Siswa Walian</h3>
                     <div style="display:flex;align-items:center;gap:8px">
-                        <button id="wali-late-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px">↓ Excel</button>
-                        <i class="ti ti-chevron-down" style="font-size:18px;color:var(--color-text-muted);transition:transform .2s" id="wali-late-chevron"></i>
+                        <button id="wali-late-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px" onclick="event.stopPropagation()">↓ Excel</button>
+                        <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                     </div>
                 </div>
-                <div class="kp-acc-body" style="display:none">
+                <div id="wali-terlambat-body" style="display:none;margin-top:12px">
                     <div class="date-row" style="margin:12px 0">
                         <label for="wali-late-date-start">Dari:</label>
                         <input type="date" id="wali-late-date-start" class="input">
@@ -554,14 +562,14 @@
             </div>
 
             <div class="section-card" style="margin-top:16px" id="wali-keluar-card">
-                <div class="kp-acc-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
+                <div id="wali-keluar-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
                     <h3 style="margin:0">Izin Keluar Siswa Walian</h3>
                     <div style="display:flex;align-items:center;gap:8px">
-                        <button id="wali-exit-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px">↓ Excel</button>
-                        <i class="ti ti-chevron-down" style="font-size:18px;color:var(--color-text-muted);transition:transform .2s" id="wali-exit-chevron"></i>
+                        <button id="wali-exit-excel-btn" class="btn btn-secondary btn-sm" style="display:none;font-size:11px;padding:2px 8px" onclick="event.stopPropagation()">↓ Excel</button>
+                        <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                     </div>
                 </div>
-                <div class="kp-acc-body" style="display:none">
+                <div id="wali-keluar-body" style="display:none;margin-top:12px">
                     <div class="date-row" style="margin:12px 0">
                         <label for="wali-exit-date-start">Dari:</label>
                         <input type="date" id="wali-exit-date-start" class="input">

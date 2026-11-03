@@ -11,7 +11,7 @@ import {
     getEnrolledStudents, getSchoolConfig,
 } from './api.js';
 import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
-import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat, wirePerhatianCollapse, downloadLateExcel, downloadExitExcel, downloadWaliLateRekap, downloadWaliExitRekap } from './tab-shared.js';
+import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat, wirePerhatianCollapse, wireWaliSection, downloadLateExcel, downloadExitExcel, downloadWaliLateRekap, downloadWaliExitRekap } from './tab-shared.js';
 
 /* global XLSX */
 
@@ -174,12 +174,13 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
         });
     }
 
-    _wireWaliCollapse('wali-terlambat-card', 'wali-late-chevron');
-    _wireWaliCollapse('wali-keluar-card',    'wali-exit-chevron');
+    wireWaliSection('wali-att-toggle',      'wali-att-body');
+    wireWaliSection('wali-perhatian-toggle','wali-perhatian-body');
+    wireWaliSection('wali-kasus-toggle',    'wali-kasus-body');
+    wireWaliSection('wali-terlambat-toggle','wali-terlambat-body');
+    wireWaliSection('wali-keluar-toggle',   'wali-keluar-body');
 
     await loadWaliPerhatian({ classId, config });
-
-    wirePerhatianCollapse('wali-perhatian-card');
 }
 
 async function loadWaliPerhatian({ classId, config }) {
@@ -194,18 +195,6 @@ async function loadWaliPerhatian({ classId, config }) {
     }
 }
 
-function _wireWaliCollapse(cardId, chevronId) {
-    const card    = document.getElementById(cardId);
-    const chevron = document.getElementById(chevronId);
-    const header  = card?.querySelector('.kp-acc-header');
-    const body    = card?.querySelector('.kp-acc-body');
-    if (!header || !body) return;
-    header.addEventListener('click', () => {
-        const open = body.style.display !== 'none';
-        body.style.display = open ? 'none' : 'block';
-        if (chevron) chevron.style.transform = open ? '' : 'rotate(180deg)';
-    });
-}
 
 function _fmtTgl(iso) {
     if (!iso) return '—';

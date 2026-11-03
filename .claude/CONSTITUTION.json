@@ -654,7 +654,8 @@
       "export_perhatian": "filterPerhatian, renderPerhatianFlat, renderPerhatianAccordion, wirePerhatianCollapse, PERHATIAN_ALPA_MIN=2, PERHATIAN_HADIR_MIN=0.75 — satu-satunya sumber threshold; ubah di sini berlaku ke semua tab",
       "export_piket_excel": "downloadLateExcel(rows, filename, {withKelas, withRecorder}) + downloadExitExcel(rows, filename, {withKelas, withRecorder}) — fungsi bersama untuk unduh Excel keterlambatan/izin keluar. Pakai manual blob (XLSX.write → Blob → createObjectURL). withKelas=true tambah kolom Kelas; withRecorder=true tambah kolom Dicatat Oleh. Ditambah 2 Nov 2026.",
       "export_wali_rekap": "downloadWaliLateRekap(rows, students, className, academicYear, filename) + downloadWaliExitRekap(rows, students, className, academicYear, filename) — rekap RINGKASAN + sheet per bulan untuk wali kelas. rows = data seluruh tahun ajaran (tidak terikat filter layar). students = getEnrolledStudents. Threshold: ≥3x/bulan → warnCell kuning. Sel persilangan siswa×tanggal berisi jam+alasan (misal '07:23 – Ban bocor'). Ditambah 2 Nov 2026.",
-      "catatan": "Jika threshold Alpa/hadir perlu diubah, cukup ubah PERHATIAN_ALPA_MIN/HADIR_MIN di tab-shared.js saja. wirePerhatianCollapse membuat section-card Siswa Perlu Perhatian bisa dilipat (default tertutup); dipanggil dari init tiap tab setelah wiring refresh button. Pola: card-id=*-perhatian-card, toggle-id=*-perhatian-toggle, body-id=*-perhatian-body."
+      "export_collapse": "wireWaliSection(toggleId, bodyId) — collapse reusable untuk section wali kelas; toggle div pakai .pph-sect-caret (▶/▼), aria-expanded, keyboard Enter/Space. Dipakai tab-wali.js (5 section) dan nilai-rapor-kelas-ui.js. Ditambah 3 Nov 2026.",
+      "catatan": "Jika threshold Alpa/hadir perlu diubah, cukup ubah PERHATIAN_ALPA_MIN/HADIR_MIN di tab-shared.js saja. wirePerhatianCollapse membuat section-card Siswa Perlu Perhatian bisa dilipat (default tertutup); dipanggil dari init tiap tab setelah wiring refresh button. Pola: card-id=*-perhatian-card, toggle-id=*-perhatian-toggle, body-id=*-perhatian-body. wireWaliSection adalah pola yang sama tapi dengan toggleId eksplisit, untuk section lain di tab wali."
     },
     "guru/js/tab-guru.js": {
       "bergantung_pada": [
@@ -724,7 +725,7 @@
       "solusi": "Gunakan form login nyata: isi #identifier dengan login_identifier (NIP, bukan email), isi #password, tunggu #login-btn:not([disabled]) (applyBranding() harus selesai dulu), klik, waitForURL('**/dashboard.html**').",
       "catatan_role": "WAKASEK (SMP) pakai tab key 'wakasek', selector button.tab-btn[data-tab='wakasek'].first() — ada 2 elemen [data-tab='wakasek'] di DOM (strict mode Playwright akan error tanpa .first()).",
       "must_change_password": "Akun dengan must_change_password=true (label 'Menunggu ganti PW' di admin panel) → setelah login redirect ke halaman ganti PW, BUKAN dashboard.html — waitForURL timeout. Gunakan akun yang sudah pernah ganti PW (must_change_password=false).",
-      "accordion_async_init": "Kaprodi dan Wali accordion diwire (wireSimpleAccordion / _wireWaliCollapse) SETELAH async load data (await Promise.all / loadWaliSummary). Playwright harus waitForFunction(()=>document.getElementById('kp-late-start').value!=='') sebelum klik accordion, bukan hanya waitFor tab active.",
+      "accordion_async_init": "Kaprodi dan Wali accordion diwire (wireSimpleAccordion / wireWaliSection) SETELAH async load data (await Promise.all / loadWaliSummary). Playwright harus waitForFunction(()=>document.getElementById('kp-late-start').value!=='') sebelum klik accordion, bukan hanya waitFor tab active.",
       "simulasiRLS_auth_user_id": "JWT sub claim harus u.auth_user_id (UUID Supabase Auth), BUKAN u.user_id (UUID app). Keduanya berbeda; salah kolom → RLS tidak mencocokkan auth.uid() → COUNT = 0 diam-diam.",
       "ditemukan": "2026-11-02"
     },
@@ -796,10 +797,10 @@
   ],
   "state": {
     "last_updated": "2026-11-03",
-    "last_session_commit": "f5d58d3",
+    "last_session_commit": "TBD",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "f5d58d3",
-    "_catatan_push": "fix(wali): layout full-width Pembinaan Siswa Walian + Nilai Rapor Kelas"
+    "main_sha": "TBD",
+    "_catatan_push": "feat(wali): standardisasi collapse 6 section tab wali kelas"
   }
 }
