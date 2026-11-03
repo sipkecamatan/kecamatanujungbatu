@@ -11,7 +11,7 @@ import {
     getEnrolledStudents, getSchoolConfig,
 } from './api.js';
 import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
-import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat, wirePerhatianCollapse, wireWaliSection, downloadLateExcel, downloadExitExcel, downloadWaliLateRekap, downloadWaliExitRekap } from './tab-shared.js';
+import { esc, fe, buildAttStatCards, wireSimpleAccordion, localDateStr, filterPerhatian, renderPerhatianFlat, wireWaliSection, downloadLateExcel, downloadExitExcel, downloadWaliLateRekap, downloadWaliExitRekap } from './tab-shared.js';
 
 /* global XLSX */
 
