@@ -460,7 +460,7 @@ async function downloadWkAttExcel({ config, currentUser }) {
         alert('Gagal mengunduh: ' + fe(err));
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Unduh Excel';
+        btn.textContent = '↓ Excel';
     }
 }
 

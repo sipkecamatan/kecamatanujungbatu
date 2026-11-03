@@ -96,7 +96,7 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
             alert('Gagal mengunduh: ' + fe(err));
         } finally {
             btn.disabled = false;
-            btn.textContent = 'Unduh Excel';
+            btn.textContent = '↓ Excel';
         }
     };
 
@@ -140,7 +140,7 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
                 alert('Gagal mengunduh rekap: ' + (err.message ?? err));
             } finally {
                 _waliLateExcelBtn.disabled = false;
-                _waliLateExcelBtn.textContent = 'Unduh Excel';
+                _waliLateExcelBtn.textContent = '↓ Excel';
             }
         });
     }
@@ -169,7 +169,7 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
                 alert('Gagal mengunduh rekap: ' + (err.message ?? err));
             } finally {
                 _waliExitExcelBtn.disabled = false;
-                _waliExitExcelBtn.textContent = 'Unduh Excel';
+                _waliExitExcelBtn.textContent = '↓ Excel';
             }
         });
     }

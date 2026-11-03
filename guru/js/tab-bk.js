@@ -403,7 +403,7 @@ async function downloadBkAttExcel({ config }) {
         alert('Gagal mengunduh: ' + fe(err));
     } finally {
         btn.disabled = false;
-        btn.textContent = '↓ Unduh Excel';
+        btn.textContent = '↓ Excel';
     }
 }
 

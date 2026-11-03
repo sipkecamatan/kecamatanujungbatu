@@ -658,7 +658,7 @@ export async function downloadProdiExcel({ programId, prodiLabel, config, btn })
 async function downloadKpClsExcel({ config }) {
     const btn = document.getElementById('kp-cls-export-btn');
     await downloadProdiExcel({ programId: kpProgramId, prodiLabel: 'Prodi', config, btn });
-    if (btn) btn.textContent = 'Unduh Excel';
+    if (btn) btn.textContent = '↓ Excel';
 }
 
 // ─── Observasi dari DUDI ──────────────────────────────────────

@@ -262,7 +262,7 @@ async function loadGuruRecap() {
                 <p style="font-size:0.82rem;color:var(--color-text-muted);margin:0">
                     ${esc(className)} · ${rows.length} siswa · akumulasi ${dateStart || '—'} s/d ${dateEnd || '—'}
                 </p>
-                <button class="btn btn-secondary btn-sm" id="guru-recap-export">Unduh Excel</button>
+                <button class="btn btn-secondary btn-sm" id="guru-recap-export">↓ Excel</button>
             </div>
             <div id="guru-rekap-accordion"></div>`;
 
@@ -316,7 +316,7 @@ async function loadGuruRecap() {
                 alert('Gagal mengunduh Excel: ' + (err?.message ?? String(err)));
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Unduh Excel';
+                btn.textContent = '↓ Excel';
             }
         });
 

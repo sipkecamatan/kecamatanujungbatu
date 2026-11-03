@@ -1992,7 +1992,7 @@ function _rcFilterBar() {
         '<select id="rc-teknik">' + teknikOpts + '</select>' +
         (_rcJenis === 'SUMATIF' && _tpCache.length ? '<select id="rc-tp" title="Saring menurut Tujuan Pembelajaran">' + tpOpts + '</select>' : '') +
         '</div>' +
-        '<button class="pen-btn" data-action="asmt-download-excel">⬇ Unduh Excel</button>' +
+        '<button class="pen-btn" data-action="asmt-download-excel">↓ Excel</button>' +
         '</div>'
     );
 }

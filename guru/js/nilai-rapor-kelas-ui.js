@@ -102,7 +102,7 @@ export function pasangNilaiRaporKelas(panel, ctx) {
         </div>
         <div style="display:flex;gap:8px;margin-bottom:10px">
           ${wali ? '' : '<select id="nrk-kelas" class="input" style="flex:1"><option value="">— Pilih Kelas —</option></select>'}
-          <button type="button" class="btn btn-secondary btn-sm" id="nrk-excel" style="display:none">Unduh Excel</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="nrk-excel" style="display:none">↓ Excel</button>
           <button type="button" class="btn btn-secondary btn-sm" id="nrk-cetak" style="display:none">Cetak</button>
         </div>
         <div id="nrk-hasil"></div>
