@@ -731,7 +731,10 @@
     "piket_timezone_input": "Semua default nilai <input type='time'> di tab Piket WAJIB pakai _piketJakartaTimeStr() — BUKAN new Date().toLocaleTimeString(). Fungsi toLocaleTimeString ikut timezone OS device; jika device di luar WIB (UTC+7) jam default akan salah. Berlaku untuk: jam datang (Section 2), jam keluar (Section 4), jam kembali (Section 5). Ditemukan audit 2 Nov 2026.",
     "dropdown_position_relative": "Setiap dropdown autocomplete (position:absolute) WAJIB punya wrapper div dengan position:relative — tanpa itu dropdown muncul relatif ke ancestor posisi terdekat di DOM, bisa jauh dari input. Pola benar: <div class='field' style='position:relative'>...<input>...<div id='dropdown' style='position:absolute;top:100%'>. Jebakan ditemukan di piket exit form (2 Nov 2026) — piket late form (Section 2) sudah benar sejak awal.",
     "wali_class_name_source": "Nama kelas wali TIDAK tersedia di currentUser.wali_kelas_class_name. Sumber yang benar: info?.name dari getWaliKelasInfo(classId) yang dipanggil di awal initWaliTab. Semua handler Excel di tab-wali.js wajib pakai info?.name. Ditemukan 2 Nov 2026.",
-    "injeksi_piket_role_type": "Skrip injeksi data late_arrivals/student_exits: field recorded_by wajib diambil dari user dengan role_type IN ('GURU','WAKASEK','WAKA_KESISWAAN','WALI_KELAS','ADMINISTRATIVE') — nilai 'PIKET' dan 'GURU_PIKET' tidak ada di enum. Insert via REST API PostgREST + service key (bypass RLS). Query user_id via Management API. Data uji piket Okt–Nov 2026 sudah diinjeksi: SMK 73+35, SMA 67+37, SMP 94+26 baris."
+    "injeksi_piket_role_type": "Skrip injeksi data late_arrivals/student_exits: field recorded_by wajib diambil dari user dengan role_type IN ('GURU','WAKASEK','WAKA_KESISWAAN','WALI_KELAS','ADMINISTRATIVE') — nilai 'PIKET' dan 'GURU_PIKET' tidak ada di enum. Insert via REST API PostgREST + service key (bypass RLS). Query user_id via Management API. Data uji piket Okt–Nov 2026 sudah diinjeksi: SMK 73+35, SMA 67+37, SMP 94+26 baris.",
+    "kaprodi_clonenode_listener": "General accordion loop di tab-kaprodi.js melakukan cloneNode pada header [data-target] untuk menghapus listener lama. Semua listener yang dipasang pada elemen di DALAM header tsb (misal tombol Excel) HARUS di-wire SETELAH loop cloneNode selesai — bukan sebelumnya. Ditemukan 3 Nov 2026 (kp-cls-export-btn hilang setelah cloneNode).",
+    "kaprodi_acc_item_tanpa_body": "Jangan tambahkan class kp-acc-item ke section-card yang tidak punya .kp-acc-body (misal kp-perhatian-card yang pakai kp-perhatian-body). General accordion loop mengasumsikan semua .kp-acc-item punya .kp-acc-body — null crash jika tidak ada. Ditemukan 3 Nov 2026.",
+    "kaprodi_excel_btn_di_header": "Tombol Excel yang berada di dalam .kp-acc-header (accordion header) harus selalu stopPropagation agar tidak toggle accordion. Jika belum ada data dan section tertutup → buka section programatik. Jika belum ada data dan section terbuka → tampilkan umpan balik 'Filter dulu'. Hanya download jika cache tidak kosong. Implementasi: e21053d + e83feeb."
   },
   "open_tasks": [
     {
@@ -792,11 +795,11 @@
     }
   ],
   "state": {
-    "last_updated": "2026-11-02",
-    "last_session_commit": "ffa3b72",
+    "last_updated": "2026-11-03",
+    "last_session_commit": "e83feeb",
     "migrasi_terpasang_sampai": "20261102030000",
-    "migrasi_ditulis_belum_push": "",
-    "main_sha": "ffa3b72",
-    "_catatan_push": "fix(wali): Excel rekap selalu 13 sheet + nama kelas + izin keluar RINGKASAN+per-bulan"
+    "migrasi_ditulis_belum_push": "20261102040000",
+    "main_sha": "e83feeb",
+    "_catatan_push": "feat/fix kaprodi: layout header accordion + tombol Excel + RLS WAKASEK users"
   }
 }
