@@ -91,7 +91,7 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
 
         document.getElementById('kp-filter-btn').onclick     = loadKpRecap;
         document.getElementById('kp-cls-filter-btn').onclick = () => loadKpClsRecap({ config });
-        document.getElementById('kp-cls-export-btn').onclick = () => downloadKpClsExcel({ config });
+        document.getElementById('kp-cls-export-btn').addEventListener('click', (e) => { e.stopPropagation(); downloadKpClsExcel({ config }); });
 
         // Wiring section Rekap Keterlambatan + Rekap Izin Keluar (piket)
         wireSimpleAccordion('kp-late-card');
@@ -107,8 +107,8 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
         const _kpLateExcelBtn = document.getElementById('kp-late-excel-btn');
         if (_kpLateExcelBtn) {
             _kpLateExcelBtn.addEventListener('click', (e) => {
+                if (!_cachedKpLate.length) return; // biarkan bubble → accordion terbuka
                 e.stopPropagation();
-                if (!_cachedKpLate.length) return;
                 const start = document.getElementById('kp-late-start').value;
                 const end   = document.getElementById('kp-late-end').value;
                 downloadLateExcel(_cachedKpLate, `keterlambatan_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
@@ -117,8 +117,8 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
         const _kpExitExcelBtn = document.getElementById('kp-exit-excel-btn');
         if (_kpExitExcelBtn) {
             _kpExitExcelBtn.addEventListener('click', (e) => {
+                if (!_cachedKpExit.length) return; // biarkan bubble → accordion terbuka
                 e.stopPropagation();
-                if (!_cachedKpExit.length) return;
                 const start = document.getElementById('kp-exit-start').value;
                 const end   = document.getElementById('kp-exit-end').value;
                 downloadExitExcel(_cachedKpExit, `izin_keluar_kaprodi_${start}_${end}`, { withKelas: true, withRecorder: true });
