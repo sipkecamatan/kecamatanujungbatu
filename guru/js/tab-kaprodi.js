@@ -91,7 +91,6 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
 
         document.getElementById('kp-filter-btn').onclick     = loadKpRecap;
         document.getElementById('kp-cls-filter-btn').onclick = () => loadKpClsRecap({ config });
-        document.getElementById('kp-cls-export-btn').addEventListener('click', (e) => { e.stopPropagation(); downloadKpClsExcel({ config }); });
 
         // Wiring section Rekap Keterlambatan + Rekap Izin Keluar (piket)
         wireSimpleAccordion('kp-late-card');
@@ -160,6 +159,8 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
                 }
             });
         });
+        // Wire setelah cloneNode agar button klon mendapat listener
+        document.getElementById('kp-cls-export-btn')?.addEventListener('click', (e) => { e.stopPropagation(); downloadKpClsExcel({ config }); });
         kpTabInitialized = true;
     } catch (err) {
         console.error('[kaprodi]', err);
