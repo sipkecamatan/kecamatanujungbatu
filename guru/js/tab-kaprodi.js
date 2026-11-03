@@ -113,6 +113,10 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
                     if (card && body && !card.classList.contains('open')) {
                         card.classList.add('open');
                         body.style.display = 'block';
+                    } else {
+                        const orig = _kpLateExcelBtn.textContent;
+                        _kpLateExcelBtn.textContent = 'Filter dulu';
+                        setTimeout(() => { _kpLateExcelBtn.textContent = orig; }, 1800);
                     }
                     return;
                 }
@@ -131,6 +135,10 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
                     if (card && body && !card.classList.contains('open')) {
                         card.classList.add('open');
                         body.style.display = 'block';
+                    } else {
+                        const orig = _kpExitExcelBtn.textContent;
+                        _kpExitExcelBtn.textContent = 'Filter dulu';
+                        setTimeout(() => { _kpExitExcelBtn.textContent = orig; }, 1800);
                     }
                     return;
                 }
@@ -166,7 +174,8 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
                 const isOpen   = newHeader.closest('.kp-acc-item').classList.contains('open');
                 document.querySelectorAll('#kp-accordion .kp-acc-item').forEach(item => {
                     item.classList.remove('open');
-                    item.querySelector('.kp-acc-body').style.display = 'none';
+                    const b = item.querySelector('.kp-acc-body');
+                    if (b) b.style.display = 'none';
                 });
                 if (!isOpen) {
                     const item = newHeader.closest('.kp-acc-item');
