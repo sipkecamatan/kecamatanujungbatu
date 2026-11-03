@@ -826,7 +826,7 @@
             <div class="section-card kp-acc-item">
                 <div class="kp-acc-header" data-target="kp-body-placement"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Penempatan PKL</span></div>
                 <div class="kp-acc-body" id="kp-body-placement" style="display:none">
-                <form id="kp-placement-form" style="display:grid; gap:12px; grid-template-columns:1fr 1fr; margin-bottom:16px">
+                <form id="kp-placement-form" class="placement-form">
                     <div class="field" style="margin:0">
                         <label for="kp-pl-student">Siswa</label>
                         <select id="kp-pl-student" class="input"><option value="">-- Pilih siswa --</option></select>
@@ -843,13 +843,13 @@
                         <label for="kp-pl-end">Tanggal Selesai</label>
                         <input type="date" id="kp-pl-end" class="input">
                     </div>
-                    <div style="grid-column:1/-1; display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+                    <div class="full-col" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
                         <button type="submit" class="btn btn-primary btn-sm" id="kp-pl-submit">Simpan Penempatan</button>
                         <button type="button" class="btn btn-secondary btn-sm" id="kp-import-btn">Impor CSV</button>
                         <input type="file" id="kp-file-input" accept=".csv" style="display:none">
                         <button type="button" class="btn btn-secondary btn-sm" id="kp-dl-template">Unduh Template CSV</button>
                     </div>
-                    <div id="kp-placement-result" style="grid-column:1/-1"></div>
+                    <div id="kp-placement-result" class="full-col"></div>
                 </form>
                 </div>
             </div>
@@ -891,9 +891,13 @@
                 <div class="kp-acc-header" data-target="kp-body-pkl"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Rekap Absensi PKL</span></div>
                 <div class="kp-acc-body" id="kp-body-pkl" style="display:none">
                 <div class="date-row" style="margin-bottom:12px">
-                    <label for="kp-date-start">Dari:</label><input type="date" id="kp-date-start" class="input" style="width:auto">
-                    <label for="kp-date-end">s/d:</label><input type="date" id="kp-date-end" class="input" style="width:auto">
-                    <button class="btn btn-secondary btn-sm" id="kp-filter-btn">Filter</button>
+                    <label for="kp-date-start">Dari:</label>
+                    <input type="date" id="kp-date-start" class="input" style="width:auto">
+                    <label for="kp-date-end">s/d:</label>
+                    <input type="date" id="kp-date-end" class="input" style="width:auto">
+                    <div class="date-row-actions">
+                        <button class="btn btn-secondary btn-sm" id="kp-filter-btn">Filter</button>
+                    </div>
                 </div>
                 <div class="table-wrapper">
                     <table class="table" style="table-layout:fixed;width:100%">
@@ -933,8 +937,8 @@
                 <div class="kp-acc-header" data-target="kp-body-kasus"><span class="kp-acc-arrow">▸</span><span style="flex:1;margin-left:8px">Pembinaan Siswa Program Studi</span></div>
                 <div class="kp-acc-body" id="kp-body-kasus" style="display:none">
                 <div id="kp-kasus-list-view" style="display:block">
-                    <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center">
-                        <div style="position:relative; flex:1">
+                    <div class="filter-action-row">
+                        <div style="position:relative">
                             <button class="btn btn-secondary btn-sm" id="kp-kasus-template-btn" style="width:100%">↓ Unduh Template ▾</button>
                             <div id="kp-kasus-template-menu" style="display:none; position:absolute; top:100%; left:0; z-index:100; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius); min-width:210px; box-shadow:0 4px 12px rgba(0,0,0,0.15)">
                                 <a href="assets/templates/surat-panggilan-ortu.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Surat Panggilan Orang Tua</a>
@@ -942,10 +946,10 @@
                                 <a href="assets/templates/berita-acara-pembinaan.docx" download style="display:block; padding:8px 16px; text-decoration:none; color:var(--color-text); font-size:13px">Berita Acara Pembinaan</a>
                             </div>
                         </div>
-                        <button class="btn btn-secondary btn-sm" id="kp-kasus-rekap-btn" style="flex:1">↓ Unduh Rekap</button>
+                        <button class="btn btn-secondary btn-sm" id="kp-kasus-rekap-btn">↓ Unduh Rekap</button>
                     </div>
-                    <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center">
-                        <select id="kp-kasus-filter-status" class="input" style="flex:1; font-size:13px">
+                    <div class="filter-dropdown-row">
+                        <select id="kp-kasus-filter-status" class="input">
                             <option value="">Semua Status</option>
                             <option value="OPEN">Buka</option>
                             <option value="UNDER_REVIEW">Ditinjau</option>
@@ -953,7 +957,7 @@
                             <option value="MONITORING">Monitoring</option>
                             <option value="CLOSED">Tutup</option>
                         </select>
-                        <select id="kp-kasus-filter-track" class="input" style="flex:1; font-size:13px">
+                        <select id="kp-kasus-filter-track" class="input">
                             <option value="">Semua Jalur</option>
                             <option value="SEKOLAH">Sekolah</option>
                             <option value="PKL">PKL</option>
