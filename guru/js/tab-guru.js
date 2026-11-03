@@ -11,7 +11,7 @@ import {
     getMyStudents, insertObservation, getMyObservations, voidObservation,
 } from './api.js';
 import { saveAttendanceBatch, flushPending, pendingCount, rejectedCount } from './offline.js';
-import { esc, fe, fmt, fmtTime, buildAttStatCards, sipPrepareOpen, sipCloseOverlay, localDateStr, buildPertemuanMeta, PERHATIAN_ALPA_MIN, PERHATIAN_HADIR_MIN, wirePerhatianCollapse } from './tab-shared.js';
+import { esc, fe, fmt, fmtTime, buildAttStatCards, sipPrepareOpen, sipCloseOverlay, localDateStr, buildPertemuanMeta, PERHATIAN_ALPA_MIN, PERHATIAN_HADIR_MIN, wirePerhatianCollapse, wireWaliSection } from './tab-shared.js';
 
 // ── Module state ─────────────────────────────────────────────
 let _currentUser   = null;
@@ -106,6 +106,7 @@ export async function initGuruTab({ currentUser, config, jabatan, LC }) {
     await loadSiswaPerhatian();
 
     wirePerhatianCollapse('guru-perhatian-card');
+    wireWaliSection('guru-recap-toggle', 'guru-recap-body');
 }
 
 
