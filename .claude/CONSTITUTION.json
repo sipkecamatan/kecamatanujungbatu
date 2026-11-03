@@ -797,10 +797,10 @@
   ],
   "state": {
     "last_updated": "2026-11-03",
-    "last_session_commit": "TBD",
+    "last_session_commit": "d601863",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "TBD",
+    "main_sha": "d601863",
     "_catatan_push": "feat(wali): standardisasi collapse 6 section tab wali kelas"
   }
 }
