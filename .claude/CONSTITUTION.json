@@ -674,7 +674,8 @@
       "catatan": "Perubahan api.js, tab-shared.js, atau dashboard.js WAJIB diuji dampaknya ke tab-guru.js. 1 Nov 2026: Excel guru final — buildGuruExcel() menghasilkan RINGKASAN + 12 sheet bulanan (Jul-Jun). Setiap sheet bulan berisi blok per kelas diajar guru di bulan itu (sub-header kelas merged, header tanggal, baris siswa, total, jumlah H/S/I/A). Data selalu seluruh tahun ajaran (null/null), tidak terikat filter layar. XLSX.writeFile→manual blob (Chrome download blocker). mkHdrPerhatian() factory untuk hindari shared-ref SheetJS. 1 Nov 2026: loadSiswaPerhatian() — section baru di Tab Guru Beranda: semua kelas diampu, semester berjalan, threshold ALPA≥2 atau %hadir<75%, expand per kelas. 3 Nov 2026: Riwayat Catatan Saya kini pakai wireWaliSection (obs-history-toggle/obs-history-body) — ganti fungsi custom _initObsHistoryCollapse yang memakai chevron rotate. HTML obs-history-card di dashboard.html."
     },
     "guru/js/penilaian.js": {
-      "catatan_collapse": "pen-section kini cocok section-card (padding:20px, border-radius:var(--radius-lg), tanpa overflow:hidden). pen-section-header tanpa padding mandiri; judul pakai h3. pen-chevron pakai teks ▶/▼ (bukan transform rotate). Diubah 3 Nov 2026."
+      "catatan_collapse": "pen-section kini cocok section-card (padding:20px, border-radius:var(--radius-lg), tanpa overflow:hidden). pen-section-header tanpa padding mandiri; judul pakai h3. pen-chevron pakai teks ▶/▼ (bukan transform rotate). Diubah 3 Nov 2026.",
+      "catatan_mobile_css": "pen-section-header h3 wajib font-size:15px eksplisit — pen-section bukan section-card sehingga tidak mewarisi .section-card h3{font-size:15px} dari guru.css; browser default h3 (~19px) membuat header lebih tinggi dari standar. pen-ctx-filter: class pada filter Kelas/Mapel/Tahun/Semester; @media≤600px gap:8px + field margin-bottom:8px. Semester kini flex:1 agar proporsional berdampingan Tahun Ajaran. Ditetapkan 3 Nov 2026."
     }
   },
   "jebakan_teknis": {
@@ -738,7 +739,8 @@
     "injeksi_piket_role_type": "Skrip injeksi data late_arrivals/student_exits: field recorded_by wajib diambil dari user dengan role_type IN ('GURU','WAKASEK','WAKA_KESISWAAN','WALI_KELAS','ADMINISTRATIVE') — nilai 'PIKET' dan 'GURU_PIKET' tidak ada di enum. Insert via REST API PostgREST + service key (bypass RLS). Query user_id via Management API. Data uji piket Okt–Nov 2026 sudah diinjeksi: SMK 73+35, SMA 67+37, SMP 94+26 baris.",
     "kaprodi_clonenode_listener": "General accordion loop di tab-kaprodi.js melakukan cloneNode pada header [data-target] untuk menghapus listener lama. Semua listener yang dipasang pada elemen di DALAM header tsb (misal tombol Excel) HARUS di-wire SETELAH loop cloneNode selesai — bukan sebelumnya. Ditemukan 3 Nov 2026 (kp-cls-export-btn hilang setelah cloneNode).",
     "kaprodi_acc_item_tanpa_body": "Jangan tambahkan class kp-acc-item ke section-card yang tidak punya .kp-acc-body (misal kp-perhatian-card yang pakai kp-perhatian-body). General accordion loop mengasumsikan semua .kp-acc-item punya .kp-acc-body — null crash jika tidak ada. Ditemukan 3 Nov 2026.",
-    "kaprodi_excel_btn_di_header": "Tombol Excel yang berada di dalam .kp-acc-header (accordion header) harus selalu stopPropagation agar tidak toggle accordion. Jika belum ada data dan section tertutup → buka section programatik. Jika belum ada data dan section terbuka → tampilkan umpan balik 'Filter dulu'. Hanya download jika cache tidak kosong. Implementasi: e21053d + e83feeb."
+    "kaprodi_excel_btn_di_header": "Tombol Excel yang berada di dalam .kp-acc-header (accordion header) harus selalu stopPropagation agar tidak toggle accordion. Jika belum ada data dan section tertutup → buka section programatik. Jika belum ada data dan section terbuka → tampilkan umpan balik 'Filter dulu'. Hanya download jika cache tidak kosong. Implementasi: e21053d + e83feeb.",
+    "section_card_h3_scoped": "CSS .section-card h3{font-size:15px} di guru.css hanya berlaku di dalam .section-card. Komponen pakai class sendiri (pen-section dll) mendapat browser-default h3 (~19px) → header lebih tinggi dari standar. Wajib tambah font-size:15px eksplisit pada h3 header custom. Ditemukan 3 Nov 2026, commit 4bf909d."
   },
   "open_tasks": [
     {
@@ -800,11 +802,11 @@
   ],
   "state": {
     "last_updated": "2026-11-03",
-    "last_session_commit": "a6b3228",
+    "last_session_commit": "4bf909d",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "a6b3228",
+    "main_sha": "4bf909d",
     "_catatan_push": "feat(wali): standardisasi collapse 6 section tab wali kelas",
-    "last_session_summary": "standardisasi collapse section: tab-piket (4 section), Riwayat Catatan Saya, 4 section Jurnal Mengajar — semua pakai pola section-card + wireWaliSection/pen-section"
+    "last_session_summary": "UI/CSS: standardisasi collapse section (piket, catatan siswa, jurnal), mobile filter penilaian, tinggi header pen-section"
   }
 }
