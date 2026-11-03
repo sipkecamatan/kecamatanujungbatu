@@ -143,7 +143,7 @@ export async function initKaprodiTab({ currentUser, config, kasusEngine }) {
         loadKpPerhatian({ programId, config });
         wirePerhatianCollapse('kp-perhatian-card');
 
-        document.querySelectorAll('#kp-accordion .kp-acc-header').forEach(header => {
+        document.querySelectorAll('#kp-accordion .kp-acc-header[data-target]').forEach(header => {
             const newHeader = header.cloneNode(true);
             header.parentNode.replaceChild(newHeader, header);
             newHeader.addEventListener('click', () => {
