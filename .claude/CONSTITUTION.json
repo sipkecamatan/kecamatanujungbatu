@@ -744,7 +744,8 @@
     "kaprodi_section_standar": "Tab Kaprodi: semua 10 section pakai wireWaliSection (toggle/body standar, ▶/▼). wireSimpleAccordion dihapus dari import. CSS kp-acc-* JANGAN dihapus — masih dipakai BK/Waka/Kepsek tab.",
     "kaprodi_filter_layout": "Tab Kaprodi filter: pakai kp-ctx-filter (flex-wrap desktop, flex-column mobile). Kelas+Dari+s/d+Actions dalam SATU container. kp-filter-actions = row tombol full-width di mobile. CSS di guru.css. Tombol Excel masuk kp-filter-actions berdampingan Tampilkan. Label = Tampilkan bukan Filter.",
     "kaprodi_placement_actions": "Penempatan PKL: class kp-placement-actions (CSS di guru.css). Desktop: flex horizontal. Mobile: flex-column, semua btn width:100%. Urutan: Simpan Penempatan, Impor CSV, Unduh Template CSV.",
-    "wali_excel_di_header": "SUDAH DIPERBAIKI (3 Nov 2026): wali-late-excel-btn + wali-exit-excel-btn dipindah ke date-row-actions di body. Implementasi LENGKAP: handler + downloadWaliLateRekap/downloadWaliExitRekap (tab-shared.js:416,696) + show/hide via loadWaliLate/loadWaliExit. Tombol display:none awal, muncul setelah Tampilkan diklik dan data ada. Tombol HANYA muncul saat section terbuka (benar). Perubahan hanya berlaku setelah git push (Romo)."
+    "wali_excel_di_header": "SUDAH DIPERBAIKI (3 Nov 2026): wali-late-excel-btn + wali-exit-excel-btn dipindah ke date-row-actions di body. Implementasi LENGKAP: handler + downloadWaliLateRekap/downloadWaliExitRekap (tab-shared.js:416,696) + show/hide via loadWaliLate/loadWaliExit. Tombol display:none awal, muncul setelah Tampilkan diklik dan data ada. Tombol HANYA muncul saat section terbuka (benar). Perubahan hanya berlaku setelah git push (Romo).",
+    "excel_btn_label": "Standar label tombol ekspor Excel = \"↓ Excel\" (bukan \"Unduh Excel\", bukan \"⬇ Unduh Excel\"). textContent restore di finally block wajib sama. Komentar di tab-shared.js/rekap-excel.js TIDAK diubah."
   },
   "open_tasks": [
     {
@@ -806,10 +807,10 @@
   ],
   "state": {
     "last_updated": "2026-11-03",
-    "last_session_commit": "7361d85",
+    "last_session_commit": "ba19530",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "7361d85",
+    "main_sha": "ba19530",
     "_catatan_push": "feat(wali): standardisasi collapse 6 section tab wali kelas",
     "last_session_summary": "UI/CSS: standardisasi collapse section (piket, catatan siswa, jurnal), mobile filter penilaian, tinggi header pen-section"
   }
