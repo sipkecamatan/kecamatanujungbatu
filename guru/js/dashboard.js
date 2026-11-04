@@ -602,7 +602,7 @@ async function loadTabContent(key) {
                     while (src2.firstChild) dest.appendChild(src2.firstChild);
                 }
                 await initWakaKesiswaanTab({ config, currentUser, kasusEngine: { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } });
-                await initWakaKurTab({ config });
+                await initWakaKurTab({ config, panel: document.getElementById('tab-wakasek') });
                 break;
             }
             case 'waka_humas':  await initWakaHumasTab({ currentUser }); break;

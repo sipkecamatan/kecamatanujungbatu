@@ -43,7 +43,7 @@ export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser })
     document.getElementById('wk-late-filter-btn').onclick = () => loadWkLateRecap({ config });
     const _wkLateExcelBtn = document.getElementById('wk-late-excel-btn');
     if (_wkLateExcelBtn) {
-        _wkLateExcelBtn.addEventListener('click', async (e) => {
+        _wkLateExcelBtn.onclick = async (e) => {
             e.stopPropagation();
             _wkLateExcelBtn.disabled = true;
             _wkLateExcelBtn.textContent = 'Menyiapkan…';
@@ -59,7 +59,7 @@ export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser })
                 _wkLateExcelBtn.disabled = false;
                 _wkLateExcelBtn.textContent = '↓ Excel';
             }
-        });
+        };
     }
 
     document.getElementById('wk-exit-start').value = firstOfMonth;
@@ -67,7 +67,7 @@ export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser })
     document.getElementById('wk-exit-filter-btn').onclick = () => loadWkExitRecap({ config });
     const _wkExitExcelBtn = document.getElementById('wk-exit-excel-btn');
     if (_wkExitExcelBtn) {
-        _wkExitExcelBtn.addEventListener('click', async (e) => {
+        _wkExitExcelBtn.onclick = async (e) => {
             e.stopPropagation();
             _wkExitExcelBtn.disabled = true;
             _wkExitExcelBtn.textContent = 'Menyiapkan…';
@@ -83,7 +83,7 @@ export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser })
                 _wkExitExcelBtn.disabled = false;
                 _wkExitExcelBtn.textContent = '↓ Excel';
             }
-        });
+        };
     }
 
     // Muat daftar kelas untuk dropdown filter

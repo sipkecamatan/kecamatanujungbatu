@@ -745,6 +745,8 @@
     "wk_exit_body_id_wajib": "id='wk-exit-body' WAJIB ada di div body Rekap Izin Keluar. Sebelum 4 Nov 2026 body ini tidak punya id → wireWaliSection diam-diam gagal, section tidak bisa dibuka. Ditemukan saat standardisasi.",
     "kaprodi_filter_layout": "Tab Kaprodi filter: pakai kp-ctx-filter (flex-wrap desktop, flex-column mobile). Kelas+Dari+s/d+Actions dalam SATU container. kp-filter-actions = row tombol full-width di mobile. CSS di guru.css. Tombol Excel masuk kp-filter-actions berdampingan Tampilkan. Label = Tampilkan bukan Filter.",
     "kaprodi_placement_actions": "Penempatan PKL: class kp-placement-actions (CSS di guru.css). Desktop: flex horizontal. Mobile: flex-column, semua btn width:100%. Urutan: Simpan Penempatan, Impor CSV, Unduh Template CSV.",
+    "wakasek_dom_move_listener": "initWakaKesiswaanTab dipanggil setiap tab-switch. Handler yang pakai addEventListener (bukan .onclick) AKAN menumpuk listener. Gunakan .onclick untuk semua handler Excel di fungsi init yang berulang dipanggil. Ditemukan 4 Nov 2026: wk-late-excel-btn + wk-exit-excel-btn di tab-waka-kesiswaan.js.",
+    "wakasek_pasang_panel": "initWakaKurTab menerima parameter panel opsional. Tanpa parameter → default ke #tab-waka_kurikulum (SMA/SMK). Wakasek SMP WAJIB kirim panel: document.getElementById('tab-wakasek') agar pasangNilaiPimpinan / pasangNilaiRaporKelas / pasangKunciPeriode ter-inject ke tab yang benar (bukan ke div kosong #tab-waka_kurikulum setelah DOM-move). Pola ini berlaku untuk fungsi pasang*() manapun yang di-call dari initWakaKurTab.",
     "wali_excel_di_header": "SUDAH DIPERBAIKI (3 Nov 2026, diperbarui f10753a): wali-late-excel-btn + wali-exit-excel-btn di date-row-actions, SELALU tampil. Handler ekspor FULL YEAR (ayStart-07-01 s/d ayEnd-06-30), pakai config closure (bukan getSchoolConfig). downloadWaliLateRekap + downloadWaliExitRekap dari tab-shared.js:416,696.",
     "excel_btn_label": "Standar label tombol ekspor Excel = \"↓ Excel\" (bukan \"Unduh Excel\", bukan \"⬇ Unduh Excel\"). textContent restore di finally block wajib sama. Komentar di tab-shared.js/rekap-excel.js TIDAK diubah.",
     "excel_standar_global": "STANDAR GLOBAL (7e7c427, 4 Nov 2026 update): semua ↓ Excel ekspor FULL YEAR (ayStart-07-01 s/d ayEnd-06-30) INDEPENDEN dari filter layar. Tombol selalu tampil sejak section dibuka (tidak display:none, tidak bergantung cache). Cache guard (_cached*.length) TIDAK DIGUNAKAN. Data kosong BUKAN alasan membatalkan unduhan — tetap hasilkan file dengan baris 'Belum ada data tercatat'. Nama file: pakai ay (mis. 2026-2027), bukan rentang filter. Berlaku di SEMUA tab: Wali, BK, Waka, Kaprodi, Guru Mapel. Tab Guru: tombol statis guru-recap-export-static sejajar Tampilkan; fungsi _downloadGuruExcel() ekspor SEMUA kelas yang diampu tanpa perlu pilih kelas dulu."
@@ -809,11 +811,10 @@
   ],
   "state": {
     "last_updated": "2026-11-04",
-    "last_session_commit": "2fb8cb7",
+    "last_session_commit": "pending",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
     "main_sha": "2fb8cb7",
-    "_catatan_push": "feat(ui): standardisasi section Waka Kesiswaan & Wakasek SMP ke pola Kaprodi",
-    "last_session_summary": "UI: standardisasi 5 section Waka Kesiswaan ke pola Kaprodi (wireWaliSection + pph-sect-caret + kp-ctx-filter); Pembinaan default tertutup; tombol ↓ Excel di kp-filter-actions; fix wk-exit-body tanpa id"
+    "last_session_summary": "fix(js): addEventListener → .onclick untuk wk-late/exit-excel-btn (cegah listener menumpuk di tab Wakasek SMP); fix(js): initWakaKurTab terima param panel — Wakasek SMP kini mendapat Nilai per TP + Rekap Nilai per Kelas + Kunci Nilai Semester"
   }
 }

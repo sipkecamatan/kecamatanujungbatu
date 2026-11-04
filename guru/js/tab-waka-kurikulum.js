@@ -20,10 +20,11 @@ let _wkKur2Seq     = 0;
 let _wkKurTabInit  = false;
 const _wkKurStatsSeq = {};
 
-export async function initWakaKurTab({ config }) {
-    pasangNilaiPimpinan(document.getElementById('tab-waka_kurikulum'), { esc, tahun: config?.current_academic_year, semester: config?.current_semester });
-    pasangNilaiRaporKelas(document.getElementById('tab-waka_kurikulum'), { esc, mode: 'pimpinan', tahun: config?.current_academic_year, semester: config?.current_semester });
-    pasangKunciPeriode(document.getElementById('tab-waka_kurikulum'), { esc, tahun: config?.current_academic_year, semester: config?.current_semester });
+export async function initWakaKurTab({ config, panel } = {}) {
+    const tabEl = panel ?? document.getElementById('tab-waka_kurikulum');
+    pasangNilaiPimpinan(tabEl, { esc, tahun: config?.current_academic_year, semester: config?.current_semester });
+    pasangNilaiRaporKelas(tabEl, { esc, mode: 'pimpinan', tahun: config?.current_academic_year, semester: config?.current_semester });
+    pasangKunciPeriode(tabEl, { esc, tahun: config?.current_academic_year, semester: config?.current_semester });
     if (!_wkKurTabInit) {
         _wkKurTabInit = true;
         const weekAgo = localDateStr(new Date(Date.now() - 6 * 86400000));
