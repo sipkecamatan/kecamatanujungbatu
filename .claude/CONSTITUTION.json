@@ -741,7 +741,8 @@
     "kaprodi_acc_item_tanpa_body": "Jangan tambahkan class kp-acc-item ke section-card yang tidak punya .kp-acc-body (misal kp-perhatian-card yang pakai kp-perhatian-body). General accordion loop mengasumsikan semua .kp-acc-item punya .kp-acc-body — null crash jika tidak ada. Ditemukan 3 Nov 2026.",
     "kaprodi_excel_btn_di_header": "Tombol Excel yang berada di dalam .kp-acc-header (accordion header) harus selalu stopPropagation agar tidak toggle accordion. Jika belum ada data dan section tertutup → buka section programatik. Jika belum ada data dan section terbuka → tampilkan umpan balik 'Filter dulu'. Hanya download jika cache tidak kosong. Implementasi: e21053d + e83feeb.",
     "section_card_h3_scoped": "CSS .section-card h3{font-size:15px} di guru.css hanya berlaku di dalam .section-card. Komponen pakai class sendiri (pen-section dll) mendapat browser-default h3 (~19px) → header lebih tinggi dari standar. Wajib tambah font-size:15px eksplisit pada h3 header custom. Ditemukan 3 Nov 2026, commit 4bf909d.",
-    "kaprodi_section_standar": "Tab Kaprodi: semua 10 section pakai wireWaliSection (toggle/body standar, ▶/▼). wireSimpleAccordion dihapus dari import. CSS kp-acc-* JANGAN dihapus — masih dipakai BK/Waka/Kepsek tab.",
+    "kaprodi_section_standar": "STANDAR SECTION: Tab Kaprodi + Waka Kesiswaan + Wakasek SMP kini pakai wireWaliSection (toggle/body standar, ▶/▼) + pph-sect-caret + kp-ctx-filter + kp-filter-actions. wireSimpleAccordion dan wirePerhatianCollapse TIDAK DIPAKAI di tab-tab ini. CSS kp-acc-* JANGAN dihapus — masih dipakai tab BK/Kepsek. Tombol Excel selalu di dalam kp-filter-actions (bukan di header accordion). Semua section default tertutup (body display:none). Wakasek SMP ikut otomatis via DOM-move dari Waka Kesiswaan — tidak ada HTML terpisah.",
+    "wk_exit_body_id_wajib": "id='wk-exit-body' WAJIB ada di div body Rekap Izin Keluar. Sebelum 4 Nov 2026 body ini tidak punya id → wireWaliSection diam-diam gagal, section tidak bisa dibuka. Ditemukan saat standardisasi.",
     "kaprodi_filter_layout": "Tab Kaprodi filter: pakai kp-ctx-filter (flex-wrap desktop, flex-column mobile). Kelas+Dari+s/d+Actions dalam SATU container. kp-filter-actions = row tombol full-width di mobile. CSS di guru.css. Tombol Excel masuk kp-filter-actions berdampingan Tampilkan. Label = Tampilkan bukan Filter.",
     "kaprodi_placement_actions": "Penempatan PKL: class kp-placement-actions (CSS di guru.css). Desktop: flex horizontal. Mobile: flex-column, semua btn width:100%. Urutan: Simpan Penempatan, Impor CSV, Unduh Template CSV.",
     "wali_excel_di_header": "SUDAH DIPERBAIKI (3 Nov 2026, diperbarui f10753a): wali-late-excel-btn + wali-exit-excel-btn di date-row-actions, SELALU tampil. Handler ekspor FULL YEAR (ayStart-07-01 s/d ayEnd-06-30), pakai config closure (bukan getSchoolConfig). downloadWaliLateRekap + downloadWaliExitRekap dari tab-shared.js:416,696.",
@@ -808,11 +809,11 @@
   ],
   "state": {
     "last_updated": "2026-11-04",
-    "last_session_commit": "865b6f5",
+    "last_session_commit": "2fb8cb7",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "865b6f5",
-    "_catatan_push": "fix(excel): hapus guard alert data kosong — semua ↓ Excel bisa diunduh meski belum ada data",
-    "last_session_summary": "Fix: hapus 8 guard alert+return yang memblokir ekspor Excel ketika data kosong; tambah baris 'Belum ada data tercatat' di downloadLateExcel + downloadExitExcel"
+    "main_sha": "2fb8cb7",
+    "_catatan_push": "feat(ui): standardisasi section Waka Kesiswaan & Wakasek SMP ke pola Kaprodi",
+    "last_session_summary": "UI: standardisasi 5 section Waka Kesiswaan ke pola Kaprodi (wireWaliSection + pph-sect-caret + kp-ctx-filter); Pembinaan default tertutup; tombol ↓ Excel di kp-filter-actions; fix wk-exit-body tanpa id"
   }
 }
