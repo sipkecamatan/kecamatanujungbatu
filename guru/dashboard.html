@@ -1146,30 +1146,32 @@
     ════════════════════════════════════════════════════════ -->
     <div class="tab-panel" id="tab-waka_kesiswaan">
         <div class="page-body">
-            <div class="section-card kp-acc-item" id="wk-att-card">
-                <div class="kp-acc-header"><span>Kehadiran Per Kelas</span><span class="kp-acc-arrow">▸</span></div>
-                <div class="kp-acc-body" id="wk-att-body" style="display:none">
-                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="wk-att-start" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Dari:</label>
-                        <input type="date" id="wk-att-start" class="input" style="flex:1;min-width:0">
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="wk-att-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
-                        <input type="date" id="wk-att-end" class="input" style="flex:1;min-width:0">
-                    </div>
-                    <div style="display:flex;gap:8px">
-                        <button class="btn btn-secondary btn-sm" id="wk-att-filter-btn" style="flex:1">Filter</button>
-                        <button class="btn btn-secondary btn-sm" id="wk-att-export-btn" style="flex:1;display:none">↓ Excel</button>
+
+            <!-- Kehadiran Per Kelas -->
+            <div class="section-card" id="wk-att-card">
+                <div id="wk-att-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Kehadiran Per Kelas</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="wk-att-body" style="display:none;margin-top:12px">
+                <div class="kp-ctx-filter">
+                    <label for="wk-att-start">Dari:</label>
+                    <input type="date" id="wk-att-start" class="input">
+                    <label for="wk-att-end">s/d:</label>
+                    <input type="date" id="wk-att-end" class="input">
+                    <div class="kp-filter-actions">
+                        <button class="btn btn-secondary btn-sm" id="wk-att-filter-btn">Tampilkan</button>
+                        <button class="btn btn-secondary btn-sm" id="wk-att-export-btn">↓ Excel</button>
                     </div>
                 </div>
-                <div id="wk-att-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
+                <div id="wk-att-recap"><p class="hint">Pilih rentang tanggal lalu klik Tampilkan.</p></div>
                 </div>
             </div>
 
-            <div class="section-card" style="margin-top:16px" id="wk-perhatian-card">
-                <div id="wk-perhatian-toggle" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;cursor:pointer">
-                    <h3 style="margin:0">Siswa Perlu Perhatian</h3>
+            <!-- Siswa Perlu Perhatian -->
+            <div class="section-card" id="wk-perhatian-card">
+                <div id="wk-perhatian-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Siswa Perlu Perhatian</h3>
                     <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                 </div>
                 <div id="wk-perhatian-body" style="display:none">
@@ -1180,52 +1182,59 @@
                 </div>
             </div>
 
-            <div class="section-card kp-acc-item" id="wk-late-card">
-                <div class="kp-acc-header"><span>Rekap Keterlambatan</span><button id="wk-late-excel-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px;margin-left:auto;margin-right:8px">↓ Excel</button><span class="kp-acc-arrow">▸</span></div>
-                <div class="kp-acc-body" id="wk-late-body" style="display:none">
-                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="wk-late-start" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Dari:</label>
-                        <input type="date" id="wk-late-start" class="input" style="flex:1;min-width:0">
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="wk-late-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
-                        <input type="date" id="wk-late-end" class="input" style="flex:1;min-width:0">
-                        <button class="btn btn-secondary btn-sm" id="wk-late-filter-btn">Filter</button>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="wk-late-class" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Kelas:</label>
-                        <select id="wk-late-class" class="input" style="flex:1;min-width:0"><option value="">Semua kelas</option></select>
+            <!-- Rekap Keterlambatan -->
+            <div class="section-card" id="wk-late-card">
+                <div id="wk-late-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Rekap Keterlambatan</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="wk-late-body" style="display:none;margin-top:12px">
+                <div class="kp-ctx-filter">
+                    <label for="wk-late-class">Kelas:</label>
+                    <select id="wk-late-class" class="input"><option value="">Semua kelas</option></select>
+                    <label for="wk-late-start">Dari:</label>
+                    <input type="date" id="wk-late-start" class="input">
+                    <label for="wk-late-end">s/d:</label>
+                    <input type="date" id="wk-late-end" class="input">
+                    <div class="kp-filter-actions">
+                        <button class="btn btn-secondary btn-sm" id="wk-late-filter-btn">Tampilkan</button>
+                        <button id="wk-late-excel-btn" class="btn btn-secondary btn-sm">↓ Excel</button>
                     </div>
                 </div>
-                <div id="wk-late-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
-                </div>
-            </div>
-
-            <div class="section-card kp-acc-item" id="wk-exit-card" style="margin-top:16px">
-                <div class="kp-acc-header"><span>Rekap Izin Keluar</span><button id="wk-exit-excel-btn" class="btn btn-secondary btn-sm" style="font-size:11px;padding:2px 8px;margin-left:auto;margin-right:8px">↓ Excel</button><span class="kp-acc-arrow">▸</span></div>
-                <div class="kp-acc-body" style="display:none">
-                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="wk-exit-start" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Dari:</label>
-                        <input type="date" id="wk-exit-start" class="input" style="flex:1;min-width:0">
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="wk-exit-end" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">s/d:</label>
-                        <input type="date" id="wk-exit-end" class="input" style="flex:1;min-width:0">
-                        <button class="btn btn-secondary btn-sm" id="wk-exit-filter-btn">Filter</button>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <label for="wk-exit-class" style="min-width:32px;margin:0;font-size:13px;color:var(--color-text-muted)">Kelas:</label>
-                        <select id="wk-exit-class" class="input" style="flex:1;min-width:0"><option value="">Semua kelas</option></select>
-                    </div>
-                </div>
-                <div id="wk-exit-recap"><p class="hint">Pilih rentang tanggal lalu klik Filter.</p></div>
+                <div id="wk-late-recap"><p class="hint">Pilih rentang tanggal lalu klik Tampilkan.</p></div>
                 </div>
             </div>
 
-            <div class="section-card" style="margin-top:16px">
-                <h3>Pembinaan Siswa — Kesiswaan</h3>
+            <!-- Rekap Izin Keluar -->
+            <div class="section-card" id="wk-exit-card">
+                <div id="wk-exit-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Rekap Izin Keluar</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="wk-exit-body" style="display:none;margin-top:12px">
+                <div class="kp-ctx-filter">
+                    <label for="wk-exit-class">Kelas:</label>
+                    <select id="wk-exit-class" class="input"><option value="">Semua kelas</option></select>
+                    <label for="wk-exit-start">Dari:</label>
+                    <input type="date" id="wk-exit-start" class="input">
+                    <label for="wk-exit-end">s/d:</label>
+                    <input type="date" id="wk-exit-end" class="input">
+                    <div class="kp-filter-actions">
+                        <button class="btn btn-secondary btn-sm" id="wk-exit-filter-btn">Tampilkan</button>
+                        <button id="wk-exit-excel-btn" class="btn btn-secondary btn-sm">↓ Excel</button>
+                    </div>
+                </div>
+                <div id="wk-exit-recap"><p class="hint">Pilih rentang tanggal lalu klik Tampilkan.</p></div>
+                </div>
+            </div>
+
+            <!-- Pembinaan Siswa — Kesiswaan -->
+            <div class="section-card" id="wk-kasus-card">
+                <div id="wk-kasus-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Pembinaan Siswa — Kesiswaan</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="wk-kasus-body" style="display:none;margin-top:12px">
                 <div id="wk-kasus-count-rekap" style="display:none"></div>
                 <div id="wk-kasus-list-view" style="display:block">
                     <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center">
@@ -1294,7 +1303,8 @@
                         </div>
                     </div>
                 </div>
-            </div>
+                </div><!-- /wk-kasus-body -->
+            </div><!-- /wk-kasus-card -->
 
         </div>
     </div>

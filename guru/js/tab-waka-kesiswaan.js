@@ -12,7 +12,7 @@ import {
     getLateArrivalsByRange, getCoachingCasesCount, getExitsByRange,
     getKelasSekolah,
 } from './api.js';
-import { esc, fe, wireSimpleAccordion, localDateStr, renderPerhatianAccordion, wirePerhatianCollapse, downloadLateExcel, downloadExitExcel } from './tab-shared.js';
+import { esc, fe, wireWaliSection, localDateStr, renderPerhatianAccordion, downloadLateExcel, downloadExitExcel } from './tab-shared.js';
 import { downloadProdiExcel, downloadKelasExcel, MONTHS_RANGE } from './tab-kaprodi.js';
 
 export let wkKasusCtx = null;
@@ -26,9 +26,11 @@ let _cachedWkExit           = [];
 export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser }) {
     const { makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList } = kasusEngine;
 
-    wireSimpleAccordion('wk-att-card');
-    wireSimpleAccordion('wk-late-card');
-    wireSimpleAccordion('wk-exit-card');
+    wireWaliSection('wk-att-toggle',      'wk-att-body');
+    wireWaliSection('wk-perhatian-toggle','wk-perhatian-body');
+    wireWaliSection('wk-late-toggle',     'wk-late-body');
+    wireWaliSection('wk-exit-toggle',     'wk-exit-body');
+    wireWaliSection('wk-kasus-toggle',    'wk-kasus-body');
     const today        = localDateStr();
     const firstOfMonth = today.slice(0, 8) + '01';
     document.getElementById('wk-att-start').value = firstOfMonth;
@@ -96,7 +98,6 @@ export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser })
     await loadWkLateRecap({ config });
     await _initWakaKesiswaanKasusSection({ makeKasusCtx, showKasusList, wireKasusDownloadButtons, loadKasusList });
     loadWkPerhatian({ config });
-    wirePerhatianCollapse('wk-perhatian-card');
 }
 
 async function loadWkPerhatian({ config }) {
@@ -276,8 +277,6 @@ async function loadWkAttendanceRecap({ config }) {
                 });
             });
         }
-
-        document.getElementById('wk-att-export-btn').style.display = '';
 
     } catch (err) {
         if (requestSeq !== _wkAttendanceRequestSeq) return;
