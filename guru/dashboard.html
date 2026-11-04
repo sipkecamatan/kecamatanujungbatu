@@ -1316,15 +1316,15 @@
         <div class="page-body">
 
             <!-- Ringkasan Hari Ini -->
-            <div id="wk-kur-stats-row" class="wk-stats-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px">
-                <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;padding:16px;text-align:center">
-                    <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:6px">Guru mulai mengisi absensi</div>
-                    <div id="wk-kur-val-hadir" style="font-size:28px;font-weight:500;color:var(--color-success,#22c55e)">—</div>
+            <div class="stats-row" id="wk-kur-stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">Guru mulai mengisi absensi</div>
+                    <span class="stat-value" id="wk-kur-val-hadir" style="color:var(--color-success,#22c55e)">—</span>
                     <div id="wk-kur-detail-sudah" style="font-size:12px;color:var(--color-text-muted);margin-top:4px"></div>
                 </div>
-                <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;padding:16px;text-align:center">
-                    <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:6px">Guru dengan sesi belum diisi</div>
-                    <div id="wk-kur-val-pending" style="font-size:28px;font-weight:500;color:var(--color-warning,#f59e0b)">—</div>
+                <div class="stat-card">
+                    <div class="stat-label">Guru dengan sesi belum diisi</div>
+                    <span class="stat-value" id="wk-kur-val-pending" style="color:var(--color-warning,#f59e0b)">—</span>
                     <div id="wk-kur-detail-belum" style="font-size:12px;color:var(--color-text-muted);margin-top:4px"></div>
                 </div>
             </div>
@@ -1353,26 +1353,28 @@
 
             <!-- Tabel 2: Rentang Waktu -->
             <div class="section-card">
-                <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;color:var(--color-text)">Sesi Belum Diisi — Rentang Waktu</h3>
-                <div class="kp-ctx-filter">
-                    <label for="wk-kur-start">Dari</label>
-                    <input type="date" id="wk-kur-start" class="input">
-                    <label for="wk-kur-end">s/d</label>
-                    <input type="date" id="wk-kur-end" class="input">
-                    <div class="kp-filter-actions">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+                    <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Sesi Belum Diisi — Rentang Waktu</h3>
+                    <div style="display:flex;gap:6px">
                         <button class="btn btn-secondary btn-sm" id="wk-kur2-refresh">Muat Ulang</button>
                         <button class="btn btn-secondary btn-sm" id="wk-kur2-btn">Tampilkan</button>
                     </div>
                 </div>
-                <div id="wk-kur2-stats-row" class="wk-stats-grid" style="display:none;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px">
-                    <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;padding:16px;text-align:center">
-                        <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:6px">Guru mulai mengisi absensi</div>
-                        <div id="wk-kur2-val-hadir" style="font-size:28px;font-weight:500;color:var(--color-success,#22c55e)">—</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">
+                    <label for="wk-kur-start" style="white-space:nowrap;font-size:13px;color:var(--color-text-muted)">Dari</label>
+                    <input type="date" id="wk-kur-start" class="input" style="flex:1;min-width:130px">
+                    <label for="wk-kur-end" style="white-space:nowrap;font-size:13px;color:var(--color-text-muted)">s/d</label>
+                    <input type="date" id="wk-kur-end" class="input" style="flex:1;min-width:130px">
+                </div>
+                <div class="stats-row" id="wk-kur2-stats-row" style="display:none">
+                    <div class="stat-card">
+                        <div class="stat-label">Guru mulai mengisi absensi</div>
+                        <span class="stat-value" id="wk-kur2-val-hadir" style="color:var(--color-success,#22c55e)">—</span>
                         <div id="wk-kur2-detail-sudah" style="font-size:12px;color:var(--color-text-muted);margin-top:4px"></div>
                     </div>
-                    <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;padding:16px;text-align:center">
-                        <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:6px">Guru dengan sesi belum diisi</div>
-                        <div id="wk-kur2-val-pending" style="font-size:28px;font-weight:500;color:var(--color-warning,#f59e0b)">—</div>
+                    <div class="stat-card">
+                        <div class="stat-label">Guru dengan sesi belum diisi</div>
+                        <span class="stat-value" id="wk-kur2-val-pending" style="color:var(--color-warning,#f59e0b)">—</span>
                         <div id="wk-kur2-detail-belum" style="font-size:12px;color:var(--color-text-muted);margin-top:4px"></div>
                     </div>
                 </div>

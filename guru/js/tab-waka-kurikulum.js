@@ -225,7 +225,7 @@ async function loadWkKur2() {
             loadWkKurStats(dateStart, dateEnd, 'wk-kur2', 'Tidak ada sesi pada rentang ini'),
         ]);
         if (seq !== _wkKur2Seq) return;
-        statsRow.style.display = 'grid';
+        statsRow.style.display = '';
         btn.disabled = false;
         if (groups.length === 0) {
             hintEl.textContent   = '✓ Tidak ada sesi yang menunggu pengisian absensi pada rentang ini.';
