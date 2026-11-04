@@ -807,12 +807,12 @@
     }
   ],
   "state": {
-    "last_updated": "2026-11-03",
-    "last_session_commit": "76c9469",
+    "last_updated": "2026-11-04",
+    "last_session_commit": "7e7c427",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
     "main_sha": "76c9469",
-    "_catatan_push": "feat(wali): standardisasi collapse 6 section tab wali kelas",
-    "last_session_summary": "UI/CSS: standardisasi collapse section (piket, catatan siswa, jurnal), mobile filter penilaian, tinggi header pen-section"
+    "_catatan_push": "fix(excel): hapus guard alert data kosong — semua ↓ Excel bisa diunduh meski belum ada data",
+    "last_session_summary": "Fix: hapus 8 guard alert+return yang memblokir ekspor Excel ketika data kosong; tambah baris 'Belum ada data tercatat' di downloadLateExcel + downloadExitExcel"
   }
 }
