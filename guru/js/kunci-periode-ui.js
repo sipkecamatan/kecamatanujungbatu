@@ -5,7 +5,6 @@
  * dan menguncinya kembali. Aturan ditegakkan server (migrasi 20261018120000); kartu ini hanya mengirim perintah dan menampilkan status.
  */
 import { getKelasSekolah, getGradePeriodStatus, unlockGradePeriod, relockGradePeriod } from './api.js';
-import { wireWaliSection } from './tab-shared.js';
 
 /** Teks status untuk satu keadaan periode (logika murni; diuji tanpa peramban). */
 export function ringkasStatusKunci(s) {
@@ -24,32 +23,42 @@ export function pasangKunciPeriode(panel, ctx) {
     kartu.className = 'section-card';
     kartu.style.marginTop = '12px';
     kartu.innerHTML = `
-        <div id="kp-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+        <div class="kp-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
             <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Kunci Nilai Semester</h3>
             <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
         </div>
-        <div id="kp-body" style="display:none;margin-top:12px">
+        <div class="kp-body" style="display:none;margin-top:12px">
         <p class="hint" style="margin:0 0 10px;font-size:12px">Setelah admin sekolah menutup semester, nilai dikunci bagi guru. Bila ada koreksi yang sah, buka kunci satu kelas dengan alasan tertulis; pembukaan dan alasannya tercatat. Kunci kembali setelah koreksi selesai.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-          <label style="font-size:12px;font-weight:normal">Kelas <select id="kp-kelas" class="input"><option value="">— Pilih Kelas —</option></select></label>
-          <label style="font-size:12px;font-weight:normal">Tahun ajaran <input type="text" id="kp-tahun" class="input" style="width:110px" value="${esc(ctx.tahun || '')}"></label>
-          <label style="font-size:12px;font-weight:normal">Semester <select id="kp-semester" class="input"><option value="1"${String(ctx.semester) !== '2' ? ' selected' : ''}>1</option><option value="2"${String(ctx.semester) === '2' ? ' selected' : ''}>2</option></select></label>
-          <button type="button" class="btn btn-primary btn-sm" id="kp-cek">Lihat Status</button>
+          <label style="font-size:12px;font-weight:normal">Kelas <select class="kp-kelas input"><option value="">— Pilih Kelas —</option></select></label>
+          <label style="font-size:12px;font-weight:normal">Tahun ajaran <input type="text" class="kp-tahun input" style="width:110px" value="${esc(ctx.tahun || '')}"></label>
+          <label style="font-size:12px;font-weight:normal">Semester <select class="kp-semester input"><option value="1"${String(ctx.semester) !== '2' ? ' selected' : ''}>1</option><option value="2"${String(ctx.semester) === '2' ? ' selected' : ''}>2</option></select></label>
+          <button type="button" class="btn btn-primary btn-sm kp-cek">Lihat Status</button>
         </div>
-        <div id="kp-hasil"></div>
+        <div class="kp-hasil"></div>
         </div>`;
     host.appendChild(kartu);
-    wireWaliSection('kp-toggle', 'kp-body');
+    const kpToggle = kartu.querySelector('.kp-toggle');
+    const kpBody   = kartu.querySelector('.kp-body');
+    const kpCaret  = kpToggle.querySelector('.pph-sect-caret');
+    kpToggle.setAttribute('aria-expanded', 'false');
+    kpToggle.addEventListener('click', () => {
+        const open = kpBody.style.display !== 'none';
+        kpBody.style.display = open ? 'none' : '';
+        if (kpCaret) kpCaret.textContent = open ? '▶' : '▼';
+        kpToggle.setAttribute('aria-expanded', String(!open));
+    });
+    kpToggle.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); kpToggle.click(); } });
     const q = (s) => kartu.querySelector(s);
-    const hasil = q('#kp-hasil');
+    const hasil = q('.kp-hasil');
     let seq = 0;
 
     getKelasSekolah().then((list) => {
-        const sel = q('#kp-kelas');
+        const sel = q('.kp-kelas');
         for (const c of list) { const o = document.createElement('option'); o.value = c.class_id; o.textContent = c.name; sel.appendChild(o); }
     }).catch(() => { hasil.innerHTML = '<p class="status-err">Gagal memuat daftar kelas.</p>'; });
 
-    const kunci = () => ({ classId: q('#kp-kelas').value, tahun: q('#kp-tahun').value.trim(), sem: Number(q('#kp-semester').value) });
+    const kunci = () => ({ classId: q('.kp-kelas').value, tahun: q('.kp-tahun').value.trim(), sem: Number(q('.kp-semester').value) });
 
     const tampil = async () => {
         const { classId, tahun, sem } = kunci();
@@ -67,29 +76,29 @@ export function pasangKunciPeriode(panel, ctx) {
             hasil.innerHTML = `
                 <div style="font-weight:600;color:${warna}">${esc(r.teks)}</div>${rinci}
                 ${r.bisaBuka ? `<div style="margin-top:8px"><label style="font-size:12px;display:block;margin-bottom:4px">Alasan membuka kunci (wajib, minimal 10 karakter)</label>
-                    <textarea id="kp-alasan" class="input" rows="2" style="width:100%;max-width:480px" placeholder="Contoh: koreksi salah input nilai UH 2 atas permintaan guru"></textarea>
-                    <div style="margin-top:6px"><button type="button" class="btn btn-primary btn-sm" id="kp-buka">Buka Kunci Kelas Ini</button></div></div>` : ''}
-                ${r.bisaKunci ? '<div style="margin-top:8px"><button type="button" class="btn btn-secondary btn-sm" id="kp-kunci">Kunci Kembali</button></div>' : ''}
-                <div id="kp-pesan" style="margin-top:6px;font-size:12px"></div>`;
+                    <textarea class="kp-alasan input" rows="2" style="width:100%;max-width:480px" placeholder="Contoh: koreksi salah input nilai UH 2 atas permintaan guru"></textarea>
+                    <div style="margin-top:6px"><button type="button" class="btn btn-primary btn-sm" data-kp-action="buka">Buka Kunci Kelas Ini</button></div></div>` : ''}
+                ${r.bisaKunci ? '<div style="margin-top:8px"><button type="button" class="btn btn-secondary btn-sm" data-kp-action="kunci">Kunci Kembali</button></div>' : ''}
+                <div class="kp-pesan" style="margin-top:6px;font-size:12px"></div>`;
         } catch (err) {
             if (mine !== seq) return;
             hasil.innerHTML = `<p class="status-err">Gagal memuat status kunci. ${esc(err.message || '')}</p>`;
         }
     };
-    const pesan = (t, ok) => { const p = q('#kp-pesan'); if (p) { p.style.color = ok ? 'var(--color-success)' : 'var(--color-danger)'; p.textContent = t; } };
+    const pesan = (t, ok) => { const p = q('.kp-pesan'); if (p) { p.style.color = ok ? 'var(--color-success)' : 'var(--color-danger)'; p.textContent = t; } };
 
-    q('#kp-cek').addEventListener('click', tampil);
+    q('.kp-cek').addEventListener('click', tampil);
     hasil.addEventListener('click', async (e) => {
-        const tombol = e.target.closest('button'); if (!tombol) return;
+        const tombol = e.target.closest('[data-kp-action]'); if (!tombol) return;
         const { classId, tahun, sem } = kunci();
         tombol.disabled = true;
         try {
-            if (tombol.id === 'kp-buka') {
-                const alasan = (q('#kp-alasan')?.value || '').trim();
+            if (tombol.dataset.kpAction === 'buka') {
+                const alasan = (q('.kp-alasan')?.value || '').trim();
                 if (alasan.length < 10) { pesan('Alasan wajib diisi, minimal 10 karakter.', false); return; }
                 await unlockGradePeriod(classId, tahun, sem, alasan);
                 await tampil();
-            } else if (tombol.id === 'kp-kunci') {
+            } else if (tombol.dataset.kpAction === 'kunci') {
                 await relockGradePeriod(classId, tahun, sem);
                 await tampil();
             }
