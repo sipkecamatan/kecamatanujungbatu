@@ -124,7 +124,6 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
                 const sem = config.current_semester ?? null;
                 const [ayStart, ayEnd] = ay.split('/').map(Number);
                 const fullRows = await getWaliLateArrivals(`${ayStart}-07-01`, `${ayEnd}-06-30`);
-                if (!fullRows.length) { alert('Tidak ada data keterlambatan pada tahun ajaran ini.'); return; }
                 const students = classId ? await getEnrolledStudents(classId, ay, sem) : [];
                 downloadWaliLateRekap(
                     fullRows, students, kelas, ay,
@@ -149,7 +148,6 @@ export async function initWaliTab({ currentUser, config, kasusEngine }) {
                 const sem = config.current_semester ?? null;
                 const [ayStart, ayEnd] = ay.split('/').map(Number);
                 const fullRows = await getWaliExits(`${ayStart}-07-01`, `${ayEnd}-06-30`);
-                if (!fullRows.length) { alert('Tidak ada data izin keluar pada tahun ajaran ini.'); return; }
                 const students = classId ? await getEnrolledStudents(classId, ay, sem) : [];
                 downloadWaliExitRekap(
                     fullRows, students, kelas, ay,

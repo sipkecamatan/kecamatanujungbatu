@@ -394,6 +394,7 @@ export function downloadLateExcel(rows, filename, { withKelas = false, withRecor
         if (withRecorder) row.push(r.recorder ?? '—');
         return row;
     });
+    if (!data.length) data.push(['Belum ada data tercatat']);
 
     const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
     const wb = XLSX.utils.book_new();
@@ -674,6 +675,7 @@ export function downloadExitExcel(rows, filename, { withKelas = false, withRecor
         if (withRecorder) row.push(r.recorder ?? '—');
         return row;
     });
+    if (!data.length) data.push(['Belum ada data tercatat']);
 
     const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
     const wb = XLSX.utils.book_new();

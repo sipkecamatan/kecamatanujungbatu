@@ -51,7 +51,6 @@ export async function initBkTab({ config, kasusEngine }) {
                 const ay = config.current_academic_year ?? '';
                 const [ayStart, ayEnd] = ay.split('/').map(Number);
                 const rows = await getLateArrivalsByRange(`${ayStart}-07-01`, `${ayEnd}-06-30`, ay);
-                if (!rows.length) { alert('Tidak ada data keterlambatan pada tahun ajaran ini.'); return; }
                 downloadLateExcel(rows, `keterlambatan_BK_${ay.replace('/', '-')}`, { withKelas: true, withRecorder: true });
             } catch (err) {
                 alert('Gagal mengunduh: ' + (err.message ?? err));
@@ -71,7 +70,6 @@ export async function initBkTab({ config, kasusEngine }) {
                 const ay = config.current_academic_year ?? '';
                 const [ayStart, ayEnd] = ay.split('/').map(Number);
                 const rows = await getExitsByRange(`${ayStart}-07-01`, `${ayEnd}-06-30`, ay);
-                if (!rows.length) { alert('Tidak ada data izin keluar pada tahun ajaran ini.'); return; }
                 downloadExitExcel(rows, `izin_keluar_BK_${ay.replace('/', '-')}`, { withKelas: true, withRecorder: true });
             } catch (err) {
                 alert('Gagal mengunduh: ' + (err.message ?? err));

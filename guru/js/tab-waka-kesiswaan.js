@@ -50,7 +50,6 @@ export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser })
                 const [ayStart, ayEnd] = ay.split('/').map(Number);
                 const label = currentUser?.role_type === 'WAKASEK' ? 'wakasek_smp' : 'waka_kesiswaan';
                 const rows = await getLateArrivalsByRange(`${ayStart}-07-01`, `${ayEnd}-06-30`, ay);
-                if (!rows.length) { alert('Tidak ada data keterlambatan pada tahun ajaran ini.'); return; }
                 downloadLateExcel(rows, `keterlambatan_${label}_${ay.replace('/', '-')}`, { withKelas: true, withRecorder: true });
             } catch (err) {
                 alert('Gagal mengunduh: ' + (err.message ?? err));
@@ -75,7 +74,6 @@ export async function initWakaKesiswaanTab({ config, kasusEngine, currentUser })
                 const [ayStart, ayEnd] = ay.split('/').map(Number);
                 const label = currentUser?.role_type === 'WAKASEK' ? 'wakasek_smp' : 'waka_kesiswaan';
                 const rows = await getExitsByRange(`${ayStart}-07-01`, `${ayEnd}-06-30`, ay);
-                if (!rows.length) { alert('Tidak ada data izin keluar pada tahun ajaran ini.'); return; }
                 downloadExitExcel(rows, `izin_keluar_${label}_${ay.replace('/', '-')}`, { withKelas: true, withRecorder: true });
             } catch (err) {
                 alert('Gagal mengunduh: ' + (err.message ?? err));
