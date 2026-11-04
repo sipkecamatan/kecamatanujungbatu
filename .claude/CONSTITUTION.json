@@ -746,7 +746,7 @@
     "kaprodi_placement_actions": "Penempatan PKL: class kp-placement-actions (CSS di guru.css). Desktop: flex horizontal. Mobile: flex-column, semua btn width:100%. Urutan: Simpan Penempatan, Impor CSV, Unduh Template CSV.",
     "wali_excel_di_header": "SUDAH DIPERBAIKI (3 Nov 2026, diperbarui f10753a): wali-late-excel-btn + wali-exit-excel-btn di date-row-actions, SELALU tampil. Handler ekspor FULL YEAR (ayStart-07-01 s/d ayEnd-06-30), pakai config closure (bukan getSchoolConfig). downloadWaliLateRekap + downloadWaliExitRekap dari tab-shared.js:416,696.",
     "excel_btn_label": "Standar label tombol ekspor Excel = \"↓ Excel\" (bukan \"Unduh Excel\", bukan \"⬇ Unduh Excel\"). textContent restore di finally block wajib sama. Komentar di tab-shared.js/rekap-excel.js TIDAK diubah.",
-    "excel_standar_global": "STANDAR GLOBAL (76c9469, 3 Nov 2026): semua ↓ Excel ekspor FULL YEAR (ayStart-07-01 s/d ayEnd-06-30) INDEPENDEN dari filter layar. Tombol selalu tampil sejak section dibuka (tidak display:none, tidak bergantung cache). Cache guard (_cached*.length) TIDAK DIGUNAKAN. Alert jika tidak ada data. Nama file: pakai ay (mis. 2026-2027), bukan rentang filter. Berlaku di SEMUA tab: Wali, BK, Waka, Kaprodi, Guru Mapel. Tab Guru: tombol statis guru-recap-export-static sejajar Tampilkan; fungsi _downloadGuruExcel() ekspor SEMUA kelas yang diampu tanpa perlu pilih kelas dulu."
+    "excel_standar_global": "STANDAR GLOBAL (7e7c427, 4 Nov 2026 update): semua ↓ Excel ekspor FULL YEAR (ayStart-07-01 s/d ayEnd-06-30) INDEPENDEN dari filter layar. Tombol selalu tampil sejak section dibuka (tidak display:none, tidak bergantung cache). Cache guard (_cached*.length) TIDAK DIGUNAKAN. Data kosong BUKAN alasan membatalkan unduhan — tetap hasilkan file dengan baris 'Belum ada data tercatat'. Nama file: pakai ay (mis. 2026-2027), bukan rentang filter. Berlaku di SEMUA tab: Wali, BK, Waka, Kaprodi, Guru Mapel. Tab Guru: tombol statis guru-recap-export-static sejajar Tampilkan; fungsi _downloadGuruExcel() ekspor SEMUA kelas yang diampu tanpa perlu pilih kelas dulu."
   },
   "open_tasks": [
     {
@@ -808,10 +808,10 @@
   ],
   "state": {
     "last_updated": "2026-11-04",
-    "last_session_commit": "7e7c427",
+    "last_session_commit": "865b6f5",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "76c9469",
+    "main_sha": "865b6f5",
     "_catatan_push": "fix(excel): hapus guard alert data kosong — semua ↓ Excel bisa diunduh meski belum ada data",
     "last_session_summary": "Fix: hapus 8 guard alert+return yang memblokir ekspor Excel ketika data kosong; tambah baris 'Belum ada data tercatat' di downloadLateExcel + downloadExitExcel"
   }
