@@ -5,6 +5,7 @@
  * fn_nilai_per_tp_siswa (khusus kedua peran itu, dikenali lewat peran ATAU tanda). Pembuatan HTML dipisahkan sebagai fungsi murni agar dapat diuji.
  */
 import { getNilaiPerTp, getNilaiPerTpSiswa } from './api.js';
+import { wireWaliSection } from './tab-shared.js';
 
 const fmt = (n) => (n === null || n === undefined ? '—' : String(n).replace('.', ','));
 
@@ -52,15 +53,21 @@ export function pasangNilaiPimpinan(panel, ctx) {
     kartu.className = 'section-card';
     kartu.style.marginTop = '12px';
     kartu.innerHTML = `
-        <h3 style="margin:0 0 6px">Nilai per Tujuan Pembelajaran</h3>
+        <div id="np-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+            <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Nilai per Tujuan Pembelajaran</h3>
+            <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+        </div>
+        <div id="np-body" style="display:none;margin-top:12px">
         <p class="hint" style="margin:0 0 10px;font-size:12px">Dihitung otomatis dari penilaian <strong>sumatif</strong> yang sudah diinput guru, tanpa menunggu guru menyimpan rekap. Ketercapaian memakai batas KKTP tiap TP.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
           <label style="font-size:12px;font-weight:normal">Tahun ajaran <input type="text" id="np-tahun" class="input" style="width:110px" value="${esc(ctx.tahun || '')}"></label>
           <label style="font-size:12px;font-weight:normal">Semester <select id="np-semester" class="input"><option value="">Semua</option><option value="1"${String(ctx.semester) === '1' ? ' selected' : ''}>1</option><option value="2"${String(ctx.semester) === '2' ? ' selected' : ''}>2</option></select></label>
           <button type="button" class="btn btn-primary btn-sm" id="np-muat">Tampilkan</button>
         </div>
-        <div id="np-hasil"></div>`;
-    (panel.querySelector('.page-body') || panel).appendChild(kartu);   // di dalam kolom isi (lebar dan tengah sama dengan kartu lain)
+        <div id="np-hasil"></div>
+        </div>`;
+    (panel.querySelector('.page-body') || panel).appendChild(kartu);
+    wireWaliSection('np-toggle', 'np-body');
     const hasil = kartu.querySelector('#np-hasil');
 
     kartu.querySelector('#np-muat').addEventListener('click', async (e) => {

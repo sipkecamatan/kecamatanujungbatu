@@ -5,6 +5,7 @@
  * dan menguncinya kembali. Aturan ditegakkan server (migrasi 20261018120000); kartu ini hanya mengirim perintah dan menampilkan status.
  */
 import { getKelasSekolah, getGradePeriodStatus, unlockGradePeriod, relockGradePeriod } from './api.js';
+import { wireWaliSection } from './tab-shared.js';
 
 /** Teks status untuk satu keadaan periode (logika murni; diuji tanpa peramban). */
 export function ringkasStatusKunci(s) {
@@ -23,7 +24,11 @@ export function pasangKunciPeriode(panel, ctx) {
     kartu.className = 'section-card';
     kartu.style.marginTop = '12px';
     kartu.innerHTML = `
-        <h3 style="margin:0 0 6px">Kunci Nilai Semester</h3>
+        <div id="kp-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+            <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--color-text)">Kunci Nilai Semester</h3>
+            <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+        </div>
+        <div id="kp-body" style="display:none;margin-top:12px">
         <p class="hint" style="margin:0 0 10px;font-size:12px">Setelah admin sekolah menutup semester, nilai dikunci bagi guru. Bila ada koreksi yang sah, buka kunci satu kelas dengan alasan tertulis; pembukaan dan alasannya tercatat. Kunci kembali setelah koreksi selesai.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
           <label style="font-size:12px;font-weight:normal">Kelas <select id="kp-kelas" class="input"><option value="">— Pilih Kelas —</option></select></label>
@@ -31,8 +36,10 @@ export function pasangKunciPeriode(panel, ctx) {
           <label style="font-size:12px;font-weight:normal">Semester <select id="kp-semester" class="input"><option value="1"${String(ctx.semester) !== '2' ? ' selected' : ''}>1</option><option value="2"${String(ctx.semester) === '2' ? ' selected' : ''}>2</option></select></label>
           <button type="button" class="btn btn-primary btn-sm" id="kp-cek">Lihat Status</button>
         </div>
-        <div id="kp-hasil"></div>`;
+        <div id="kp-hasil"></div>
+        </div>`;
     host.appendChild(kartu);
+    wireWaliSection('kp-toggle', 'kp-body');
     const q = (s) => kartu.querySelector(s);
     const hasil = q('#kp-hasil');
     let seq = 0;
