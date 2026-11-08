@@ -26,7 +26,6 @@ export async function initWakaKurTab({ config, panel } = {}) {
         const today = localDateStr();
         document.getElementById('wk-kur-start').value = today;
         document.getElementById('wk-kur-end').value   = today;
-        document.getElementById('wk-kur2-refresh').onclick = () => loadWkKur2();
         document.getElementById('wk-kur2-btn').onclick = handleWkKur2Btn;
         await loadWkKur2();
     }
