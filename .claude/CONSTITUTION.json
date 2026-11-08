@@ -214,12 +214,12 @@
         "Keterlambatan Seluruh Sekolah",
         "Pembinaan Siswa — Kesiswaan",
         "Detail kasus + tindakan Waka",
-        "Sesi Belum Diisi (filter tanggal, default hari ini, auto-load)"
+        "Pantau Absensi Guru (filter tanggal, default hari ini, auto-load — otomatis dari tab-waka_kurikulum via DOM-move)"
       ]
     },
     "waka_kurikulum": {
       "Tab Waka Kurikulum": [
-        "Sesi Belum Diisi (filter tanggal, default hari ini, auto-load)"
+        "Pantau Absensi Guru (filter tanggal, default hari ini, auto-load)"
       ]
     },
     "waka_humas": {
@@ -812,10 +812,10 @@
   ],
   "state": {
     "last_updated": "2026-11-08",
-    "last_session_commit": "6a77c08",
+    "last_session_commit": "e79ae9d",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "6a77c08",
-    "last_session_summary": "fix(ui): rapikan tab Waka Kurikulum — stats-row+stat-card mengganti custom inline grid; Section 2 header sejajarkan tombol Muat Ulang+Tampilkan; date filter pisah dari tombol; wk-kur2-stats-row style.display='' agar CSS flex bekerja"
+    "main_sha": "e79ae9d",
+    "last_session_summary": "docs(constitution): rename label ui_map Sesi Belum Diisi → Pantau Absensi Guru; konfirmasi SMK+SMP WAKASEK sudah sinkron via DOM-move tanpa perubahan kode"
   }
 }
