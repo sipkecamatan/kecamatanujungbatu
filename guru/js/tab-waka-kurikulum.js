@@ -4,17 +4,13 @@
  */
 import {
     getWakaKurStats,
-    getPendingAttendanceSessions, getPendingSessionsByTeacher, getPendingSessionsDetail,
+    getPendingSessionsByTeacher, getPendingSessionsDetail,
 } from './api.js';
 import { pasangNilaiPimpinan } from './nilai-pimpinan-ui.js';
 import { pasangNilaiRaporKelas } from './nilai-rapor-kelas-ui.js';
 import { pasangKunciPeriode } from './kunci-periode-ui.js';
 import { esc, fe, fmtTime, localDateStr } from './tab-shared.js';
 
-let _wkKur1Visible = false;
-let _wkKur1Loaded  = false;
-let _wkKur1Date    = null;
-let _wkKur1Seq     = 0;
 let _wkKur2Visible = false;
 let _wkKur2Seq     = 0;
 let _wkKurTabInit  = false;
@@ -27,32 +23,16 @@ export async function initWakaKurTab({ config, panel } = {}) {
     pasangKunciPeriode(tabEl, { esc, tahun: config?.current_academic_year, semester: config?.current_semester });
     if (!_wkKurTabInit) {
         _wkKurTabInit = true;
-        const weekAgo = localDateStr(new Date(Date.now() - 6 * 86400000));
-        document.getElementById('wk-kur-start').value = weekAgo;
-        document.getElementById('wk-kur-end').value   = localDateStr();
-        document.getElementById('wk-kur1-refresh').onclick = () => { loadWkKurStats(localDateStr(), localDateStr()); loadWkKur1(localDateStr()); };
+        const today = localDateStr();
+        document.getElementById('wk-kur-start').value = today;
+        document.getElementById('wk-kur-end').value   = today;
         document.getElementById('wk-kur2-refresh').onclick = () => loadWkKur2();
-        document.getElementById('wk-kur1-btn').onclick = handleWkKur1Btn;
         document.getElementById('wk-kur2-btn').onclick = handleWkKur2Btn;
+        await loadWkKur2();
     }
-    const today = localDateStr();
-    const reloadDaily = _wkKur1Visible;
-    ++_wkKur1Seq;
-    _wkKur1Loaded = false;
-    _wkKur1Date = null;
-    _wkKur1Visible = false;
-    document.getElementById('wk-kur1-wrap').style.display = 'none';
-    document.getElementById('wk-kur1-hint').style.display = 'none';
-    const btn = document.getElementById('wk-kur1-btn');
-    btn.disabled = false;
-    btn.textContent = 'Tampilkan';
-    await Promise.all([
-        loadWkKurStats(today, today),
-        ...(reloadDaily ? [loadWkKur1(today)] : []),
-    ]);
 }
 
-async function loadWkKurStats(dateStart, dateEnd, prefix = 'wk-kur', emptyMsg = 'Tidak ada sesi hari ini') {
+async function loadWkKurStats(dateStart, dateEnd, prefix = 'wk-kur2', emptyMsg = 'Tidak ada sesi hari ini') {
     const elHadir       = document.getElementById(`${prefix}-val-hadir`);
     const elPending     = document.getElementById(`${prefix}-val-pending`);
     const elDetailSudah = document.getElementById(`${prefix}-detail-sudah`);
@@ -93,105 +73,6 @@ async function loadWkKurStats(dateStart, dateEnd, prefix = 'wk-kur', emptyMsg = 
     }
 }
 
-async function loadWkKur1(date = localDateStr()) {
-    const seq = ++_wkKur1Seq;
-    const hintEl = document.getElementById('wk-kur1-hint');
-    const wrapEl = document.getElementById('wk-kur1-wrap');
-    const tbody  = document.getElementById('wk-kur1-body');
-    const btn    = document.getElementById('wk-kur1-btn');
-
-    hintEl.style.display = 'none';
-    wrapEl.style.display = 'none';
-    btn.style.display    = '';
-    btn.disabled         = true;
-    btn.textContent      = 'Memuat…';
-    _wkKur1Loaded = false;
-    _wkKur1Date = null;
-    _wkKur1Visible = false;
-
-    try {
-        const rows = await getPendingAttendanceSessions(date);
-        if (seq !== _wkKur1Seq || date !== localDateStr()) return;
-
-        if (rows.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" class="hint" style="text-align:center;padding:12px">✓ Tidak ada sesi yang menunggu pengisian absensi hari ini.</td></tr>`;
-        } else {
-            const groups = {};
-            rows.forEach(r => {
-                const key = r.teacher_id;
-                if (!groups[key]) groups[key] = { name: r.teacher?.full_name ?? '—', sesi: [] };
-                groups[key].sesi.push(r);
-            });
-            const sorted = Object.keys(groups).sort((a, b) =>
-                groups[a].name.localeCompare(groups[b].name, 'id'));
-
-            let html = '';
-            sorted.forEach((tid, i) => {
-                const g = groups[tid];
-                html += `<tr data-guru-idx="${i}" style="cursor:pointer">
-                    <td style="text-align:center">${i + 1}</td>
-                    <td>${esc(g.name)} <span style="font-size:11px;background:var(--color-surface-raised,rgba(0,0,0,.12));border-radius:4px;padding:1px 6px;margin-left:4px">${g.sesi.length} sesi</span></td>
-                    <td style="text-align:center;font-size:18px;color:var(--color-text-muted)" class="wk-kur1-arrow">&#8250;</td>
-                </tr>
-                <tr id="wk-kur1-detail-${i}" style="display:none">
-                    <td colspan="3" style="padding:0">
-                        <table style="width:100%;border-collapse:collapse;background:var(--color-surface-raised,rgba(0,0,0,.08))">
-                            <thead><tr style="font-size:11px;color:var(--color-text-muted)">
-                                <th style="padding:5px 12px;text-align:left">Sesi</th>
-                                <th style="padding:5px 12px;text-align:left">Mata Pelajaran</th>
-                                <th style="padding:5px 12px;text-align:left">Kelas</th>
-                            </tr></thead>
-                            <tbody>${g.sesi.map(s => `<tr>
-                                <td style="padding:5px 12px">${fmtTime(s.session_start)}–${fmtTime(s.session_end)}</td>
-                                <td style="padding:5px 12px">${esc(s.subject?.name ?? '—')}</td>
-                                <td style="padding:5px 12px">${esc(s.class?.name ?? '—')}</td>
-                            </tr>`).join('')}</tbody>
-                        </table>
-                    </td>
-                </tr>`;
-            });
-            tbody.innerHTML = html;
-
-            tbody.querySelectorAll('tr[data-guru-idx]').forEach(tr => {
-                tr.addEventListener('click', () => {
-                    const idx = tr.dataset.guruIdx;
-                    const det = document.getElementById(`wk-kur1-detail-${idx}`);
-                    const arr = tr.querySelector('.wk-kur1-arrow');
-                    const open = det.style.display !== 'none';
-                    det.style.display = open ? 'none' : '';
-                    if (arr) arr.innerHTML = open ? '&#8250;' : '&#8964;';
-                });
-            });
-        }
-
-        wrapEl.style.display = '';
-        btn.style.display    = '';
-        btn.textContent      = 'Sembunyikan';
-        _wkKur1Visible = true;
-        _wkKur1Loaded = true;
-        _wkKur1Date = date;
-    } catch (err) {
-        if (seq !== _wkKur1Seq || date !== localDateStr()) return;
-        hintEl.textContent   = `Gagal memuat data. ${fe(err)}`;
-        hintEl.style.display = 'block';
-    } finally {
-        if (seq === _wkKur1Seq) {
-            btn.disabled = false;
-            if (!_wkKur1Loaded) btn.textContent = 'Tampilkan';
-        }
-    }
-}
-
-function handleWkKur1Btn() {
-    if (!_wkKur1Loaded || _wkKur1Date !== localDateStr()) {
-        return loadWkKur1(localDateStr());
-    }
-    const wrapEl = document.getElementById('wk-kur1-wrap');
-    const btn    = document.getElementById('wk-kur1-btn');
-    _wkKur1Visible = !_wkKur1Visible;
-    wrapEl.style.display = _wkKur1Visible ? '' : 'none';
-    btn.textContent      = _wkKur1Visible ? 'Sembunyikan' : 'Tampilkan';
-}
 
 async function loadWkKur2() {
     const seq = ++_wkKur2Seq;

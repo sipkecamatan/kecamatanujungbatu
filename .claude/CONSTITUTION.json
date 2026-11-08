@@ -214,14 +214,12 @@
         "Keterlambatan Seluruh Sekolah",
         "Pembinaan Siswa — Kesiswaan",
         "Detail kasus + tindakan Waka",
-        "Sesi Belum Diisi — Hari Ini",
-        "Sesi Belum Diisi — Rentang Waktu"
+        "Sesi Belum Diisi (filter tanggal, default hari ini, auto-load)"
       ]
     },
     "waka_kurikulum": {
       "Tab Waka Kurikulum": [
-        "Sesi Belum Diisi — Hari Ini",
-        "Sesi Belum Diisi — Rentang Waktu"
+        "Sesi Belum Diisi (filter tanggal, default hari ini, auto-load)"
       ]
     },
     "waka_humas": {
@@ -813,11 +811,11 @@
     }
   ],
   "state": {
-    "last_updated": "2026-11-04",
-    "last_session_commit": "1f223b5",
+    "last_updated": "2026-11-08",
+    "last_session_commit": "6a77c08",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "1f223b5",
+    "main_sha": "6a77c08",
     "last_session_summary": "fix(ui): rapikan tab Waka Kurikulum — stats-row+stat-card mengganti custom inline grid; Section 2 header sejajarkan tombol Muat Ulang+Tampilkan; date filter pisah dari tombol; wk-kur2-stats-row style.display='' agar CSS flex bekerja"
   }
 }
