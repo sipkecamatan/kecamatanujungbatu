@@ -1,6 +1,6 @@
 /**
  * @file guru/js/tab-waka-kurikulum.js
- * Tab Waka Kurikulum — statistik kehadiran guru, sesi belum diisi, rekap rentang.
+ * Tab Waka Kurikulum — pantau absensi guru, sesi belum diisi, rekap rentang.
  */
 import {
     getWakaKurStats,
