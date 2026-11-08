@@ -812,10 +812,10 @@
   ],
   "state": {
     "last_updated": "2026-11-08",
-    "last_session_commit": "e7f26a5",
+    "last_session_commit": "74c89d3",
     "migrasi_terpasang_sampai": "20261102030000",
     "migrasi_ditulis_belum_push": "20261102040000",
-    "main_sha": "e7f26a5",
+    "main_sha": "74c89d3",
     "last_session_summary": "feat(waka-humas): accordion + Excel export — 5 section jadi collapsible (pola Kelas Walian), Filter→Tampilkan, kp-ctx-filter responsif, tombol Excel dalam section body (Daftar Siswa/Rekap Absensi/Mitra DUDI)"
   }
 }
