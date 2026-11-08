@@ -7,7 +7,7 @@ import {
     fetchPklAttendance, fetchDudiObservations,
     getOpenCases,
 } from './api.js';
-import { esc, fe, fmt } from './tab-shared.js';
+import { esc, fe, fmt, wireWaliSection } from './tab-shared.js';
 
 const DIMENSION_LABELS = {
     AKADEMIK: 'Akademik', KEHADIRAN: 'Kehadiran', PERILAKU: 'Perilaku',
@@ -32,11 +32,20 @@ export async function initWakaHumasTab({ currentUser }) {
     if (_whTabInit) return;
     _whTabInit = true;
 
+    wireWaliSection('wh-students-toggle', 'wh-students-sec');
+    wireWaliSection('wh-recap-toggle',    'wh-recap-sec');
+    wireWaliSection('wh-dudi-toggle',     'wh-dudi-sec');
+    wireWaliSection('wh-obs-toggle',      'wh-obs-sec');
+    wireWaliSection('wh-cases-toggle',    'wh-cases-sec');
+
     const today    = localDateStr();
     const monthAgo = localDateStr(new Date(Date.now() - 30 * 86400000));
     document.getElementById('wh-date-start').value = monthAgo;
     document.getElementById('wh-date-end').value   = today;
-    document.getElementById('wh-filter-btn').onclick = loadWhRecap;
+    document.getElementById('wh-filter-btn').onclick         = loadWhRecap;
+    document.getElementById('wh-students-excel-btn').onclick = downloadWhStudentsExcel;
+    document.getElementById('wh-recap-excel-btn').onclick    = downloadWhRecapExcel;
+    document.getElementById('wh-dudi-excel-btn').onclick     = downloadWhDudiExcel;
 
     try {
         [whStudents, whDudiList] = await Promise.all([
@@ -155,4 +164,56 @@ async function loadWhCases(currentUser) {
     } catch (err) {
         tbody.innerHTML = `<tr><td colspan="4" style="color:var(--color-danger)">${esc(fe(err))}</td></tr>`;
     }
+}
+
+function _xlsxDownload(wb, filename) {
+    /* global XLSX */
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/octet-stream' }));
+    const a = document.createElement('a'); a.href = url; a.download = filename + '.xlsx'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+function downloadWhStudentsExcel() {
+    /* global XLSX */
+    const header = ['Nama', 'NIS', 'Program', 'Tempat PKL', 'Periode'];
+    const data = whStudents.map(s => [
+        s.full_name ?? '—', s.nis ?? '—', s.program_name ?? '—', s.dudi_name ?? '—',
+        s.has_placement ? `${fmt(s.start_date)} – ${fmt(s.end_date)}` : 'Belum',
+    ]);
+    const wb = XLSX.utils.book_new();
+    _xlsxDownload(XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...data]), 'Daftar Siswa PKL'), 'daftar-siswa-pkl');
+}
+
+async function downloadWhRecapExcel() {
+    /* global XLSX */
+    const btn = document.getElementById('wh-recap-excel-btn');
+    btn.disabled = true; btn.textContent = 'Memuat…';
+    try {
+        const start = document.getElementById('wh-date-start').value || null;
+        const end   = document.getElementById('wh-date-end').value   || null;
+        const ids   = whStudents.map(s => s.student_id);
+        const rows  = ids.length ? await fetchPklAttendance(ids, start, end) : [];
+        const nameMap = new Map(whStudents.map(s => [s.student_id, { name: s.full_name, prog: s.program_name }]));
+        const recap = rows.filter(r => nameMap.has(r.student_id)).map(r => ({ ...nameMap.get(r.student_id), ...r }));
+        const header = ['Nama', 'Program', 'Hadir', 'Sakit', 'Izin', 'Alpa', '% Hadir'];
+        const data = recap.map(a => [
+            a.name ?? '—', a.prog ?? '—', a.HADIR ?? 0, a.SAKIT ?? 0, a.IZIN ?? 0, a.ALPA ?? 0,
+            a.total > 0 ? Math.round(a.HADIR / a.total * 100) + '%' : '—',
+        ]);
+        const wb = XLSX.utils.book_new();
+        _xlsxDownload(XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...data]), 'Rekap Absensi PKL'), 'rekap-absensi-pkl');
+    } catch (err) {
+        console.error('[wh-recap-excel]', err);
+    } finally {
+        btn.disabled = false; btn.textContent = '↓ Excel';
+    }
+}
+
+function downloadWhDudiExcel() {
+    /* global XLSX */
+    const header = ['Nama Usaha', 'Penanggung Jawab', 'Program'];
+    const data = whDudiList.map(d => [d.org_name ?? '—', d.pic_name ?? '—', d.program_name ?? '—']);
+    const wb = XLSX.utils.book_new();
+    _xlsxDownload(XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...data]), 'Mitra DUDI'), 'mitra-dudi');
 }

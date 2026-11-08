@@ -1066,58 +1066,94 @@
                 <div class="stat-card"><span class="stat-value" id="wh-stat-dudi">—</span><div class="stat-label">Mitra DUDI</div></div>
             </div>
 
-            <!-- Daftar Siswa PKL (semua program) -->
-            <div class="section-card">
-                <h3>Daftar Siswa PKL</h3>
-                <div class="table-wrapper">
-                    <table class="table"><thead><tr><th>Nama</th><th>NIS</th><th>Program</th><th>Tempat PKL</th><th>Periode</th></tr></thead>
-                    <tbody id="wh-students-body"></tbody></table>
+            <!-- Daftar Siswa PKL -->
+            <div class="section-card" style="margin-top:16px">
+                <div id="wh-students-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0">Daftar Siswa PKL</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                 </div>
-                <p class="hint" id="wh-students-empty" style="display:none">Belum ada siswa yang sedang PKL.</p>
+                <div id="wh-students-sec" style="display:none;margin-top:12px">
+                    <div style="margin-bottom:8px">
+                        <button class="btn btn-secondary btn-sm" id="wh-students-excel-btn">↓ Excel</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="table"><thead><tr><th>Nama</th><th>NIS</th><th>Program</th><th>Tempat PKL</th><th>Periode</th></tr></thead>
+                        <tbody id="wh-students-body"></tbody></table>
+                    </div>
+                    <p class="hint" id="wh-students-empty" style="display:none">Belum ada siswa yang sedang PKL.</p>
+                </div>
             </div>
 
             <!-- Rekap Absensi PKL -->
-            <div class="section-card">
-                <h3>Rekap Absensi PKL</h3>
-                <div class="date-row" style="margin-bottom:12px">
-                    <label for="wh-date-start">Dari:</label><input type="date" id="wh-date-start" class="input" style="width:auto">
-                    <label for="wh-date-end">s/d:</label><input type="date" id="wh-date-end" class="input" style="width:auto">
-                    <button class="btn btn-secondary btn-sm" id="wh-filter-btn">Filter</button>
+            <div class="section-card" style="margin-top:16px">
+                <div id="wh-recap-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0">Rekap Absensi PKL</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                 </div>
-                <div class="table-wrapper">
-                    <table class="table"><thead><tr><th style="min-width:120px">Nama</th><th style="min-width:90px">Program</th><th>Hadir</th><th>Sakit</th><th>Izin</th><th>Alpa</th><th>% Hadir</th></tr></thead>
-                    <tbody id="wh-recap-body"></tbody></table>
+                <div id="wh-recap-sec" style="display:none;margin-top:12px">
+                    <div class="kp-ctx-filter">
+                        <label for="wh-date-start">Dari</label>
+                        <input type="date" id="wh-date-start" class="input" style="width:auto">
+                        <label for="wh-date-end">s/d</label>
+                        <input type="date" id="wh-date-end" class="input" style="width:auto">
+                        <div class="kp-filter-actions">
+                            <button class="btn btn-secondary btn-sm" id="wh-filter-btn">Tampilkan</button>
+                            <button class="btn btn-secondary btn-sm" id="wh-recap-excel-btn">↓ Excel</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="table"><thead><tr><th style="min-width:120px">Nama</th><th style="min-width:90px">Program</th><th>Hadir</th><th>Sakit</th><th>Izin</th><th>Alpa</th><th>% Hadir</th></tr></thead>
+                        <tbody id="wh-recap-body"></tbody></table>
+                    </div>
+                    <p class="hint" id="wh-recap-empty" style="display:none">Belum ada data absensi pada rentang ini.</p>
                 </div>
-                <p class="hint" id="wh-recap-empty" style="display:none">Belum ada data absensi pada rentang ini.</p>
             </div>
 
-            <!-- Mitra DUDI (semua program) -->
-            <div class="section-card">
-                <h3>Mitra DUDI</h3>
-                <div class="table-wrapper">
-                    <table class="table"><thead><tr><th>Nama Usaha</th><th>Penanggung Jawab</th><th>Program</th></tr></thead>
-                    <tbody id="wh-dudi-body"></tbody></table>
+            <!-- Mitra DUDI -->
+            <div class="section-card" style="margin-top:16px">
+                <div id="wh-dudi-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0">Mitra DUDI</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                 </div>
-                <p class="hint" id="wh-dudi-empty" style="display:none">Belum ada mitra DUDI terdaftar.</p>
+                <div id="wh-dudi-sec" style="display:none;margin-top:12px">
+                    <div style="margin-bottom:8px">
+                        <button class="btn btn-secondary btn-sm" id="wh-dudi-excel-btn">↓ Excel</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="table"><thead><tr><th>Nama Usaha</th><th>Penanggung Jawab</th><th>Program</th></tr></thead>
+                        <tbody id="wh-dudi-body"></tbody></table>
+                    </div>
+                    <p class="hint" id="wh-dudi-empty" style="display:none">Belum ada mitra DUDI terdaftar.</p>
+                </div>
             </div>
 
             <!-- Observasi dari DUDI -->
-            <div class="section-card">
-                <h3>Observasi dari DUDI</h3>
-                <p class="hint" id="wh-obs-hint" style="display:none">Belum ada observasi dari DUDI.</p>
-                <div id="wh-obs-list"></div>
+            <div class="section-card" style="margin-top:16px">
+                <div id="wh-obs-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0">Observasi dari DUDI</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
+                </div>
+                <div id="wh-obs-sec" style="display:none;margin-top:12px">
+                    <p class="hint" id="wh-obs-hint" style="display:none">Belum ada observasi dari DUDI.</p>
+                    <div id="wh-obs-list"></div>
+                </div>
             </div>
 
             <!-- Kasus PKL -->
-            <div class="section-card">
-                <h3>Kasus PKL</h3>
-                <div class="table-wrapper">
-                    <table class="table" id="wh-cases-table">
-                        <thead><tr><th>Siswa</th><th>Judul</th><th>Tahap</th><th>Dibuka</th></tr></thead>
-                        <tbody id="wh-cases-body"></tbody>
-                    </table>
+            <div class="section-card" style="margin-top:16px">
+                <div id="wh-cases-toggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" tabindex="0" role="button">
+                    <h3 style="margin:0">Kasus PKL</h3>
+                    <span class="pph-sect-caret" style="font-size:13px;color:var(--color-text-muted);flex-shrink:0">▶</span>
                 </div>
-                <p class="hint" id="wh-cases-empty" style="display:none">Tidak ada kasus PKL terbuka.</p>
+                <div id="wh-cases-sec" style="display:none;margin-top:12px">
+                    <div class="table-wrapper">
+                        <table class="table" id="wh-cases-table">
+                            <thead><tr><th>Siswa</th><th>Judul</th><th>Tahap</th><th>Dibuka</th></tr></thead>
+                            <tbody id="wh-cases-body"></tbody>
+                        </table>
+                    </div>
+                    <p class="hint" id="wh-cases-empty" style="display:none">Tidak ada kasus PKL terbuka.</p>
+                </div>
             </div>
 
         </div>
